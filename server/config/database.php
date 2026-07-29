@@ -1,16 +1,16 @@
 <?php
 return [
-    'default' => 'mysql',
+    'default' => 'pgsql',
     'connections' => [
-        'mysql' => [
-            'driver' => env('DB_TYPE', 'mysql'),
+        'pgsql' => [
+            'driver' => env('DB_TYPE', 'pgsql'),
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', 3306),
+            'port' => env('DB_PORT', 5432),
             'database' => env('DB_NAME', 'saiadmin'),
             'username' => env('DB_USER', 'root'),
             'password' => env('DB_PASSWORD', '123456'),
-            'charset' => env('DB_CHARSET', 'utf8mb4'),
-            'collation' => env('DB_COLLATION', 'utf8mb4_general_ci'),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'collation' => env('DB_COLLATION', 'utf8'),
             'prefix' => env('DB_PREFIX', ''),
             'strict' => true,
             'engine' => null,

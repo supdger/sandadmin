@@ -7,7 +7,11 @@
 </p>
 
 <div style="padding:18px;max-width: 1024px;margin:0 auto;">
-<h1>SaiAdmin 6.x</h1>
+<h1>SaiAdmin PG</h1>
+
+> SaiAdmin 6.x 的 PostgreSQL 适配仓库，基于上游 [saithink/saiadmin6.x](https://github.com/saithink/saiadmin6.x) 维护。保留上游 MIT 许可证与版权声明。
+
+> 本仓库包含 PostgreSQL 配置、安装支持，以及适配后的 `sandworkflow` 插件包（位于 `plugins/sandworkflow`）。上游 MySQL 插件源码不在此处修改。
 
 ## 项目简介
 

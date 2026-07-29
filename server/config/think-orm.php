@@ -1,11 +1,11 @@
 <?php
 
 return [
-    'default' => 'mysql',
+    'default' => 'pgsql',
     'connections' => [
-        'mysql' => [
+        'pgsql' => [
             // 数据库类型
-            'type' => env('DB_TYPE', 'mysql'),
+            'type' => env('DB_TYPE', 'pgsql'),
             // 服务器地址
             'hostname' => env('DB_HOST', '127.0.0.1'),
             // 数据库名
@@ -15,14 +15,14 @@ return [
             // 数据库密码
             'password' => env('DB_PASSWORD', '123456'),
             // 数据库连接端口
-            'hostport' => env('DB_PORT', 3306),
+            'hostport' => env('DB_PORT', 5432),
             // 数据库连接参数
             'params' => [
                 // 连接超时3秒
                 \PDO::ATTR_TIMEOUT => 3,
             ],
-            // 数据库编码默认采用utf8mb4
-            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            // 数据库编码默认采用utf8
+            'charset' => env('DB_CHARSET', 'utf8'),
             // 数据库表前缀
             'prefix' => env('DB_PREFIX', ''),
             // 断线重连

@@ -1,0 +1,18 @@
+# Local operating-system and developer-machine files
+**/.DS_Store
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+
+# Local browser automation artifacts
+**/.playwright-cli/
+
+# Generated dependencies and runtime output
+**/node_modules/
+**/vendor/
+**/runtime/
+**/dist/
+
+# Generated during the JWT plugin installation; never publish local signing keys.
+server/config/plugin/tinywan/jwt/app.php

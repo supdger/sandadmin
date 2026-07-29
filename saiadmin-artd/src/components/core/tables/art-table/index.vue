@@ -52,8 +52,8 @@
           <template #default="{ row }">
             <div class="flex-c">
               <ElImage
-                :src="col.prop ? row[col.prop] : ''"
-                :preview-src-list="col.prop ? [row[col.prop]] : []"
+                :src="col.prop && row[col.prop] ? row[col.prop] : defaultAvatar"
+                :preview-src-list="col.prop && row[col.prop] ? [row[col.prop]] : []"
                 :preview-teleported="true"
                 class="size-9.5 rounded-md"
               />
@@ -134,6 +134,7 @@
   import { QuestionFilled } from '@element-plus/icons-vue'
   import { storeToRefs } from 'pinia'
   import { ColumnOption } from '@/types'
+  import defaultAvatar from '@/assets/images/user/avatar.webp'
   import { useTableStore } from '@/store/modules/table'
   import { useCommon } from '@/hooks/core/useCommon'
   import { useTableHeight } from '@/hooks/core/useTableHeight'

@@ -48,6 +48,12 @@
     "post-package-update": [
       "support\\Plugin::install"
     ],
+    "post-install-cmd": [
+      "@php tools/apply-saiadmin-pg-overrides.php"
+    ],
+    "post-update-cmd": [
+      "@php tools/apply-saiadmin-pg-overrides.php"
+    ],
     "pre-package-uninstall": [
       "support\\Plugin::uninstall"
     ]

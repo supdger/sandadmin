@@ -21,7 +21,7 @@ global $argv;
 return [
     'webman' => [
         'handler' => Http::class,
-        'listen' => 'http://0.0.0.0:8787',
+        'listen' => 'http://0.0.0.0:' . env('SAIADMIN_SERVER_PORT', 8787),
         'count' => cpu_count() * 4,
         'user' => '',
         'group' => '',
