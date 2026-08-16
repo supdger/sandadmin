@@ -6,7 +6,7 @@ SandAdmin 是从 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 派生�
 
 该派生关系必须在仓库首页、发行说明和任何重新分发的发布页中保持清楚可见。不得将 SandAdmin 描述为 SaiAdmin 官方产品，也不得删除继承源文件中适用的版权、许可证或第三方声明。
 
-当前 GitHub 远程仍使用历史仓库名 `supdger/saiadmin-pg`。在其完成公开更名或迁移前，它是 SandAdmin 的实际代码与问题跟踪入口；这不改变对外产品名称，也不改变本节的上游署名要求。
+SandAdmin 的代码与问题跟踪入口为 [supdger/sandadmin](https://github.com/supdger/sandadmin)。这不改变对外产品名称，也不改变本节的上游署名要求。
 
 ## 保留的兼容标识
 
