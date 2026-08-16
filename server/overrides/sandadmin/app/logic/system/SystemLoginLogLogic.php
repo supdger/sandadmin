@@ -1,13 +1,13 @@
 <?php
 // +----------------------------------------------------------------------
-// | saiadmin [ saiadmin快速开发框架 ]
+// | sandadmin [ sandadmin快速开发框架 ]
 // +----------------------------------------------------------------------
 // | Author: sai <1430792918@qq.com>
 // +----------------------------------------------------------------------
-namespace plugin\saiadmin\app\logic\system;
+namespace plugin\sandadmin\app\logic\system;
 
-use plugin\saiadmin\app\model\system\SystemLoginLog;
-use plugin\saiadmin\basic\think\BaseLogic;
+use plugin\sandadmin\app\model\system\SystemLoginLog;
+use plugin\sandadmin\basic\think\BaseLogic;
 use support\think\Db;
 
 /**
@@ -35,7 +35,7 @@ class SystemLoginLogLogic extends BaseLogic
                     CURRENT_DATE,
                     INTERVAL '1 day'
                 ) AS d(login_date)
-                LEFT JOIN sa_system_login_log l
+                LEFT JOIN sand_system_login_log l
                     ON l.login_time >= d.login_date
                     AND l.login_time < d.login_date + INTERVAL '1 day'
                 GROUP BY d.login_date
@@ -51,7 +51,7 @@ class SystemLoginLogLogic extends BaseLogic
                            UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
                            UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a
                      ) d
-                LEFT JOIN sa_system_login_log l
+                LEFT JOIN sand_system_login_log l
                     ON DATE(l.login_time) = d.date
                 GROUP BY d.date
                 ORDER BY d.date ASC
@@ -79,7 +79,7 @@ class SystemLoginLogLogic extends BaseLogic
                     DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '11 months',
                     INTERVAL '1 month'
                 ) AS m(month_start)
-                LEFT JOIN sa_system_login_log l
+                LEFT JOIN sand_system_login_log l
                     ON l.login_time >= m.month_start
                     AND l.login_time < m.month_start + INTERVAL '1 month'
                 GROUP BY m.month_start
@@ -94,7 +94,7 @@ class SystemLoginLogLogic extends BaseLogic
                      UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6
                      UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
                      UNION ALL SELECT 10 UNION ALL SELECT 11 UNION ALL SELECT 12) m
-                LEFT JOIN sa_system_login_log l
+                LEFT JOIN sand_system_login_log l
                     ON YEAR(l.login_time) = YEAR(CURDATE())
                     AND MONTH(l.login_time) = m.month_num
                 GROUP BY m.month_num

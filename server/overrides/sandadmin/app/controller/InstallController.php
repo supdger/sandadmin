@@ -1,16 +1,16 @@
 <?php
 // +----------------------------------------------------------------------
-// | saiadmin [ saiadmin快速开发框架 ]
+// | sandadmin [ sandadmin快速开发框架 ]
 // +----------------------------------------------------------------------
 // | Author: sai <1430792918@qq.com>
 // +----------------------------------------------------------------------
-namespace plugin\saiadmin\app\controller;
+namespace plugin\sandadmin\app\controller;
 
 use Throwable;
 use support\Request;
 use support\Response;
-use plugin\saiadmin\exception\ApiException;
-use plugin\saiadmin\basic\OpenController;
+use plugin\sandadmin\exception\ApiException;
+use plugin\sandadmin\basic\OpenController;
 
 /**
  * 安装控制器
@@ -26,7 +26,7 @@ class InstallController extends OpenController
      * 应用名称
      * @var string
      */
-    protected string $app = 'saiadmin';
+    protected string $app = 'sandadmin';
 
     protected string $version = '6.0.0';
 
@@ -36,7 +36,7 @@ class InstallController extends OpenController
     public function index()
     {
         $data['app'] = $this->app;
-        $data['version'] = config('plugin.saiadmin.app.version', $this->version);
+        $data['version'] = config('plugin.sandadmin.app.version', $this->version);
 
         $env = base_path() . DIRECTORY_SEPARATOR . '.env';
 
@@ -70,25 +70,18 @@ class InstallController extends OpenController
         $password = $request->post('password');
         $database = trim((string) $request->post('database'));
         $host = $request->post('host');
-        $driver = $request->post('databaseType', 'pgsql');
-        if (!in_array($driver, ['mysql', 'pgsql'], true)) {
-            return $this->fail('不支持的数据库类型');
+        $driver = 'pgsql';
+        if ((string) $request->post('databaseType', 'pgsql') !== 'pgsql') {
+            return $this->fail('SandAdmin 仅支持 PostgreSQL');
         }
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $database)) {
             return $this->fail('数据库名只能包含字母、数字和下划线，且必须以字母或下划线开头');
         }
-        $port = (int) $request->post('port') ?: ($driver === 'pgsql' ? 5432 : 3306);
+        $port = (int) $request->post('port') ?: 5432;
         $dataType = $request->post('dataType', 'demo');
 
         try {
-            $db = $this->getPdo($driver, $host, $user, $password, $port, $driver === 'pgsql' ? $database : null);
-            if ($driver === 'mysql') {
-                $smt = $db->query("show databases like '$database'");
-                if (empty($smt->fetchAll())) {
-                    $db->exec("create database `$database` CHARSET utf8mb4 COLLATE utf8mb4_general_ci");
-                }
-                $db->exec("use `$database`");
-            }
+            $db = $this->getPdo($driver, $host, $user, $password, $port, $database);
         } catch (\Throwable $e) {
             $message = $e->getMessage();
             if (stripos($message, 'Access denied for user') || stripos($message, 'password authentication failed')) {
@@ -103,18 +96,14 @@ class InstallController extends OpenController
             throw $e;
         }
 
-        $table = $driver === 'pgsql'
-            ? $db->query("SELECT to_regclass('public.sa_system_menu')")->fetchColumn()
-            : false;
-        $installed = $driver === 'pgsql'
-            ? $table !== false && $table !== null
-            : !empty($db->query("show tables like 'sa_system_menu';")->fetchAll());
+        $table = $db->query("SELECT to_regclass('public.sand_system_menu')")->fetchColumn();
+        $installed = $table !== false && $table !== null;
         if ($installed) {
             return $this->fail('数据库已经安装，请勿重复安装');
         }
 
-        $sqlName = $dataType === 'demo' ? 'saiadmin-6.0' : 'saiadmin-pure';
-        $sql_file = base_path() . '/plugin/saiadmin/db/' . $sqlName . ($driver === 'pgsql' ? '.pgsql' : '.sql');
+        $sqlName = $dataType === 'demo' ? 'sandadmin-6.0' : 'sandadmin-pure';
+        $sql_file = base_path() . '/plugin/sandadmin/db/' . $sqlName . '.pgsql';
 
         if (!is_file($sql_file)) {
             return $this->fail('数据库SQL文件不存在');
@@ -125,9 +114,12 @@ class InstallController extends OpenController
         try {
             $db->beginTransaction();
             $db->exec($sql_query);
-            if ($driver === 'pgsql') {
-                $this->installPgsqlOrmMetadata($db);
+            $platformMenuSql = base_path() . '/plugin/sandadmin/db/sand-platform-menus.pgsql';
+            if (!is_file($platformMenuSql)) {
+                throw new \RuntimeException('SandAdmin platform menu SQL file does not exist');
             }
+            $db->exec((string) file_get_contents($platformMenuSql));
+            $this->installPgsqlOrmMetadata($db);
             $db->commit();
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -162,11 +154,11 @@ DB_CHARSET = {$this->getCharset($driver)}
 CAPTCHA_MODE = cache
 
 #前端目录
-FRONTEND_DIR = saiadmin-artd
+FRONTEND_DIR = sandadmin-artd
 
 # 服务端口（默认值可按项目环境调整）
-SAIADMIN_SERVER_PORT = 8787
-SAIADMIN_CHANNEL_PORT = 2206
+SANDADMIN_SERVER_PORT = 8787
+SANDADMIN_CHANNEL_PORT = 2206
 EOF;
         file_put_contents(base_path() . DIRECTORY_SEPARATOR . '.env', $env_config);
 
@@ -222,7 +214,7 @@ return [
             // 服务器地址
             'hostname' => env('DB_HOST', '127.0.0.1'),
             // 数据库名
-            'database' => env('DB_NAME', 'saiadmin'),
+            'database' => env('DB_NAME', 'sandadmin'),
             // 数据库用户名
             'username' => env('DB_USER', 'root'),
             // 数据库密码
@@ -360,7 +352,7 @@ return [
             'driver' => env('DB_TYPE', '$driver'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', $defaultPort),
-            'database' => env('DB_NAME', 'saiadmin'),
+            'database' => env('DB_NAME', 'sandadmin'),
             'username' => env('DB_USER', 'root'),
             'password' => env('DB_PASSWORD', '123456'),
             'charset' => env('DB_CHARSET', '$charset'),
@@ -397,31 +389,19 @@ EOF;
      */
     protected function getPdo($driver, $host, $username, $password, $port, $database = null): \PDO
     {
-        if ($driver === 'pgsql') {
-            $dsn = "pgsql:host=$host;port=$port;dbname=$database";
-            return new \PDO($dsn, $username, $password, [
-                \PDO::ATTR_EMULATE_PREPARES => false,
-                \PDO::ATTR_TIMEOUT => 5,
-                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-            ]);
+        if ($driver !== 'pgsql') {
+            throw new \InvalidArgumentException('SandAdmin only supports PostgreSQL');
         }
-
-        $dsn = "mysql:host=$host;port=$port;";
-        if ($database) {
-            $dsn .= "dbname=$database";
-        }
-        $params = [
-            \PDO::MYSQL_ATTR_INIT_COMMAND => "set names utf8mb4",
-            \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+        $dsn = "pgsql:host=$host;port=$port;dbname=$database";
+        return new \PDO($dsn, $username, $password, [
             \PDO::ATTR_EMULATE_PREPARES => false,
             \PDO::ATTR_TIMEOUT => 5,
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-        ];
-        return new \PDO($dsn, $username, $password, $params);
+        ]);
     }
 
     protected function getCharset(string $driver): string
     {
-        return $driver === 'pgsql' ? 'utf8' : 'utf8mb4';
+        return 'utf8';
     }
 }

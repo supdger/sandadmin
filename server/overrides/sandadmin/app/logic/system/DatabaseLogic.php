@@ -1,13 +1,13 @@
 <?php
 // +----------------------------------------------------------------------
-// | saiadmin [ saiadmin快速开发框架 ]
+// | sandadmin [ sandadmin快速开发框架 ]
 // +----------------------------------------------------------------------
 // | Author: sai <1430792918@qq.com>
 // +----------------------------------------------------------------------
-namespace plugin\saiadmin\app\logic\system;
+namespace plugin\sandadmin\app\logic\system;
 
-use plugin\saiadmin\basic\think\BaseLogic;
-use plugin\saiadmin\exception\ApiException;
+use plugin\sandadmin\basic\think\BaseLogic;
+use plugin\sandadmin\exception\ApiException;
 use support\think\Db;
 
 /**
@@ -281,3 +281,4 @@ SQL;
     }
 
 }
+

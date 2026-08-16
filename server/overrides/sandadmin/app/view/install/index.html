@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>应用安装向导</title>
     <!-- Bootstrap CSS -->
-    <link href="/app/saiadmin/assets/bootstrap.min.css" rel="stylesheet">
+    <link href="/app/sandadmin/assets/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
@@ -664,7 +664,7 @@
         <!-- Logo Section -->
         <div class="logo-section">
             <div class="logo-icon">
-                <img src="https://saithink.top/images/logo.png" alt="Logo">
+                <img src="/app/sandadmin/assets/sandadmin-logo.svg" alt="SandAdmin Logo">
             </div>
             <h1>【{{app}}-{{version}}】安装配置向导</h1>
         </div>
@@ -709,10 +709,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="dbDriver" class="form-label">数据库类型</label>
-                                        <select class="form-control" id="dbDriver" required>
-                                            <option value="pgsql" selected>PostgreSQL</option>
-                                            <option value="mysql">MySQL</option>
-                                        </select>
+                                        <input class="form-control" id="dbDriver" value="pgsql" readonly aria-label="数据库类型 PostgreSQL">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -840,7 +837,7 @@
     </div>
 
     <!-- jQuery -->
-    <script src="/app/saiadmin/assets/jquery.min.js"></script>
+    <script src="/app/sandadmin/assets/jquery.min.js"></script>
     <script>
 
         // 显示通知
@@ -1029,9 +1026,6 @@
            
         }
 
-        $('#dbDriver').on('change', function () {
-            $('#dbPort').val(this.value === 'pgsql' ? 5432 : 3306);
-        });
     </script>
 </body>
 </html>
