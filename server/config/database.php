@@ -6,7 +6,7 @@ return [
             'driver' => env('DB_TYPE', 'pgsql'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', 5432),
-            'database' => env('DB_NAME', 'saiadmin'),
+            'database' => env('DB_NAME', 'sandadmin'),
             'username' => env('DB_USER', 'root'),
             'password' => env('DB_PASSWORD', '123456'),
             'charset' => env('DB_CHARSET', 'utf8'),

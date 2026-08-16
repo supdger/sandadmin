@@ -18,7 +18,7 @@ use Workerman\Protocols\Frame;
 
 return [
     'server' => [
-        'listen'  => 'frame://0.0.0.0:' . env('SAIADMIN_CHANNEL_PORT', 2206),
+        'listen'  => 'frame://0.0.0.0:' . env('SANDADMIN_CHANNEL_PORT', 2206),
         'protocol' => Frame::class,
         'handler' => Server::class,
         'reloadable' => false,
