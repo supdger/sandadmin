@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 /**
  * Reapplies this project's PostgreSQL adaptation after Composer installs the
- * upstream SaiAdmin plugin into server/plugin/saiadmin.
+ * upstream SandAdmin plugin into server/plugin/sandadmin.
  */
 
 $root = dirname(__DIR__);
-$source = $root . '/overrides/saiadmin';
-$target = $root . '/plugin/saiadmin';
+$source = $root . '/overrides/sandadmin';
+$target = $root . '/plugin/sandadmin';
 
 if (!is_dir($target)) {
-    fwrite(STDERR, "SaiAdmin plugin was not installed at {$target}.\n");
+    fwrite(STDERR, "SandAdmin plugin was not installed at {$target}.\n");
     exit(1);
 }
 
@@ -37,6 +37,6 @@ foreach ($iterator as $file) {
     }
 }
 
-$converter = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($root . '/tools/convert-saiadmin-sql.php');
-passthru($converter, $status);
-exit($status);
+// SandAdmin ships PostgreSQL bootstrap SQL directly. No MySQL source is
+// converted during an override refresh.
+exit(0);

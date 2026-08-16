@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Regenerates the PostgreSQL bootstrap scripts from SaiAdmin's upstream MySQL
- * scripts. Keep this converter with the generated files so upstream SQL
- * upgrades can be reviewed and repeated rather than hand-edited.
+ * Historical one-off converter retained only to document how the first
+ * PostgreSQL bootstrap scripts were derived. SandAdmin releases ship the
+ * reviewed PostgreSQL scripts directly and do not include MySQL bootstrap SQL.
  *
  * Usage:
- *   php tools/convert-saiadmin-sql.php
+ *   php tools/convert-sandadmin-sql.php
  */
 
-final class SaiAdminPostgresSqlConverter
+final class SandAdminPostgresSqlConverter
 {
     /** @var list<string> */
     private array $identityTables = [];
@@ -25,10 +25,13 @@ final class SaiAdminPostgresSqlConverter
 
         $this->identityTables = [];
         $sql = preg_replace('/^SET\s+(?:NAMES|FOREIGN_KEY_CHECKS).*?;\s*$/mi', '', $sql) ?? $sql;
+        // SandAdmin is an independent project. Its core persistence boundary
+        // must not retain SaiAdmin's `sa_` table stem in generated PostgreSQL.
+        $sql = str_replace(['sa_system_', 'sa_tool_'], ['sand_system_', 'sand_tool_'], $sql);
         // The upstream demo avatar is hosted remotely. Leave the field empty
-        // in PostgreSQL bootstrap data so SaiAdmin uses its built-in local
+        // in PostgreSQL bootstrap data so SandAdmin uses its built-in local
         // avatar and a local deployment has no external image dependency.
-        $sql = str_replace("'https://image.saithink.top/saiadmin/avatar.jpg'", 'NULL', $sql);
+        $sql = str_replace("'https://image.saithink.top/sandadmin/avatar.jpg'", 'NULL', $sql);
         $sql = str_replace('\\"', '"', $sql);
         $sql = preg_replace_callback(
             '/DROP TABLE IF EXISTS `([^`]+)`;/',
@@ -145,9 +148,9 @@ final class SaiAdminPostgresSqlConverter
     }
 }
 
-$directory = dirname(__DIR__) . '/plugin/saiadmin/db';
-$converter = new SaiAdminPostgresSqlConverter();
-foreach (['saiadmin-6.0', 'saiadmin-pure'] as $name) {
+$directory = dirname(__DIR__) . '/plugin/sandadmin/db';
+$converter = new SandAdminPostgresSqlConverter();
+foreach (['sandadmin-6.0', 'sandadmin-pure'] as $name) {
     $target = $directory . '/' . $name . '.pgsql';
     file_put_contents($target, $converter->convert($directory . '/' . $name . '.sql'));
     fwrite(STDOUT, "Generated {$target}\n");
