@@ -1,0 +1,12 @@
+SandAdmin attribution notice
+
+SandAdmin is an independently maintained PostgreSQL fork derived from SaiAdmin 6.x:
+https://github.com/saithink/saiadmin6.x
+
+The inherited SaiAdmin source and its MIT license notice are retained in the repository root LICENSE.
+
+The `sandadmin-artd/` frontend retains its own MIT license from SuperManTT. Source-file notices for Webman, Workerman, Art Design Pro, and other dependencies remain intact.
+
+`saithink/saipackage` and the PHP namespace `Saithink\\Saipackage` are third-party Composer dependencies. Their identifiers are preserved for dependency compatibility and do not identify SandAdmin as SaiAdmin.
+
+SandAdmin is not an official SaiAdmin release and does not imply endorsement by SaiAdmin or its authors.

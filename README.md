@@ -1,103 +1,52 @@
-<p align="center">
-  <img src="https://saithink.top/images/logo.png" width="120" />
-</p>
-<p align="center">
-  <img src="https://svg.hamm.cn/badge.svg?key=License&value=MIT" />
-  <img src="https://svg.hamm.cn/badge.svg?key=Version&value=6.x" />
-</p>
+# SandAdmin
 
-<div style="padding:18px;max-width: 1024px;margin:0 auto;">
-<h1>SaiAdmin PG</h1>
+SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目，提供权限管理、系统配置、代码生成、任务调度和插件化扩展能力。完整运行单元由 `server/`（Webman 后端）和 `sandadmin-artd/`（Vue 管理前端）组成；`plugins/` 存放可独立安装的 Sand 平台插件。
 
-> SaiAdmin 6.x 的 PostgreSQL 适配仓库，基于上游 [saithink/saiadmin6.x](https://github.com/saithink/saiadmin6.x) 维护。保留上游 MIT 许可证与版权声明。
+> **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> 本仓库包含 PostgreSQL 配置、安装支持，以及适配后的 `sandworkflow` 插件包（位于 `plugins/sandworkflow`）。上游 MySQL 插件源码不在此处修改。
+## 特性与边界
 
-## 项目简介
+- PostgreSQL 优先：核心安装器按数据库驱动选择初始化脚本，核心 SQL 位于 `server/plugin/sandadmin/db/`。
+- 插件化：Sand 平台新插件使用 `sand_<domain>_*` 表前缀；`plugins/sandworkflow` 是独立维护的 PostgreSQL 插件包。
+- 兼容优先：部分历史核心 `sa_*` 表和必要的第三方兼容标识不会因品牌更名被强制改写。
+- 非迁移工具：本仓库不承诺将既有 MySQL 实例原地迁移到 PostgreSQL；升级或迁移应先在隔离环境验证。
 
-SaiAdmin 是一个基于 [Webman](https://www.workerman.net/webman) 的高性能后台管理系统插件。它提供了完整的权限管理、系统配置、代码生成等功能，帮助开发者快速构建企业级应用。
+## 快速开始
 
----
+运行环境、配置项和首次安装步骤见[本地运行与首次安装](docs/getting-started.md)。简要流程为：
 
-## ✨ 核心特性
+1. 以 `server/.env.pgsql.example` 创建本地 `server/.env`，填写 PostgreSQL 连接信息。
+2. 在 `server/` 安装 PHP 依赖并启动 Webman。
+3. 在 `sandadmin-artd/` 安装前端依赖并启动开发服务，或执行生产构建。
+4. 在全新数据库访问 `/install` 完成初始化。
 
-- **🚀 高性能** - 基于 Webman 常驻内存框架，性能优异
-- **🔐 完整权限系统** - RBAC 权限模型，支持用户、角色、部门、岗位管理
-- **📝 代码生成器** - 一键生成 CRUD 代码，提升开发效率
-- **⚡ 双 ORM 支持** - 同时支持 ThinkORM 和 Eloquent ORM
-- **🔧 插件化架构** - 支持插件扩展，便于功能模块化
-- **📊 系统监控** - 内置服务器监控、缓存管理功能
-- **📋 日志系统** - 完整的登录日志和操作日志记录
+默认前端目录为 `sandadmin-artd`；服务与 Channel 端口变量为 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT`。
 
-## 🛠️ 功能模块
+## 文档
 
-### 系统管理
+- [文档总览](docs/README.md)
+- [本地运行与首次安装](docs/getting-started.md)
+- [架构与插件边界](docs/architecture.md)
+- [插件开发与发布约定](docs/plugin-development.md)
+- [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
+- [上游来源、署名与许可证说明](docs/upstream-and-licensing.md)
 
-| 模块       | 说明                             |
-| ---------- | -------------------------------- |
-| 用户管理   | 用户增删改查、密码管理、缓存清理 |
-| 角色管理   | 角色 CRUD、菜单权限分配          |
-| 部门管理   | 组织架构管理、树形结构           |
-| 岗位管理   | 岗位信息维护、Excel 模板导入导出 |
-| 菜单管理   | 菜单配置、按钮权限               |
-| 字典管理   | 字典类型与字典数据维护           |
-| 附件管理   | 文件上传、分类管理、资源移动     |
-| 系统配置   | 分组配置、邮件设置、动态参数     |
-| 日志管理   | 登录日志、操作日志查询与清理     |
-| 服务监控   | 服务器状态、缓存信息、一键清理   |
-| 数据表维护 | 数据表结构、表优化、碎片整理     |
+## 插件
 
-### 开发工具
+| 插件 | 说明 | 文档 |
+| --- | --- | --- |
+| SandWorkflow | PostgreSQL 工作流：流程定义、发起、待办/已办/抄送与流程数据管理 | [插件 README](plugins/sandworkflow/README.md) |
 
-| 模块     | 说明                         |
-| -------- | ---------------------------- |
-| 代码生成 | 根据数据表自动生成 CRUD 代码 |
-| 定时任务 | Crontab 任务管理、执行日志   |
+各插件必须在自己的发布目录保留安装、升级、卸载、权限、兼容性和已知限制说明；宿主只维护公共约定与兼容性入口，避免两处文档漂移。
 
-<h1>学习</h1>
+## 参与与安全
 
-<ul>
-  <li>
-    <a href="https://saithink.top" target="_blank">主页 / Home page</a>
-  </li>
-  <li>
-    <a href="https://saithink.top/documents/v6/" target="_blank">文档 / Document</a>
-  </li>
-</ul>
+- [贡献指南](CONTRIBUTING.md)
+- [安全漏洞报告](SECURITY.md)
+- [社区行为准则](CODE_OF_CONDUCT.md)
+- [支持范围](SUPPORT.md)
+- [变更记录](CHANGELOG.md)
 
+## 来源与许可证
 
-<h1>演示地址</h1>
-<p>演示地址： <a href="http://v6.saithink.top" target="_blank">http://v6.saithink.top</a></p>
-<p>演示账号：admin</p>
-<p>演示密码：123456</p>
-
-<h1>共同交流</h1>
-
-<table>
-  <tbody>
-    <tr>
-      <td align="center" valign="middle">
-        <img src="https://saithink.top/images/me.png" class="no-zoom" width="180px">
-        <p>saiadmin交流群(添加我微信备注"saiadmin")</p>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-<h1>支持项目</h1>
-
-如果您正在使用这个项目并感觉良好，或者是想支持我继续开发，您可以通过如下`任意`方式支持我：
-
-谢谢！ ❤️
-
-
-|                                       微信                                       |                                      支付宝                                      |
-| :------------------------------------------------------------------------------: | :------------------------------------------------------------------------------: |
-| <img src="https://saithink.top/images/wechat.png" alt="Wechat QRcode" width=180> | <img src="https://saithink.top/images/alipay.png" alt="Alipay QRcode" width=180> |
-
-<div style="clear: both">
-<h1>LICENSE</h1>
-This project is open-sourced software licensed under the MIT.
-</div>
-
-</div>
+本仓库及保留的上游源代码遵循 MIT 许可证。发布、分发或再修改时，必须保留适用的版权与许可证声明；完整来源和第三方组件说明见 [NOTICE](NOTICE)。
