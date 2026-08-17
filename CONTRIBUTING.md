@@ -15,6 +15,7 @@
 3. 后端、前端和插件改动分别运行适用的语法检查、类型检查、构建或测试。
 4. 影响安装、升级、卸载、权限、路由或数据结构时，在干净 PostgreSQL 环境说明实际验证范围。
 5. 改动插件时，同时更新插件 README、版本元数据和发布说明；不要只更新宿主 README。
+6. 变更实质上由 OpenAI Codex 实现时，提交正文必须包含 `AI-Implemented: OpenAI Codex`。Git 作者和提交者必须保留实际负责维护、审查和发布的人员身份；规则与历史追溯范围见 [AI_CONTRIBUTIONS.md](AI_CONTRIBUTIONS.md)。
 
 ## 文档原则
 

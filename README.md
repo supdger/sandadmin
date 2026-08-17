@@ -30,6 +30,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 - [插件开发与发布约定](docs/plugin-development.md)
 - [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
 - [上游来源、署名与许可证说明](docs/upstream-and-licensing.md)
+- [AI 实现来源与追溯范围](AI_CONTRIBUTIONS.md)
 
 ## 插件
 
@@ -42,6 +43,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 ## 参与与安全
 
 - [贡献指南](CONTRIBUTING.md)
+- [AI 实现来源与追溯范围](AI_CONTRIBUTIONS.md)
 - [安全漏洞报告](SECURITY.md)
 - [社区行为准则](CODE_OF_CONDUCT.md)
 - [支持范围](SUPPORT.md)
