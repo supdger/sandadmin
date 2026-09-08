@@ -49,7 +49,7 @@ export interface TerminalTask {
 // 扩展 window 类型
 declare global {
   interface Window {
-    eventSource?: EventSource
+    terminalAbortController?: AbortController
   }
 }
 
@@ -81,15 +81,19 @@ const formatDateTime = (): string => {
 }
 
 /**
- * 构建终端 WebSocket URL
+ * 构建终端 SSE URL。令牌只通过请求头发送，不写入 URL。
  */
-const buildTerminalUrl = (commandKey: string, uuid: string, extend: string): string => {
+const buildTerminalUrl = (commandKey: string, extend: string): string => {
   const env = import.meta.env
   const baseURL = env.VITE_API_URL || ''
-  const userStore = useUserStore()
-  const token = userStore.accessToken
   const terminalUrl = '/app/sandpackage/index/terminal'
-  return `${baseURL}${terminalUrl}?command=${commandKey}&uuid=${uuid}&extend=${extend}&token=${token}`
+  return `${baseURL}${terminalUrl}?command=${encodeURIComponent(commandKey)}&extend=${encodeURIComponent(extend)}`
+}
+
+const terminalMessage = (value: unknown): string | null => {
+  if (!value || typeof value !== 'object' || !('data' in value)) return null
+  const data = value.data
+  return typeof data === 'string' ? data : null
 }
 
 export const useTerminalStore = defineStore(
@@ -184,59 +188,87 @@ export const useTerminalStore = defineStore(
     }
 
     /**
-     * 启动EventSource连接
+     * 启动受认证的 SSE 请求。EventSource 无法附带 Authorization 头，
+     * 因此用 fetch 流读取服务端事件。
      */
-    const startEventSource = (taskKey: number) => {
+    const startEventSource = async (taskKey: number) => {
       const task = taskList.value[taskKey]
       if (!task) return
 
-      window.eventSource = new EventSource(buildTerminalUrl(task.command, task.uuid, task.extend))
-
-      window.eventSource.onmessage = (e: MessageEvent) => {
-        try {
-          const data = JSON.parse(e.data)
-          if (!data || !data.data) return
-
-          const taskIdx = findTaskIdxFromUuid(data.uuid)
-          if (taskIdx === false) return
-
-          if (data.data === 'exec-error') {
-            setTaskStatus(taskIdx, TaskStatus.FAILED)
-            window.eventSource?.close()
-            taskCompleted(taskIdx)
-            startTask()
-          } else if (data.data === 'exec-completed') {
-            window.eventSource?.close()
-            if (taskList.value[taskIdx].status !== TaskStatus.SUCCESS) {
-              setTaskStatus(taskIdx, TaskStatus.FAILED)
+      window.terminalAbortController?.abort()
+      const controller = new AbortController()
+      window.terminalAbortController = controller
+      const userStore = useUserStore()
+      try {
+        const response = await fetch(buildTerminalUrl(task.command, task.extend), {
+          headers: {
+            Accept: 'text/event-stream',
+            Authorization: `Bearer ${userStore.accessToken}`
+          },
+          signal: controller.signal
+        })
+        if (!response.ok || !response.body) throw new Error('terminal connection failed')
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let completed = false
+        while (!completed) {
+          const result = await reader.read()
+          if (result.done) break
+          buffer += decoder.decode(result.value, { stream: true })
+          const events = buffer.split(/\r?\n\r?\n/)
+          buffer = events.pop() ?? ''
+          for (const event of events) {
+            const dataLine = event.split(/\r?\n/).find((line) => line.startsWith('data:'))
+            if (!dataLine) continue
+            let value: unknown
+            try {
+              value = JSON.parse(dataLine.slice(5).trim())
+            } catch {
+              continue
             }
-            taskCompleted(taskIdx)
-            startTask()
-          } else if (data.data === 'connection-success') {
-            setTaskStatus(taskIdx, TaskStatus.RUNNING)
-          } else if (data.data === 'exec-success') {
-            setTaskStatus(taskIdx, TaskStatus.SUCCESS)
-          } else {
-            addTaskMessage(taskIdx, data.data)
+            const data = terminalMessage(value)
+            if (!data) continue
+            const taskIdx = findTaskIdxFromGuess(taskKey)
+            if (taskIdx === false) continue
+            if (data === 'exec-error') {
+              setTaskStatus(taskIdx, TaskStatus.FAILED)
+              taskCompleted(taskIdx)
+              startTask()
+              completed = true
+            } else if (data === 'exec-completed') {
+              if (taskList.value[taskIdx].status !== TaskStatus.SUCCESS) {
+                setTaskStatus(taskIdx, TaskStatus.FAILED)
+              }
+              taskCompleted(taskIdx)
+              startTask()
+              completed = true
+            } else if (data === 'connection-success') {
+              setTaskStatus(taskIdx, TaskStatus.RUNNING)
+            } else if (data === 'exec-success') {
+              setTaskStatus(taskIdx, TaskStatus.SUCCESS)
+            } else {
+              addTaskMessage(taskIdx, data)
+            }
           }
-        } catch {
-          // JSON parse error
         }
-      }
-
-      window.eventSource.onerror = () => {
-        window.eventSource?.close()
+        if (!completed) throw new Error('terminal stream ended before completion')
+      } catch {
         const taskIdx = findTaskIdxFromGuess(taskKey)
         if (taskIdx === false) return
         setTaskStatus(taskIdx, TaskStatus.FAILED)
         taskCompleted(taskIdx)
+      } finally {
+        if (window.terminalAbortController === controller) {
+          window.terminalAbortController = undefined
+        }
       }
     }
 
     /**
      * 添加 Node 相关任务
      */
-    const addNodeTask = (command: string, extend: string = '', callback?: () => void) => {
+    const addNodeTask = (command: string, extend: string = '', callback?: (status: TaskStatus) => void) => {
       const manager = packageManager.value === 'unknown' ? 'npm' : packageManager.value
       const fullCommand = `${command}.${manager}`
       addTask(fullCommand, extend, callback)
@@ -245,7 +277,7 @@ export const useTerminalStore = defineStore(
     /**
      * 添加任务
      */
-    const addTask = (command: string, extend: string = '', callback?: () => void) => {
+    const addTask = (command: string, extend: string = '', callback?: (status: TaskStatus) => void) => {
       const task: TerminalTask = {
         uuid: generateUUID(),
         createTime: formatDateTime(),
@@ -254,7 +286,7 @@ export const useTerminalStore = defineStore(
         message: [],
         showMessage: false,
         extend,
-        callback: callback ? () => callback() : undefined
+        callback
       }
       taskList.value.push(task)
 
@@ -343,4 +375,3 @@ export const useTerminalStore = defineStore(
 )
 
 export default useTerminalStore
-

@@ -2,6 +2,23 @@
 
 use Webman\Route;
 
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'registerExisting']);
+Route::post('/app/sandpackage/install/registerExisting', [plugin\sandpackage\app\controller\InstallController::class, 'registerExisting']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'discardCandidate']);
+Route::post('/app/sandpackage/install/discardCandidate', [plugin\sandpackage\app\controller\InstallController::class, 'discardCandidate']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'verifyFailedUpgradeRecovery']);
+Route::post('/app/sandpackage/install/verifyFailedUpgradeRecovery', [plugin\sandpackage\app\controller\InstallController::class, 'verifyFailedUpgradeRecovery']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'inspectFailedUpgradeRecovery']);
+Route::post('/app/sandpackage/install/inspectFailedUpgradeRecovery', [plugin\sandpackage\app\controller\InstallController::class, 'inspectFailedUpgradeRecovery']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'restoreRuntimeFromBackup']);
+Route::post('/app/sandpackage/install/restoreRuntimeFromBackup', [plugin\sandpackage\app\controller\InstallController::class, 'restoreRuntimeFromBackup']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'prepareFailedUpgradeReplacement']);
+Route::post('/app/sandpackage/install/prepareFailedUpgradeReplacement', [plugin\sandpackage\app\controller\InstallController::class, 'prepareFailedUpgradeReplacement']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'replaceFailedUpgradeCandidate']);
+Route::post('/app/sandpackage/install/replaceFailedUpgradeCandidate', [plugin\sandpackage\app\controller\InstallController::class, 'replaceFailedUpgradeCandidate']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'retryFailedUpgrade']);
+Route::post('/app/sandpackage/install/retryFailedUpgrade', [plugin\sandpackage\app\controller\InstallController::class, 'retryFailedUpgrade']);
+
 Route::group('/tool/install', function () {
     // 商店代理接口（在线安装）
     Route::get('/online/appList', [plugin\sandpackage\app\controller\InstallController::class, 'appList']);
@@ -12,4 +29,3 @@ Route::group('/tool/install', function () {
     Route::get('/online/storeAppVersions', [plugin\sandpackage\app\controller\InstallController::class, 'storeAppVersions']);
     Route::post('/online/storeDownloadApp', [plugin\sandpackage\app\controller\InstallController::class, 'storeDownloadApp']);
 });
-

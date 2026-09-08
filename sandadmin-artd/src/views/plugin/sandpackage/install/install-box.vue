@@ -26,8 +26,9 @@
         <ElUpload
           drag
           :http-request="uploadFileHandler"
+          :before-upload="beforeUpload"
           :show-file-list="false"
-          accept=".zip,.rar"
+          accept=".zip"
           class="w-full"
         >
           <div class="flex flex-col items-center justify-center py-8">
@@ -36,6 +37,7 @@
               将插件包文件拖到此处，或
               <span class="text-primary ml-2">点击上传</span>
             </div>
+            <div class="mt-2 text-sm text-gray-500">仅支持 ZIP 格式，文件不能超过 5MB</div>
           </div>
         </ElUpload>
       </div>
@@ -46,7 +48,7 @@
 <script setup lang="ts">
   import { ref, reactive } from 'vue'
   import { ElMessage } from 'element-plus'
-  import type { UploadRequestOptions } from 'element-plus'
+  import type { UploadProps, UploadRequestOptions } from 'element-plus'
   import sandpackageApi, { type AppInfo } from '../api/index'
 
   const emit = defineEmits<{
@@ -56,7 +58,7 @@
   const visible = ref(false)
   const loading = ref(false)
 
-  const uploadSize = 8 * 1024 * 1024
+  const uploadSize = 5 * 1024 * 1024
 
   const initialApp: AppInfo = {
     app: '',
@@ -69,13 +71,29 @@
 
   const appInfo = reactive<AppInfo>({ ...initialApp })
 
-  const uploadFileHandler = async (options: UploadRequestOptions) => {
-    const file = options.file
-    if (!file) return
-
+  const uploadValidationMessage = (file: File): string | undefined => {
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      return '仅支持 ZIP 格式的插件包'
+    }
     if (file.size > uploadSize) {
-      ElMessage.warning(file.name + '超出文件大小限制(8MB)')
-      return
+      return '文件不能超过 5MB'
+    }
+    return undefined
+  }
+
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    const message = uploadValidationMessage(file)
+    if (!message) return true
+
+    ElMessage.warning(message)
+    return false
+  }
+
+  const uploadFileHandler = async (options: UploadRequestOptions): Promise<unknown> => {
+    const file = options.file
+    const message = uploadValidationMessage(file)
+    if (message) {
+      throw new Error(message)
     }
 
     loading.value = true
@@ -86,11 +104,11 @@
       const res = await sandpackageApi.uploadApp(dataForm)
       if (res) {
         Object.assign(appInfo, res)
+        visible.value = false
         ElMessage.success('上传成功')
         emit('success')
       }
-    } catch {
-      // Error already handled by http utility
+      return res
     } finally {
       loading.value = false
     }
@@ -103,4 +121,3 @@
 
   defineExpose({ open })
 </script>
-

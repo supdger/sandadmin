@@ -18,6 +18,21 @@ export interface AppInfo {
   state: number
   npm_dependent_wait_install?: number
   composer_dependent_wait_install?: number
+  registration_candidate?: number
+  update?: number
+  stage?: string
+  package_backup_id?: string
+  registration_manifest?: string
+  runtime_manifest?: string
+  upgrade_from_version?: string
+  state_text?: string
+  stage_label?: string
+  last_error?: string
+  backup_id?: string
+  legacy_recoverable?: boolean
+  derived_upgrade_from_version?: string
+  legacy_recovery_reason?: string
+  upgrade_candidate_verified?: boolean
 }
 
 export interface VersionInfo {
@@ -76,6 +91,11 @@ export interface AppVersion {
   remark: string
 }
 
+/** 失败升级恢复接口的外部响应都在页面层按 unknown 收窄。 */
+export interface FailedUpgradeRecoveryRequest {
+  appName: string
+}
+
 export default {
   /**
    * 获取已安装的插件列表
@@ -94,22 +114,85 @@ export default {
   /**
    * 安装插件
    */
-  installApp(data: { appName: string }) {
-    return request.post<any>({ url: '/app/sandpackage/install/install', data })
+  installApp(data: { appName: string; confirmation?: string }) {
+    return request.post<AppInfo>({ url: '/app/sandpackage/install/install', data })
+  },
+
+  /**
+   * 登记与上传包完全一致的已部署插件，不复制文件也不执行 SQL。
+   */
+  registerExisting(data: { appName: string; confirmation: string }) {
+    return request.post<AppInfo>({ url: '/app/sandpackage/install/registerExisting', data })
+  },
+
+  /**
+   * 撤回尚未执行的升级候选；后端会再次校验备份与运行时清单。
+   */
+  discardCandidate(data: { appName: string; confirmation: string }) {
+    return request.post<AppInfo>({ url: '/app/sandpackage/install/discardCandidate', data })
+  },
+
+  /** 只读诊断失败升级是否存在运行文件漂移。 */
+  inspectFailedUpgradeRecovery(data: FailedUpgradeRecoveryRequest) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/inspectFailedUpgradeRecovery',
+      data
+    })
+  },
+
+  /** 封存并预检替换 ZIP；不替换候选、不执行升级。 */
+  prepareFailedUpgradeReplacement(data: FormData) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/prepareFailedUpgradeReplacement',
+      data
+    })
+  },
+
+  /** Gate A：只读核验已封存的替换候选。 */
+  verifyFailedUpgradeRecovery(data: { appName: string; replacementId: string }) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/verifyFailedUpgradeRecovery',
+      data
+    })
+  },
+
+  replaceFailedUpgradeCandidate(data: {
+    appName: string
+    replacementId: string
+    confirmation: string
+  }) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/replaceFailedUpgradeCandidate',
+      data
+    })
+  },
+
+  retryFailedUpgrade(data: { appName: string; confirmation: string }) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/retryFailedUpgrade',
+      data
+    })
+  },
+
+  restoreRuntimeFromBackup(data: { appName: string; confirmation: string }) {
+    return request.post<unknown>({
+      url: '/app/sandpackage/install/restoreRuntimeFromBackup',
+      data
+    })
   },
 
   /**
    * 卸载插件
    */
   uninstallApp(data: { appName: string }) {
-    return request.post<any>({ url: '/app/sandpackage/install/uninstall', data })
+    return request.post<unknown>({ url: '/app/sandpackage/install/uninstall', data })
   },
 
   /**
    * 重载后端
    */
   reloadBackend() {
-    return request.post<any>({ url: '/app/sandpackage/install/reload' })
+    return request.post<unknown>({ url: '/app/sandpackage/install/reload' })
   },
 
   /**
@@ -181,10 +264,9 @@ export default {
    * 下载应用
    */
   downloadApp(data: { token: string; id: number }) {
-    return request.post<any>({
+    return request.post<unknown>({
       url: '/tool/install/online/storeDownloadApp',
       data
     })
   }
 }
-

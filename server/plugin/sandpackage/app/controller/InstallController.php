@@ -24,7 +24,7 @@ class InstallController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        if ($this->adminId > 1) {
+        if ($this->adminId !== 1) {
             throw new ApiException('仅超级管理员能够操作');
         }
     }
@@ -50,6 +50,9 @@ class InstallController extends BaseController
     public function index(Request $request): Response
     {
         $data = Server::installedList(runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR);
+        $data = array_map(static function (array $item): array {
+            return array_merge($item, InstallLogic::presentInfo($item));
+        }, $data);
 
         $phpVersion = phpversion();
         $phpVersionCompare = Version::compare(self::$needDependentVersion['php'], $phpVersion);
@@ -103,9 +106,15 @@ class InstallController extends BaseController
      */
     public function upload(Request $request): Response
     {
-        $spl_file = current($request->file());
+        $spl_file = $request->file('file');
+        if (!is_object($spl_file)
+            || !method_exists($spl_file, 'isValid')
+            || !method_exists($spl_file, 'getUploadExtension')
+            || !method_exists($spl_file, 'getSize')) {
+            throw new ApiException('请选择有效的插件包文件后再上传', 400);
+        }
         if (!$spl_file->isValid()) {
-            return $this->fail('上传文件校验失败');
+            throw new ApiException('上传文件未通过校验，请重新选择完整的 ZIP 插件包', 400);
         }
         $config = config('plugin.sandpackage.upload', [
             'size' => 1024 * 1024 * 5,
@@ -135,9 +144,132 @@ class InstallController extends BaseController
             return $this->fail('参数错误');
         }
         $install = new InstallLogic($appName);
-        $info = $install->install();
+        $confirmation = (string) $request->post('confirmation', '');
+        $info = $install->install(true, $confirmation);
         UserMenuCache::clearMenuCache();
         return $this->success($info);
+    }
+
+    /**
+     * Formally register a plugin that is already deployed on this host.
+     * This endpoint never imports SQL or deploys package files.
+     *
+     * @throws Throwable
+     */
+    public function registerExisting(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') {
+            return $this->fail('登记操作仅支持 POST 请求');
+        }
+        $appName = trim((string) $request->post('appName', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $confirmation === '') {
+            return $this->fail('请填写插件标识和完整登记确认内容');
+        }
+        $install = new InstallLogic($appName);
+        $info = $install->registerExisting($confirmation);
+        return $this->success(array_merge($info, InstallLogic::presentInfo($info)), '插件登记完成');
+    }
+
+    /**
+     * Revert only a ready, unexecuted upgrade candidate. SystemLog records the
+     * operation; the logic never invokes SQL, file deployment or service reload.
+     *
+     * @throws Throwable
+     */
+    public function discardCandidate(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') {
+            return $this->fail('撤回候选仅支持 POST 请求');
+        }
+        $appName = trim((string) $request->post('appName', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $confirmation === '') {
+            return $this->fail('请填写插件标识和完整撤回确认内容');
+        }
+        $install = new InstallLogic($appName);
+        $info = $install->discardCandidate($confirmation);
+        return $this->success(array_merge($info, InstallLogic::presentInfo($info)), '升级候选已撤回，数据库未执行无需回滚');
+    }
+
+    /** Read-only recovery inspection; no directory, journal or runtime mutation. */
+    public function inspectFailedUpgradeRecovery(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('恢复检查仅支持 POST 请求', 400);
+        $appName = trim((string) $request->post('appName', ''));
+        if ($appName === '') throw new ApiException('请填写插件标识', 400);
+        return $this->success((new InstallLogic($appName))->inspectFailedUpgradeRecovery($this->adminId), '恢复状态检查完成');
+    }
+
+    /** Restore only runtime files from the identity-bound pre-upgrade backup. */
+    public function restoreRuntimeFromBackup(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('运行文件恢复仅支持 POST 请求', 400);
+        $appName = trim((string) $request->post('appName', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $confirmation === '') throw new ApiException('请填写插件标识和完整运行文件恢复确认内容', 400);
+        $result = (new InstallLogic($appName))->restoreRuntimeFromBackup($confirmation, $this->adminId);
+        return $this->success([
+            'result' => $result,
+            'presentation' => [
+                'recovery_mode' => 'verification_required',
+                'allowed_actions' => ['prepare_failed_upgrade_replacement'],
+                'message' => $result['message'],
+            ],
+        ], '运行文件恢复完成');
+    }
+
+    /** Revalidates one prepared replacement; no confirmation is issued. */
+    public function verifyFailedUpgradeRecovery(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') {
+            throw new ApiException('恢复核验仅支持 POST 请求', 400);
+        }
+        if ($this->adminId !== 1) {
+            throw new ApiException('仅超级管理员能够执行恢复核验', 400);
+        }
+        $appName = trim((string) $request->post('appName', ''));
+        $replacementId = trim((string) $request->post('replacementId', ''));
+        if ($appName === '' || $replacementId === '') throw new ApiException('请填写插件标识和替换候选标识', 400);
+        $result = (new InstallLogic($appName))->verifyPreparedFailedUpgradeReplacement($replacementId, $this->adminId);
+        return $this->success($result, '恢复条件核验完成');
+    }
+
+    /** Receive and preflight a private failed-upgrade replacement archive. */
+    public function prepareFailedUpgradeReplacement(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('替换候选预检仅支持 POST 请求', 400);
+        if ($this->adminId !== 1) throw new ApiException('仅超级管理员能够预检替换候选', 400);
+        $appName = trim((string) $request->post('appName', ''));
+        $file = $request->file('file');
+        if ($appName === '' || !is_object($file)) throw new ApiException('请填写插件标识并选择替换 ZIP 包', 400);
+        $result = (new InstallLogic($appName))->prepareFailedUpgradeReplacement($file, $this->adminId);
+        return $this->success($result, '替换候选预检完成');
+    }
+
+    /** Durably exchange the failed candidate for one prepared private package. */
+    public function replaceFailedUpgradeCandidate(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('替换失败候选仅支持 POST 请求', 400);
+        if ($this->adminId !== 1) throw new ApiException('仅超级管理员能够替换失败候选', 400);
+        $appName = trim((string) $request->post('appName', ''));
+        $replacementId = trim((string) $request->post('replacementId', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $replacementId === '' || $confirmation === '') throw new ApiException('请填写插件标识、替换候选标识和完整替换确认内容', 400);
+        $result = (new InstallLogic($appName))->replaceFailedUpgradeCandidate($replacementId, $confirmation, $this->adminId);
+        return $this->success($result, '失败候选替换完成');
+    }
+
+    /** Execute the already verified replacement's update.sql, never install.sql. */
+    public function retryFailedUpgrade(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('失败升级重试仅支持 POST 请求', 400);
+        if ($this->adminId !== 1) throw new ApiException('仅超级管理员能够重试失败升级', 400);
+        $appName = trim((string) $request->post('appName', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $confirmation === '') throw new ApiException('请填写插件标识和完整重试确认内容', 400);
+        $result = (new InstallLogic($appName))->retryFailedUpgrade($confirmation, $this->adminId);
+        return $this->success($result, '失败升级重试完成');
     }
 
     /**
@@ -387,4 +519,3 @@ class InstallController extends BaseController
         }
     }
 }
-

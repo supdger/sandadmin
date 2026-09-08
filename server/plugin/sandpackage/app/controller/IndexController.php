@@ -3,7 +3,7 @@
 namespace plugin\sandpackage\app\controller;
 
 use plugin\sandadmin\basic\OpenController;
-use Saithink\Saipackage\service\Terminal;
+use plugin\sandpackage\app\service\TerminalRunner;
 use support\Request;
 use support\Response;
 use Throwable;
@@ -31,22 +31,31 @@ class IndexController extends OpenController
             'Access-Control-Expose-Headers'    => 'Content-Type',
         ], "\r\n"));
 
-        // 消息开始
-        $connection->send(new ServerSentEvents([
-            'event' => 'message', 'data' => 'start'
-        ]));
-
-        // 生成器
-        $generator = (new Terminal())->exec();
-        foreach ($generator as $chunk) {
+        $runner = new TerminalRunner();
+        try {
+            // 消息开始
             $connection->send(new ServerSentEvents([
-                'event' => 'message', 'data' => $chunk
+                'event' => 'message', 'data' => 'start'
             ]));
-        }
 
-        // 关闭链接
-        $connection->close();
+            // 生成器
+            foreach ($runner->exec() as $chunk) {
+                $connection->send(new ServerSentEvents([
+                    'event' => 'message', 'data' => $chunk
+                ]));
+            }
+        } catch (Throwable) {
+            if ($runner->isTerminalCompleted() || $runner->isBusinessFinalized()) {
+                $runner->recordDeliveryFailure();
+            } else {
+                $runner->abort();
+            }
+        } finally {
+            if (!$runner->isTerminalCompleted()) {
+                $runner->abort();
+            }
+            $connection->close();
+        }
     }
 
 }
-
