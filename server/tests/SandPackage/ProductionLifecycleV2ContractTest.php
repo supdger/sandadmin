@@ -107,7 +107,9 @@ namespace {
             'candidate_payload' => ['algorithm' => 'sandpackage-normalized-package-manifest/v1', 'digest' => $payloadDigest],
             'profile' => $profile, 'update_lifecycle' => ['path' => 'update.sql', 'sha256' => $updateDigest],
         ];
-        productionLifecycleWrite($directory . '/recovery/failed-upgrade.v2.json', \plugin\sandpackage\app\logic\FailedUpgradeRecoveryVerifier::canonicalJson($descriptor));
+        $descriptorRaw = \plugin\sandpackage\app\logic\FailedUpgradeRecoveryVerifier::canonicalJson($descriptor);
+        productionLifecycleWrite($directory . '/recovery/failed-upgrade.v2.json', $descriptorRaw);
+        productionLifecycleWrite($directory . '/plugin/' . $app . '/recovery/failed-upgrade.v2.json', $descriptorRaw);
     }
     function productionLifecycleZip(string $directory, string $target): void {
         $zip = new \ZipArchive();

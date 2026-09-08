@@ -18,7 +18,7 @@ use plugin\sandadmin\exception\ApiException;
 final class FailedUpgradePackageIdentity
 {
     /** @var list<string> */
-    private const PAYLOAD_EXCLUSIONS = [
+    private const ROOT_PAYLOAD_EXCLUSIONS = [
         'recovery/failed-upgrade.v2.json',
         'recovery/failed-upgrade.v2.json.sha256',
         'registration_manifest.json',
@@ -53,12 +53,27 @@ final class FailedUpgradePackageIdentity
     }
 
     /**
-     * @param callable(string):string $normalizedInfo returns canonical info.ini
+     * @param callable(string):string $normalizedInfo returns canonical JSON for info.ini identity
      * @return array<string,array{size:int,sha256:string}>
      */
     public function payloadManifest(string $directory, callable $normalizedInfo): array
     {
         $this->assertSafeDirectory($directory);
+        $normalizedInfoContent = $normalizedInfo($directory);
+        try {
+            $normalizedInfoValues = json_decode($normalizedInfoContent, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            throw new ApiException('候选包恢复载荷的基础身份不合法');
+        }
+        $app = is_array($normalizedInfoValues) ? ($normalizedInfoValues['app'] ?? null) : null;
+        if (!is_string($app) || preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app) !== 1) {
+            throw new ApiException('候选包恢复载荷的应用身份不合法');
+        }
+        $payloadExclusions = [
+            ...self::ROOT_PAYLOAD_EXCLUSIONS,
+            'plugin/' . $app . '/recovery/failed-upgrade.v2.json',
+            'plugin/' . $app . '/recovery/failed-upgrade.v2.json.sha256',
+        ];
         $manifest = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
@@ -69,13 +84,12 @@ final class FailedUpgradePackageIdentity
                 throw new ApiException('候选包恢复载荷包含不安全文件');
             }
             $relative = str_replace(DIRECTORY_SEPARATOR, '/', $iterator->getSubPathName());
-            if (in_array($relative, self::PAYLOAD_EXCLUSIONS, true)
+            if (in_array($relative, $payloadExclusions, true)
                 || preg_match('/^registration_manifest\.json\.[a-f0-9]{16}\.tmp$/D', $relative) === 1) {
                 continue;
             }
             if ($relative === 'info.ini') {
-                $content = $normalizedInfo($directory);
-                $manifest[$relative] = ['size' => strlen($content), 'sha256' => hash('sha256', $content)];
+                $manifest[$relative] = ['size' => strlen($normalizedInfoContent), 'sha256' => hash('sha256', $normalizedInfoContent)];
                 continue;
             }
             $hash = hash_file('sha256', $item->getPathname());

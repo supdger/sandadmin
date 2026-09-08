@@ -220,6 +220,17 @@ namespace {
         ];
         $descriptorRaw = FailedUpgradeRecoveryVerifier::canonicalJson($descriptor);
         neutralWrite($candidate . '/recovery/failed-upgrade.v2.json', $descriptorRaw);
+        neutralWrite($candidate . '/recovery/failed-upgrade.v2.json.sha256', hash('sha256', $descriptorRaw));
+        neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json', $descriptorRaw);
+        neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json.sha256', hash('sha256', $descriptorRaw));
+        $mirroredPayload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
+        neutralCheck($mirroredPayload === $payload, 'root and same-app generated descriptor mirrors changed normalized payload identity');
+        neutralWrite($candidate . '/plugin/other-plugin/recovery/failed-upgrade.v2.json', $descriptorRaw);
+        neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json.bak', $descriptorRaw);
+        $lookalikePayload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
+        neutralCheck(isset($lookalikePayload['plugin/other-plugin/recovery/failed-upgrade.v2.json'], $lookalikePayload['plugin/neutral-fixture/recovery/failed-upgrade.v2.json.bak'])
+            && $identity->manifestDigest($lookalikePayload) !== $identity->manifestDigest($payload),
+            'foreign-app and lookalike descriptor paths remain bound into payload identity');
         neutralCheck($identity->readDescriptor($candidate) === $descriptorRaw, 'candidate descriptor identity was not preserved');
         neutralWrite($candidate . '/recovery/failed-upgrade.v2.json', $descriptorRaw . "\n");
         neutralReject(fn () => $identity->readDescriptor($candidate), 'non-canonical descriptor was accepted');

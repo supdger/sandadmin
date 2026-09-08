@@ -16,8 +16,8 @@ require $repositoryRoot . '/server/tests/SandPackage/ProductionLifecycleV2Contra
 
 // behavior-test-gate: static-rule -- package release metadata only.
 $metadata = require $repositoryRoot . '/server/plugin/sandpackage/config/app.php';
-if (!is_array($metadata) || ($metadata['version'] ?? null) !== '6.1.1') {
-    throw new RuntimeException('SandPackage 6.1.1 contract version is not active');
+if (!is_array($metadata) || ($metadata['version'] ?? null) !== '6.1.2') {
+    throw new RuntimeException('SandPackage 6.1.2 contract version is not active');
 }
 
 echo "SandPackage v2 state-machine contract passed\n";
