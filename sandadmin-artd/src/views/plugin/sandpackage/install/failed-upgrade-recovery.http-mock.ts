@@ -196,6 +196,11 @@ async function post(config: HttpRequestConfig): Promise<unknown> {
       verdict: 'retry_safe',
       replacement_id: replacementId,
       profile_hash: 'f'.repeat(64),
+      evidence_fingerprint: 'e'.repeat(64),
+      assertions_total: 101,
+      assertions_passed: 101,
+      failed_assertion_ids: [],
+      audit_written: false,
       allowed_actions: ['replace_failed_upgrade_candidate'],
       message: FAILED_UPGRADE_VERIFIED_MESSAGE
     }

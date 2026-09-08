@@ -220,6 +220,20 @@ namespace {
         $listPresentation = InstallLogic::presentInfo($failed);
         productionLifecyclePhase(($listPresentation['allowed_actions'] ?? null) === ['prepare_failed_upgrade_replacement'], 'public list presentation uses the canonical v2 prepare action');
 
+        $partialIdentity = $failed;
+        unset($partialIdentity['update_sql_sha256']);
+        \Saithink\Saipackage\service\Server::setIni($package, $partialIdentity);
+        try { $logic->inspectFailedUpgradeRecovery(1); throw new \RuntimeException('partial v2 candidate identity was accepted'); }
+        catch (\plugin\sandadmin\exception\ApiException) { productionLifecyclePhase(true, 'partially registered v2 candidate identity fails closed'); }
+
+        // Simulate a real pre-6.1 failure: backup lineage exists, but the four
+        // recovery-v2 candidate digests were never registered and the active
+        // failed candidate no longer matches the replacement archive.
+        foreach (['candidate_archive_sha256', 'candidate_payload_manifest_sha256', 'recovery_descriptor_sha256', 'update_sql_sha256'] as $field) unset($failed[$field]);
+        \Saithink\Saipackage\service\Server::setIni($package, $failed);
+        productionLifecycleWrite($package . '/update.sql', 'LEGACY_FAILED_CANDIDATE;');
+        productionLifecyclePhase((InstallLogic::presentInfo($logic->getInfo())['allowed_actions'] ?? null) === ['prepare_failed_upgrade_replacement'], 'legacy failed state with wholly absent v2 identity enters replacement bootstrap');
+
         productionLifecycleWrite(base_path() . '/plugin/' . $app . '/app/payload.php', '<?php // runtime drift');
         $inspection = $logic->inspectFailedUpgradeRecovery(1);
         productionLifecyclePhase(($inspection['runtime_restore_required'] ?? false) === true && ($inspection['allowed_actions'] ?? null) === ['restore_runtime_from_backup'], 'public inspect makes runtime restore the sole drift action');
@@ -243,9 +257,17 @@ namespace {
         $replacementId = (string) ($prepared['replacement_id'] ?? '');
         productionLifecyclePhase(strlen($replacementId) === 32 && ctype_xdigit($replacementId) && strtolower($replacementId) === $replacementId, 'public prepare retains a private identity-bound replacement');
         $verified = $logic->verifyPreparedFailedUpgradeReplacement((string) $prepared['replacement_id'], 1);
-        productionLifecyclePhase(($verified['verdict'] ?? null) === 'retry_safe' && ($verified['allowed_actions'] ?? null) === ['replace_failed_upgrade_candidate'], 'public verify authorizes only replacement');
+        productionLifecyclePhase(($verified['verdict'] ?? null) === 'retry_safe' && ($verified['allowed_actions'] ?? null) === ['replace_failed_upgrade_candidate']
+            && ($verified['assertions_total'] ?? null) === 1 && ($verified['assertions_passed'] ?? null) === 1
+            && ($verified['failed_assertion_ids'] ?? null) === [] && ($verified['audit_written'] ?? null) === false
+            && is_string($verified['evidence_fingerprint'] ?? null) && strlen($verified['evidence_fingerprint']) === 64,
+            'formal Gate A binds the prepared replacement to the real backup in a read-only transaction without audit writes');
         $replaced = $logic->replaceFailedUpgradeCandidate((string) $prepared['replacement_id'], 'REPLACE sample-plugin@1.1.0', 1);
         productionLifecyclePhase(($replaced['state'] ?? null) === 'ready', 'public replace activates only the verified candidate');
+        $activeGate = $logic->verifyFailedUpgradeRecovery(1);
+        productionLifecyclePhase(($activeGate['audit_written'] ?? null) === false && ($activeGate['assertions_total'] ?? null) === 1
+            && ($activeGate['assertions_passed'] ?? null) === 1 && ($activeGate['failed_assertion_ids'] ?? null) === [],
+            'active-candidate Gate A remains explicitly read-only after v2 identity registration');
         $completed = $logic->retryFailedUpgrade('RETRY sample-plugin@1.0.0->1.1.0', 1);
         productionLifecyclePhase(($completed['state'] ?? null) === 'installed' && $logic->getInstallState() === InstallLogic::INSTALLED, 'public retry completes update and reaches installed');
         productionLifecyclePhase(file_get_contents(base_path() . '/plugin/' . $app . '/app/payload.php') === "<?php // neutral 1.1.0\n", 'retry deploys the verified 1.1 runtime payload');

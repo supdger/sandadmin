@@ -703,6 +703,11 @@ export function parseVerifyResult(
   const returnedReplacementId =
     readString(payload, 'replacement_id') ?? readString(payload, 'replacementId') ?? ''
   const returnedProfileHash = readString(payload, 'profile_hash') ?? ''
+  const evidenceFingerprint = readString(payload, 'evidence_fingerprint') ?? ''
+  const assertionsTotal = readNumber(payload, 'assertions_total')
+  const assertionsPassed = readNumber(payload, 'assertions_passed')
+  const failedAssertionIds = readStringList(payload['failed_assertion_ids'])
+  const auditWritten = readBoolean(payload, 'audit_written')
   if (app === '' || fromVersion === '' || toVersion === '' || verdict === '') {
     throw new FailedUpgradeRecoveryClosedError(
       'recoverable',
@@ -731,6 +736,19 @@ export function parseVerifyResult(
   }
   if (verdict !== 'retry_safe') {
     throw new FailedUpgradeRecoveryClosedError('blocked', FAILED_UPGRADE_BLOCKED_MESSAGE)
+  }
+  if (
+    !isLowerSha256(evidenceFingerprint) ||
+    assertionsTotal === undefined ||
+    assertionsTotal < 1 ||
+    assertionsPassed !== assertionsTotal ||
+    failedAssertionIds.length !== 0 ||
+    auditWritten !== false
+  ) {
+    throw new FailedUpgradeRecoveryClosedError(
+      'recoverable',
+      FAILED_UPGRADE_VERIFY_INCOMPLETE_MESSAGE
+    )
   }
   const allowed = readStringList(payload['allowed_actions'] ?? payload['allowedActions'])
   if (!hasExactAllowedActions(allowed, REQUIRED_REPLACE_ACTIONS)) {

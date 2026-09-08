@@ -50,7 +50,23 @@ final class FailedUpgradeRecoveryInspector
             || version_compare((string) $info['version'], (string) $info['upgrade_from_version'], '<=')) {
             return false;
         }
-        foreach (['candidate_archive_sha256', 'candidate_payload_manifest_sha256', 'recovery_descriptor_sha256', 'update_sql_sha256', 'registration_manifest', 'runtime_manifest'] as $field) {
+        $candidateIdentityFields = ['candidate_archive_sha256', 'candidate_payload_manifest_sha256', 'recovery_descriptor_sha256', 'update_sql_sha256'];
+        $presentCandidateIdentityFields = 0;
+        foreach ($candidateIdentityFields as $field) {
+            if (array_key_exists($field, $info)) {
+                $presentCandidateIdentityFields++;
+                if (!is_string($info[$field]) || preg_match('/^[a-f0-9]{64}$/D', $info[$field]) !== 1) {
+                    return false;
+                }
+            }
+        }
+        // A historic database_update failure may predate recovery v2. It can
+        // enter the replacement bootstrap only when none of the v2 identity
+        // exists; a partially written identity is always ambiguous and blocked.
+        if (!in_array($presentCandidateIdentityFields, [0, count($candidateIdentityFields)], true)) {
+            return false;
+        }
+        foreach (['registration_manifest', 'runtime_manifest'] as $field) {
             if (!is_string($info[$field] ?? null) || preg_match('/^[a-f0-9]{64}$/D', $info[$field]) !== 1) {
                 return false;
             }

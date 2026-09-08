@@ -21,7 +21,7 @@ class Recover extends Command
 
     protected function configure(): void
     {
-        $this->addArgument('action', InputArgument::REQUIRED, 'inspect|restore|verify|prepare|replace|retry')
+        $this->addArgument('action', InputArgument::REQUIRED, 'inspect|restore|gate-a|verify|prepare|replace|retry')
             ->addArgument('app', InputArgument::REQUIRED, '插件标识')
             ->addOption('replacement-id', null, InputOption::VALUE_REQUIRED, '已预检替换候选标识')
             ->addOption('archive', null, InputOption::VALUE_REQUIRED, 'prepare 的本地 ZIP 文件')
@@ -46,7 +46,7 @@ class Recover extends Command
             $result = match ($action) {
                 'inspect' => $logic->inspectFailedUpgradeRecovery((int) $actor),
                 'restore' => $logic->restoreRuntimeFromBackup((string) $input->getOption('confirmation'), FailedUpgradeRecoveryAudit::cliActor()),
-                'verify' => $logic->verifyPreparedFailedUpgradeReplacement((string) $input->getOption('replacement-id'), FailedUpgradeRecoveryAudit::cliActor()),
+                'gate-a', 'verify' => $logic->verifyPreparedFailedUpgradeReplacement((string) $input->getOption('replacement-id'), FailedUpgradeRecoveryAudit::cliActor()),
                 'prepare' => $logic->prepareFailedUpgradeReplacement($this->archive((string) $input->getOption('archive')), FailedUpgradeRecoveryAudit::cliActor()),
                 'replace' => $logic->replaceFailedUpgradeCandidate((string) $input->getOption('replacement-id'), (string) $input->getOption('confirmation'), FailedUpgradeRecoveryAudit::cliActor()),
                 'retry' => $logic->retryFailedUpgrade((string) $input->getOption('confirmation'), FailedUpgradeRecoveryAudit::cliActor()),

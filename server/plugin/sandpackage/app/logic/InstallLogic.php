@@ -1097,7 +1097,8 @@ class InstallLogic
             $presented['recovery_app'] = (string) $info['app'];
             $presented['recovery_from_version'] = (string) $info['upgrade_from_version'];
             $presented['recovery_to_version'] = (string) $info['version'];
-        } elseif (self::isFailedUpgradeRecoveryShape($info) && self::hasAnyModernFailedMarker($info)) {
+        } elseif (self::isFailedUpgradeRecoveryShape($info)
+            && (self::hasCompleteModernFailedMarkers($info) || self::hasNoModernFailedMarkers($info))) {
             $presented['recovery_mode'] = 'verification_required';
             $presented['allowed_actions'] = ['prepare_failed_upgrade_replacement'];
             $presented['recovery_reason'] = '数据库升级未完成，后续文件部署已停止。为避免覆盖可能的部分变更，请先核验恢复条件。';
@@ -1174,6 +1175,15 @@ class InstallLogic
         return true;
     }
 
+    /** @param array<string,mixed> $info */
+    private static function hasNoModernFailedMarkers(array $info): bool
+    {
+        foreach (['candidate_archive_sha256','candidate_payload_manifest_sha256','recovery_descriptor_sha256','update_sql_sha256','failed_upgrade_replacement_id','replacement_candidate_state'] as $field) {
+            if (array_key_exists($field, $info)) return false;
+        }
+        return true;
+    }
+
     /** Any modern marker means the list may only offer a new verification, never retry. */
     private static function hasAnyModernFailedMarker(array $info): bool
     {
@@ -1199,7 +1209,7 @@ class InstallLogic
      * This is a read-only preflight. It deliberately never authorizes a retry:
      * replace and retry must recalculate the same binding under their own lock.
      *
-     * @return array{app:string,from_version:string,to_version:string,verdict:string,recovery_state:string,evidence_fingerprint:?string,allowed_actions:list<string>,message:string}
+     * @return array{app:string,from_version:string,to_version:string,verdict:string,recovery_state:string,evidence_fingerprint:?string,allowed_actions:list<string>,assertions_total:int,assertions_passed:int,failed_assertion_ids:list<string>,audit_written:false,message:string}
      */
     public function verifyFailedUpgradeRecovery(int|array $actor): array
     {
@@ -1223,10 +1233,10 @@ class InstallLogic
                 throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：恢复核验连接未能安全回滚，未授权任何后续操作', 400);
             }
 
-            $this->logFailedUpgradeRecoveryVerification($info, $identity, $result, $actor);
             if (($result['status'] ?? null) !== 'retry_safe') {
                 throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：' . (string) ($result['message'] ?? '恢复核验未通过'), 400);
             }
+            $assertions = $verifier->internalAssertionLog();
 
             return [
                 'app' => $this->appName,
@@ -1236,6 +1246,10 @@ class InstallLogic
                 'recovery_state' => (string) $result['state'],
                 'evidence_fingerprint' => $result['evidence_fingerprint'],
                 'allowed_actions' => !$this->hasExactModernReplacementReadyEvidence($info) ? ['prepare_failed_upgrade_replacement'] : ['replace_failed_upgrade_candidate'],
+                'assertions_total' => count($assertions),
+                'assertions_passed' => count(array_filter($assertions, static fn (array $assertion): bool => $assertion['passed'])),
+                'failed_assertion_ids' => array_values(array_column(array_filter($assertions, static fn (array $assertion): bool => !$assertion['passed']), 'id')),
+                'audit_written' => false,
                 'message' => (string) $result['message'],
             ];
         } finally {
@@ -1262,18 +1276,18 @@ class InstallLogic
      * Rechecks both the prepared replacement evidence and the catalog under a
      * fresh lock. A successful response is the sole authorization to replace.
      *
-     * @return array{app:string,from_version:string,to_version:string,replacement_id:string,profile_hash:string,verdict:string,recovery_state:string,allowed_actions:list<string>,message:string}
+     * @return array{app:string,from_version:string,to_version:string,replacement_id:string,profile_hash:string,verdict:string,recovery_state:string,evidence_fingerprint:string,allowed_actions:list<string>,assertions_total:int,assertions_passed:int,failed_assertion_ids:list<string>,audit_written:false,message:string}
      */
     public function verifyPreparedFailedUpgradeReplacement(string $replacementId, int|array $actor): array
     {
         $this->acquireReadOnlyVerificationLock();
         try {
-            $failed = $this->requireExactFailedUpgradeRecoveryInfo();
+            $failed = $this->requireFailedUpgradeRecoveryBootstrapInfo();
             $this->failedUpgradeRecoveryCoordinator()->verify($failed, $replacementId, fn (): array => $this->runtimeRestoreDiagnostic($failed));
             $this->assertReplacementRecordId($replacementId);
             $record = $this->readExistingReplacementRecord($replacementId);
             $this->assertPreparedReplacement($record, $failed);
-            $check = $this->revalidateFailedUpgradeRecovery($failed);
+            $check = $this->revalidatePreparedFailedUpgradeRecovery($failed, $record);
             if (!is_string($record['profile_hash'] ?? null) || !$this->isSha256($record['profile_hash'])) {
                 throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换候选 profile 摘要不完整', 400);
             }
@@ -1285,7 +1299,12 @@ class InstallLogic
                 'profile_hash' => $record['profile_hash'],
                 'verdict' => 'retry_safe',
                 'recovery_state' => $check['state'],
+                'evidence_fingerprint' => $check['evidence_fingerprint'],
                 'allowed_actions' => ['replace_failed_upgrade_candidate'],
+                'assertions_total' => $check['assertions_total'],
+                'assertions_passed' => $check['assertions_passed'],
+                'failed_assertion_ids' => $check['failed_assertion_ids'],
+                'audit_written' => false,
                 'message' => '替换候选与当前恢复条件均已重新核验。',
             ];
         } finally {
@@ -1304,7 +1323,7 @@ class InstallLogic
     {
         $this->acquireOperationLock();
         try {
-            $info = $this->requireExactFailedUpgradeRecoveryInfo();
+            $info = $this->requireFailedUpgradeRecoveryBootstrapInfo();
             return $this->failedUpgradeRecoveryCoordinator()->restore(
                 $info,
                 $confirmation,
@@ -1351,7 +1370,7 @@ class InstallLogic
         $this->acquireUploadPreflightLock();
         $this->acquireReadOnlyVerificationLock();
         try {
-            $failed = $this->requireExactFailedUpgradeRecoveryInfo();
+            $failed = $this->requireFailedUpgradeRecoveryBootstrapInfo();
             $this->failedUpgradeRecoveryCoordinator()->prepare($failed, fn (): array => $this->runtimeRestoreDiagnostic($failed));
             $source = $this->uploadedFilePath($file);
             if (filesize($source) === false || filesize($source) > 5 * 1024 * 1024) {
@@ -1422,13 +1441,13 @@ class InstallLogic
     {
         $this->acquireOperationLock();
         try {
-            $failed = $this->requireExactFailedUpgradeRecoveryInfo();
+            $failed = $this->requireFailedUpgradeRecoveryBootstrapInfo();
             $this->failedUpgradeRecoveryCoordinator()->replace($failed, $replacementId, $confirmation, fn (): array => $this->runtimeRestoreDiagnostic($failed));
             $expected = 'REPLACE ' . $this->appName . '@' . (string) $failed['version'];
             if (!hash_equals($expected, $confirmation)) throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换确认内容不匹配', 400);
-            $check = $this->revalidateFailedUpgradeRecovery($failed);
             $record = $this->readReplacementRecord($replacementId);
             $this->assertPreparedReplacement($record, $failed);
+            $check = $this->revalidatePreparedFailedUpgradeRecovery($failed, $record);
             $oldManifest = $this->preparedPackageManifest($this->appDir, true);
             $quarantineRoot = $this->installDir . 'quarantine' . DIRECTORY_SEPARATOR . $this->appName;
             $this->prepareManagedDirectory($quarantineRoot, 0700);
@@ -1600,13 +1619,17 @@ class InstallLogic
         $descriptorRaw = $this->readFailedUpgradeDescriptor($package);
         try { $descriptor = (new FailedUpgradeRecoveryVerifier())->parseDescriptor($descriptorRaw); }
         catch (Throwable) { throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换包恢复描述不符合冻结契约', 400); }
-        $reference = $referenceCandidate ?? $this->appDir;
-        $currentRaw = $this->readFailedUpgradeDescriptor($reference);
-        try { $current = (new FailedUpgradeRecoveryVerifier())->parseDescriptor($currentRaw); }
-        catch (Throwable) { throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：当前失败候选恢复描述不符合冻结契约', 400); }
+        $current = null;
+        if (self::hasCompleteModernFailedMarkers($failed) || $referenceCandidate !== null) {
+            $reference = $referenceCandidate ?? $this->appDir;
+            $currentRaw = $this->readFailedUpgradeDescriptor($reference);
+            try { $current = (new FailedUpgradeRecoveryVerifier())->parseDescriptor($currentRaw); }
+            catch (Throwable) { throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：当前失败候选恢复描述不符合冻结契约', 400); }
+        }
         $packageInfo = self::readPackageInfo($package);
         if (($descriptor['app'] ?? null) !== $this->appName || ($descriptor['from_version'] ?? null) !== ($failed['upgrade_from_version'] ?? null)
-            || ($descriptor['to_version'] ?? null) !== ($failed['version'] ?? null) || ($descriptor['profile'] ?? null) !== ($current['profile'] ?? null)
+            || ($descriptor['to_version'] ?? null) !== ($failed['version'] ?? null)
+            || ($current !== null && ($descriptor['profile'] ?? null) !== ($current['profile'] ?? null))
             || ($packageInfo['app'] ?? null) !== $this->appName || ($packageInfo['version'] ?? null) !== ($failed['version'] ?? null)) {
             throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换包应用、版本或恢复配置不匹配', 400);
         }
@@ -1713,6 +1736,61 @@ class InstallLogic
         return ['evidence_fingerprint' => $result['evidence_fingerprint'], 'state' => (string) $result['state']];
     }
 
+    /**
+     * Bind Gate A to the immutable prepared replacement and the verified
+     * pre-upgrade backup. This path performs only file reads and a PostgreSQL
+     * READ ONLY transaction; it deliberately does not write the audit log.
+     *
+     * @param array<string,mixed> $failed
+     * @param array<string,mixed> $record
+     * @return array{evidence_fingerprint:string,state:string,assertions_total:int,assertions_passed:int,failed_assertion_ids:list<string>}
+     */
+    private function revalidatePreparedFailedUpgradeRecovery(array $failed, array $record): array
+    {
+        $this->assertPreparedReplacement($record, $failed);
+        $backup = $this->readVerifiedCandidateBackup((string) $failed['package_backup_id'], (string) $failed['registration_manifest']);
+        $this->assertRuntimeManifest($backup['runtime_manifest']);
+        if (!hash_equals($backup['runtime_manifest_hash'], (string) $failed['runtime_manifest'])) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换候选未绑定已验证的升级前运行时清单', 400);
+        }
+        $this->assertUpgradeLineage($failed, $backup['version']);
+        $this->assertHostSupportsUpgrade($failed);
+        $package = $this->replacementPackagePath((string) $record['id']);
+        $descriptorRaw = $this->readFailedUpgradeDescriptor($package);
+        $binding = new FailedUpgradeIdentityBinding(
+            (string) $record['archive_sha256'],
+            (string) $failed['package_backup_id'],
+            $backup['package_manifest_sha256'],
+            (string) $record['payload_sha256'],
+            $backup['deployment_manifest_sha256'],
+            (string) $record['descriptor_sha256'],
+            $backup['previous_registration_manifest_sha256'],
+            $backup['runtime_manifest_hash'],
+            (string) $record['update_sql_sha256'],
+        );
+        $connection = Db::connect('pgsql');
+        $pdo = $connection->getPdo();
+        if (!is_object($pdo)) throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立只读恢复核验连接', 400);
+        $verifier = new FailedUpgradeRecoveryVerifier();
+        $result = $verifier->verify($descriptorRaw, $pdo, $binding);
+        if (($result['connection_reusable'] ?? false) !== true) {
+            $connection->close();
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：恢复核验连接未能安全回滚', 400);
+        }
+        $assertions = $verifier->internalAssertionLog();
+        if (($result['status'] ?? null) !== 'retry_safe' || !is_string($result['evidence_fingerprint'] ?? null)) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：' . (string) ($result['message'] ?? '恢复核验未通过'), 400);
+        }
+        $failedAssertions = array_values(array_filter($assertions, static fn (array $assertion): bool => !$assertion['passed']));
+        return [
+            'evidence_fingerprint' => $result['evidence_fingerprint'],
+            'state' => (string) $result['state'],
+            'assertions_total' => count($assertions),
+            'assertions_passed' => count($assertions) - count($failedAssertions),
+            'failed_assertion_ids' => array_values(array_column($failedAssertions, 'id')),
+        ];
+    }
+
     /** @return array<string,mixed> */
     private function requireExactFailedUpgradeRecoveryInfo(): array
     {
@@ -1721,6 +1799,27 @@ class InstallLogic
             || (!self::isExactModernReplacementReadyShape($info) && !self::hasCompleteModernFailedMarkers($info))) {
             throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：该插件不是可核验的数据库升级失败状态', 400);
         }
+        return $info;
+    }
+
+    /**
+     * Accept a historical database_update failure only when its v2 candidate
+     * identity is wholly absent. Complete modern identity remains accepted;
+     * partial identity is fail-closed and cannot be repaired in place.
+     *
+     * @return array<string,mixed>
+     */
+    private function requireFailedUpgradeRecoveryBootstrapInfo(): array
+    {
+        $info = $this->getInfo();
+        if (!self::isFailedUpgradeRecoveryShape($info) || ($info['app'] ?? null) !== $this->appName
+            || (!self::hasCompleteModernFailedMarkers($info) && !self::hasNoModernFailedMarkers($info))
+            || !is_string($info['package_backup_id'] ?? null) || !$this->isBackupId($info['package_backup_id'])
+            || !self::isSha256Value($info['registration_manifest'] ?? null)
+            || !self::isSha256Value($info['runtime_manifest'] ?? null)) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：数据库升级失败状态或身份链不完整', 400);
+        }
+        self::assertCandidatePackageIdentity($info);
         return $info;
     }
 
@@ -1789,25 +1888,6 @@ class InstallLogic
                 'profile_hash' => hash('sha256', FailedUpgradeRecoveryVerifier::canonicalJson($descriptor['profile'])),
             ],
         ];
-    }
-
-    /** @param array<string,mixed> $info @param array<string,mixed> $identity @param array<string,mixed> $result */
-    private function logFailedUpgradeRecoveryVerification(array $info, array $identity, array $result, int|array $actor): void
-    {
-        $audit = $identity['audit'];
-        unset($audit['profile_hash']);
-        (new FailedUpgradeRecoveryAudit())->write([
-            'action' => 'verify_failed_upgrade_recovery',
-            'app' => $this->appName,
-            'from_version' => (string) $info['upgrade_from_version'],
-            'to_version' => (string) $info['version'],
-            ...$this->normalizeRecoveryActor($actor),
-            'failed_stage' => 'database_update',
-            'profile_hash' => (string) $identity['audit']['profile_hash'],
-            'verdict' => (string) ($result['status'] ?? 'FAILED_UPGRADE_RECOVERY_BLOCKED'),
-            'evidence_fingerprint' => $result['evidence_fingerprint'] ?? null,
-            ...$audit,
-        ]);
     }
 
     /** @return array{actor_type:string,actor_id:string,actor_name:string} */
@@ -3598,9 +3678,6 @@ class InstallLogic
     /** @param array<string,mixed> $info @return array{required:bool,backup:array<string,mixed>,backup_id:string,diff:list<array<string,mixed>>} */
     private function runtimeRestoreDiagnostic(array $info): array
     {
-        if (!self::hasCompleteModernFailedMarkers($info)) {
-            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：恢复描述与候选证据不完整', 400);
-        }
         $backup = $this->readVerifiedCandidateBackup((string) $info['package_backup_id'], (string) $info['registration_manifest']);
         if (!hash_equals($backup['runtime_manifest_hash'], (string) ($info['runtime_manifest'] ?? ''))) {
             throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：失败候选未绑定已验证的升级前运行时清单', 400);

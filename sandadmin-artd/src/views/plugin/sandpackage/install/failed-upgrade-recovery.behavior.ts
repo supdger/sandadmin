@@ -249,6 +249,11 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
       verdict: 'retry_safe',
       replacement_id: 'rep-1',
       profile_hash: 'f'.repeat(64),
+      evidence_fingerprint: 'e'.repeat(64),
+      assertions_total: 101,
+      assertions_passed: 101,
+      failed_assertion_ids: [],
+      audit_written: false,
       allowed_actions: ['replace_failed_upgrade_candidate']
     },
     { app: 'sample-plugin', fromVersion: '0.6.0', toVersion: '0.7.0' },
@@ -259,6 +264,33 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
     prepareOnlyVerify.app === 'sample-plugin',
     'Gate A accepts matching sealed replacement'
   )
+  try {
+    parseVerifyResult(
+      {
+        app: 'sample-plugin',
+        from_version: '0.6.0',
+        to_version: '0.7.0',
+        verdict: 'retry_safe',
+        replacement_id: 'rep-1',
+        profile_hash: 'f'.repeat(64),
+        evidence_fingerprint: 'e'.repeat(64),
+        assertions_total: 101,
+        assertions_passed: 101,
+        failed_assertion_ids: [],
+        audit_written: true,
+        allowed_actions: ['replace_failed_upgrade_candidate']
+      },
+      { app: 'sample-plugin', fromVersion: '0.6.0', toVersion: '0.7.0' },
+      'rep-1',
+      'f'.repeat(64)
+    )
+    throw new Error('Gate A audit write must fail')
+  } catch (error: unknown) {
+    if (!(error instanceof Error) || error.message !== FAILED_UPGRADE_VERIFY_INCOMPLETE_MESSAGE) {
+      throw error
+    }
+  }
+  passed.push('Gate A requires complete read-only assertion evidence')
   try {
     parseVerifyResult(
       {
