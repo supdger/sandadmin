@@ -199,7 +199,7 @@ namespace {
         }
 
         $candidate = $root . '/candidate';
-        neutralWrite($candidate . '/info.ini', '[app]\napp=neutral-fixture\nversion=1.1.0\n');
+        neutralWrite($candidate . '/info.ini', "app=neutral-fixture\nversion=1.1.0\n");
         neutralWrite($candidate . '/update.sql', 'ALTER TABLE neutral_fixture_item ADD COLUMN note text;');
         $identity = new FailedUpgradePackageIdentity();
         $payload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
@@ -211,6 +211,7 @@ namespace {
         neutralCheck(isset($payload['info.ini'], $payload['update.sql']), 'candidate payload identity omitted lifecycle files');
         neutralCheck(strlen($descriptorPayloadDigest) === 64, 'candidate descriptor payload digest is invalid');
         neutralReject(fn () => $identity->descriptorPayloadDigest($candidate, 'unknown-payload/v9', 'neutral-fixture'), 'unknown candidate payload algorithm was accepted');
+        neutralReject(fn () => $identity->descriptorPayloadDigest($candidate, FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1, 'other-plugin'), 'descriptor app could select a foreign payload exclusion scope');
         $descriptor = [
             'schema' => 'sandpackage.failed-upgrade-recovery/v2',
             'app' => 'neutral-fixture',

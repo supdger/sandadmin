@@ -119,6 +119,11 @@ final class FailedUpgradePackageIdentity
             throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：候选包载荷应用身份不合法', 400);
         }
         $this->assertSafeDirectory($directory);
+        $infoFile = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'info.ini';
+        $info = $this->isSafeRegularFile($infoFile) ? parse_ini_file($infoFile, true, INI_SCANNER_TYPED) : false;
+        if (!is_array($info) || ($info['app'] ?? null) !== $app) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：候选包载荷与根应用身份不匹配', 400);
+        }
         $files = [];
         $exclusions = $this->payloadExclusions($app);
         $iterator = new RecursiveIteratorIterator(
