@@ -17,6 +17,9 @@ use plugin\sandadmin\exception\ApiException;
  */
 final class FailedUpgradePackageIdentity
 {
+    public const NORMALIZED_PACKAGE_MANIFEST_V1 = 'sandpackage-normalized-package-manifest/v1';
+    private const NORMALIZED_PACKAGE_MANIFEST_SCHEMA_V1 = 'sandpackage.normalized-package-manifest/v1';
+
     /** @var list<string> */
     private const ROOT_PAYLOAD_EXCLUSIONS = [
         'recovery/failed-upgrade.v2.json',
@@ -69,11 +72,7 @@ final class FailedUpgradePackageIdentity
         if (!is_string($app) || preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app) !== 1) {
             throw new ApiException('候选包恢复载荷的应用身份不合法');
         }
-        $payloadExclusions = [
-            ...self::ROOT_PAYLOAD_EXCLUSIONS,
-            'plugin/' . $app . '/recovery/failed-upgrade.v2.json',
-            'plugin/' . $app . '/recovery/failed-upgrade.v2.json.sha256',
-        ];
+        $payloadExclusions = $this->payloadExclusions($app);
         $manifest = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
@@ -105,10 +104,67 @@ final class FailedUpgradePackageIdentity
         return $manifest;
     }
 
+    /**
+     * Calculate the digest named by a candidate descriptor. Algorithm v1 is
+     * deliberately distinct from the host's internal size-bearing manifest:
+     * it binds a canonical wrapper around a pure path => SHA-256 map and hashes
+     * the original candidate bytes, including info.ini.
+     */
+    public function descriptorPayloadDigest(string $directory, string $algorithm, string $app): string
+    {
+        if ($algorithm !== self::NORMALIZED_PACKAGE_MANIFEST_V1) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：候选包载荷摘要算法不受支持', 400);
+        }
+        if (preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app) !== 1) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：候选包载荷应用身份不合法', 400);
+        }
+        $this->assertSafeDirectory($directory);
+        $files = [];
+        $exclusions = $this->payloadExclusions($app);
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $item) {
+            if ($item->isLink() || !$item->isFile()) {
+                throw new ApiException('候选包恢复载荷包含不安全文件');
+            }
+            $relative = str_replace(DIRECTORY_SEPARATOR, '/', $iterator->getSubPathName());
+            if (in_array($relative, $exclusions, true)
+                || preg_match('/^registration_manifest\.json\.[a-f0-9]{16}\.tmp$/D', $relative) === 1) {
+                continue;
+            }
+            $hash = hash_file('sha256', $item->getPathname());
+            if (!is_string($hash)) {
+                throw new ApiException('候选包恢复载荷摘要计算失败');
+            }
+            $files[$relative] = $hash;
+        }
+        if (!isset($files['info.ini'], $files['update.sql'])) {
+            throw new ApiException('候选包恢复载荷不完整');
+        }
+        ksort($files, SORT_STRING);
+        return hash('sha256', FailedUpgradeRecoveryVerifier::canonicalJson([
+            'algorithm' => self::NORMALIZED_PACKAGE_MANIFEST_V1,
+            'files' => $files,
+            'schema' => self::NORMALIZED_PACKAGE_MANIFEST_SCHEMA_V1,
+        ]));
+    }
+
     /** @param array<string,mixed> $manifest */
     public function manifestDigest(array $manifest): string
     {
         return hash('sha256', json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+    }
+
+    /** @return list<string> */
+    private function payloadExclusions(string $app): array
+    {
+        return [
+            ...self::ROOT_PAYLOAD_EXCLUSIONS,
+            'plugin/' . $app . '/recovery/failed-upgrade.v2.json',
+            'plugin/' . $app . '/recovery/failed-upgrade.v2.json.sha256',
+        ];
     }
 
     public function retainArchive(string $archive, string $expectedSha256, string $archiveDirectory): void

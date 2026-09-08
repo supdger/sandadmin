@@ -93,8 +93,11 @@ namespace {
         productionLifecycleWrite($directory . '/sandadmin-artd/src/views/plugin/' . $app . '/index.vue', '<template>neutral ' . $version . '</template>');
         if ($version === '1.0.0') return;
         $identity = new \plugin\sandpackage\app\logic\FailedUpgradePackageIdentity();
-        $payload = $identity->payloadManifest($directory, 'productionLifecycleNormalizedInfo');
-        $payloadDigest = $identity->manifestDigest($payload);
+        $payloadDigest = $identity->descriptorPayloadDigest(
+            $directory,
+            \plugin\sandpackage\app\logic\FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1,
+            $app,
+        );
         $updateDigest = hash_file('sha256', $directory . '/update.sql');
         $profile = [
             'schema' => 'sandpackage.failed-upgrade-recovery-profile/v2', 'id' => 'neutral_partial',

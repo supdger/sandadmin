@@ -203,14 +203,20 @@ namespace {
         neutralWrite($candidate . '/update.sql', 'ALTER TABLE neutral_fixture_item ADD COLUMN note text;');
         $identity = new FailedUpgradePackageIdentity();
         $payload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
+        $descriptorPayloadDigest = $identity->descriptorPayloadDigest(
+            $candidate,
+            FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1,
+            'neutral-fixture',
+        );
         neutralCheck(isset($payload['info.ini'], $payload['update.sql']), 'candidate payload identity omitted lifecycle files');
-        neutralCheck(strlen($identity->manifestDigest($payload)) === 64, 'candidate payload digest is invalid');
+        neutralCheck(strlen($descriptorPayloadDigest) === 64, 'candidate descriptor payload digest is invalid');
+        neutralReject(fn () => $identity->descriptorPayloadDigest($candidate, 'unknown-payload/v9', 'neutral-fixture'), 'unknown candidate payload algorithm was accepted');
         $descriptor = [
             'schema' => 'sandpackage.failed-upgrade-recovery/v2',
             'app' => 'neutral-fixture',
             'from_version' => '1.0.0',
             'to_version' => '1.1.0',
-            'candidate_payload' => ['algorithm' => 'sandpackage-normalized-package-manifest/v1', 'digest' => $identity->manifestDigest($payload)],
+            'candidate_payload' => ['algorithm' => FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1, 'digest' => $descriptorPayloadDigest],
             'update_lifecycle' => ['path' => 'update.sql', 'sha256' => hash_file('sha256', $candidate . '/update.sql')],
             'profile' => [
                 'schema' => 'sandpackage.failed-upgrade-recovery-profile/v2', 'id' => 'neutral_state',
@@ -224,13 +230,20 @@ namespace {
         neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json', $descriptorRaw);
         neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json.sha256', hash('sha256', $descriptorRaw));
         $mirroredPayload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
-        neutralCheck($mirroredPayload === $payload, 'root and same-app generated descriptor mirrors changed normalized payload identity');
+        $mirroredDescriptorDigest = $identity->descriptorPayloadDigest($candidate, FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1, 'neutral-fixture');
+        neutralCheck($mirroredPayload === $payload && hash_equals($descriptorPayloadDigest, $mirroredDescriptorDigest), 'root and same-app generated descriptor mirrors changed normalized payload identity');
         neutralWrite($candidate . '/plugin/other-plugin/recovery/failed-upgrade.v2.json', $descriptorRaw);
         neutralWrite($candidate . '/plugin/neutral-fixture/recovery/failed-upgrade.v2.json.bak', $descriptorRaw);
         $lookalikePayload = $identity->payloadManifest($candidate, static fn (): string => '{"app":"neutral-fixture","version":"1.1.0"}');
+        $lookalikeDescriptorDigest = $identity->descriptorPayloadDigest($candidate, FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1, 'neutral-fixture');
         neutralCheck(isset($lookalikePayload['plugin/other-plugin/recovery/failed-upgrade.v2.json'], $lookalikePayload['plugin/neutral-fixture/recovery/failed-upgrade.v2.json.bak'])
-            && $identity->manifestDigest($lookalikePayload) !== $identity->manifestDigest($payload),
+            && !hash_equals($descriptorPayloadDigest, $lookalikeDescriptorDigest),
             'foreign-app and lookalike descriptor paths remain bound into payload identity');
+        $originalInfo = (string) file_get_contents($candidate . '/info.ini');
+        neutralWrite($candidate . '/info.ini', $originalInfo . "title=changed\n");
+        $changedInfoDigest = $identity->descriptorPayloadDigest($candidate, FailedUpgradePackageIdentity::NORMALIZED_PACKAGE_MANIFEST_V1, 'neutral-fixture');
+        neutralCheck(!hash_equals($lookalikeDescriptorDigest, $changedInfoDigest), 'raw candidate info.ini bytes were omitted from public payload identity');
+        neutralWrite($candidate . '/info.ini', $originalInfo);
         neutralCheck($identity->readDescriptor($candidate) === $descriptorRaw, 'candidate descriptor identity was not preserved');
         neutralWrite($candidate . '/recovery/failed-upgrade.v2.json', $descriptorRaw . "\n");
         neutralReject(fn () => $identity->readDescriptor($candidate), 'non-canonical descriptor was accepted');

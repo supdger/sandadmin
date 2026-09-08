@@ -1613,7 +1613,7 @@ class InstallLogic
     }
 
     /** @param array<string,mixed> $failed @return array<string,mixed> */
-    private function replacementPackageIdentity(string $package, string $archiveSha256, array $failed, ?string $referenceCandidate = null): array
+    private function replacementPackageIdentity(string $package, string $archiveSha256, array $failed, ?string $referenceCandidate = null, bool $active = false): array
     {
         $this->assertSafePackageDirectory($package);
         $descriptorRaw = $this->readFailedUpgradeDescriptor($package);
@@ -1634,7 +1634,13 @@ class InstallLogic
             throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换包应用、版本或恢复配置不匹配', 400);
         }
         $payload = $this->failedUpgradePayloadManifest($package);
-        $payloadSha = hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $payloadSha = $active
+            ? (string) $descriptor['candidate_payload']['digest']
+            : (new FailedUpgradePackageIdentity())->descriptorPayloadDigest(
+                $package,
+                (string) $descriptor['candidate_payload']['algorithm'],
+                (string) $descriptor['app'],
+            );
         $descriptorSha = hash('sha256', $descriptorRaw);
         $updateSha = $this->regularFileSha256($package . DIRECTORY_SEPARATOR . 'update.sql', '替换候选升级脚本');
         if (!hash_equals((string) $descriptor['candidate_payload']['digest'], $payloadSha)
@@ -1662,7 +1668,7 @@ class InstallLogic
         $this->assertRetainedReplacementArchive($record);
         $package = $active ? $this->appDir : $this->replacementPackagePath((string) $record['id']);
         if (!is_dir($package)) throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换候选包不可用', 400);
-        $identity = $this->replacementPackageIdentity($package, (string) $record['archive_sha256'], $failed, $referenceCandidate);
+        $identity = $this->replacementPackageIdentity($package, (string) $record['archive_sha256'], $failed, $referenceCandidate, $active);
         foreach (['profile_hash','archive_sha256','payload_sha256','descriptor_sha256','update_sql_sha256','package_manifest_sha256'] as $field) {
             if (!hash_equals((string) $record[$field], (string) $identity[$field])) {
                 throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：替换候选摘要不匹配', 400);
@@ -1852,7 +1858,13 @@ class InstallLogic
         }
 
         $archiveSha = $this->recomputeFailedUpgradeArchiveSha256($info);
-        $payloadSha = $this->failedUpgradePayloadManifestDigest($candidate);
+        if (self::isExactModernReplacementReadyShape($info)) {
+            $record = $this->readExistingReplacementRecord((string) $info['failed_upgrade_replacement_id']);
+            $this->assertPreparedReplacement($record, $info, true);
+            $payloadSha = (string) $record['payload_sha256'];
+        } else {
+            $payloadSha = $this->failedUpgradePayloadManifestDigest($candidate);
+        }
         $descriptorSha = hash('sha256', $descriptorRaw);
         $updateSha = $this->regularFileSha256($candidate . DIRECTORY_SEPARATOR . 'update.sql', '候选包升级脚本');
         foreach ([
@@ -1960,8 +1972,13 @@ class InstallLogic
 
     private function failedUpgradePayloadManifestDigest(string $directory): string
     {
-        $manifest = $this->failedUpgradePayloadManifest($directory);
-        return hash('sha256', json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+        $descriptorRaw = $this->readFailedUpgradeDescriptor($directory);
+        $descriptor = (new FailedUpgradeRecoveryVerifier())->parseDescriptor($descriptorRaw);
+        return (new FailedUpgradePackageIdentity())->descriptorPayloadDigest(
+            $directory,
+            (string) $descriptor['candidate_payload']['algorithm'],
+            (string) $descriptor['app'],
+        );
     }
 
     /** @return array<string,array{size:int,sha256:string}> */
