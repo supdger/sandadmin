@@ -1218,11 +1218,7 @@ class InstallLogic
             $info = $this->requireExactFailedUpgradeRecoveryInfo();
             $this->failedUpgradeRecoveryCoordinator()->prepare($info, fn (): array => $this->runtimeRestoreDiagnostic($info));
             $identity = $this->failedUpgradeIdentityBinding($info);
-            $connection = Db::connect('pgsql');
-            $pdo = $connection->getPdo();
-            if (!is_object($pdo)) {
-                throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立只读恢复核验连接', 400);
-            }
+            [$connection, $pdo] = $this->openPostgresRecoveryConnection();
 
             $verifier = new FailedUpgradeRecoveryVerifier();
             $result = $verifier->verify($identity['descriptor_raw'], $pdo, $identity['binding']);
@@ -1732,8 +1728,7 @@ class InstallLogic
     private function revalidateFailedUpgradeRecovery(array $failed): array
     {
         $identity = $this->failedUpgradeIdentityBinding($failed);
-        $connection = Db::connect('pgsql'); $pdo = $connection->getPdo();
-        if (!is_object($pdo)) throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立恢复核验连接', 400);
+        [$connection, $pdo] = $this->openPostgresRecoveryConnection();
         $result = (new FailedUpgradeRecoveryVerifier())->verify($identity['descriptor_raw'], $pdo, $identity['binding']);
         if (($result['connection_reusable'] ?? false) !== true) { $connection->close(); throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：恢复核验连接未能安全回滚', 400); }
         if (($result['status'] ?? null) !== 'retry_safe' || !is_string($result['evidence_fingerprint'] ?? null)) {
@@ -1774,9 +1769,7 @@ class InstallLogic
             $backup['runtime_manifest_hash'],
             (string) $record['update_sql_sha256'],
         );
-        $connection = Db::connect('pgsql');
-        $pdo = $connection->getPdo();
-        if (!is_object($pdo)) throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立只读恢复核验连接', 400);
+        [$connection, $pdo] = $this->openPostgresRecoveryConnection();
         $verifier = new FailedUpgradeRecoveryVerifier();
         $result = $verifier->verify($descriptorRaw, $pdo, $binding);
         if (($result['connection_reusable'] ?? false) !== true) {
@@ -1795,6 +1788,21 @@ class InstallLogic
             'assertions_passed' => count($assertions) - count($failedAssertions),
             'failed_assertion_ids' => array_values(array_column($failedAssertions, 'id')),
         ];
+    }
+
+    /** @return array{0:object,1:object} */
+    private function openPostgresRecoveryConnection(): array
+    {
+        try {
+            $connection = Db::connect('pgsql');
+            $pdo = $connection->connect();
+        } catch (Throwable) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立只读恢复核验连接', 400);
+        }
+        if (!is_object($connection) || !is_object($pdo)) {
+            throw new ApiException('FAILED_UPGRADE_RECOVERY_BLOCKED：无法建立只读恢复核验连接', 400);
+        }
+        return [$connection, $pdo];
     }
 
     /** @return array<string,mixed> */

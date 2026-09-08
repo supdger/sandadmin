@@ -293,7 +293,7 @@ namespace think\facade {
         {
             if ($name !== 'pgsql') throw new \RuntimeException('fixture requires pgsql');
             return new class {
-                public function getPdo(): object
+                public function connect(): object
                 {
                     return new class {
                         public function exec(string $sql): int|false
@@ -309,6 +309,7 @@ namespace think\facade {
                         }
                     };
                 }
+                public function getPdo(): false { return false; }
             };
         }
     }

@@ -155,7 +155,9 @@ final class PostgresLifecycleSqlExecutor
         if ($statements === []) {
             return;
         }
-        $pdo ??= Db::connect('pgsql')->getPdo();
+        if ($pdo === null) {
+            $pdo = Db::connect('pgsql')->connect();
+        }
         if (!method_exists($pdo, 'exec')) {
             throw new RuntimeException('PostgreSQL 连接不可用');
         }

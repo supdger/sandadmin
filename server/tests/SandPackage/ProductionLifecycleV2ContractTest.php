@@ -48,7 +48,14 @@ namespace Saithink\Saipackage\service {
 namespace think\facade {
     final class Db {
         public static object $pdo;
-        public static function connect(string $name): object { return new class { public function getPdo(): object { return Db::$pdo; } }; }
+        public static int $explicitConnectCalls = 0;
+        public static function connect(string $name): object {
+            return new class {
+                public function connect(): object { Db::$explicitConnectCalls++; return Db::$pdo; }
+                public function getPdo(): false { return false; }
+                public function close(): void {}
+            };
+        }
     }
 }
 namespace {
@@ -261,12 +268,14 @@ namespace {
         $prepared = $logic->prepareFailedUpgradeReplacement($upload, 1);
         $replacementId = (string) ($prepared['replacement_id'] ?? '');
         productionLifecyclePhase(strlen($replacementId) === 32 && ctype_xdigit($replacementId) && strtolower($replacementId) === $replacementId, 'public prepare retains a private identity-bound replacement');
+        $connectCallsBeforeGateA = Db::$explicitConnectCalls;
         $verified = $logic->verifyPreparedFailedUpgradeReplacement((string) $prepared['replacement_id'], 1);
         productionLifecyclePhase(($verified['verdict'] ?? null) === 'retry_safe' && ($verified['allowed_actions'] ?? null) === ['replace_failed_upgrade_candidate']
             && ($verified['assertions_total'] ?? null) === 1 && ($verified['assertions_passed'] ?? null) === 1
             && ($verified['failed_assertion_ids'] ?? null) === [] && ($verified['audit_written'] ?? null) === false
             && is_string($verified['evidence_fingerprint'] ?? null) && strlen($verified['evidence_fingerprint']) === 64,
             'formal Gate A binds the prepared replacement to the real backup in a read-only transaction without audit writes');
+        productionLifecyclePhase(Db::$explicitConnectCalls === $connectCallsBeforeGateA + 1, 'formal Gate A explicitly initializes the named PostgreSQL connection before using its PDO');
         $replaced = $logic->replaceFailedUpgradeCandidate((string) $prepared['replacement_id'], 'REPLACE sample-plugin@1.1.0', 1);
         productionLifecyclePhase(($replaced['state'] ?? null) === 'ready', 'public replace activates only the verified candidate');
         $activeGate = $logic->verifyFailedUpgradeRecovery(1);
