@@ -1,5 +1,7 @@
 # Local operating-system and developer-machine files
 **/.DS_Store
+.idea/
+.pnpm-store/
 **/.env
 **/.env.*
 !**/.env.example

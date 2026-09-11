@@ -169,7 +169,13 @@ EOF;
             restore_error_handler();
         }
 
-        return $this->success('安装成功');
+        return $this->success([
+            'initial_admin' => [
+                'username' => 'admin',
+                'password' => '123456',
+                'notice' => '请在首次登录后立即修改默认密码。',
+            ],
+        ], '安装成功');
     }
 
     /**

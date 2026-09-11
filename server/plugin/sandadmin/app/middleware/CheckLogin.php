@@ -30,7 +30,7 @@ class CheckLogin implements MiddlewareInterface
                 throw new ApiException('您的登录凭证错误或者已过期，请重新登录', 401);
             }
             if ($token['plat'] !== 'sandadmin') {
-                throw new ApiException('登录凭证校验失败');
+                throw new ApiException('登录环境已更新，请重新登录', 401);
             }
             $request->setHeader('check_login', true);
             $request->setHeader('check_admin', $token);
@@ -38,4 +38,3 @@ class CheckLogin implements MiddlewareInterface
         return $handler($request);
     }
 }
-

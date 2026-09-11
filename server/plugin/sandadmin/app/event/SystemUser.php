@@ -20,7 +20,7 @@ class SystemUser
     {
         $request = request();
         $ip = $request ? $request->getRealIp() : '127.0.0.1';
-        $http_user_agent = $request ? $request->header('user-agent') : '';
+        $http_user_agent = $request ? (string) $request->header('user-agent', '') : '';
         $data['username'] = $item['username'];
         $data['ip'] = $ip;
         $data['ip_location'] = self::getIpLocation($ip);

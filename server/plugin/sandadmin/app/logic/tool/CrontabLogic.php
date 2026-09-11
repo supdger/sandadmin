@@ -66,9 +66,7 @@ class CrontabLogic extends BaseLogic
         ]);
 
         $id = $model->getKey();
-        // 连接到Channel服务
-        ChannelClient::connect();
-        ChannelClient::publish('crontab', ['args' => $id]);
+        $this->notifyCrontabReload($id);
 
         return true;
     }
@@ -115,9 +113,7 @@ class CrontabLogic extends BaseLogic
             'remark' => $data['remark'],
         ]);
         if ($result) {
-            // 连接到Channel服务
-            ChannelClient::connect();
-            ChannelClient::publish('crontab', ['args' => $id]);
+            $this->notifyCrontabReload($id);
         }
 
         // 修改任务数据
@@ -140,9 +136,7 @@ class CrontabLogic extends BaseLogic
         }
         $result = parent::destroy($ids);
         if ($result) {
-            // 连接到Channel服务
-            ChannelClient::connect();
-            ChannelClient::publish('crontab', ['args' => $ids]);
+            $this->notifyCrontabReload($ids);
         }
         return $result;
     }
@@ -161,11 +155,15 @@ class CrontabLogic extends BaseLogic
         }
         $result = $model->save(['status' => $status]);
         if ($result) {
-            // 连接到Channel服务
-            ChannelClient::connect();
-            ChannelClient::publish('crontab', ['args' => $id]);
+            $this->notifyCrontabReload($id);
         }
         return $result;
+    }
+
+    private function notifyCrontabReload($id): void
+    {
+        ChannelClient::connect('127.0.0.1', (int) env('SANDADMIN_CHANNEL_PORT', 2206));
+        ChannelClient::publish('crontab', ['args' => $id]);
     }
 
     /**
@@ -245,4 +243,3 @@ class CrontabLogic extends BaseLogic
     }
 
 }
-

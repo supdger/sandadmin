@@ -635,6 +635,40 @@
             margin: 0 auto 30px;
         }
 
+        .initial-admin-credentials {
+            max-width: 440px;
+            margin: 0 auto 24px;
+            padding: 18px 22px;
+            border: 1px solid rgba(113, 102, 240, 0.2);
+            border-radius: var(--border-radius);
+            background: #F8FAFC;
+            text-align: left;
+        }
+
+        .initial-admin-credentials h3 {
+            margin: 0 0 12px;
+            color: var(--dark);
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .initial-admin-credentials p {
+            margin: 6px 0;
+            color: #475569;
+        }
+
+        .initial-admin-credentials code {
+            color: var(--primary-dark);
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .initial-admin-credentials .credential-notice {
+            margin-top: 14px;
+            color: #9A6700;
+            font-size: 14px;
+        }
+
         #step3 .action-buttons {
             width: 100%;
             padding: 0;
@@ -823,6 +857,12 @@
                             </div>
                             <h2 class="completed-title">安装成功</h2>
                             <p class="completed-subtitle">恭喜！已成功安装系统，请重启webman，启动前端项目进行访问。</p>
+                            <div class="initial-admin-credentials" aria-live="polite">
+                                <h3>首次登录凭据</h3>
+                                <p>用户名：<code id="initialAdminUsername">admin</code></p>
+                                <p>密码：<code id="initialAdminPassword">123456</code></p>
+                                <p class="credential-notice" id="initialAdminNotice">请在首次登录后立即修改默认密码。</p>
+                            </div>
                             <div class="action-buttons">
                                 <a href="http://localhost:3006" class="btn btn-primary">
                                     <i class="fas fa-tachometer-alt"></i>
@@ -1005,6 +1045,13 @@
                 data: dbConfig,
                 success: function(response) {
                     if (response.code == 200) {
+
+                        const initialAdmin = response.data && response.data.initial_admin;
+                        if (initialAdmin) {
+                            $('#initialAdminUsername').text(initialAdmin.username || 'admin');
+                            $('#initialAdminPassword').text(initialAdmin.password || '123456');
+                            $('#initialAdminNotice').text(initialAdmin.notice || '请在首次登录后立即修改默认密码。');
+                        }
 
                         // 隐藏当前步骤，显示下一步
                         $('.step-content').removeClass('active');

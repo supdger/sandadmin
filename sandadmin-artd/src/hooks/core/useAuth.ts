@@ -45,9 +45,6 @@ export const useAuth = () => {
   const { isFrontendMode } = useAppMode()
   const { info } = storeToRefs(userStore)
 
-  // 前端按钮权限（例如：['add', 'edit']）
-  const frontendAuthList = info.value?.buttons ?? []
-
   // 后端路由 meta 配置的权限列表（例如：[{ authMark: 'add' }]）
   const backendAuthList: AuthItem[] = Array.isArray(route.meta.authList)
     ? (route.meta.authList as AuthItem[])
@@ -59,12 +56,18 @@ export const useAuth = () => {
    * @returns 是否有权限
    */
   const hasAuth = (auth: string): boolean => {
-    // 前端模式
-    if (isFrontendMode.value) {
-      return frontendAuthList.includes(auth)
+    const serverAuthList = info.value?.buttons ?? []
+    if (serverAuthList.includes('*') || serverAuthList.includes(auth)) {
+      return true
     }
 
-    // 后端模式
+    // 前端模式没有服务端授权数据时，不再回退到路由元数据。
+    if (isFrontendMode.value) {
+      return false
+    }
+
+    // 后端模式下，动态插件页可能没有静态路由权限元数据；
+    // 因此只在服务端未提供该按钮权限时回退到元数据。
     return backendAuthList.some((item) => item?.authMark === auth)
   }
 

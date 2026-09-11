@@ -12,9 +12,9 @@ PostgreSQL 宿主原名 **SaiAdmin-PG**，现更名为 **SandAdmin**。该更名
 | SandAI | 直接依赖核心基类、异常、鉴权中间件、权限服务；项目依赖仍含旧核心包 | 更新代码引用、Composer 自动加载和依赖边界，并更新前端载荷路径 |
 | SandWorkflow | 已安装旧版本的工作流账号空间与前端载荷名称与旧宿主绑定 | 升级到 SandAdmin 适配版，并按发布说明核对账号空间与工作流回归结果 |
 
-因此，受影响的不是两个项目，而是 **SandIAM、SandAI、SandWorkflow 三个插件/项目**。其中 SandWorkflow 的源码适配已纳入本仓更名工作；SandIAM、SandAI 的项目内通知分别位于其 `docs/development/sandadmin-rename-notice.md`。
+因此，受影响的不是两个项目，而是 **SandIAM、SandAI、SandWorkflow 三个插件/项目**。SandWorkflow 的源码适配由 `sand-plugins/sandworkflow` 管理；SandIAM、SandAI 的项目内通知分别位于其 `docs/development/sandadmin-rename-notice.md`。
 
-本仓源码进度（2026-08-14）：`server/plugin/sand-iam` 已与源码包对齐为 `plugin\\sandadmin`；运行配置 `FRONTEND_DIR` / `SANDADMIN_*` 已切到新名（端口仍为既有 8788/2207）；`server/plugin/sandworkflow/update.sql` 已含账号空间改写。SandWorkflow 的权威包与宿主副本（后端和 `sandadmin-artd` 前端）逐文件一致，且全部 PHP 源码语法检查通过。SandAI 源码的 SandAdmin 适配、SandIAM 管理 UI 迁移和 Composer 锁文件刷新已完成；其后端、前端宿主副本均已与唯一源码逐文件同步，并通过主宿主后端检查、前端类型检查与生产构建。可丢弃空白宿主上的双插件安装、依赖阶段、加载和卸载回收已验证；受保护管理路由与身份上下文仍须由目标部署的 signer 和管理员会话验收。版本控制的前端目录已是 `sandadmin-artd/`；本机遗留的被忽略旧目录不进入发布制品，不作为安装路径。
+宿主同步状态（2026-08-17）：SandWorkflow 已迁入 `sand-plugins/sandworkflow` 作为唯一权威源码。此前 SandAdmin 的后端和前端副本在迁移基线时逐文件一致；在源副本核对与明确删除授权后，宿主副本已移除，以恢复零业务插件状态。下一次安装验收须从权威源码的明确版本受控同步至独立验证宿主。SandAI 源码的 SandAdmin 适配、SandIAM 管理 UI 迁移和 Composer 锁文件刷新已完成；其后端、前端宿主副本均已与唯一源码逐文件同步，并通过主宿主后端检查、前端类型检查与生产构建。可丢弃空白宿主上的双插件安装、依赖阶段、加载和卸载回收已验证；受保护管理路由与身份上下文仍须由目标部署的 signer 和管理员会话验收。版本控制的前端目录已是 `sandadmin-artd/`；本机遗留的被忽略旧目录不进入发布制品，不作为安装路径。
 
 ## 统一替换表
 

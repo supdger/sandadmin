@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">SandAdmin particle favicon</title>
+  <desc id="desc">A particle-built gradient S inside a cyan hexagon, with no dark outline and a transparent background.</desc>
+  <defs>
+    <linearGradient id="hexGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7CFAF3"/>
+      <stop offset="0.48" stop-color="#22D0F7"/>
+      <stop offset="1" stop-color="#168DE8"/>
+    </linearGradient>
+    <linearGradient id="sGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#72EEE5"/>
+      <stop offset="0.22" stop-color="#FFD16B"/>
+      <stop offset="0.52" stop-color="#CE7EF0"/>
+      <stop offset="0.78" stop-color="#F1AA42"/>
+      <stop offset="1" stop-color="#FFDA76"/>
+    </linearGradient>
+    <pattern id="dotMask" width="7.5" height="7.5" patternUnits="userSpaceOnUse">
+      <circle cx="3.75" cy="3.75" r="2.65" fill="#fff"/>
+    </pattern>
+    <mask id="sParticleMask" maskUnits="userSpaceOnUse" x="60" y="55" width="390" height="410" style="mask-type:alpha">
+      <path d="M356 132 C292 84 154 103 151 184 C147 250 350 246 354 329 C358 411 228 440 150 389"
+            fill="none" stroke="url(#dotMask)" stroke-width="114"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <filter id="hexGlow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="sGlow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <!-- No background, no dark outline, no face fill. -->
+  <path d="M256 29 448 140 448 372 256 483 64 372 64 140Z"
+        fill="none" stroke="url(#hexGradient)" stroke-width="36"
+        stroke-linejoin="round" filter="url(#hexGlow)"/>
+
+  <!-- A faint luminous bed keeps the particle S readable at favicon scale. -->
+  <path d="M356 132 C292 84 154 103 151 184 C147 250 350 246 354 329 C358 411 228 440 150 389"
+        fill="none" stroke="url(#sGradient)" stroke-width="116" stroke-opacity="0.28"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#sGlow)"/>
+  <rect x="60" y="55" width="390" height="410" fill="url(#sGradient)" mask="url(#sParticleMask)"/>
+</svg>

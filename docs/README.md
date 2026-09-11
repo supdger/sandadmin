@@ -7,6 +7,8 @@
 - [本地运行与首次安装](getting-started.md)
 - [架构与插件边界](architecture.md)
 - [仓库与插件治理](repository-governance.md)
+- [宿主发布与消费同步](host-consumer-sync.md)
+- [HOST/COMPAT 请求流程](host-requests/README.md)
 - [更名与插件兼容性通知](compatibility/sandadmin-rename-notice.md)
 
 ## 开发和发布

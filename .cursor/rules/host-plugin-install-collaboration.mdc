@@ -1,0 +1,30 @@
+---
+description: 宿主插件安装由本仓库 Cursor 承接；Codex 协作呼叫后立即接棒
+alwaysApply: true
+---
+
+# 宿主插件安装协作
+
+插件安装/升级/卸载/失败升级恢复已移交 **SandAdmin 宿主**。本仓库 Cursor 是 Codex 的对口承接方。
+
+## 主责
+
+- 宿主安装入口与扩展契约：`server/plugin/sandadmin/` 安装器、`docs/repository-governance.md`、`docs/plugin-development.md`
+- SandPackage：`server/plugin/sandpackage/**`、`sandadmin-artd/src/views/plugin/sandpackage/**`
+- 失败升级恢复契约：`docs/architecture/FAILED_UPGRADE_RECOVERY_CONTRACT.md`
+
+## 不改
+
+- 具体插件领域表、业务路由、菜单、权限、配置、服务实现
+- `sand-plugins` 权威源码（`sand-iam/`、`sand-ai/`、`sandworkflow/` 等）除非书面交接且用户授权
+- 未确认权威来源的 `server/plugin/sand-*` / `plugins/sand-*` 双向编辑
+
+## Codex 呼叫时
+
+1. 先刷新基线：看板「当前交接包」、`.codex/autopilot/tasks.md` / `.cursor/autopilot/executions/CURSOR-PING-*.md`、本仓库工作区与契约修订，不沿用口头结论。
+2. 立即接棒：读任务 ID、契约版本、失败证据、期望变更路径；禁止只回「已收到」。
+3. 只做宿主安装面；插件业务缺口写回看板交 Codex，不越界补领域能力。
+4. 零业务插件宿主必须仍可安装、迁移、登录、基础运行。
+5. 静态检查 ≠ 生命周期验收。安装/升级/卸载结论必须来自独立验证宿主证据。
+6. 不提交、推送、迁移、启停服务、删库；数据库/安装器隐式建库须本次明确授权。
+7. 回写交接：任务 ID、改了什么、验证命令/结果、未验证项、下一步归属。结论只标：已检查 / 已修改 / 已验证 / 已提交 / 已部署 / 线上验证。

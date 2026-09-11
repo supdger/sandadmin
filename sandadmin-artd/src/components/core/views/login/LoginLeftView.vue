@@ -191,7 +191,9 @@
 
   .brand-capabilities {
     position: absolute;
-    top: 56.5%;
+    // Keep the capability row below the full brand lockup at every desktop height.
+    // A percentage-only offset overlapped the logo slogan on 16:9 wide screens.
+    top: calc(25.6% + clamp(19rem, 21vw, 23rem));
     left: 50%;
     display: grid;
     grid-template-columns: repeat(3, auto);

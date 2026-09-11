@@ -14,8 +14,6 @@
 
 use Webman\Route;
 
-
-
-
-
-
+// Public controllers must opt in explicitly; installed plugins register their
+// own routes through Webman's plugin configuration.
+Route::disableDefaultRoute();

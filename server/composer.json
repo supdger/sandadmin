@@ -64,8 +64,7 @@
       "App\\": "./app",
       "app\\View\\Components\\": "./app/view/components",
       "plugin\\sandadmin\\": "./plugin/sandadmin",
-      "plugin\\sandpackage\\": "./plugin/sandpackage",
-      "plugin\\sandworkflow\\": "./plugin/sandworkflow"
+      "plugin\\sandpackage\\": "./plugin/sandpackage"
     }
   },
   "scripts": {

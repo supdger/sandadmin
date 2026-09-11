@@ -12,4 +12,6 @@
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
-return new Webman\Container;
+$container = new Webman\Container;
+
+return $container;

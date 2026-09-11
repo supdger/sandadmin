@@ -7,7 +7,6 @@
 | `server/` | Webman 后端、核心配置、PostgreSQL 安装器和宿主运行时。 |
 | `server/plugin/sandadmin/` | SandAdmin 核心插件及核心安装 SQL。 |
 | `sandadmin-artd/` | Vue 管理前端。 |
-| `plugins/<plugin>/` | 可独立发布的插件源包、生命周期 SQL、说明和前端载荷。 |
 | `docs/` | 宿主公共文档、架构契约和兼容性说明。 |
 
 ## 数据和命名
@@ -21,5 +20,7 @@ SandAdmin 面向 PostgreSQL。全新 PostgreSQL 基线使用 `sand_system_*`、`
 插件应拥有自己的业务表、菜单、权限、路由和版本生命周期。宿主负责核心身份、基础权限、安装入口和运行时扩展能力；插件不得把自己的领域数据混入核心表，也不得把插件内部实现当作宿主稳定 API。
 
 SandAdmin 必须在零业务插件状态下保持可安装、可登录和可用。可选插件的源码工作区、宿主副本同步规则和真实验收要求见[仓库与插件治理](repository-governance.md)。
+
+本源码工作树不保存业务插件源包或安装副本。安装后的插件目录只存在于消费工作区的演示或隔离宿主；宿主版本由消费方按[宿主发布与消费同步](host-consumer-sync.md)主动拉取并锁定。
 
 插件与宿主的直接耦合（核心命名空间、前端载荷路径、环境变量或命令）必须记录在插件兼容性矩阵中。更名和兼容过渡详情见[更名与插件兼容性通知](compatibility/sandadmin-rename-notice.md)。

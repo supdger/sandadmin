@@ -20,8 +20,8 @@ class Task
         $dbName = env('DB_NAME');
         if (!empty($dbName)) {
             $this->logic = new CrontabLogic();
-            // 连接webman channel服务
-            Client::connect();
+            // 连接到与 Channel 服务端相同的端口。
+            $this->connectChannel();
             // 订阅某个自定义事件并注册回调，收到事件后会自动触发此回调
             Client::on('crontab', function ($data) {
                 $this->reload($data);
@@ -34,6 +34,11 @@ class Task
         if (!empty($dbName)) {
             $this->initStart();
         }
+    }
+
+    private function connectChannel(): void
+    {
+        Client::connect('127.0.0.1', (int) env('SANDADMIN_CHANNEL_PORT', 2206));
     }
 
     public function initStart()
