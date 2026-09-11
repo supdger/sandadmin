@@ -17,7 +17,7 @@
 - 不要把具体插件的领域表、业务路由、菜单、权限、配置或服务实现作为新的宿主能力提交到本仓库。
 - 本源码工作树不得持久保存 `server/plugin/sand-*`、`server/plugin/sandworkflow`、`plugins/sand-*`、`plugins/sandworkflow` 或对应管理端业务插件副本；这些只允许存在于消费工作区的演示或隔离宿主。
 - SandAdmin 只发布版本和变更通知，不得通过 post-commit hook 或脚本主动改写其他工作区。`sand_plugins`、`sand_ai` 及未来消费者必须主动拉取锁定版本并记录宿主 revision。
-- 跨宿主/插件故障先冻结版本组合并按 [`docs/host-requests/`](docs/host-requests/README.md)提交；每轮只改变宿主或插件之一，同一现象三轮不能缩小范围时停止修改并标记阻塞。
+- 跨宿主/插件故障先冻结版本组合并按 [`docs/host-requests/`](docs/host-requests/README.md)提交；单插件复现默认在插件侧解决，只有零插件、中立扩展或多个独立插件复现的通用缺陷才进入宿主。宿主修复须尽量保持 SaiAdmin 上游结构和升级路径，优先扩展契约而非核心分叉。前两轮单变量诊断未收敛时，第 3 轮使用 `gpt-6-astra/high` 做有界根因审查；仍无可区分结论则停止并标记阻塞。
 - 插件安装、升级、卸载的证据必须来自消费工作区的独立验证宿主；静态检查或构建不能替代真实生命周期验收。
 
 ## 提交与协作
