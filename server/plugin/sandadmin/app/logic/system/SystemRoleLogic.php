@@ -6,13 +6,13 @@
 // +----------------------------------------------------------------------
 namespace plugin\sandadmin\app\logic\system;
 
+use plugin\sandadmin\app\cache\UserAuthCache;
 use plugin\sandadmin\app\cache\UserMenuCache;
 use plugin\sandadmin\app\model\system\SystemRole;
 use plugin\sandadmin\basic\think\BaseLogic;
 use plugin\sandadmin\exception\ApiException;
 use plugin\sandadmin\utils\Helper;
 use support\think\Cache;
-use support\think\Db;
 
 /**
  * 角色逻辑层
@@ -140,12 +140,11 @@ class SystemRoleLogic extends BaseLogic
             $role = $this->model->findOrEmpty($id);
             if ($role) {
                 $role->menus()->detach();
-                $data = array_map(function ($menu_id) use ($id) {
-                    return ['menu_id' => $menu_id, 'role_id' => $id];
-                }, $menu_ids);
-                Db::name('sand_system_role_menu')->limit(100)->insertAll($data);
+                if ($menu_ids) {
+                    $role->menus()->attach(array_map('intval', $menu_ids));
+                }
             }
-            $cache = config('plugin.sandadmin.saithink.button_cache');
+            $cache = UserAuthCache::cacheConfig();
             $tag = $cache['role'] . $id;
             Cache::tag($tag)->clear();       // 清理权限缓存-角色TAG
             UserMenuCache::clearMenuCache(); // 清理菜单缓存
