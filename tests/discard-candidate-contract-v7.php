@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -86,7 +87,7 @@ namespace {
     use Saithink\Saipackage\service\Filesystem;
     use Saithink\Saipackage\service\Server;
     use plugin\sandadmin\exception\ApiException;
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
 
     $root = getenv('SANDPACKAGE_CONTRACT_ROOT') ?: sys_get_temp_dir() . '/sandpackage-discard-contract-' . bin2hex(random_bytes(5));
     $runtime = $root . '/runtime';
@@ -97,7 +98,7 @@ namespace {
     function env(string $name, mixed $default = null): mixed { return $default; }
     function config(string $name, mixed $default = null): mixed { return $name === 'plugin.sandadmin.app.version' ? '6.0.11' : $default; }
 
-    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
 
     final class FaultingInstallLogic extends InstallLogic
@@ -709,7 +710,7 @@ namespace {
         // exact logic lock, prove a second logic instance cannot discard, and
         // prove the matching OS lock rejects a second process while another
         // app's lock remains independent.
-        $source = (string) file_get_contents(dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php');
+        $source = (string) file_get_contents(dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php');
         foreach (['uploadFromPath', 'install', 'uninstall', 'registerExisting', 'discardCandidate'] as $method) {
             $start = strpos($source, 'function ' . $method);
             $next = strpos($source, "\n    public function", $start + 1);

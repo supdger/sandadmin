@@ -7,7 +7,7 @@ use plugin\sandadmin\app\middleware\SystemLog;
 use plugin\sandadmin\app\middleware\CheckLogin;
 use plugin\sandadmin\basic\BaseController;
 use plugin\sandadmin\exception\ApiException;
-use plugin\sandpackage\app\logic\InstallLogic;
+use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
 use Saithink\Saipackage\service\Server;
 use Saithink\Saipackage\service\Version;
 use support\annotation\Middleware;

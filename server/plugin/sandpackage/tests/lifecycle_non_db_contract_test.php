@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 declare(strict_types=1);
 
 namespace {
@@ -320,11 +321,13 @@ namespace {
     use Saithink\Saipackage\service\Server;
     use plugin\sandpackage\app\logic\ContractHostPersistenceFault;
     use plugin\sandadmin\app\cache\UserMenuCache;
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use plugin\sandpackage\app\service\TerminalRunner;
 
     require dirname(__DIR__) . '/app/service/PostgresLifecycleSqlExecutor.php';
-    require dirname(__DIR__) . '/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/app/logic/LegacyInstallLogic.php';
+    // Keep this historical terminal/lease fixture bound to its legacy backend.
+    class_alias(InstallLogic::class, 'plugin\\sandpackage\\app\\logic\\InstallLogic');
     require dirname(__DIR__) . '/app/service/TerminalRunner.php';
 
     /** @param mixed $condition */

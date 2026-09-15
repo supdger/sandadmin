@@ -31,6 +31,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 - [架构与插件边界](docs/architecture.md)
 - [仓库与插件治理](docs/repository-governance.md)
 - [插件开发与发布约定](docs/plugin-development.md)
+- [插件管理端载荷激活契约](docs/frontend-plugin-activation.md)
 - [宿主发布与消费同步](docs/host-consumer-sync.md)
 - [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
 - [上游来源、署名与许可证说明](docs/upstream-and-licensing.md)

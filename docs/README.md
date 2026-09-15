@@ -6,6 +6,7 @@
 
 - [本地运行与首次安装](getting-started.md)
 - [架构与插件边界](architecture.md)
+- [SaiPackage PostgreSQL 适配](architecture/SAIPACKAGE_POSTGRESQL_ADAPTATION.md)
 - [仓库与插件治理](repository-governance.md)
 - [宿主发布与消费同步](host-consumer-sync.md)
 - [HOST/COMPAT 请求流程](host-requests/README.md)
@@ -14,6 +15,7 @@
 ## 开发和发布
 
 - [插件开发与发布约定](plugin-development.md)
+- [插件管理端载荷激活契约](frontend-plugin-activation.md)
 - [上游来源、署名与许可证说明](upstream-and-licensing.md)
 - [贡献指南](../CONTRIBUTING.md)
 - [安全漏洞报告](../SECURITY.md)

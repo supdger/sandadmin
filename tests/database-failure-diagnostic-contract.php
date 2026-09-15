@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -72,11 +73,11 @@ namespace support {
 }
 
 namespace {
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use Saithink\Saipackage\service\Server;
     use support\Log;
 
-    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
     function expect(bool $condition, string $message): void
     {
@@ -103,6 +104,14 @@ namespace {
         return $error;
     }
 
+    function writeRuntimeFixture(string $path, string $contents): void
+    {
+        if (!is_dir(dirname($path)) && !mkdir(dirname($path), 0755, true) && !is_dir(dirname($path))) {
+            throw new \RuntimeException('cannot create runtime fixture directory');
+        }
+        expect(file_put_contents($path, $contents) !== false, 'cannot write runtime fixture');
+    }
+
     $registry = runtime_path() . '/sandpackage/sand-iam/';
     writeInfo($registry, [
         'app' => 'sand-iam',
@@ -111,6 +120,10 @@ namespace {
         'update' => 1,
         'stage' => 'database_update',
     ]);
+    writeRuntimeFixture($registry . 'plugin/sand-iam/Runtime.php', "<?php\n// fixture\n");
+    writeRuntimeFixture($registry . 'sandadmin-artd/src/views/plugin/sand-iam/index.vue', "<template><div>fixture</div></template>\n");
+    writeRuntimeFixture(base_path() . '/plugin/sand-iam/Runtime.php', "<?php\n// fixture\n");
+    writeRuntimeFixture(dirname(base_path()) . '/sandadmin-artd/src/views/plugin/sand-iam/index.vue', "<template><div>fixture</div></template>\n");
     $logic = new InstallLogic('sand-iam');
     $recordFailure = new \ReflectionMethod(InstallLogic::class, 'recordFailure');
     $recordFailure->setAccessible(true);

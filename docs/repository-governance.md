@@ -33,6 +33,10 @@ SandAdmin GitHub 账号
 
 一个能力如果所有 SandAdmin 使用者都需要，并且不依赖插件的领域模型，才属于宿主核心；否则应作为插件实现。
 
+上述自动依赖安装约定属于旧安装线。当前源码候选的 `saipackage-pg-v1` 正常入口仅沿用
+上游包生命周期与 PostgreSQL 适配，会明确拒绝依赖旧扩展的包；消费者保留原锁定宿主，
+待兼容验证后切换。范围见 [SaiPackage PostgreSQL 适配](architecture/SAIPACKAGE_POSTGRESQL_ADAPTATION.md)。
+
 ## 源码、部署与验收
 
 `sand-plugins` 是新增和演进可选插件的权威源码工作区。SandAdmin 源码工作树不得持久保存 `plugins/sand-*`、`plugins/sandworkflow`、已安装的 `server/plugin/sand-*`、`server/plugin/sandworkflow` 或对应管理端业务插件副本。发布载荷、同步副本和真实安装验收材料只存在于消费工作区的演示或隔离宿主，每一份副本必须能追溯到插件权威来源、插件版本和锁定的 SandAdmin revision，禁止双向编辑。

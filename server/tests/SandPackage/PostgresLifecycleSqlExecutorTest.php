@@ -40,6 +40,50 @@ file_put_contents($explicitFile, "BEGIN; DO \$\$ BEGIN PERFORM 'first;second'; E
 lifecycleExpect($explicitPdo->executed === array_map('trim', $explicit), 'preserves script-owned explicit transaction boundaries without wrapper transaction');
 unlink($explicitFile);
 
+$ownedFile = tempnam(sys_get_temp_dir(), 'sandpackage-owned-');
+file_put_contents($ownedFile, 'BEGIN; SELECT 1; COMMIT;');
+$ownedPdo = new class {
+    public array $executed=[];
+    public function inTransaction(): bool { return true; }
+    public function exec(string $sql): int { $this->executed[]=$sql; return 1; }
+};
+$rejected = false;
+try { (new PostgresLifecycleSqlExecutor())->executeFile($ownedFile, $ownedPdo); }
+catch (RuntimeException) { $rejected = true; }
+lifecycleExpect($rejected && $ownedPdo->executed === [], 'does not take over a caller-owned transaction');
+unlink($ownedFile);
+
+foreach ([
+    ['SELECT 1; BEGIN; SELECT 2; COMMIT; SELECT 3;', ['SELECT 1', 'BEGIN', 'SELECT 2', 'COMMIT', 'SELECT 3']],
+    ['SELECT 1; START TRANSACTION; SELECT 2; COMMIT; BEGIN; SELECT 3; COMMIT;', ['SELECT 1', 'START TRANSACTION', 'SELECT 2', 'COMMIT', 'BEGIN', 'SELECT 3', 'COMMIT']],
+] as [$mixedSql, $expected]) {
+    $mixedFile = tempnam(sys_get_temp_dir(), 'sandpackage-mixed-');
+    file_put_contents($mixedFile, $mixedSql);
+    $mixedPdo = new class { public array $executed=[]; public function exec(string $sql): int { $this->executed[]=trim($sql); return 1; } };
+    (new PostgresLifecycleSqlExecutor())->executeFile($mixedFile, $mixedPdo);
+    lifecycleExpect($mixedPdo->executed === $expected, 'preserves mixed script boundaries from the first statement');
+    unlink($mixedFile);
+}
+foreach ([
+    ['SELECT 1; BEGIN; FAIL; COMMIT;', ['SELECT 1', 'BEGIN', 'FAIL', 'ROLLBACK']],
+    ['BEGIN; SELECT 1; COMMIT; FAIL;', ['BEGIN', 'SELECT 1', 'COMMIT', 'FAIL']],
+] as [$mixedSql, $expected]) {
+    $mixedFile = tempnam(sys_get_temp_dir(), 'sandpackage-mixed-failure-');
+    file_put_contents($mixedFile, $mixedSql);
+    $mixedPdo = new class {
+        public array $executed=[];
+        public function exec(string $sql): int|false {
+            $this->executed[]=trim($sql);
+            return trim($sql) === 'FAIL' ? false : 1;
+        }
+    };
+    $failed = false;
+    try { (new PostgresLifecycleSqlExecutor())->executeFile($mixedFile, $mixedPdo); }
+    catch (RuntimeException) { $failed = true; }
+    lifecycleExpect($failed && $mixedPdo->executed === $expected, 'mixed script failure rolls back only its active block');
+    unlink($mixedFile);
+}
+
 $unclosedFile = tempnam(sys_get_temp_dir(), 'sandpackage-unclosed-');
 file_put_contents($unclosedFile, "/* nested /* lead */ */ BEGIN; SELECT 1;");
 $unclosedPdo = new class { public array $executed=[]; public function exec(string $sql): int { $this->executed[]=trim($sql); return 1; } };
@@ -57,3 +101,14 @@ try { (new PostgresLifecycleSqlExecutor())->executeFile($file, $pdo); throw new 
 catch (RuntimeException) { lifecycleExpect($pdo->executed === ['BEGIN', 'CREATE TABLE plugin_sample (id bigint)', 'INSERT INTO plugin_sample VALUES (1)', 'ROLLBACK'], 'rolls back exactly once after statement failure'); }
 unlink($file);
 echo "SandPackage PostgreSQL lifecycle executor behavior contract passed\n";
+
+foreach (['ROLLBACK', 'ABORT', 'COMMIT AND CHAIN', 'PREPARE TRANSACTION \'test\'', 'ROLLBACK/**/', 'COMMIT/**/AND CHAIN', 'ABORT/* nested /* x */ y */'] as $ending) {
+    $unsafeFile = tempnam(sys_get_temp_dir(), 'sandpackage-transaction-');
+    file_put_contents($unsafeFile, "BEGIN; SELECT 1; $ending;");
+    $recording = new class { public array $executed = []; public function exec(string $sql): int { $this->executed[] = $sql; return 1; } };
+    $rejected = false;
+    try { (new PostgresLifecycleSqlExecutor())->executeFile($unsafeFile, $recording); }
+    catch (RuntimeException) { $rejected = true; }
+    lifecycleExpect($rejected && $recording->executed === [], "rejects $ending before executing any statement");
+    unlink($unsafeFile);
+}

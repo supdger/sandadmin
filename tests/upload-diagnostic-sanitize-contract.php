@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -94,10 +95,10 @@ namespace support\annotation { #[\Attribute(\Attribute::TARGET_CLASS)] final cla
 
 namespace {
     use plugin\sandpackage\app\controller\InstallController;
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use Saithink\Saipackage\service\Server;
 
-    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
     require __DIR__ . '/fixtures/InstallController.php';
 
     function expect(bool $condition, string $message): void

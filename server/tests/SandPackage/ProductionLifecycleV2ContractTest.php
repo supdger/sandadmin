@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -59,7 +60,7 @@ namespace think\facade {
     }
 }
 namespace {
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use think\facade\Db;
 
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
@@ -70,7 +71,7 @@ namespace {
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/FailedUpgradeRecoveryAudit.php';
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/FailedUpgradeRecoveryFileTransaction.php';
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/FailedUpgradeRecoveryCoordinator.php';
-    require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/InstallLogic.php';
+    require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
     function runtime_path(): string { return $GLOBALS['sandpackage_fixture_root'] . '/runtime'; }
     function base_path(): string { return $GLOBALS['sandpackage_fixture_root'] . '/application'; }
@@ -195,9 +196,11 @@ namespace {
         $deploymentDigest = $reflection->getMethod('verifyDeploymentMatchesPackage');
         $deploymentDigest->setAccessible(true);
         $stableInfo = $logic->getInfo();
-        $stableInfo['registration_manifest'] = $deploymentDigest->invoke($logic);
-        $stableInfo['stage'] = 'registered';
-        \Saithink\Saipackage\service\Server::setIni($package, $stableInfo);
+        productionLifecyclePhase(
+            is_string($stableInfo['registration_manifest'] ?? null)
+            && hash_equals($deploymentDigest->invoke($logic), $stableInfo['registration_manifest']),
+            'baseline install persists the actual deployed manifest without a manual registry rewrite'
+        );
         $backupMethod = $reflection->getMethod('backupPackage');
         $backupMethod->setAccessible(true);
         $backupId = $backupMethod->invoke($logic);

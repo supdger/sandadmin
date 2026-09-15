@@ -222,7 +222,7 @@
 
             <!-- 状态列 -->
             <template #state="{ row }">
-              <ElTooltip v-if="isFailedUpgradeRecovery(row)" placement="top">
+              <ElTooltip v-if="isLegacyFailedUpgradeRecovery(row)" placement="top">
                 <template #content>
                   <div>{{ recoveryReason(row) }}</div>
                 </template>
@@ -242,7 +242,7 @@
 
             <!-- 前端依赖列 -->
             <template #npm="{ row }">
-              <ElTag v-if="isFailedUpgradeRecovery(row)" type="info">-</ElTag>
+              <ElTag v-if="isLegacyFailedUpgradeRecovery(row)" type="info">-</ElTag>
               <ElLink
                 v-else-if="row.npm_dependent_wait_install === 1"
                 type="primary"
@@ -256,7 +256,7 @@
 
             <!-- 后端依赖列 -->
             <template #composer="{ row }">
-              <ElTag v-if="isFailedUpgradeRecovery(row)" type="info">-</ElTag>
+              <ElTag v-if="isLegacyFailedUpgradeRecovery(row)" type="info">-</ElTag>
               <ElLink
                 v-else-if="row.composer_dependent_wait_install === 1"
                 type="primary"
@@ -270,7 +270,7 @@
 
             <!-- 操作列 -->
             <template #operation="{ row }">
-              <span v-if="isFailedUpgradeRecovery(row)" class="failed-upgrade-op-hint">
+              <span v-if="isLegacyFailedUpgradeRecovery(row)" class="failed-upgrade-op-hint">
                 请按上方恢复流程处理
               </span>
               <ElSpace v-else wrap>
@@ -285,7 +285,11 @@
                   <ElLink type="primary" @click="handleUpgradeCandidate(row)">
                     <ArtSvgIcon icon="ri:arrow-up-circle-line" class="mr-1" />确认升级
                   </ElLink>
-                  <ElLink type="warning" @click="handleDiscardCandidate(row)">
+                  <ElLink
+                    v-if="!isPostgresqlLifecycleRecord(row)"
+                    type="warning"
+                    @click="handleDiscardCandidate(row)"
+                  >
                     <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回候选
                   </ElLink>
                 </template>
@@ -296,8 +300,18 @@
                   </ElLink>
                 </template>
                 <template v-else-if="isReadyUpgradeCandidate(row)">
-                  <ElTag type="warning">与当前宿主版本不兼容，仅可撤回候选</ElTag>
-                  <ElLink type="warning" @click="handleDiscardCandidate(row)">
+                  <ElTag type="warning">
+                    {{
+                      isPostgresqlLifecycleRecord(row)
+                        ? '与当前宿主版本不兼容，不能升级'
+                        : '与当前宿主版本不兼容，仅可撤回候选'
+                    }}
+                  </ElTag>
+                  <ElLink
+                    v-if="!isPostgresqlLifecycleRecord(row)"
+                    type="warning"
+                    @click="handleDiscardCandidate(row)"
+                  >
                     <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回候选
                   </ElLink>
                 </template>
@@ -679,8 +693,14 @@
   const recoverySessions = reactive<Record<string, FailedUpgradeRecoverySession>>({})
   const recoveryFiles = new Map<string, File>()
 
+  const isPostgresqlLifecycleRecord = (row: SandpackageInstallRow): boolean =>
+    row.lifecycle_driver === 'saipackage-pg-v1'
+
+  const isLegacyFailedUpgradeRecovery = (row: SandpackageInstallRow): boolean =>
+    !isPostgresqlLifecycleRecord(row) && isFailedUpgradeRecovery(row)
+
   const failedUpgradeRows = computed(() =>
-    installList.value.filter((row) => isFailedUpgradeRecovery(row))
+    installList.value.filter((row) => isLegacyFailedUpgradeRecovery(row))
   )
 
   const recoveryWriteGate = computed<RecoveryWriteGate>(() => ({
@@ -749,7 +769,7 @@
   const syncFailedUpgradeSessions = (rows: SandpackageInstallRow[]): void => {
     const failedApps = new Set<string>()
     for (const row of rows) {
-      if (!isFailedUpgradeRecovery(row)) continue
+      if (!isLegacyFailedUpgradeRecovery(row)) continue
       failedApps.add(row.app)
       reconcileFailedUpgradeSession(sessionOf(row), row)
       recoveryFiles.delete(row.app)
@@ -769,7 +789,7 @@
   }
 
   const rejectOrdinaryAction = (record: SandpackageInstallRow): boolean => {
-    if (!isFailedUpgradeRecovery(record)) return false
+    if (!isLegacyFailedUpgradeRecovery(record)) return false
     ElMessage.warning(FAILED_UPGRADE_FAILURE_MESSAGE)
     return true
   }
@@ -1241,21 +1261,29 @@
   }
 
   const isReadyUpgradeCandidate = (record: SandpackageInstallRow): boolean => {
+    if (
+      !isUpgradeCandidateStage(record) ||
+      !isStrictSemver(record.version) ||
+      !isStrictSemver(record.upgrade_from_version) ||
+      record.upgrade_from_version === undefined ||
+      compareStrictSemver(record.version, record.upgrade_from_version) !== 1
+    ) {
+      return false
+    }
+    if (isPostgresqlLifecycleRecord(record)) {
+      return record.ordinary_actions_blocked !== true
+    }
     return (
-      isUpgradeCandidateStage(record) &&
       record.upgrade_candidate_verified === true &&
       hasCurrentAppBackup(record) &&
       /^[a-f0-9]{64}$/.test(record.registration_manifest ?? '') &&
-      /^[a-f0-9]{64}$/.test(record.runtime_manifest ?? '') &&
-      isStrictSemver(record.version) &&
-      isStrictSemver(record.upgrade_from_version) &&
-      record.upgrade_from_version !== undefined &&
-      compareStrictSemver(record.version, record.upgrade_from_version) === 1
+      /^[a-f0-9]{64}$/.test(record.runtime_manifest ?? '')
     )
   }
 
   const isLegacyRecoverableCandidate = (record: SandpackageInstallRow): boolean => {
     return (
+      !isPostgresqlLifecycleRecord(record) &&
       isUpgradeCandidateStage(record) &&
       record.legacy_recoverable === true &&
       hasCurrentAppBackup(record) &&
@@ -1267,7 +1295,11 @@
   }
 
   const isUpgradeCandidateStage = (record: SandpackageInstallRow): boolean => {
-    return record.state === 2 && record.stage === 'ready' && record.update === 1
+    return (
+      record.state === 2 &&
+      record.update === 1 &&
+      (isPostgresqlLifecycleRecord(record) || record.stage === 'ready')
+    )
   }
 
   const isCompatibleUpgradeCandidate = (record: SandpackageInstallRow): boolean => {
@@ -1280,7 +1312,11 @@
   const handleUpgradeCandidate = async (record: SandpackageInstallRow) => {
     if (rejectOrdinaryAction(record)) return
     if (!checkVersionCompatibility(record.support, version.value?.sandadmin_version?.describe)) {
-      ElMessage.error('升级候选与当前宿主版本不兼容，不能升级；如无需升级可撤回候选')
+      ElMessage.error(
+        isPostgresqlLifecycleRecord(record)
+          ? '升级候选与当前宿主版本不兼容，不能升级'
+          : '升级候选与当前宿主版本不兼容，不能升级；如无需升级可撤回候选'
+      )
       return
     }
     const expected = `UPGRADE ${record.app}@${record.upgrade_from_version}->${record.version}`
@@ -1310,6 +1346,7 @@
   }
 
   const handleDiscardCandidate = async (record: SandpackageInstallRow) => {
+    if (isPostgresqlLifecycleRecord(record)) return
     if (rejectOrdinaryAction(record)) return
     const expected = `DISCARD ${record.app}@${record.version}`
     let confirmation = ''
@@ -1373,7 +1410,7 @@
   }
 
   const stateText = (record: SandpackageInstallRow): string => {
-    if (isFailedUpgradeRecovery(record)) return '升级未完成'
+    if (isLegacyFailedUpgradeRecovery(record)) return '升级未完成'
     if (record.state_text) return record.state_text
     return (
       {

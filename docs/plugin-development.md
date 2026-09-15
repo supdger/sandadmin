@@ -2,6 +2,11 @@
 
 本页适用于计划随 SandAdmin 发布或独立分发的插件。具体业务约束由插件自己的 README 补充。
 
+当前源码候选的普通安装已回归 SaiPackage 上游流程，数据库适配及旧记录切换见
+[SaiPackage PostgreSQL 适配](architecture/SAIPACKAGE_POSTGRESQL_ADAPTATION.md)。
+下述 `sand_platform.required_plugins` 自动安装扩展属于旧安装线；新普通入口会明确拒绝
+依赖该扩展的包。消费者须保留原锁定宿主，完成兼容验证后再切换。
+
 ## 必备交付物
 
 每个可发布插件至少应包含：

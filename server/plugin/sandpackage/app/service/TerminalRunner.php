@@ -208,7 +208,7 @@ PHP;
             $completed = true;
             yield $this->output('exec-success');
         } catch (Throwable) {
-            yield $this->output('依赖命令未完成，依赖配置和插件文件已恢复');
+            yield $this->output('依赖命令未完成，请检查输出和安装状态；未声明回滚插件文件或数据库');
             yield $this->output('exec-error');
         } finally {
             $reaped = $this->terminateAndReap();

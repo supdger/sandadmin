@@ -20,6 +20,7 @@ export interface AppInfo {
   composer_dependent_wait_install?: number
   registration_candidate?: number
   update?: number
+  lifecycle_driver?: string
   stage?: string
   package_backup_id?: string
   registration_manifest?: string

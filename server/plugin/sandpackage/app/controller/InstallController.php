@@ -8,6 +8,7 @@ use plugin\sandadmin\app\middleware\CheckLogin;
 use plugin\sandadmin\basic\BaseController;
 use plugin\sandadmin\exception\ApiException;
 use plugin\sandpackage\app\logic\InstallLogic;
+use plugin\sandpackage\app\logic\LegacyInstallLogic;
 use Saithink\Saipackage\service\Server;
 use Saithink\Saipackage\service\Version;
 use support\annotation\Middleware;
@@ -51,7 +52,10 @@ class InstallController extends BaseController
     {
         $data = Server::installedList(runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR);
         $data = array_map(static function (array $item): array {
-            return array_merge($item, InstallLogic::presentInfo($item));
+            $presented = ($item['lifecycle_driver'] ?? '') === 'saipackage-pg-v1'
+                ? InstallLogic::presentInfo($item)
+                : array_merge(LegacyInstallLogic::presentInfo($item), InstallLogic::presentInfo($item));
+            return array_merge($item, $presented);
         }, $data);
 
         $phpVersion = phpversion();
@@ -166,9 +170,9 @@ class InstallController extends BaseController
         if ($appName === '' || $confirmation === '') {
             return $this->fail('请填写插件标识和完整登记确认内容');
         }
-        $install = new InstallLogic($appName);
+        $install = new LegacyInstallLogic($appName);
         $info = $install->registerExisting($confirmation);
-        return $this->success(array_merge($info, InstallLogic::presentInfo($info)), '插件登记完成');
+        return $this->success(array_merge($info, LegacyInstallLogic::presentInfo($info)), '插件登记完成');
     }
 
     /**
@@ -187,9 +191,9 @@ class InstallController extends BaseController
         if ($appName === '' || $confirmation === '') {
             return $this->fail('请填写插件标识和完整撤回确认内容');
         }
-        $install = new InstallLogic($appName);
+        $install = new LegacyInstallLogic($appName);
         $info = $install->discardCandidate($confirmation);
-        return $this->success(array_merge($info, InstallLogic::presentInfo($info)), '升级候选已撤回，数据库未执行无需回滚');
+        return $this->success(array_merge($info, LegacyInstallLogic::presentInfo($info)), '升级候选已撤回，数据库未执行无需回滚');
     }
 
     /** Read-only recovery inspection; no directory, journal or runtime mutation. */
@@ -198,7 +202,7 @@ class InstallController extends BaseController
         if (strtoupper($request->method()) !== 'POST') throw new ApiException('恢复检查仅支持 POST 请求', 400);
         $appName = trim((string) $request->post('appName', ''));
         if ($appName === '') throw new ApiException('请填写插件标识', 400);
-        return $this->success((new InstallLogic($appName))->inspectFailedUpgradeRecovery($this->adminId), '恢复状态检查完成');
+        return $this->success((new LegacyInstallLogic($appName))->inspectFailedUpgradeRecovery($this->adminId), '恢复状态检查完成');
     }
 
     /** Restore only runtime files from the identity-bound pre-upgrade backup. */
@@ -208,7 +212,7 @@ class InstallController extends BaseController
         $appName = trim((string) $request->post('appName', ''));
         $confirmation = (string) $request->post('confirmation', '');
         if ($appName === '' || $confirmation === '') throw new ApiException('请填写插件标识和完整运行文件恢复确认内容', 400);
-        $result = (new InstallLogic($appName))->restoreRuntimeFromBackup($confirmation, $this->adminId);
+        $result = (new LegacyInstallLogic($appName))->restoreRuntimeFromBackup($confirmation, $this->adminId);
         return $this->success([
             'result' => $result,
             'presentation' => [
@@ -217,6 +221,28 @@ class InstallController extends BaseController
                 'message' => $result['message'],
             ],
         ], '运行文件恢复完成');
+    }
+
+    public function inspectInterruptedPreUpgradeBackup(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('升级前备份恢复检查仅支持 POST 请求', 400);
+        if ($this->adminId !== 1) throw new ApiException('仅超级管理员能够检查升级前备份恢复', 403);
+        $appName = trim((string) $request->post('appName', ''));
+        if ($appName === '') throw new ApiException('请填写插件标识', 400);
+        return $this->success((new LegacyInstallLogic($appName))->inspectInterruptedPreUpgradeBackup(), '升级前备份恢复检查完成');
+    }
+
+    public function restoreInterruptedPreUpgradeBackup(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('升级前备份恢复仅支持 POST 请求', 400);
+        if ($this->adminId !== 1) throw new ApiException('仅超级管理员能够恢复升级前备份', 403);
+        $appName = trim((string) $request->post('appName', ''));
+        $confirmation = (string) $request->post('confirmation', '');
+        if ($appName === '' || $confirmation === '') throw new ApiException('请填写插件标识和完整恢复确认内容', 400);
+        return $this->success(
+            (new LegacyInstallLogic($appName))->restoreInterruptedPreUpgradeBackup($confirmation),
+            '升级前备份已恢复；未执行数据库脚本、文件部署或服务登记'
+        );
     }
 
     /** Revalidates one prepared replacement; no confirmation is issued. */
@@ -231,7 +257,7 @@ class InstallController extends BaseController
         $appName = trim((string) $request->post('appName', ''));
         $replacementId = trim((string) $request->post('replacementId', ''));
         if ($appName === '' || $replacementId === '') throw new ApiException('请填写插件标识和替换候选标识', 400);
-        $result = (new InstallLogic($appName))->verifyPreparedFailedUpgradeReplacement($replacementId, $this->adminId);
+        $result = (new LegacyInstallLogic($appName))->verifyPreparedFailedUpgradeReplacement($replacementId, $this->adminId);
         return $this->success($result, '恢复条件核验完成');
     }
 
@@ -243,7 +269,7 @@ class InstallController extends BaseController
         $appName = trim((string) $request->post('appName', ''));
         $file = $request->file('file');
         if ($appName === '' || !is_object($file)) throw new ApiException('请填写插件标识并选择替换 ZIP 包', 400);
-        $result = (new InstallLogic($appName))->prepareFailedUpgradeReplacement($file, $this->adminId);
+        $result = (new LegacyInstallLogic($appName))->prepareFailedUpgradeReplacement($file, $this->adminId);
         return $this->success($result, '替换候选预检完成');
     }
 
@@ -256,7 +282,7 @@ class InstallController extends BaseController
         $replacementId = trim((string) $request->post('replacementId', ''));
         $confirmation = (string) $request->post('confirmation', '');
         if ($appName === '' || $replacementId === '' || $confirmation === '') throw new ApiException('请填写插件标识、替换候选标识和完整替换确认内容', 400);
-        $result = (new InstallLogic($appName))->replaceFailedUpgradeCandidate($replacementId, $confirmation, $this->adminId);
+        $result = (new LegacyInstallLogic($appName))->replaceFailedUpgradeCandidate($replacementId, $confirmation, $this->adminId);
         return $this->success($result, '失败候选替换完成');
     }
 
@@ -268,7 +294,7 @@ class InstallController extends BaseController
         $appName = trim((string) $request->post('appName', ''));
         $confirmation = (string) $request->post('confirmation', '');
         if ($appName === '' || $confirmation === '') throw new ApiException('请填写插件标识和完整重试确认内容', 400);
-        $result = (new InstallLogic($appName))->retryFailedUpgrade($confirmation, $this->adminId);
+        $result = (new LegacyInstallLogic($appName))->retryFailedUpgrade($confirmation, $this->adminId);
         return $this->success($result, '失败升级重试完成');
     }
 

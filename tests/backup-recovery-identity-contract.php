@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -94,10 +95,10 @@ namespace support\annotation { #[\Attribute(\Attribute::TARGET_CLASS)] final cla
 
 namespace {
     use plugin\sandpackage\app\controller\InstallController;
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use Saithink\Saipackage\service\Server;
 
-    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
     require __DIR__ . '/fixtures/InstallController.php';
 
     final class ExitFaultingInstallLogic extends InstallLogic
@@ -167,16 +168,24 @@ namespace {
             'SANDPACKAGE_V15_ARCHIVE' => $zip,
         ]));
         expect(is_resource($process), 'cannot start crash upload worker');
-        stream_get_contents($pipes[1]);
+        $stdout = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        stream_get_contents($pipes[2]);
+        $stderr = stream_get_contents($pipes[2]);
         fclose($pipes[2]);
-        return proc_close($process);
+        $exitCode = proc_close($process);
+        if ($exitCode !== 97) {
+            fwrite(STDERR, $stdout . $stderr);
+        }
+        return $exitCode;
     }
 
     function prepareRegisteredOldPackage(): void
     {
         $registry = runtime_path() . '/sandpackage/sand-iam';
+        $backups = runtime_path() . '/sandpackage/backups';
+        if (!is_dir($backups) && !mkdir($backups, 0755, true) && !is_dir($backups)) {
+            throw new \RuntimeException('cannot create backup registry');
+        }
         if (!is_dir($registry) && !mkdir($registry, 0755, true) && !is_dir($registry)) {
             throw new \RuntimeException('cannot create old registry');
         }

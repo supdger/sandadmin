@@ -10,7 +10,7 @@ use Throwable;
 use think\facade\Db;
 
 /**
- * Executes a package lifecycle script as one PostgreSQL transaction.
+ * Wraps implicit scripts in a transaction; preserves explicit transaction blocks.
  *
  * This intentionally does not delegate to the legacy package importer: that
  * importer is MySQL-oriented and cannot safely distinguish semicolons inside
@@ -152,6 +152,18 @@ final class PostgresLifecycleSqlExecutor
             throw new RuntimeException('插件生命周期脚本不可读取');
         }
         $statements = self::split($sql);
+        $scriptOwnsTransactions = false;
+        foreach ($statements as $statement) {
+            if (self::transactionCommand($statement) === 'begin') {
+                $scriptOwnsTransactions = true;
+            }
+            $leading = self::transactionSql($statement);
+            if (preg_match('/\A(?:ROLLBACK|ABORT|PREPARE\s+TRANSACTION)(?:\s|\z)/i', $leading)
+                || preg_match('/\A(?:COMMIT|END)(?:\s|\z)/i', $leading)
+                && !preg_match('/\A(?:COMMIT|END)(?:\s+(?:WORK|TRANSACTION))?\s*\z/i', $leading)) {
+                throw new RuntimeException('生命周期脚本不能回滚后报告成功或使用未支持的事务结束形式');
+            }
+        }
         if ($statements === []) {
             return;
         }
@@ -161,10 +173,11 @@ final class PostgresLifecycleSqlExecutor
         if (!method_exists($pdo, 'exec')) {
             throw new RuntimeException('PostgreSQL 连接不可用');
         }
+        if (method_exists($pdo, 'inTransaction') && $pdo->inTransaction()) {
+            throw new RuntimeException('生命周期脚本不能接管已有数据库事务');
+        }
         $transactionActive = false;
         $mode = 'none';
-        $seenExplicit = false;
-        $seenImplicit = false;
         try {
             foreach ($statements as $statement) {
                 $transactionCommand = self::transactionCommand($statement);
@@ -172,26 +185,18 @@ final class PostgresLifecycleSqlExecutor
                     if ($transactionActive) {
                         throw new RuntimeException('PostgreSQL 生命周期脚本包含嵌套事务');
                     }
-                    if ($seenImplicit) {
-                        throw new RuntimeException('PostgreSQL 生命周期脚本混合隐式和显式事务');
-                    }
                     self::exec($pdo, $statement);
                     $transactionActive = true;
                     $mode = 'explicit';
-                    $seenExplicit = true;
                     continue;
                 }
                 if (($transactionCommand === 'commit' || $transactionCommand === 'rollback') && !$transactionActive) {
                     throw new RuntimeException('PostgreSQL 生命周期脚本包含无活动事务的结束语句');
                 }
-                if (!$transactionActive) {
-                    if ($seenExplicit) {
-                        throw new RuntimeException('PostgreSQL 生命周期脚本混合显式和隐式事务');
-                    }
+                if (!$transactionActive && !$scriptOwnsTransactions) {
                     self::exec($pdo, 'BEGIN');
                     $transactionActive = true;
                     $mode = 'implicit';
-                    $seenImplicit = true;
                 }
                 self::exec($pdo, $statement);
                 if ($transactionCommand === 'commit' || $transactionCommand === 'rollback') {
@@ -235,13 +240,26 @@ final class PostgresLifecycleSqlExecutor
 
     private static function transactionCommand(string $statement): ?string
     {
-        $sql = self::leadingSql($statement);
+        $sql = self::transactionSql($statement);
         return match (true) {
             preg_match('/\\A(?:BEGIN|START\\s+TRANSACTION)(?:\\s|\\z)/i', $sql) === 1 => 'begin',
-            preg_match('/\\ACOMMIT(?:\\s|\\z)/i', $sql) === 1 => 'commit',
+            preg_match('/\\A(?:COMMIT|END)(?:\\s|\\z)/i', $sql) === 1 => 'commit',
             preg_match('/\\AROLLBACK(?:\\s|\\z)/i', $sql) === 1 => 'rollback',
             default => null,
         };
+    }
+
+    private static function transactionSql(string $statement): string
+    {
+        $sql = self::leadingSql($statement);
+        if (!preg_match('/\A(?:BEGIN|START|COMMIT|END|ROLLBACK|ABORT|PREPARE)\b/i', $sql)) return $sql;
+        $words = [];
+        while (preg_match('/\A([a-z_]+)/i', $sql, $match)) {
+            $words[] = $match[1];
+            // SQL comments are separators, including nested block comments.
+            $sql = self::leadingSql(substr($sql, strlen($match[1])));
+        }
+        return implode(' ', $words) . ($sql === '' ? '' : ' ' . $sql);
     }
 
     private static function leadingSql(string $statement): string

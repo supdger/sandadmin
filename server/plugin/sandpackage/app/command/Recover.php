@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace plugin\sandpackage\app\command;
 
-use plugin\sandpackage\app\logic\InstallLogic;
+use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,7 +21,7 @@ class Recover extends Command
 
     protected function configure(): void
     {
-        $this->addArgument('action', InputArgument::REQUIRED, 'inspect|restore|gate-a|verify|prepare|replace|retry')
+        $this->addArgument('action', InputArgument::REQUIRED, 'inspect-pre-upgrade|restore-pre-upgrade|inspect|restore|gate-a|verify|prepare|replace|retry')
             ->addArgument('app', InputArgument::REQUIRED, '插件标识')
             ->addOption('replacement-id', null, InputOption::VALUE_REQUIRED, '已预检替换候选标识')
             ->addOption('archive', null, InputOption::VALUE_REQUIRED, 'prepare 的本地 ZIP 文件')
@@ -44,6 +44,8 @@ class Recover extends Command
         $logic = new InstallLogic($app);
         try {
             $result = match ($action) {
+                'inspect-pre-upgrade' => $logic->inspectInterruptedPreUpgradeBackup(),
+                'restore-pre-upgrade' => $logic->restoreInterruptedPreUpgradeBackup((string) $input->getOption('confirmation')),
                 'inspect' => $logic->inspectFailedUpgradeRecovery((int) $actor),
                 'restore' => $logic->restoreRuntimeFromBackup((string) $input->getOption('confirmation'), FailedUpgradeRecoveryAudit::cliActor()),
                 'gate-a', 'verify' => $logic->verifyPreparedFailedUpgradeReplacement((string) $input->getOption('replacement-id'), FailedUpgradeRecoveryAudit::cliActor()),

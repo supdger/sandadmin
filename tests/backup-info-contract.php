@@ -1,4 +1,5 @@
 <?php
+// Legacy recovery regression only; normal lifecycle is covered by UpstreamPostgresLifecycleTest.php.
 
 declare(strict_types=1);
 
@@ -30,7 +31,7 @@ namespace Saithink\Saipackage\service {
         public static function getIni(string $directory): array
         {
             $file = $directory . 'info.ini';
-            return is_file($file) ? (parse_ini_file($file, false, INI_SCANNER_TYPED) ?: []) : [];
+            return is_file($file) ? (parse_ini_file($file, true, INI_SCANNER_TYPED) ?: []) : [];
         }
 
         /** @param array<string,mixed> $data */
@@ -97,10 +98,10 @@ namespace plugin\sandadmin\app\cache {
 
 namespace {
     use plugin\sandadmin\exception\ApiException;
-    use plugin\sandpackage\app\logic\InstallLogic;
+    use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use Saithink\Saipackage\service\Server;
 
-    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/InstallLogic.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
     final class BackupRecoveryFaultLogic extends InstallLogic
     {
@@ -152,6 +153,21 @@ namespace {
                 $info['registration_manifest'] = str_repeat('0', 64);
                 writeInfo($directory, $info);
             }
+            if ($fault === 'legacy_restore_rename_interrupt' && $point === 'legacy.restore.rename.committed') {
+                throw new ApiException('fixture interrupted explicit legacy restore after rename');
+            }
+            if ($fault === 'legacy_restore_info_temp_interrupt' && $point === 'legacy.restore.registration.temp_written') {
+                throw new ApiException('fixture interrupted explicit legacy restore during temporary info write');
+            }
+            if ($fault === 'legacy_restore_info_rename_interrupt' && $point === 'legacy.restore.registration.renamed') {
+                throw new ApiException('fixture interrupted explicit legacy restore after atomic info replacement');
+            }
+            if ($fault === 'legacy_restore_registration_interrupt' && $point === 'legacy.restore.registration.committed') {
+                throw new ApiException('fixture interrupted explicit legacy restore after registration');
+            }
+            if ($fault === 'legacy_restore_completed_interrupt' && $point === 'legacy.restore.completed.committed') {
+                throw new ApiException('fixture interrupted explicit legacy restore after completed journal');
+            }
         }
     }
 
@@ -160,6 +176,16 @@ namespace {
         if (!$condition) {
             throw new \RuntimeException($message);
         }
+    }
+
+    function expectApiException(callable $operation, string $message): void
+    {
+        try {
+            $operation();
+        } catch (ApiException) {
+            return;
+        }
+        throw new \RuntimeException($message);
     }
 
     function writeFile(string $path, string $contents): void
@@ -248,6 +274,7 @@ namespace {
         mkdir(runtime_path(), 0755, true);
         mkdir(base_path(), 0755, true);
         mkdir(runtime_path() . '/sandpackage/locks', 0755, true);
+        mkdir(runtime_path() . '/sandpackage/backups', 0755, true);
 
         $old = runtime_path() . '/sandpackage/sand-iam/';
         $candidate = $testRoot . '/v4-candidate/';
@@ -347,6 +374,67 @@ namespace {
         }
     }
 
+    /** @return array{logic:InstallLogic,old:string,backup:string,journal:string,confirmation:string,deployment:string,runtime:string} */
+    function makeLegacyInterruptedBackup(string $fault = ''): array
+    {
+        $fixture = makeFixture($fault);
+        $logic = $fixture['logic'];
+        $info = Server::getIni($fixture['old']);
+        $previousRegistration = str_repeat('f', 64);
+        $info['registration_manifest'] = $previousRegistration;
+        writeInfo($fixture['old'], $info);
+        $infoPath = $fixture['old'] . 'info.ini';
+        $rawInfo = file_get_contents($infoPath);
+        expect(is_string($rawInfo), 'legacy fixture info.ini is unreadable');
+        $rawInfo = preg_replace(
+            "/^about = .*$/m",
+            "about = \"Original; meaningful detail\"",
+            $rawInfo,
+            1,
+        );
+        expect(is_string($rawInfo), 'legacy fixture could not preserve quoted metadata');
+        writeFile($infoPath, $rawInfo . "[runtime]\ndriver = pgsql\nstrict = true\n");
+        chmod($infoPath, 0640);
+
+        $reflection = new \ReflectionClass(InstallLogic::class);
+        $prepared = $reflection->getMethod('preparedPackageManifest');
+        $preparedDigest = $reflection->getMethod('preparedPackageManifestDigest');
+        $deployment = $reflection->getMethod('verifyDeploymentMatchesPackage');
+        $prepared->setAccessible(true);
+        $preparedDigest->setAccessible(true);
+        $deployment->setAccessible(true);
+        $manifest = $prepared->invoke($logic, $fixture['old']);
+        $deploymentHash = $deployment->invoke($logic);
+        $backupId = 'sand-iam-package-20260912000000-abcdef123456';
+        $backup = runtime_path() . '/sandpackage/backups/' . $backupId;
+        expect(rename($fixture['old'], $backup), 'legacy fixture could not move package into backup');
+
+        $journal = runtime_path() . '/sandpackage/locks/sand-iam-candidate.transaction.json';
+        writeFile(runtime_path() . '/sandpackage/locks/sand-iam-operation.lock', '');
+        writeFile($journal, json_encode([
+            'app' => 'sand-iam',
+            'backup_id' => $backupId,
+            'phase' => 'backed_up',
+            'from_version' => '0.6.0',
+            'previous_registration_manifest' => $previousRegistration,
+            'deployment_manifest' => $deploymentHash,
+            'prepared_package_manifest' => $manifest,
+            'prepared_package_manifest_digest' => $preparedDigest->invoke($logic, $manifest),
+            'created_at' => '2026-09-12T00:00:00+08:00',
+        ], JSON_THROW_ON_ERROR));
+        chmod($journal, 0600);
+        $inspection = $logic->inspectInterruptedPreUpgradeBackup();
+        return [
+            'logic' => $logic,
+            'old' => $fixture['old'],
+            'backup' => $backup,
+            'journal' => $journal,
+            'confirmation' => (string) $inspection['confirmation'],
+            'deployment' => $deploymentHash,
+            'runtime' => deployedRuntimeDigest(),
+        ];
+    }
+
     // Full 0.6 registered -> 0.7 candidate staging path. The test Server has
     // the same no-trailing-separator behavior as the vendor implementation.
     $baseline = makeFixture();
@@ -393,19 +481,15 @@ namespace {
             throw new \RuntimeException($fault . ': staging unexpectedly succeeded');
         } catch (ApiException) {
         }
+        assertOldPackage(
+            $fixture['old'],
+            $beforeRuntime,
+            $fault === 'state' ? InstallLogic::WAIT_INSTALL : InstallLogic::INSTALLED,
+            $fault
+        );
         if (in_array($fault, ['registration_manifest', 'state'], true)) {
-            $journal = candidateJournal();
-            expect(($journal['phase'] ?? null) === 'backed_up', $fault . ': invalid pre-upgrade metadata lost its recovery journal');
-            expect(!is_dir($fixture['old']), $fault . ': invalid pre-upgrade metadata was presented as restored');
-            expect(is_dir(runtime_path() . '/sandpackage/backups/' . $journal['backup_id']), $fault . ': invalid pre-upgrade evidence disappeared');
-            expect(recoverOnNewInstance() !== null, $fault . ': a new instance accepted invalid pre-upgrade metadata');
-        } else {
-            assertOldPackage(
-                $fixture['old'],
-                $beforeRuntime,
-                InstallLogic::INSTALLED,
-                $fault
-            );
+            expect(!is_file(runtime_path() . '/sandpackage/locks/sand-iam-candidate.transaction.json'), $fault . ': invalid pre-upgrade metadata wrote a recovery journal');
+            expect((glob(runtime_path() . '/sandpackage/backups/sand-iam-package-*') ?: []) === [], $fault . ': invalid pre-upgrade metadata created a package backup');
         }
         expect(is_dir($fixture['candidate']), $fault . ': rejected candidate was unexpectedly consumed');
     }
@@ -485,6 +569,106 @@ namespace {
     expect($recoveryError !== null, 'post_restore_identity: new instance accepted corrupt restored package');
     expect(!str_contains($recoveryError->getMessage(), '安装目录被占用'), 'post_restore_identity: recovery fell into the generic occupied-directory dead end');
     candidateJournal();
+
+    // Historical v6.1.4 could move an otherwise valid installed package while
+    // its stale registration digest differed from the deployed runtime. The
+    // repair is explicit, confirmation-bound and does not execute SQL.
+    $legacy = makeLegacyInterruptedBackup();
+    expectApiException(
+        fn () => $legacy['logic']->restoreInterruptedPreUpgradeBackup('RESTORE PRE-UPGRADE wrong'),
+        'legacy restore accepted a wrong confirmation'
+    );
+    expect(!is_dir($legacy['old']) && is_dir($legacy['backup']) && is_file($legacy['journal']), 'wrong confirmation changed legacy recovery evidence');
+    $restored = $legacy['logic']->restoreInterruptedPreUpgradeBackup($legacy['confirmation']);
+    expect(($restored['state'] ?? null) === 'restored' && ($restored['sql_executed'] ?? null) === false, 'legacy restore did not report a no-SQL recovery');
+    expect(is_dir($legacy['old']) && !is_dir($legacy['backup']) && !is_file($legacy['journal']), 'legacy restore did not converge package paths and journal');
+    $restoredInfo = Server::getIni($legacy['old']);
+    expect(($restoredInfo['registration_manifest'] ?? null) === $legacy['deployment'], 'legacy restore did not normalize the registration digest');
+    expect(($restoredInfo['about'] ?? null) === 'Original; meaningful detail', 'legacy restore damaged quoted metadata');
+    expect(($restoredInfo['runtime'] ?? null) === ['driver' => 'pgsql', 'strict' => true], 'legacy restore changed an INI section');
+    expect((fileperms($legacy['old'] . '/info.ini') & 0777) === 0640, 'legacy restore changed info.ini permissions');
+    expect(deployedRuntimeDigest() === $legacy['runtime'], 'legacy restore changed deployed runtime files');
+
+    // A file-level mismatch remains blocked and preserves the only backup and
+    // transaction evidence for manual diagnosis.
+    $tamperedLegacy = makeLegacyInterruptedBackup();
+    writeFile($tamperedLegacy['backup'] . '/plugin/sand-iam/app/Identity.php', "<?php\n// tampered legacy backup\n");
+    expectApiException(
+        fn () => $tamperedLegacy['logic']->restoreInterruptedPreUpgradeBackup($tamperedLegacy['confirmation']),
+        'tampered legacy backup unexpectedly restored'
+    );
+    expect(!is_dir($tamperedLegacy['old']) && is_dir($tamperedLegacy['backup']) && is_file($tamperedLegacy['journal']), 'tampered legacy recovery lost evidence');
+    expect(deployedRuntimeDigest() === $tamperedLegacy['runtime'], 'tampered legacy recovery changed deployed runtime');
+
+    // A process interruption after the durable rename can be retried with the
+    // same confirmation and converges without replaying SQL or deployment.
+    $interruptedLegacy = makeLegacyInterruptedBackup('legacy_restore_rename_interrupt');
+    expectApiException(
+        fn () => $interruptedLegacy['logic']->restoreInterruptedPreUpgradeBackup($interruptedLegacy['confirmation']),
+        'legacy restore interruption fixture unexpectedly completed'
+    );
+    expect(is_dir($interruptedLegacy['old']) && !is_dir($interruptedLegacy['backup']) && is_file($interruptedLegacy['journal']), 'legacy interruption did not retain retryable evidence');
+    $retryResult = (new InstallLogic('sand-iam'))->restoreInterruptedPreUpgradeBackup($interruptedLegacy['confirmation']);
+    expect(($retryResult['state'] ?? null) === 'restored' && ($retryResult['sql_executed'] ?? null) === false, 'legacy restore retry did not converge');
+    expect(!is_file($interruptedLegacy['journal']), 'legacy restore retry did not clear completed journal');
+    expect((Server::getIni($interruptedLegacy['old'])['registration_manifest'] ?? null) === $interruptedLegacy['deployment'], 'legacy restore retry did not normalize registration');
+
+    // A registration write interrupted before fsync is replayable. The retry
+    // revalidates and fsyncs the whole package before completing the journal.
+    $registrationRetry = makeLegacyInterruptedBackup('legacy_restore_registration_interrupt');
+    expectApiException(
+        fn () => $registrationRetry['logic']->restoreInterruptedPreUpgradeBackup($registrationRetry['confirmation']),
+        'legacy registration retry fixture unexpectedly completed'
+    );
+    $registrationRetryResult = (new InstallLogic('sand-iam'))->restoreInterruptedPreUpgradeBackup($registrationRetry['confirmation']);
+    expect(($registrationRetryResult['state'] ?? null) === 'restored', 'legacy registration interruption did not converge on retry');
+    expect(!is_file($registrationRetry['journal']), 'legacy registration retry did not clear completed journal');
+
+    // Interruptions on either side of the atomic info.ini replacement remain
+    // retryable: the active file is always the complete old or complete new form.
+    foreach (['legacy_restore_info_temp_interrupt', 'legacy_restore_info_rename_interrupt'] as $infoFault) {
+        $infoRetry = makeLegacyInterruptedBackup($infoFault);
+        $oldInfoRaw = file_get_contents($infoRetry['backup'] . '/info.ini');
+        expectApiException(
+            fn () => $infoRetry['logic']->restoreInterruptedPreUpgradeBackup($infoRetry['confirmation']),
+            $infoFault . ': fixture unexpectedly completed'
+        );
+        $activeInfoRaw = file_get_contents($infoRetry['old'] . '/info.ini');
+        expect(is_string($activeInfoRaw) && ($activeInfoRaw === $oldInfoRaw
+            || (Server::getIni($infoRetry['old'])['registration_manifest'] ?? null) === $infoRetry['deployment']),
+            $infoFault . ': interruption left a partial info.ini');
+        $infoRetryResult = (new InstallLogic('sand-iam'))->restoreInterruptedPreUpgradeBackup($infoRetry['confirmation']);
+        expect(($infoRetryResult['state'] ?? null) === 'restored', $infoFault . ': retry did not converge');
+        expect(!is_file($infoRetry['journal']), $infoFault . ': retry did not clear completed journal');
+    }
+
+    // If registration was persisted but the completion journal was not, a
+    // later non-runtime package change cannot become the new recovery truth.
+    $registrationInterrupted = makeLegacyInterruptedBackup('legacy_restore_registration_interrupt');
+    expectApiException(
+        fn () => $registrationInterrupted['logic']->restoreInterruptedPreUpgradeBackup($registrationInterrupted['confirmation']),
+        'legacy registration interruption fixture unexpectedly completed'
+    );
+    writeFile($registrationInterrupted['old'] . '/update.sql', '-- changed after registration interruption');
+    expectApiException(
+        fn () => (new InstallLogic('sand-iam'))->restoreInterruptedPreUpgradeBackup($registrationInterrupted['confirmation']),
+        'legacy registration retry accepted post-crash package drift'
+    );
+    expect(is_file($registrationInterrupted['journal']), 'legacy registration drift removed recovery evidence');
+
+    // Even after the completed journal is durable, runtime drift must block
+    // final journal deletion and keep the state available for diagnosis.
+    $completedInterrupted = makeLegacyInterruptedBackup('legacy_restore_completed_interrupt');
+    expectApiException(
+        fn () => $completedInterrupted['logic']->restoreInterruptedPreUpgradeBackup($completedInterrupted['confirmation']),
+        'legacy completed interruption fixture unexpectedly returned success'
+    );
+    writeFile(base_path() . '/plugin/sand-iam/app/Identity.php', "<?php\n// runtime drift after completed journal\n");
+    expectApiException(
+        fn () => (new InstallLogic('sand-iam'))->restoreInterruptedPreUpgradeBackup($completedInterrupted['confirmation']),
+        'legacy completed retry accepted runtime drift'
+    );
+    expect(is_file($completedInterrupted['journal']), 'legacy completed drift removed recovery evidence');
 
     removeTree($testRoot);
     echo "SandPackage v12 backup recovery contract passed\n";

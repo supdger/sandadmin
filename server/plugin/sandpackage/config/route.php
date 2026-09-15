@@ -12,6 +12,10 @@ Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController:
 Route::post('/app/sandpackage/install/inspectFailedUpgradeRecovery', [plugin\sandpackage\app\controller\InstallController::class, 'inspectFailedUpgradeRecovery']);
 Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'restoreRuntimeFromBackup']);
 Route::post('/app/sandpackage/install/restoreRuntimeFromBackup', [plugin\sandpackage\app\controller\InstallController::class, 'restoreRuntimeFromBackup']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'inspectInterruptedPreUpgradeBackup']);
+Route::post('/app/sandpackage/install/inspectInterruptedPreUpgradeBackup', [plugin\sandpackage\app\controller\InstallController::class, 'inspectInterruptedPreUpgradeBackup']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'restoreInterruptedPreUpgradeBackup']);
+Route::post('/app/sandpackage/install/restoreInterruptedPreUpgradeBackup', [plugin\sandpackage\app\controller\InstallController::class, 'restoreInterruptedPreUpgradeBackup']);
 Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'prepareFailedUpgradeReplacement']);
 Route::post('/app/sandpackage/install/prepareFailedUpgradeReplacement', [plugin\sandpackage\app\controller\InstallController::class, 'prepareFailedUpgradeReplacement']);
 Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'replaceFailedUpgradeCandidate']);
