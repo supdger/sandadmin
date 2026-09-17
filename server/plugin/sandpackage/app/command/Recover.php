@@ -21,11 +21,13 @@ class Recover extends Command
 
     protected function configure(): void
     {
-        $this->addArgument('action', InputArgument::REQUIRED, 'inspect-pre-upgrade|restore-pre-upgrade|inspect|restore|gate-a|verify|prepare|replace|retry')
+        $this->addArgument('action', InputArgument::REQUIRED, 'inspect|inspect-fresh|cleanup-fresh|manual-cleanup-fresh|finish-cleanup-fresh|continue-fresh|inspect-pre-upgrade|restore-pre-upgrade|restore|gate-a|verify|prepare|replace|retry')
             ->addArgument('app', InputArgument::REQUIRED, '插件标识')
             ->addOption('replacement-id', null, InputOption::VALUE_REQUIRED, '已预检替换候选标识')
             ->addOption('archive', null, InputOption::VALUE_REQUIRED, 'prepare 的本地 ZIP 文件')
             ->addOption('confirmation', null, InputOption::VALUE_REQUIRED, '写操作的精确确认文本')
+            ->addOption('plan', null, InputOption::VALUE_REQUIRED, '人工清理计划 JSON 文件（inspect 也须传同一文件）')
+            ->addOption('restart', null, InputOption::VALUE_NONE, '继续部署完成后重载服务（须单独获得操作授权）')
             ->addOption('actor-label', null, InputOption::VALUE_REQUIRED, '仅附加到本次 CLI 输出的操作者标签');
     }
 
@@ -41,9 +43,23 @@ class Recover extends Command
             $io->error('无法确定当前 OS 身份。');
             return Command::FAILURE;
         }
-        $logic = new InstallLogic($app);
         try {
-            $result = match ($action) {
+            $normal = new \plugin\sandpackage\app\logic\InstallLogic($app);
+            $info = $normal->getInfo();
+            if (str_ends_with($action, '-fresh') || $action === 'inspect' && (($info['lifecycle_driver'] ?? '') === 'saipackage-pg-v1' || is_file(runtime_path() . '/sandpackage/fresh-recovery/' . $app . '.json'))) {
+                $planPath = $input->getOption('plan');
+                $plan = null;
+                if (is_string($planPath) && $planPath !== '') {
+                    if (!is_file($planPath) || is_link($planPath)) throw new \InvalidArgumentException('人工计划必须是普通 JSON 文件');
+                    $plan = json_decode((string) file_get_contents($planPath), true, 512, JSON_THROW_ON_ERROR);
+                    if (!is_array($plan)) throw new \InvalidArgumentException('人工计划格式错误');
+                }
+                $result = in_array($action, ['inspect', 'inspect-fresh'], true)
+                    ? $normal->inspectFreshInstallRecovery($plan)
+                    : $normal->recoverFreshInstall($action, (string) $input->getOption('confirmation'), $plan, (bool) $input->getOption('restart'));
+            } else {
+                $logic = new InstallLogic($app);
+                $result = match ($action) {
                 'inspect-pre-upgrade' => $logic->inspectInterruptedPreUpgradeBackup(),
                 'restore-pre-upgrade' => $logic->restoreInterruptedPreUpgradeBackup((string) $input->getOption('confirmation')),
                 'inspect' => $logic->inspectFailedUpgradeRecovery((int) $actor),
@@ -54,6 +70,7 @@ class Recover extends Command
                 'retry' => $logic->retryFailedUpgrade((string) $input->getOption('confirmation'), FailedUpgradeRecoveryAudit::cliActor()),
                 default => throw new \InvalidArgumentException('未知恢复操作。'),
             };
+            }
             $result['cli_actor'] = ['uid' => $uid, 'username' => is_array($account) ? ($account['name'] ?? null) : null, 'label' => $input->getOption('actor-label')];
             $io->writeln(json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
             return Command::SUCCESS;

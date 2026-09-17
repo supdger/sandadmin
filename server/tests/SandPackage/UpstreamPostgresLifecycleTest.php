@@ -13,6 +13,16 @@ namespace think\facade {
             if ($name !== 'pgsql') throw new \RuntimeException('Unexpected database connection');
             return new class {
                 public function connect(): object { return $this; }
+                public function inTransaction(): bool { return false; }
+                public function quote(string $value): string { return "'" . str_replace("'", "''", $value) . "'"; }
+                public function query(string $sql): object {
+                    return new class($sql) {
+                        public function __construct(private string $sql) {}
+                        public function fetchAll(int $mode): array {
+                            return str_contains($this->sql, 'current_database()') ? [['database' => 'recording-fixture', 'oid' => '1', 'username' => 'fixture', 'address' => null, 'port' => null, 'started' => 'fixed']] : [];
+                        }
+                    };
+                }
                 public function exec(string $sql): int {
                     Db::$sql[] = trim($sql);
                     if (Db::$fail && str_contains($sql, 'BROKEN SQL')) throw new \RuntimeException('isolated simulated SQL error');
@@ -40,6 +50,7 @@ namespace {
     require dirname(__DIR__, 2) . '/vendor/autoload.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/InstallLogic.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
+    require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/FreshInstallRecovery.php';
 
     function check(bool $condition, string $message): void {
         if (!$condition) throw new RuntimeException($message);
@@ -143,7 +154,7 @@ namespace {
     file_put_contents(base_path('plugin/neutral-copy'), 'occupied target');
     $copy = new InstallLogic('neutral-copy');
     rejected(fn() => $copy->install(false), 'upstream copy failure cannot report installation success');
-    check($copy->getInfo()['state'] === 8, 'copy failure remains explicitly incomplete');
+    check($copy->getInfo()['state'] === 2 && empty($copy->getInfo()['operation_pending']), 'occupied deployment fails before SQL and preserves waiting candidate');
 
     echo "Lifecycle fixture retained at $root\n";
     $root .= '-dependencies';

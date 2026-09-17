@@ -9,6 +9,7 @@ use Saithink\Saipackage\service\Depends;
 use plugin\sandadmin\exception\ApiException;
 use plugin\sandadmin\app\cache\UserMenuCache;
 use plugin\sandpackage\app\service\PostgresLifecycleSqlExecutor;
+use plugin\sandpackage\app\service\FreshInstallRecovery;
 
 /**
  * SaiPackage 6.0.2 / 82043f83 (MIT), with PostgreSQL and host compatibility.
@@ -31,6 +32,7 @@ class InstallLogic
     private ?string $commandNonce = null;
     private ?string $commandType = null;
     private ?array $processRecord = null;
+    private ?object $freshPdo = null;
 
     /**
      * @var string 安装目录
@@ -166,6 +168,7 @@ class InstallLogic
             $info = array_intersect_key($info, array_flip(['app', 'title', 'about', 'author', 'version', 'url', 'email', 'support']));
             $info['state'] = self::WAIT_INSTALL;
             $info['lifecycle_driver'] = self::DRIVER;
+            $info['package_sha256'] = hash_file('sha256', $zipPath);
             if ($upgrade) {
                 $info['update'] = 1;
                 $info['upgrade_from_version'] = (string) $old['version'];
@@ -214,12 +217,15 @@ class InstallLogic
                 throw new ApiException('升级确认内容不匹配');
             }
             if ($isUpdate) $this->assertRuntimeVersion((string) $info['upgrade_from_version']);
+            $recovery = $isUpdate ? null : $this->freshRecovery();
+            if ($recovery !== null) $recovery->begin($restart);
             $this->setInfo(['operation_pending' => 1]);
             try {
                 if (!$isUpdate) {
                     echo '安装数据库' . PHP_EOL;
                     $sql = $this->appDir . 'install.sql';
-                    (new PostgresLifecycleSqlExecutor())->executeFile($sql);
+                    (new PostgresLifecycleSqlExecutor())->executeFile($sql, $this->recoveryConnection(), $recovery->observe(...));
+                    $recovery->checkpoint();
                 }
 
                 if (isset($info['update']) && $info['update'] == 1) {
@@ -232,42 +238,88 @@ class InstallLogic
                     $this->setInfo([], $info);
                 }
 
-                // 依赖检查
-                $this->dependConflictHandle();
-
-                // 执行安装脚本
-                echo '安装文件' . PHP_EOL;
-                set_error_handler(static function (int $severity, string $message): never {
-                    throw new \RuntimeException($message);
-                });
-                try {
-                    Server::installByRelation($paths);
-                } finally {
-                    restore_error_handler();
-                }
-
-                // 依赖更新
-                echo '依赖更新' . PHP_EOL;
-                $this->dependUpdateHandle();
-
-                // 清理菜单缓存
-                UserMenuCache::clearMenuCache();
-
-                // 重启后端
-                if ($restart && Server::restart() !== true) throw new ApiException('服务重载未完成');
+                $this->deployFreshOrUpgrade($paths, $restart);
+                if ($recovery !== null) $recovery->checkpoint();
 
                 $info = $this->getInfo();
                 unset($info['operation_pending']);
                 $this->setInfo([], $info);
+                if ($recovery !== null) $recovery->complete();
                 return $info;
             } catch (Throwable $error) {
                 $this->setInfo(['state' => self::FAILED, 'operation_pending' => 1]);
+                if ($recovery !== null) {
+                    try { $recovery->checkpoint(); } catch (Throwable $checkpointError) {
+                        error_log('SandPackage recovery checkpoint unavailable: ' . $checkpointError->getMessage());
+                    }
+                }
                 error_log('SandPackage ' . $this->appName . ': ' . $error);
                 throw new ApiException('插件安装未完成，请检查服务日志；禁止直接重试');
             }
         } finally {
             $this->unlock();
         }
+    }
+
+    protected function recoveryConnection(): object
+    {
+        return $this->freshPdo ??= \think\facade\Db::connect('pgsql')->connect();
+    }
+
+    private function freshRecovery(): FreshInstallRecovery
+    {
+        return new FreshInstallRecovery($this->appName, rtrim($this->appDir, '/'),
+            $this->getAllowedPath(), rtrim($this->installDir, '/'), $this->recoveryConnection(),
+            $this->getInfo(...));
+    }
+
+    public function inspectFreshInstallRecovery(?array $plan = null): array
+    {
+        $this->lock();
+        try { return $this->freshRecovery()->inspect($plan); }
+        finally { $this->unlock(); }
+    }
+
+    public function recoverFreshInstall(string $action, string $confirmation, ?array $plan = null, bool $restart = false): array
+    {
+        $this->lock();
+        try {
+            return $this->freshRecovery()->recover($action, $confirmation, $plan, function () use ($restart): void {
+                $this->checkPackage();
+                $paths = $this->checkedPaths();
+                // The original deployment was absent. The journal binds partial-copy
+                // contents; only paths owned by this exact candidate may be rewritten.
+                foreach ($paths as $source => $target) {
+                    $sourceFiles = FreshInstallRecovery::tree($source);
+                    foreach (FreshInstallRecovery::tree($target) ?? [] as $name => $hash) {
+                        if (!array_key_exists($name, $sourceFiles) || ($sourceFiles[$name] === 'directory') !== ($hash === 'directory')) throw new ApiException('部署目录含有不属于原候选的路径');
+                    }
+                }
+                $this->setInfo(['state' => self::WAIT_INSTALL]);
+                try {
+                    $this->deployFreshOrUpgrade($paths, $restart);
+                    $this->freshRecovery()->checkpoint();
+                    $info = $this->getInfo();
+                    unset($info['operation_pending']);
+                    $this->setInfo([], $info);
+                } catch (Throwable $error) {
+                    $this->setInfo(['state' => self::FAILED, 'operation_pending' => 1]);
+                    throw $error;
+                }
+            }, $restart);
+        } finally { $this->unlock(); }
+    }
+
+    private function deployFreshOrUpgrade(array $paths, bool $restart): void
+    {
+        $this->dependConflictHandle();
+        echo '安装文件' . PHP_EOL;
+        set_error_handler(static function (int $severity, string $message): never { throw new \RuntimeException($message); });
+        try { Server::installByRelation($paths); }
+        finally { restore_error_handler(); }
+        $this->dependUpdateHandle();
+        UserMenuCache::clearMenuCache();
+        if ($restart && Server::restart() !== true) throw new ApiException('服务重载未完成');
     }
 
     /**
@@ -530,14 +582,16 @@ class InstallLogic
         return [
             'state_text' => [0 => '未安装', 1 => '已安装', 2 => '等待安装', 3 => '等待处理依赖冲突', 4 => '等待依赖安装'][$state] ?? '需要检查旧安装状态',
             'ordinary_actions_blocked' => $blocked,
-            'recovery_reason' => $blocked ? '安装记录不兼容或操作未完成；请在原锁定宿主处理，不能自动重试' : '',
+            'recovery_reason' => $blocked ? (($info['lifecycle_driver'] ?? '') === self::DRIVER
+                ? '操作未完成；请使用 sandpackage:recover inspect 检查恢复动作，不能直接重试'
+                : '安装记录不兼容；请在原锁定宿主处理，不能自动重试') : '',
         ];
     }
 
     private function assertAppName(string $app): void
     {
         if (!preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app)
-            || in_array($app, ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups'], true)) {
+            || in_array($app, ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'fresh-recovery'], true)) {
             throw new ApiException('插件标识无效或属于宿主保留目录');
         }
     }

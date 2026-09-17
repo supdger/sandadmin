@@ -142,7 +142,7 @@ final class PostgresLifecycleSqlExecutor
         return $statements;
     }
 
-    public function executeFile(string $path, ?object $pdo = null): void
+    public function executeFile(string $path, ?object $pdo = null, ?callable $observe = null): void
     {
         if (!is_file($path) || !is_readable($path)) {
             throw new RuntimeException('插件生命周期脚本不可读取');
@@ -165,6 +165,7 @@ final class PostgresLifecycleSqlExecutor
             }
         }
         if ($statements === []) {
+            if ($observe) $observe('sql_committed_deploy_pending');
             return;
         }
         if ($pdo === null) {
@@ -177,8 +178,10 @@ final class PostgresLifecycleSqlExecutor
             throw new RuntimeException('生命周期脚本不能接管已有数据库事务');
         }
         $transactionActive = false;
+        $commitAttempted = false;
         $mode = 'none';
         try {
+            if ($observe) $observe('sql_commit_unknown');
             foreach ($statements as $statement) {
                 $transactionCommand = self::transactionCommand($statement);
                 if ($transactionCommand === 'begin') {
@@ -198,6 +201,10 @@ final class PostgresLifecycleSqlExecutor
                     $transactionActive = true;
                     $mode = 'implicit';
                 }
+                if ($transactionCommand === 'commit' || !$transactionActive) {
+                    if ($observe) $observe('sql_commit_unknown');
+                    $commitAttempted = true;
+                }
                 self::exec($pdo, $statement);
                 if ($transactionCommand === 'commit' || $transactionCommand === 'rollback') {
                     $transactionActive = false;
@@ -207,17 +214,23 @@ final class PostgresLifecycleSqlExecutor
                 if ($mode === 'explicit') {
                     throw new RuntimeException('PostgreSQL 生命周期脚本的显式事务未闭合');
                 }
+                if ($observe) $observe('sql_commit_unknown');
+                $commitAttempted = true;
                 self::exec($pdo, 'COMMIT');
                 $transactionActive = false;
             }
+            if ($observe) $observe('sql_committed_deploy_pending');
         } catch (Throwable $error) {
+            $rolledBack = false;
             if ($transactionActive) {
                 try {
                     self::exec($pdo, 'ROLLBACK');
+                    $rolledBack = true;
                 } catch (Throwable) {
                     // The original failure remains the business-facing cause.
                 }
             }
+            if ($observe && !$commitAttempted && $rolledBack) $observe('sql_not_committed');
             throw new RuntimeException('插件生命周期 SQL 执行失败', 0, $error);
         }
     }
