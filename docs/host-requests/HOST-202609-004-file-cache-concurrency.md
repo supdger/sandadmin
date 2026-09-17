@@ -17,7 +17,9 @@ ThinkCache 文件写入使用排他锁，读取却可能在文件截断重写时
 40 个独立 PHP 进程直接运行中立反射和真实权限判断方法；该证据覆盖缓存并发及角色隔离，不等于带 JWT 的 HTTP 验收。具体轮次、结果、耗时和审查见
 [执行记录](../../openspec/changes/repair-host-recovery-and-cache-concurrency/execution.md)。
 
-消费方主动拉取 clean revision 后，仍需在自己的 40-worker 宿主使用有效 JWT，对
-`/core/system/user`、`/core/system/dictAll`、`/core/system/menu` 完成至少 1,000 轮冷/热并发复测，核对 HTTP 及业务码、日志和角色隔离。不得将请求串行化作为修复。
+消费方已拉取 `2425803`，在 40-worker 宿主使用有效 JWT 对
+`/core/system/user`、`/core/system/dictAll`、`/core/system/menu` 完成冷/热各 1,000 轮回归：
+80,000 批次、240,000 次请求，HTTP 200/业务码 200，零失败。已核对最终 JSON 报告；
+消费方反馈新日志无原缓存异常。驱动使用每 worker 持久连接，未将请求串行化。
 
 源码拉取不代表长驻进程已切换驱动；服务重载须由消费方在既有授权范围内执行。本任务不改写或重载消费宿主。
