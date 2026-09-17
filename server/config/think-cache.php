@@ -36,7 +36,7 @@ return [
         // 文件缓存
         'file' => [
             // 驱动方式
-            'type' => 'file',
+            'type' => \plugin\sandadmin\app\cache\driver\File::class,
             // 设置不同的缓存保存目录
             'path' => runtime_path() . '/file/',
         ],
