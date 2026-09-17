@@ -39,8 +39,12 @@ revision `82043f83df45a6186ea872eef3bce388e0ad87e2`。未修改 vendor、未升�
 ## 旧记录兼容
 
 `LegacyInstallLogic` 保存切换前的恢复实现及已有未提交修复，仅由旧恢复 API、
-登记/撤回入口和 `sandpackage:recover` 调用。构造器拒绝处理新 driver，
+登记/撤回入口和 `sandpackage:recover` 的旧操作分支调用。构造器拒绝处理新 driver，
 普通上传、安装、卸载和终端不转入该类。旧恢复测试已显式指向这个兼容类。
+
+新 driver 的 `sandpackage:recover inspect <app>` 进入独立的新装恢复检查，
+区分未提交、提交未知和已提交待部署。写操作仍需现场指纹确认；未知旧现场不能自动重跑。
+范围与验证限制见 [HOST-202609-003](../host-requests/HOST-202609-003-fresh-install-recovery.md)。
 
 正常路径拒绝状态 6/7/8、未知状态、未完成旧候选、旧操作日志和宿主依赖进程记录。
 正常旧 installed 记录只有运行配置版本与登记版本一致时才允许升级；
