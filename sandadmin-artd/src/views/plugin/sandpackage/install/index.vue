@@ -3,7 +3,7 @@
     <ElCard class="sandpackage-page-card" shadow="never">
       <!-- 提示警告 -->
       <ElAlert type="warning" :closable="false">
-        仅支持上传由插件市场下载的zip压缩包进行安装，请您务必确认插件包文件来自官方渠道或经由官方认证的插件作者！
+        仅支持可信来源的 ZIP 插件包，请通过配置的插件仓库准备候选，或确认手动上传包的来源与完整性。
       </ElAlert>
 
       <ElAlert
@@ -349,100 +349,84 @@
           </ArtTable>
         </ElTabPane>
 
-        <!-- 在线商店 Tab -->
-        <ElTabPane label="在线商店" name="online">
-          <!-- 搜索栏 -->
-          <div class="flex flex-wrap items-center gap-4 mb-4">
+        <!-- 插件仓库 Tab -->
+        <ElTabPane label="插件仓库" name="repository">
+          <div class="repository-toolbar">
             <ElInput
-              v-model="searchForm.keywords"
-              placeholder="请输入关键词"
+              v-model="repositoryKeyword"
+              placeholder="搜索插件名称、标识、作者或简介"
               clearable
-              class="!w-48"
-              @keyup.enter="fetchOnlineApps"
+              class="repository-search"
             >
               <template #prefix>
                 <ArtSvgIcon icon="ri:search-line" />
               </template>
             </ElInput>
-            <ElSelect v-model="searchForm.type" placeholder="类型" clearable class="!w-32">
-              <ElOption label="全部" value="" />
-              <ElOption label="插件" :value="1" />
-              <ElOption label="系统" :value="2" />
-              <ElOption label="组件" :value="3" />
-              <ElOption label="项目" :value="4" />
-            </ElSelect>
-            <ElSelect v-model="searchForm.price" placeholder="价格" class="!w-32">
-              <ElOption label="全部" value="all" />
-              <ElOption label="免费" value="free" />
-              <ElOption label="付费" value="paid" />
-            </ElSelect>
-            <ElButton type="primary" @click="fetchOnlineApps">搜索</ElButton>
-
-            <!-- 商店账号 -->
-            <div class="ml-auto flex items-center gap-2">
-              <template v-if="storeUser">
-                <ElAvatar :size="24">
-                  <img v-if="storeUser.avatar" :src="storeUser.avatar" />
-                  <ArtSvgIcon v-else icon="ri:user-line" />
-                </ElAvatar>
-                <span class="font-medium">{{ storeUser.nickname || storeUser.username }}</span>
-                <ElButton size="small" @click="showPurchasedApps">已购应用</ElButton>
-                <ElButton size="small" @click="handleLogout">退出</ElButton>
+            <ElButton
+              :loading="repositoryLoading"
+              :disabled="repositoryDownloading"
+              @click="fetchRepositoryCatalog"
+            >
+              <template #icon>
+                <ArtSvgIcon icon="ri:refresh-line" />
               </template>
-              <template v-else>
-                <ElButton size="small" @click="handleLogin">登录</ElButton>
-                <ElButton size="small" @click="handleRegister">注册</ElButton>
-                <span class="text-sm text-gray-400">来管理已购插件</span>
-              </template>
+              刷新仓库
+            </ElButton>
+            <div v-if="repositoryCatalog" class="repository-source">
+              <span>{{ repositoryCatalog.repository }}</span>
+              <ElTag size="small" type="info">{{ repositoryCatalog.ref }}</ElTag>
             </div>
           </div>
 
-          <!-- 应用网格 -->
-          <div class="app-grid">
-            <div
-              v-for="item in onlineApps"
-              :key="item.id"
-              class="app-card"
-              @click="showDetail(item)"
-            >
+          <div v-if="repositoryLoading" class="repository-state" v-loading="true">
+            正在读取插件仓库
+          </div>
+          <ElAlert
+            v-else-if="repositoryError"
+            type="error"
+            :closable="false"
+            title="插件仓库读取失败"
+          >
+            <div class="repository-error-row">
+              <span>{{ repositoryError }}</span>
+              <ElButton size="small" @click="fetchRepositoryCatalog">重新加载</ElButton>
+            </div>
+          </ElAlert>
+          <ElEmpty
+            v-else-if="repositoryLoaded && repositoryPlugins.length === 0"
+            description="仓库暂未发布可用插件"
+          />
+          <ElEmpty
+            v-else-if="repositoryLoaded && filteredRepositoryPlugins.length === 0"
+            description="没有匹配当前关键词的插件"
+          />
+          <div v-else class="app-grid">
+            <article v-for="item in filteredRepositoryPlugins" :key="item.app" class="app-card">
               <div class="app-card-header">
-                <img :src="item.logo" :alt="item.title" class="app-logo" />
+                <div class="repository-plugin-icon" aria-hidden="true">
+                  <ArtSvgIcon icon="ri:plug-line" />
+                </div>
                 <div class="app-info">
                   <div class="app-title">{{ item.title }}</div>
-                  <div class="app-version">v{{ item.version }}</div>
+                  <div class="app-version">{{ item.app }}</div>
                 </div>
-                <div class="app-price" :class="{ free: item.price === '0.00' }">
-                  {{ item.price === '0.00' ? '免费' : '¥' + item.price }}
-                </div>
+                <ElTag v-if="item.versions[0]" size="small">
+                  v{{ item.versions[0].version }}
+                </ElTag>
               </div>
-              <div class="app-about">{{ item.about }}</div>
+              <p class="app-about">{{ item.about }}</p>
               <div class="app-footer">
-                <div class="app-author">
-                  <img
-                    :src="item.avatar || 'https://via.placeholder.com/24'"
-                    class="author-avatar"
-                  />
-                  <span>{{ item.username }}</span>
-                </div>
-                <div class="app-sales">
-                  <ArtSvgIcon icon="ri:user-line" class="mr-1" />
-                  {{ item.sales_num }} 销量
-                </div>
+                <span>{{ item.author }}</span>
+                <ElButton
+                  type="primary"
+                  size="small"
+                  :disabled="repositoryWritesBlocked || item.versions.length === 0"
+                  @click="showRepositoryVersions(item)"
+                >
+                  选择版本
+                </ElButton>
               </div>
-            </div>
-          </div>
-
-          <!-- 分页 -->
-          <div class="flex justify-center mt-4">
-            <ElPagination
-              v-model:current-page="onlinePagination.current"
-              v-model:page-size="onlinePagination.size"
-              :total="onlinePagination.total"
-              :page-sizes="[12, 24, 48]"
-              layout="total, prev, pager, next, sizes"
-              @size-change="fetchOnlineApps"
-              @current-change="fetchOnlineApps"
-            />
+            </article>
           </div>
         </ElTabPane>
       </ElTabs>
@@ -454,166 +438,46 @@
     <!-- 终端弹窗 -->
     <TerminalBox ref="terminalRef" @success="getList" />
 
-    <!-- 详情抽屉 -->
-    <ElDrawer v-model="detailVisible" :size="600" :with-header="true">
-      <template #header>
-        <div class="flex items-center gap-3">
-          <img :src="currentApp?.logo" class="w-9 h-9 rounded-lg" />
-          <div>
-            <div class="text-lg font-semibold">{{ currentApp?.title }}</div>
-            <div class="text-xs text-gray-400">
-              v{{ currentApp?.version }} · {{ currentApp?.username }}
-            </div>
-          </div>
-        </div>
-      </template>
-      <div class="detail-content">
-        <div class="detail-price" :class="{ free: currentApp?.price === '0.00' }">
-          {{ currentApp?.price === '0.00' ? '免费' : '¥' + currentApp?.price }}
-        </div>
-        <div class="detail-about">{{ currentApp?.about }}</div>
-
-        <!-- 截图预览 -->
-        <div v-if="currentApp?.screenshots?.length" class="mb-6">
-          <div class="text-base font-semibold mb-3">截图预览</div>
-          <ElSpace wrap :size="12">
-            <ElImage
-              v-for="(img, idx) in currentApp?.screenshots"
-              :key="idx"
-              :src="img"
-              :preview-src-list="currentApp?.screenshots"
-              :preview-teleported="true"
-              fit="cover"
-              class="w-36 h-24 rounded-lg cursor-pointer"
-            />
-          </ElSpace>
-        </div>
-
-        <!-- 详情描述 -->
-        <div class="detail-desc">
-          <div class="text-base font-semibold mb-3">详细介绍</div>
-          <div class="desc-content" v-html="renderMarkdown(currentApp?.content)"></div>
-        </div>
-
-        <!-- 购买按钮 -->
-        <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <ElButton type="primary" size="large" class="w-full" @click="handleBuy">
-            <template #icon>
-              <ArtSvgIcon icon="ri:shopping-cart-line" />
-            </template>
-            前往购买
-          </ElButton>
-        </div>
-      </div>
-    </ElDrawer>
-
-    <!-- 登录弹窗 -->
-    <ElDialog v-model="loginVisible" title="登录应用商店" width="400" :close-on-click-modal="false">
-      <ElForm :model="loginForm" @submit.prevent="submitLogin" label-position="top">
-        <ElFormItem label="用户名/邮箱" required>
-          <ElInput v-model="loginForm.username" placeholder="请输入用户名或邮箱" clearable>
-            <template #prefix>
-              <ArtSvgIcon icon="ri:user-line" />
-            </template>
-          </ElInput>
-        </ElFormItem>
-        <ElFormItem label="密码" required>
-          <ElInput
-            v-model="loginForm.password"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-            clearable
-          >
-            <template #prefix>
-              <ArtSvgIcon icon="ri:lock-line" />
-            </template>
-          </ElInput>
-        </ElFormItem>
-        <ElFormItem label="验证码" required>
-          <div class="flex gap-2 w-full">
-            <ElInput v-model="loginForm.code" placeholder="请输入验证码" clearable class="flex-1">
-              <template #prefix>
-                <ArtSvgIcon icon="ri:shield-check-line" />
-              </template>
-            </ElInput>
-            <img
-              :src="captchaImage"
-              @click="getCaptcha"
-              class="h-8 w-24 cursor-pointer rounded"
-              title="点击刷新"
-            />
-          </div>
-        </ElFormItem>
-        <ElFormItem>
-          <ElButton type="primary" native-type="submit" class="w-full" :loading="loginLoading">
-            登录
-          </ElButton>
-        </ElFormItem>
-        <div class="text-center text-sm text-gray-400">
-          还没有账号？
-          <ElLink type="primary" @click="handleRegister">立即注册</ElLink>
-        </div>
-      </ElForm>
-    </ElDialog>
-
-    <!-- 已购应用抽屉 -->
-    <ElDrawer v-model="purchasedVisible" title="已购应用" :size="720">
-      <div v-loading="purchasedLoading" class="purchased-list">
-        <div v-for="app in purchasedApps" :key="app.id" class="purchased-card">
-          <img :src="app.logo" class="purchased-logo" />
-          <div class="purchased-info">
-            <div class="purchased-title">{{ app.title }}</div>
-            <div class="purchased-version"> v{{ app.version }} · {{ app.developer }} </div>
-            <div class="purchased-about">{{ app.about }}</div>
-          </div>
-          <div class="gap-2">
-            <ElButton size="small" @click="viewDocs(app)">
-              <template #icon>
-                <ArtSvgIcon icon="ri:book-line" />
-              </template>
-              文档
-            </ElButton>
-            <ElButton type="primary" size="small" @click="showVersions(app)">
-              <template #icon>
-                <ArtSvgIcon icon="ri:download-line" />
-              </template>
-              下载
-            </ElButton>
-          </div>
-        </div>
-        <ElEmpty
-          v-if="!purchasedLoading && purchasedApps.length === 0"
-          description="暂无已购应用"
-        />
-      </div>
-    </ElDrawer>
-
-    <!-- 版本选择对话框 -->
+    <!-- 仓库版本选择对话框 -->
     <ElDialog
-      v-model="versionVisible"
-      :title="'选择版本 - ' + (currentPurchasedApp?.title || '')"
-      width="500"
+      v-model="repositoryVersionVisible"
+      :title="'选择版本 - ' + (currentRepositoryPlugin?.title || '')"
+      width="560"
+      :close-on-click-modal="!repositoryDownloading"
+      :close-on-press-escape="!repositoryDownloading"
+      :show-close="!repositoryDownloading"
     >
-      <div v-loading="versionLoading" class="version-list">
-        <div v-for="ver in versionList" :key="ver.id" class="version-item">
+      <div class="version-list">
+        <div
+          v-for="item in currentRepositoryPlugin?.versions || []"
+          :key="item.version"
+          class="version-item"
+        >
           <div>
             <div class="version-info-row">
-              <span class="version-name">v{{ ver.version }}</span>
-              <span class="version-date">{{ ver.create_time }}</span>
+              <span class="version-name">v{{ item.version }}</span>
+              <ElTag size="small" type="info">{{ item.tag }}</ElTag>
             </div>
-            <div class="version-remark">{{ ver.remark }}</div>
+            <div class="version-compatibility">
+              兼容 SandAdmin {{ item.host_min
+              }}{{ item.host_max ? ` 至 ${item.host_max}` : ' 及以上' }}
+            </div>
+            <div class="version-remark">{{ item.notes }}</div>
           </div>
           <ElButton
             type="primary"
             size="small"
-            :loading="downloadingId === ver.id"
-            @click="downloadVersion(ver)"
+            :loading="downloadingKey === repositoryVersionKey(currentRepositoryPlugin, item)"
+            :disabled="repositoryWritesBlocked"
+            @click="downloadRepositoryVersion(currentRepositoryPlugin, item)"
           >
-            下载安装
+            准备插件包
           </ElButton>
         </div>
-        <ElEmpty v-if="!versionLoading && versionList.length === 0" description="暂无可用版本" />
+        <ElEmpty
+          v-if="(currentRepositoryPlugin?.versions.length || 0) === 0"
+          description="暂无可用版本"
+        />
       </div>
     </ElDialog>
   </div>
@@ -626,10 +490,9 @@
   import type { UploadFile } from 'element-plus'
   import sandpackageApi, {
     type VersionInfo,
-    type StoreApp,
-    type StoreUser,
-    type PurchasedApp,
-    type AppVersion
+    type RepositoryCatalog,
+    type RepositoryPlugin,
+    type RepositoryPluginVersion
   } from '../api/index'
   import InstallForm from './install-box.vue'
   import TerminalBox from './terminal.vue'
@@ -1164,7 +1027,7 @@
     if (rejectOrdinaryAction(record)) return
     // 检查
     if (version.value?.sandpackage_version?.state === 'fail') {
-      ElMessage.error('插件市场sandpackage版本检测失败')
+      ElMessage.error('SandPackage 安装器版本检测失败')
       return
     }
 
@@ -1500,214 +1363,92 @@
     }
   }
 
-  // ========== 在线商店相关 ==========
-  const detailVisible = ref(false)
-  const currentApp = ref<StoreApp | null>(null)
-  const storeUser = ref<StoreUser | null>(null)
-  const storeToken = ref(localStorage.getItem('storeToken') || '')
-  const onlineApps = ref<StoreApp[]>([])
-  const onlineLoading = ref(false)
-  const onlinePagination = reactive({
-    current: 1,
-    size: 12,
-    total: 0
+  // ========== 插件仓库相关 ==========
+  const repositoryCatalog = ref<RepositoryCatalog | null>(null)
+  const repositoryLoading = ref(false)
+  const repositoryLoaded = ref(false)
+  const repositoryError = ref('')
+  const repositoryKeyword = ref('')
+  const repositoryVersionVisible = ref(false)
+  const currentRepositoryPlugin = ref<RepositoryPlugin | null>(null)
+  const downloadingKey = ref('')
+  let repositoryRequestId = 0
+
+  const repositoryPlugins = computed(() => repositoryCatalog.value?.plugins ?? [])
+  const filteredRepositoryPlugins = computed(() => {
+    const keyword = repositoryKeyword.value.trim().toLocaleLowerCase()
+    if (!keyword) return repositoryPlugins.value
+    return repositoryPlugins.value.filter((item) =>
+      [item.app, item.title, item.about, item.author].some((value) =>
+        value.toLocaleLowerCase().includes(keyword)
+      )
+    )
   })
+  const repositoryDownloading = computed(() => downloadingKey.value !== '')
+  const repositoryWritesBlocked = computed(
+    () => hideGlobalPluginWrites.value || repositoryDownloading.value
+  )
 
-  // 登录相关
-  const loginVisible = ref(false)
-  const loginLoading = ref(false)
-  const captchaImage = ref('')
-  const captchaUuid = ref('')
-  const loginForm = reactive({
-    username: '',
-    password: '',
-    code: ''
-  })
-
-  // 搜索表单
-  const searchForm = reactive({
-    keywords: '',
-    type: '' as string | number,
-    price: 'all'
-  })
-
-  // 已购应用相关
-  const purchasedVisible = ref(false)
-  const purchasedLoading = ref(false)
-  const purchasedApps = ref<PurchasedApp[]>([])
-  const versionVisible = ref(false)
-  const versionLoading = ref(false)
-  const versionList = ref<AppVersion[]>([])
-  const currentPurchasedApp = ref<PurchasedApp | null>(null)
-  const downloadingId = ref<number | null>(null)
-
-  const handleLogin = () => {
-    loginVisible.value = true
-    getCaptcha()
-  }
-
-  const handleRegister = () => {
-    window.open('https://saas.saithink.top/register', '_blank')
-  }
-
-  const handleLogout = () => {
-    storeUser.value = null
-    storeToken.value = ''
-    localStorage.removeItem('storeToken')
-  }
-
-  const getCaptcha = async () => {
+  const fetchRepositoryCatalog = async (): Promise<void> => {
+    if (repositoryDownloading.value) return
+    const requestId = ++repositoryRequestId
+    repositoryLoading.value = true
+    repositoryError.value = ''
     try {
-      const response = await sandpackageApi.getStoreCaptcha()
-      captchaImage.value = response?.image || ''
-      captchaUuid.value = response?.uuid || ''
-    } catch {
-      // Error already handled by http utility
-    }
-  }
-
-  const submitLogin = async () => {
-    if (!loginForm.username || !loginForm.password || !loginForm.code) {
-      ElMessage.warning('请填写完整信息')
-      return
-    }
-
-    loginLoading.value = true
-    try {
-      const response = await sandpackageApi.storeLogin({
-        username: loginForm.username,
-        password: loginForm.password,
-        code: loginForm.code,
-        uuid: captchaUuid.value
-      })
-
-      storeToken.value = response?.access_token || ''
-      localStorage.setItem('storeToken', response?.access_token || '')
-      loginVisible.value = false
-      loginForm.username = ''
-      loginForm.password = ''
-      loginForm.code = ''
-      await fetchStoreUser()
-      ElMessage.success('登录成功')
-    } catch {
-      getCaptcha()
-      // Error already handled by http utility
+      const response = await sandpackageApi.getRepositoryCatalog()
+      if (requestId !== repositoryRequestId) return
+      repositoryCatalog.value = response
+      repositoryLoaded.value = true
+    } catch (error: unknown) {
+      if (requestId !== repositoryRequestId) return
+      repositoryCatalog.value = null
+      repositoryLoaded.value = true
+      repositoryError.value = readRecoveryErrorMessage(error, '插件仓库读取失败，请稍后重试')
     } finally {
-      loginLoading.value = false
+      if (requestId === repositoryRequestId) repositoryLoading.value = false
     }
   }
 
-  const fetchStoreUser = async () => {
-    if (!storeToken.value) return
-
-    try {
-      const response = await sandpackageApi.getStoreUserInfo(storeToken.value)
-      storeUser.value = response || null
-    } catch {
-      handleLogout()
-    }
+  const showRepositoryVersions = (item: RepositoryPlugin): void => {
+    if (repositoryWritesBlocked.value) return
+    currentRepositoryPlugin.value = item
+    repositoryVersionVisible.value = true
   }
 
-  const fetchOnlineApps = async () => {
-    onlineLoading.value = true
+  const repositoryVersionKey = (
+    plugin: RepositoryPlugin | null,
+    item: RepositoryPluginVersion
+  ): string => (plugin ? `${plugin.app}@${item.version}` : '')
+
+  const downloadRepositoryVersion = async (
+    plugin: RepositoryPlugin | null,
+    item: RepositoryPluginVersion
+  ): Promise<void> => {
+    if (!plugin || repositoryWritesBlocked.value) return
+    const key = repositoryVersionKey(plugin, item)
+    downloadingKey.value = key
     try {
-      const response = await sandpackageApi.getOnlineAppList({
-        page: onlinePagination.current,
-        limit: onlinePagination.size,
-        price: searchForm.price,
-        type: searchForm.type,
-        keywords: searchForm.keywords
+      await sandpackageApi.downloadRepositoryPlugin({
+        app: plugin.app,
+        version: item.version,
+        sha256: item.sha256
       })
-
-      onlineApps.value = response?.data || []
-      onlinePagination.total = response?.total || 0
-    } catch {
-      // Error already handled by http utility
-    } finally {
-      onlineLoading.value = false
-    }
-  }
-
-  const showDetail = (item: StoreApp) => {
-    currentApp.value = item
-    detailVisible.value = true
-  }
-
-  const renderMarkdown = (content?: string) => {
-    if (!content) return ''
-    return content
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code>$1</code>')
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-      .replace(/\n/g, '<br/>')
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-  }
-
-  const handleBuy = () => {
-    window.open('https://saas.saithink.top/apps', '_blank')
-  }
-
-  const showPurchasedApps = async () => {
-    purchasedVisible.value = true
-    purchasedLoading.value = true
-
-    try {
-      const response = await sandpackageApi.getPurchasedApps(storeToken.value)
-      purchasedApps.value = response || []
-    } catch {
-      // Error already handled by http utility
-    }
-    purchasedLoading.value = false
-  }
-
-  const viewDocs = (app: PurchasedApp) => {
-    window.open(`https://saas.saithink.top/docs/${app.appname}`, '_blank')
-  }
-
-  const showVersions = async (app: PurchasedApp) => {
-    currentPurchasedApp.value = app
-    versionVisible.value = true
-    versionLoading.value = true
-
-    try {
-      const response = await sandpackageApi.getAppVersions(storeToken.value, app.app_id)
-      versionList.value = response || []
-    } catch {
-      // Error already handled by http utility
-    }
-    versionLoading.value = false
-  }
-
-  const downloadVersion = async (ver: AppVersion) => {
-    downloadingId.value = ver.id
-
-    try {
-      await sandpackageApi.downloadApp({
-        token: storeToken.value,
-        id: ver.id
-      })
-
-      ElMessage.success('下载成功，即将刷新插件列表...')
-      versionVisible.value = false
-      purchasedVisible.value = false
+      repositoryVersionVisible.value = false
+      currentRepositoryPlugin.value = null
       activeTab.value = 'local'
-      getList()
+      await getList()
+      ElMessage.success('插件包已准备，请在本地安装页继续安装或升级')
     } catch {
       // Error already handled by http utility
+    } finally {
+      downloadingKey.value = ''
     }
-    downloadingId.value = null
   }
 
   // 监听 tab 切换
   watch(activeTab, (val) => {
-    if (val === 'online') {
-      fetchOnlineApps()
-      fetchStoreUser()
+    if (val === 'repository' && !repositoryLoaded.value && !repositoryLoading.value) {
+      fetchRepositoryCatalog()
     }
   })
 
@@ -1733,26 +1474,26 @@
   }
 
   .failed-upgrade-card {
-    margin-top: 16px;
     padding: 16px;
+    margin-top: 16px;
+    background: var(--el-bg-color);
     border: 1px solid var(--el-border-color);
     border-radius: 8px;
-    background: var(--el-bg-color);
   }
 
   .failed-upgrade-steps {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: 8px;
+    align-items: center;
     margin: 12px 0 8px;
     font-size: 14px;
     color: var(--el-text-color-regular);
   }
 
   .failed-upgrade-steps .current {
-    color: var(--el-color-primary);
     font-weight: 600;
+    color: var(--el-color-primary);
   }
 
   .step-arrow {
@@ -1763,36 +1504,72 @@
   .failed-upgrade-op-hint,
   .failed-upgrade-upload-tip {
     font-size: 13px;
-    color: var(--el-text-color-secondary);
     line-height: 1.5;
+    color: var(--el-text-color-secondary);
   }
 
   .failed-upgrade-actions {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
     gap: 12px;
+    align-items: flex-start;
     margin-top: 16px;
   }
 
   .failed-upgrade-error-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: 12px;
+    align-items: center;
   }
 
   .version-title {
     padding: 5px 10px;
+    font-size: 12px;
     background: var(--el-fill-color-light);
     border: 1px solid var(--el-border-color);
-    font-size: 12px;
   }
 
   .version-value {
     padding: 5px 10px;
-    border: 1px solid var(--el-border-color);
     font-size: 12px;
+    border: 1px solid var(--el-border-color);
+  }
+
+  .repository-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .repository-search {
+    width: min(360px, 100%);
+  }
+
+  .repository-source {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .repository-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .repository-error-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
   }
 
   .app-grid {
@@ -1802,12 +1579,11 @@
   }
 
   .app-card {
-    background: var(--el-bg-color);
-    border-radius: 8px;
     padding: 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    background: var(--el-bg-color);
     border: 1px solid var(--el-border-color);
+    border-radius: 8px;
+    transition: all 0.3s ease;
 
     &:hover {
       box-shadow: var(--el-box-shadow-light);
@@ -1817,16 +1593,21 @@
 
   .app-card-header {
     display: flex;
-    align-items: center;
     gap: 12px;
+    align-items: center;
     margin-bottom: 12px;
   }
 
-  .app-logo {
+  .repository-plugin-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 48px;
     height: 48px;
+    font-size: 24px;
+    color: var(--el-color-primary);
+    background: var(--el-fill-color-light);
     border-radius: 8px;
-    object-fit: cover;
   }
 
   .app-info {
@@ -1844,110 +1625,27 @@
     color: var(--el-text-color-secondary);
   }
 
-  .app-price {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--el-color-danger);
-
-    &.free {
-      color: var(--el-color-success);
-    }
-  }
-
   .app-about {
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    line-height: 1.5;
-    margin-bottom: 12px;
     display: -webkit-box;
+    margin-bottom: 12px;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--el-text-color-regular);
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
-    overflow: hidden;
   }
 
   .app-footer {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     font-size: 12px;
     color: var(--el-text-color-secondary);
   }
 
-  .app-author {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .author-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-  }
-
-  .app-sales {
-    display: flex;
-    align-items: center;
-  }
-
-  .detail-content {
-    padding: 16px 0;
-  }
-
-  .detail-price {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--el-color-danger);
-    margin-bottom: 16px;
-
-    &.free {
-      color: var(--el-color-success);
-    }
-  }
-
-  .detail-about {
-    font-size: 14px;
-    color: var(--el-text-color-regular);
-    line-height: 1.6;
-    margin-bottom: 24px;
-  }
-
-  .desc-content {
-    font-size: 14px;
-    color: var(--el-text-color-regular);
-    line-height: 1.8;
-
-    :deep(code) {
-      background: var(--el-fill-color);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 13px;
-    }
-
-    :deep(a) {
-      color: var(--el-color-primary);
-    }
-  }
-
-  .purchased-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .purchased-card {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16px;
-    padding: 16px;
-    background: var(--el-bg-color);
-    border-radius: 8px;
-    border: 1px solid var(--el-border-color);
-  }
-
-  @media (max-width: 768px) {
+  @media (width <= 768px) {
     .failed-upgrade-card,
     .failed-upgrade-actions {
       width: 100%;
@@ -1957,45 +1655,15 @@
       font-size: 13px;
     }
 
-    .purchased-card,
     .version-item {
       flex-direction: column;
       align-items: flex-start;
     }
-  }
 
-  .purchased-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: 8px;
-    object-fit: cover;
-  }
-
-  .purchased-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .purchased-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--el-text-color-primary);
-    margin-bottom: 4px;
-  }
-
-  .purchased-version {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-    margin-bottom: 6px;
-  }
-
-  .purchased-about {
-    font-size: 13px;
-    color: var(--el-text-color-regular);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    .repository-source {
+      width: 100%;
+      margin-left: 0;
+    }
   }
 
   .version-list {
@@ -2006,9 +1674,9 @@
 
   .version-item {
     display: flex;
+    gap: 12px;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
     padding: 12px;
     background: var(--el-fill-color-light);
     border-radius: 6px;
@@ -2016,8 +1684,8 @@
 
   .version-info-row {
     display: flex;
-    align-items: center;
     gap: 12px;
+    align-items: center;
   }
 
   .version-name {
@@ -2025,7 +1693,8 @@
     color: var(--el-text-color-primary);
   }
 
-  .version-date {
+  .version-compatibility {
+    margin-top: 6px;
     font-size: 12px;
     color: var(--el-text-color-secondary);
   }

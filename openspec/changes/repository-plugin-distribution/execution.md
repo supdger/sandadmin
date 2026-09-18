@@ -1,0 +1,73 @@
+# 执行记录
+
+日期：2026-09-18。工作区 `/Users/code/project/sandadmin`，保留现有 `codex/sandadmin-rename` 分支；开始时工作树干净。本次未提交、推送、发布或同步既有宿主。初始阶段未执行真实数据库/服务；用户后续明确授权独立验收，进展见末节。
+
+## 已实现
+
+- 替换 SaiThink 商店代理及前端账号购买流程，以公开 GitHub 仓库清单/Release ZIP 分发。
+- 服务器仓库配置、严格清单解析、版本和宿主兼容判断、SHA-256及ZIP身份校验、既有候选/安装升级/恢复锁衔接。
+- cURL multi + Timer有界异步下载，HTTPS/固定域名/重定向/大小/超时及8个总请求/2个活动请求限制；不携带token。
+- 控制器保留超级管理员约束、下载仅POST，使用chunked JSON与Webman中间件衔接；HTTP1.0在操作前普通505拒绝，1.1 close在末块后关闭。
+- 单插件构建命令、初始空清单、使用及发布说明；仓库规则允许独立迁移完成后的同仓源包，当前三个业务插件权威来源未切换。
+
+## 验证
+
+- `php server/tests/SandPackage/RepositoryDistributionTest.php`：通过。模拟HTTP传输、真实ZIP/临时文件、真实安装器部署，SQL用记录型连接；涵盖安装、升级、错误包/摘要/身份/兼容、重复候选、降级和恢复状态。没有真实数据库连接或重启。
+- `php server/tests/SandPackage/RepositoryHttpResponseTest.php`：12项通过。真实Response/Chunk编码、模拟连接和Timer，覆盖管理员限制、响应顺序、JSON成功失败、1.0拒绝/1.1关闭、断连及非法选择；不是监听端口上的真实HTTP验收。
+- `php server/tests/SandPackage/GithubRepositoryClientContractTest.php`：通过。含本地拒绝行为及明确标记static-rule的源码安全约束，不以此替代真实网络重定向验证。
+- `php server/tests/SandPackage/RepositoryPackageBuildTest.php`：通过。真实ZIP/摘要、静态版本读取且不执行插件PHP、错误版本、旧扩展、符号链接、输出保护。
+- `php server/tests/SandPackage/UpstreamPostgresLifecycleTest.php`：既有无DB生命周期回归通过。
+- 改动PHP语法、前端ESLint/Stylelint/Prettier、git diff --check：通过。
+- `pnpm exec vue-tsc --noEmit -p src/views/plugin/sandpackage/install/failed-upgrade-recovery.tsconfig.json`：通过，包含实际index.vue与api/index.ts。
+- `pnpm exec vite build`：通过，3065 modules。完整`pnpm run build`受既有`failed-upgrade-recovery.vite.config.mts(2,17)`在moduleResolution=node下解析`@vitejs/plugin-vue`失败影响；临时bundler验证另暴露两处既有wang-editor声明问题，未修改全仓配置。
+- 真实GitHub只读：新Client的CLI驱动读取`supdger/sandadmin/main/README.md`成功（3139字节）；读取`plugins/catalog.json`为HTTP404。说明连接可用，但清单尚未公开发布；未验证真实Release ZIP链路。
+- 独立Astra/medium审查发现清单前端15秒超时不足，已改65000ms并复核无must-fix；下载135000ms。新增连接关闭测试独立复跑通过。
+
+## 尚未验证/发布
+
+浏览器连接成功，但无既有标签；3006进程实际属于Brain6，其他PHP为sand_plugins演示宿主或mdmall。没有当前SandAdmin候选前端，未进行真实UI验收，未擅自启服务。真实GitHub插件附件下载、真实PostgreSQL安装升级、前端生产发布和业务链均未验收。
+
+初始plugins/catalog.json为空。尚未发布到GitHub，也未发布真实插件ZIP。不能以临时中立包通过描述三个业务插件已经可在线安装。
+
+## sand_plugins配合
+
+已向现有任务`01a099f1-08ad-7c73-ad70-da84c7481331`发送契约与有界检查要求，保留其原目标与长稳计时、不迁仓/发布/同步/改数据库。本任务补充只读现状及临时打包结果：
+
+- SandIAM 0.7.3：`plugin/sand-iam/vendor`被发布工具拒绝；需插件方判定运行依赖和正式发布排除策略，不能机械删除。
+- SandWorkflow 1.0.7：缺根LICENSE；需保留真实版权来源。
+- SandAI 0.1.0：非空sand_platform扩展，与当前普通安装入口不兼容；不可删元数据掩盖依赖。
+
+未写入上述插件源码。已回传具体差异，尚未收到可读的配合检查结果。
+
+## 模型记录
+
+主控脚本证实gpt-6-astra/low/openai。子任务astramedium__repository_ui_design与astramedium__repository_review请求并实际为gpt-6-astra/medium/openai；solmedium__github_transport、solmedium__repository_ui、solmedium__plugin_packager请求并实际为gpt-5.6-sol/medium/openai。/usr/bin/python3受Xcode许可阻断，使用已提供的bundled Python成功读取同一模型记录脚本。
+
+## 插件侧回传后的兼容修正
+
+插件侧已回传三个插件结论：SandIAM本地vendor属于正式SAML运行载荷，不能删除；SandWorkflow缺LICENSE由插件侧修复；SandAI旧sand_platform是真实依赖，不清空或放宽宿主拒绝。先前将所有vendor视为不应发布目录的判断已纠正。
+
+现场只读计算SandIAM vendor：58个文件、604800字节，树摘要`e35c67c2bff009a454b03d96bd182ec7fdec01948740b2d5208c44af5ffa934a`，与release-build-contract.json一致。通用builder按此通用声明形式增加受控支持，不硬编码SandIAM名称。
+
+插件侧提供v38正式候选：`/Users/code/project/sand_plugins/.artifacts/sand-iam-0.7.3-v38-20260918T045858Z/sand-iam-0.7.3-v38-20260918T045858Z-release-unsigned.zip`，SHA-256=`3f8d5e2cabc05eb3cfd42f1207e4a1e0cbf9e7522a07027ff63acbf8297f24cf`。本任务现场重新核对摘要，并将base/runtime指向新建临时目录，调用真实InstallLogic::uploadFromPath：返回sand-iam/0.7.3/state=2/saipackage-pg-v1，vendor/autoload.php已暂存，runtime_deployed=false。没有调用install、SQL或服务操作，临时目录已清理。
+
+此证据证明已有正式ZIP可通过当前普通安装候选预检，不需要先由通用builder重打包。插件侧报告已通过外部Ed25519 attestation，但本任务没有重验签；文件名unsigned不等于缺少外部签名。真实宿主部署、portal/SDK用途、PostgreSQL生命周期和业务链仍未验证，GitHub正式发布状态未确认。
+
+受控runtime vendor修复已完成：源码及closed ZIP分别校验精确目录数量/树摘要，ZIP内契约声明与读取时一致；未声明、内容篡改、增删文件、数量/摘要不符、nested vendor、.env/.git/node_modules和符号链接均拒绝。主控及独立Astra重跑RepositoryPackageBuildTest通过，独立审查无must-fix。addFile到close之间的并发漂移仅有最终ZIP检查的源码证据，未注入竞态，不宣称竞态复现通过。本轮未修改安装器，不重跑无关前端或数据库检查。
+
+## 授权后的独立落地验收
+
+用户明确回复“授权”，覆盖专用数据库初始化、SandIAM安装及本次服务启动/重载。2026-09-18创建`sandadmin_repository_acceptance_20260918`成功，导入SandAdmin基础SQL成功，86条菜单。隔离宿主在当前任务`work/repository-acceptance/host`，后端127.0.0.1:18918、Channel22118、前端31918已启动，未修改既有数据库和其他实例。
+
+完整`pnpm run build`已通过（vue-tsc + Vite，3065 modules）：仅从app tsconfig排除测试专用failed-upgrade-recovery.vite.config.mts，未改变全局moduleResolution。上文完整构建阻塞已解除。真实页面及SandIAM安装正在独立验收；未宣称GitHub在线链路通过。
+
+### 真实安装与接口验收结果
+
+- 标准初始化补齐vendor/topthink/think-orm/src/db/connector/pgsql12.sql后登录成功。此次缺函数是独立验收初始化脚本遗漏，正式InstallController已有该步骤；脚本已补齐。
+- 修复Captcha.php五处旧saithink配置路径为实际sandadmin.captcha路径；原仓和隔离候选一致，PHP语法及独立审查通过。配置cache模式在真实请求中生效。
+- 正式v38 ZIP摘要复核后，通过CLI调用真实InstallLogic::uploadFromPath及install(false)，state由2到1，86张sand_iam_业务表落库，SandIAM菜单存在，已重载本实例。不是浏览器点击安装证据。
+- 经真实验证码和admin密码登录业务200；用户、菜单、安装列表、SandIAM应用及组织列表接口均HTTP200/业务200；前端/api代理菜单业务200。
+- 真实未登录仓库请求业务401，GET下载404；已登录目录请求返回chunked JSON，业务400/远端HTTP404。未发布清单导致在线下载不可用，不能计下载成功。
+- 安装SandIAM后的前端Vite构建通过，14.93s；不等同完整业务验收。
+- Astra/medium独立读取安装/登录/接口/构建记录并检查Captcha修复，无must-fix。独立浏览器操作被request-header policy加载故障阻塞，未绕过工具策略。
+- 独立实例保留供用户访问：127.0.0.1:31918。本次未执行真实升级、GitHub发布、源码提交/推送或既有宿主部署。待发布清单及保持原名的ZIP已在任务outputs/plugin-release-preview整理，未写入已发布目录。

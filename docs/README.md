@@ -15,6 +15,7 @@
 ## 开发和发布
 
 - [插件开发与发布约定](plugin-development.md)
+- [仓库插件分发](repository-plugin-distribution.md)
 - [插件管理端载荷激活契约](frontend-plugin-activation.md)
 - [上游来源、署名与许可证说明](upstream-and-licensing.md)
 - [贡献指南](../CONTRIBUTING.md)

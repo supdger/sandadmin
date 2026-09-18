@@ -1,6 +1,6 @@
 # 插件开发与发布约定
 
-本页适用于计划随 SandAdmin 发布或独立分发的插件。具体业务约束由插件自己的 README 补充。
+本页适用于计划随 SandAdmin 发布或独立分发的插件。无需独立市场平台的清单、打包和下载安装流程见[仓库插件分发](repository-plugin-distribution.md)。具体业务约束由插件自己的 README 补充。
 
 当前源码候选的普通安装已回归 SaiPackage 上游流程，数据库适配及旧记录切换见
 [SaiPackage PostgreSQL 适配](architecture/SAIPACKAGE_POSTGRESQL_ADAPTATION.md)。

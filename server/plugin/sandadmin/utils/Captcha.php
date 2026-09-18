@@ -30,8 +30,8 @@ class Captcha
 
         $uuid = Uuid::uuid4();
         $key = $uuid->toString();
-        $mode = config('plugin.sandadmin.saithink.captcha.mode', 'session');
-        $expire = config('plugin.sandadmin.saithink.captcha.expire', 300);
+        $mode = config('plugin.sandadmin.sandadmin.captcha.mode', 'session');
+        $expire = config('plugin.sandadmin.sandadmin.captcha.expire', 300);
         $code = strtolower($captcha->getPhrase());
         if ($mode === 'cache') {
             try {
@@ -65,8 +65,8 @@ class Captcha
     public static function numberCaptcha(string $key, int $length = 4): array
     {
         $code = str_pad(rand(0, 999999), $length, '0', STR_PAD_LEFT);
-        $mode = config('plugin.sandadmin.saithink.captcha.mode', 'session');
-        $expire = config('plugin.sandadmin.saithink.captcha.expire', 300);
+        $mode = config('plugin.sandadmin.sandadmin.captcha.mode', 'session');
+        $expire = config('plugin.sandadmin.sandadmin.captcha.expire', 300);
         if ($mode === 'cache') {
             try {
                 Cache::set($key, $code, $expire);
@@ -97,7 +97,7 @@ class Captcha
      */
     public static function checkCaptcha(string $uuid, string|int $captcha): bool
     {
-        $mode = config('plugin.sandadmin.saithink.captcha.mode', 'session');
+        $mode = config('plugin.sandadmin.sandadmin.captcha.mode', 'session');
         if ($mode === 'cache') {
             try {
                 $code = Cache::get($uuid);

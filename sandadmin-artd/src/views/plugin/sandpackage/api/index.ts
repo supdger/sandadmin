@@ -54,42 +54,34 @@ export interface AppListResponse {
   version: VersionInfo
 }
 
-export interface StoreApp {
-  id: number
+export interface RepositoryPluginVersion {
+  version: string
+  tag: string
+  asset: string
+  sha256: string
+  host_min: string
+  host_max?: string
+  notes: string
+}
+
+export interface RepositoryPlugin {
+  app: string
   title: string
   about: string
-  logo: string
-  version: string
-  price: string
-  avatar?: string
-  username: string
-  sales_num: number
-  content?: string
-  screenshots?: string[]
+  author: string
+  versions: RepositoryPluginVersion[]
 }
 
-export interface StoreUser {
-  nickname?: string
-  username: string
-  avatar?: string
+export interface RepositoryCatalog {
+  repository: string
+  ref: string
+  plugins: RepositoryPlugin[]
 }
 
-export interface PurchasedApp {
-  id: number
-  app_id: number
-  appname: string
-  title: string
-  logo: string
+export interface RepositoryDownloadRequest {
+  app: string
   version: string
-  developer: string
-  about: string
-}
-
-export interface AppVersion {
-  id: number
-  version: string
-  create_time: string
-  remark: string
+  sha256: string
 }
 
 /** 失败升级恢复接口的外部响应都在页面层按 unknown 收窄。 */
@@ -196,78 +188,20 @@ export default {
     return request.post<unknown>({ url: '/app/sandpackage/install/reload' })
   },
 
-  /**
-   * 获取在线商店应用列表
-   */
-  getOnlineAppList(params: {
-    page?: number
-    limit?: number
-    price?: string
-    type?: string | number
-    keywords?: string
-  }) {
-    return request.get<{ data: StoreApp[]; total: number }>({
-      url: '/tool/install/online/appList',
-      params
+  /** 获取服务端固定仓库的插件清单。 */
+  getRepositoryCatalog() {
+    return request.get<RepositoryCatalog>({
+      url: '/tool/install/repository/catalog',
+      timeout: 65000
     })
   },
 
-  /**
-   * 获取验证码
-   */
-  getStoreCaptcha() {
-    return request.get<{ image: string; uuid: string }>({
-      url: '/tool/install/online/storeCaptcha'
-    })
-  },
-
-  /**
-   * 商店登录
-   */
-  storeLogin(data: { username: string; password: string; code: string; uuid: string }) {
-    return request.post<{ access_token: string }>({
-      url: '/tool/install/online/storeLogin',
-      data
-    })
-  },
-
-  /**
-   * 获取商店用户信息
-   */
-  getStoreUserInfo(token: string) {
-    return request.get<StoreUser>({
-      url: '/tool/install/online/storeUserInfo',
-      params: { token }
-    })
-  },
-
-  /**
-   * 获取已购应用列表
-   */
-  getPurchasedApps(token: string) {
-    return request.get<PurchasedApp[]>({
-      url: '/tool/install/online/storePurchasedApps',
-      params: { token }
-    })
-  },
-
-  /**
-   * 获取应用版本列表
-   */
-  getAppVersions(token: string, app_id: number) {
-    return request.get<AppVersion[]>({
-      url: '/tool/install/online/storeAppVersions',
-      params: { token, app_id }
-    })
-  },
-
-  /**
-   * 下载应用
-   */
-  downloadApp(data: { token: string; id: number }) {
-    return request.post<unknown>({
-      url: '/tool/install/online/storeDownloadApp',
-      data
+  /** 下载、校验并准备插件候选；不会执行安装或升级。 */
+  downloadRepositoryPlugin(data: RepositoryDownloadRequest) {
+    return request.post<AppInfo>({
+      url: '/tool/install/repository/download',
+      data,
+      timeout: 135000
     })
   }
 }

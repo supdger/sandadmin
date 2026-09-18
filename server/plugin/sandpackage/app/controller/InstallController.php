@@ -330,218 +330,74 @@ class InstallController extends BaseController
 
     // ========== 商店代理接口 ==========
 
-    /**
-     * 代理请求封装
-     */
-    protected function proxyRequest(string $url, string $method = 'GET', ?string $token = null, ?array $postData = null, int $timeout = 10): array
+    /** 仓库清单由服务端配置，不接受客户端仓库或下载地址。 */
+    public function repositoryCatalog(Request $request): Response
     {
-        $headers = [];
-        if ($token) {
-            $headers[] = "Authorization: Bearer {$token}";
-        }
-        if ($postData !== null) {
-            $headers[] = "Content-Type: application/json";
-        }
+        $logic = $this->repositoryLogic();
+        return $this->repositoryResponse($request, fn(callable $complete) => $logic->catalog($complete));
+    }
 
-        $context = stream_context_create([
-            'http' => [
-                'method' => $method,
-                'header' => implode("\r\n", $headers),
-                'content' => $postData ? json_encode($postData) : null,
-                'timeout' => $timeout,
-            ],
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-            ],
+    /** 下载只准备候选，数据库生命周期由现有安装入口执行。 */
+    public function repositoryDownload(Request $request): Response
+    {
+        $app = $request->post('app');
+        $version = $request->post('version');
+        $sha256 = $request->post('sha256');
+        if (!is_string($app) || !is_string($version) || !is_string($sha256)
+            || strlen($app) > 64 || strlen($version) > 80 || !preg_match('/^[a-f0-9]{64}$/D', $sha256)) {
+            throw new ApiException('请选择有效的插件版本');
+        }
+        $logic = $this->repositoryLogic();
+        return $this->repositoryResponse($request, fn(callable $complete) => $logic->download($app, $version, $sha256, $complete));
+    }
+
+    private function repositoryLogic(): \plugin\sandpackage\app\logic\RepositoryLogic
+    {
+        return new \plugin\sandpackage\app\logic\RepositoryLogic(
+            \plugin\sandpackage\app\service\GithubRepositoryClient::shared(),
+            (string) config('plugin.sandpackage.repository.repository', 'supdger/sandadmin'),
+            (string) config('plugin.sandpackage.repository.ref', 'main'),
+            (string) config('plugin.sandadmin.app.version')
+        );
+    }
+
+    /** Send headers through middleware first; JSON arrives when asynchronous I/O finishes. */
+    private function repositoryResponse(Request $request, callable $operation): Response
+    {
+        if ($request->protocolVersion() !== '1.1') {
+            return $this->fail('插件仓库请求需要 HTTP/1.1 连接')->withStatus(505);
+        }
+        $connection = $request->connection;
+        $closeAfterResponse = strcasecmp((string) $request->header('connection', ''), 'close') === 0;
+        \Workerman\Timer::add(0.001, function () use ($connection, $operation, $closeAfterResponse): void {
+            if ($connection->getStatus() !== \Workerman\Connection\TcpConnection::STATUS_ESTABLISHED) return;
+            $done = false;
+            $complete = function (?array $result, ?Throwable $error) use ($connection, &$done, $closeAfterResponse): void {
+                if ($done) return;
+                $done = true;
+                if ($connection->getStatus() !== \Workerman\Connection\TcpConnection::STATUS_ESTABLISHED) return;
+                $response = $error === null ? $this->success($result ?? []) : $this->repositoryError($error);
+                $connection->send(new \Workerman\Protocols\Http\Chunk($response->rawBody()));
+                $end = new \Workerman\Protocols\Http\Chunk('');
+                if ($closeAfterResponse) $connection->close($end);
+                else $connection->send($end);
+            };
+            try { $operation($complete); }
+            catch (Throwable $error) { $complete(null, $error); }
+        }, [], false);
+        return new Response(200, [
+            'Content-Type' => 'application/json; charset=utf-8',
+            'Transfer-Encoding' => 'chunked',
+            'Cache-Control' => 'no-store',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => $closeAfterResponse ? 'close' : 'keep-alive',
         ]);
-
-        $response = file_get_contents($url, false, $context);
-
-        if ($response === false) {
-            return ['success' => false, 'message' => '请求失败'];
-        }
-
-        // 尝试解析 JSON
-        $data = json_decode($response, true);
-        if ($data && isset($data['code'])) {
-            if ($data['code'] === 200) {
-                return ['success' => true, 'data' => $data['data'] ?? null];
-            }
-            return ['success' => false, 'message' => $data['message'] ?? '请求失败'];
-        }
-
-        // 非 JSON 响应（可能是文件）
-        return ['success' => true, 'raw' => $response, 'headers' => $http_response_header ?? []];
     }
 
-    /**
-     * 获取应用商店列表
-     */
-    public function appList(Request $request): Response
+    private function repositoryError(Throwable $error): Response
     {
-        $params = http_build_query([
-            'page' => $request->input('page', 1),
-            'limit' => $request->input('limit', 16),
-            'price' => $request->input('price', 'all'),
-            'type' => $request->input('type', ''),
-            'keywords' => $request->input('keywords', ''),
-        ]);
-
-        $result = $this->proxyRequest("https://saas.saithink.top/dev-api/app/saistore/api/store/appList?{$params}");
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 获取商店验证码
-     */
-    public function storeCaptcha(): Response
-    {
-        $result = $this->proxyRequest("https://saas.saithink.top/dev-api/app/saiuser/api/common/index/captcha");
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 商店登录
-     */
-    public function storeLogin(Request $request): Response
-    {
-        $result = $this->proxyRequest(
-            "https://saas.saithink.top/dev-api/app/saiuser/api/common/index/accountLogin",
-            'POST',
-            null,
-            [
-                'username' => $request->input('username'),
-                'password' => $request->input('password'),
-                'code' => $request->input('code'),
-                'uuid' => $request->input('uuid'),
-            ]
-        );
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 获取商店用户信息
-     */
-    public function storeUserInfo(Request $request): Response
-    {
-        $token = $request->input('token');
-        if (empty($token)) {
-            return $this->fail('未登录');
-        }
-
-        $result = $this->proxyRequest(
-            "https://saas.saithink.top/dev-api/app/saiuser/api/user/user/userInfo",
-            'GET',
-            $token
-        );
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 获取已购应用列表
-     */
-    public function storePurchasedApps(Request $request): Response
-    {
-        $token = $request->input('token');
-        if (empty($token)) {
-            return $this->fail('未登录');
-        }
-
-        $result = $this->proxyRequest(
-            "https://saas.saithink.top/dev-api/app/saistore/api/StoreOrder/orderList?saiType=all",
-            'GET',
-            $token
-        );
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 获取应用版本列表
-     */
-    public function storeAppVersions(Request $request): Response
-    {
-        $token = $request->input('token');
-        $appId = $request->input('app_id');
-
-        if (empty($token)) {
-            return $this->fail('未登录');
-        }
-
-        $result = $this->proxyRequest(
-            "https://saas.saithink.top/dev-api/app/saistore/api/StoreOrder/appVersionList?app_id={$appId}",
-            'GET',
-            $token
-        );
-
-        return $result['success']
-            ? $this->success($result['data'])
-            : $this->fail($result['message']);
-    }
-
-    /**
-     * 下载应用 - 下载并调用 InstallLogic 处理
-     */
-    public function storeDownloadApp(Request $request): Response
-    {
-        $token = $request->input('token');
-        $versionId = $request->input('id');
-
-        if (empty($token)) {
-            return $this->fail('未登录');
-        }
-
-        if (empty($versionId)) {
-            return $this->fail('版本ID不能为空');
-        }
-
-        $result = $this->proxyRequest(
-            "https://saas.saithink.top/dev-api/app/saistore/api/StoreOrder/downloadVersion",
-            'POST',
-            $token,
-            ['version_id' => (int) $versionId],
-            60
-        );
-
-        if (!$result['success']) {
-            return $this->fail($result['message'] ?? '下载失败');
-        }
-
-        if (!isset($result['raw'])) {
-            return $this->fail('下载失败');
-        }
-
-        // 保存临时 zip 文件
-        $tempZip = runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR . 'downloadTemp' . date('YmdHis') . '.zip';
-        if (!is_dir(dirname($tempZip))) {
-            mkdir(dirname($tempZip), 0755, true);
-        }
-        file_put_contents($tempZip, $result['raw']);
-
-        try {
-            // 调用 InstallLogic 处理
-            $install = new InstallLogic();
-            $info = $install->uploadFromPath($tempZip);
-
-            return $this->success($info, '下载成功，请在插件列表中安装');
-        } catch (Throwable $e) {
-            @unlink($tempZip);
-            return $this->fail($e->getMessage());
-        }
+        if ($error instanceof ApiException) return $this->fail($error->getMessage());
+        \support\Log::error('Repository package operation failed: ' . get_class($error));
+        return $this->fail('插件仓库操作失败，请检查服务日志');
     }
 }

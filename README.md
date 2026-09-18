@@ -7,7 +7,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 ## 特性与边界
 
 - PostgreSQL 优先：核心安装器按数据库驱动选择初始化脚本，核心 SQL 位于 `server/plugin/sandadmin/db/`。
-- 插件化：Sand 平台新插件使用 `sand_<domain>_*` 表前缀；可选插件的统一源码工作区是 `sand-plugins`，宿主只维护扩展契约与真实安装验收。
+- 插件化：Sand 平台新插件使用 `sand_<domain>_*` 表前缀；可选插件独立打包发布，插件仓库直接读取 GitHub 清单和 Release 附件，无需独立市场平台。
 - 兼容优先：部分历史核心 `sa_*` 表和必要的第三方兼容标识不会因品牌更名被强制改写。
 - 非迁移工具：本仓库不承诺将既有 MySQL 实例原地迁移到 PostgreSQL；升级或迁移应先在隔离环境验证。
 
@@ -31,6 +31,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 - [架构与插件边界](docs/architecture.md)
 - [仓库与插件治理](docs/repository-governance.md)
 - [插件开发与发布约定](docs/plugin-development.md)
+- [仓库插件分发](docs/repository-plugin-distribution.md)
 - [插件管理端载荷激活契约](docs/frontend-plugin-activation.md)
 - [宿主发布与消费同步](docs/host-consumer-sync.md)
 - [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
@@ -39,10 +40,9 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理基础项目�
 
 ## 可选插件
 
-可选 Sand 插件的唯一源码由 `sand-plugins` 工作区管理。SandAdmin 不内置
-SandWorkflow、SandAI、SandIAM 或其他业务插件的源码、运行时副本与专属
-自动加载映射；插件包仅在消费工作区的独立验证宿主中按受控同步方式安装和验收。
-SandAdmin 发布版本与变更通知，但不主动写入其他工作区；每个消费者负责拉取并锁定所需宿主版本。
+目标为 `sandadmin/plugins/` 同仓保存、独立发布插件源包，宿主仍不内置业务插件运行副本或专属自动加载映射。当前仅新增分发能力，现有插件权威源码仍由 `sand_plugins` 管理，逐个完成迁移记录后再切换；初始仓库清单为空，不代表已有插件已发布可安装。
+
+SandAdmin 不主动写入其他工作区；每个消费者负责拉取并锁定所需宿主版本。插件实际安装与验收仍在消费工作区的独立验证宿主完成。
 
 插件发布包必须在其自己的源码单元保留安装、升级、卸载、权限、兼容性和
 已知限制说明；宿主只维护公共约定与兼容性入口，避免两处文档漂移。

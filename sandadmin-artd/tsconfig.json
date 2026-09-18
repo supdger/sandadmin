@@ -24,5 +24,10 @@
     }
   },
   "include": ["src/**/*", "src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "exclude": ["node_modules", "dist", "**/*.js"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.js",
+    "src/views/plugin/sandpackage/install/failed-upgrade-recovery.vite.config.mts"
+  ]
 }
