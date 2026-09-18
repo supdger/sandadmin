@@ -20,6 +20,7 @@ export type RecoveryListFixture =
   | 'mismatched_retry_ready'
   | 'partial_modern_retry_safe'
   | 'invalid_digest_retry_safe'
+  | 'ordinary_blocked'
   | 'blocked'
   | 'missing'
   | 'error'
@@ -68,6 +69,16 @@ function rowForFixture(
   fixture: Exclude<RecoveryListFixture, 'error' | 'missing'>
 ): SandpackageInstallRow {
   const row = exactFailedRow()
+  if (fixture === 'ordinary_blocked') {
+    row.state = 7
+    row.state_text = '需要检查旧安装状态'
+    row.stage = 'runtime_missing'
+    row.failed_stage = undefined
+    row.update = 0
+    row.recovery_mode = 'none'
+    row.recovery_reason = '安装记录存在，但插件运行目录缺失，请从已安装插件管理页处理'
+    return row
+  }
   if (fixture === 'blocked') {
     row.recovery_mode = 'blocked'
     row.recovery_reason = FAILED_UPGRADE_BLOCKED_MESSAGE
@@ -212,7 +223,7 @@ async function post(config: HttpRequestConfig): Promise<unknown> {
       from_version: '0.6.0',
       to_version: '0.7.0',
       profile_hash: 'f'.repeat(64),
-      message: '已预检候选包，确认后才会替换当前失败候选。'
+      message: '插件包检查通过，确认后才会恢复插件文件。'
     }
   }
   if (url.includes('replaceFailedUpgradeCandidate')) {

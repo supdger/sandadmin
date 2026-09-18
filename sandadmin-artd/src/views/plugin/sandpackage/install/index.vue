@@ -1,245 +1,88 @@
 <template>
   <div class="sandpackage-page">
     <ElCard class="sandpackage-page-card" shadow="never">
-      <!-- 提示警告 -->
-      <ElAlert type="warning" :closable="false">
-        仅支持可信来源的 ZIP 插件包，请通过配置的插件仓库准备候选，或确认手动上传包的来源与完整性。
-      </ElAlert>
-
-      <ElAlert
-        v-if="listError"
-        class="mt-3"
-        type="error"
-        :closable="false"
-        title="插件列表未能加载"
-      >
-        <div class="failed-upgrade-error-row">
-          <span>{{ listError }}</span>
-          <ElButton size="small" @click="getList()">重新加载</ElButton>
-        </div>
-      </ElAlert>
-
-      <section
-        v-for="row in failedUpgradeRows"
-        :key="'failed-upgrade-' + row.app"
-        class="failed-upgrade-card"
-      >
-        <ElAlert type="warning" :closable="false" :title="failedUpgradeTitle(row)">
-          {{ recoveryReason(row) }}
-        </ElAlert>
-        <p class="failed-upgrade-steps" aria-label="失败升级恢复步骤">
-          <span :class="{ current: recoveryStep(row) === 1 }">1 诊断</span>
-          <span class="step-arrow">→</span>
-          <span :class="{ current: recoveryStep(row) === 2 }">2 预检 ZIP</span>
-          <span class="step-arrow">→</span>
-          <span :class="{ current: recoveryStep(row) === 2 }">3 Gate A</span>
-          <span class="step-arrow">→</span>
-          <span :class="{ current: recoveryStep(row) === 2 }">4 替换</span>
-          <span class="step-arrow">→</span>
-          <span :class="{ current: recoveryStep(row) === 3 }">5 重试</span>
-        </p>
-        <p class="failed-upgrade-meta">
-          {{ row.title || row.app }}：{{ recoveryFromVersion(row) }} →
-          {{ row.version }}
-        </p>
-
-        <ElAlert
-          v-if="sessionOf(row).errorMessage"
-          class="mt-3"
-          type="error"
-          :closable="false"
-          title="恢复未完成"
-        >
-          {{ sessionOf(row).errorMessage }}
-        </ElAlert>
-        <ElAlert
-          v-else-if="sessionOf(row).phase === 'success'"
-          class="mt-3"
-          type="success"
-          :closable="false"
-        >
-          {{ sessionOf(row).message }}
-        </ElAlert>
-        <ElAlert
-          v-else-if="
-            sessionOf(row).message &&
-            (sessionOf(row).phase !== 'needs_verify' ||
-              sessionOf(row).message === FAILED_UPGRADE_RUNTIME_RESTORED_MESSAGE) &&
-            !sessionOf(row).blocked
-          "
-          class="mt-3"
-          type="info"
-          :closable="false"
-        >
-          {{ sessionOf(row).message }}
-        </ElAlert>
-
-        <div v-if="canRestoreRuntime(row)" class="failed-upgrade-actions">
-          <ElButton :disabled="loading || !!listError || pluginOperationBusy" @click="getList()">
-            刷新
-          </ElButton>
-          <ElButton
-            type="primary"
-            :disabled="pluginOperationBusy"
-            :loading="sessionOf(row).phase === 'restoring_runtime'"
-            @click="handleRestoreRuntime(row)"
-            >恢复升级前运行文件</ElButton
-          >
-        </div>
-        <div v-else-if="sessionOf(row).blocked" class="failed-upgrade-actions"></div>
-        <div
-          v-else-if="
-            sessionOf(row).phase === 'needs_verify' || sessionOf(row).phase === 'diagnosing'
-          "
-          class="failed-upgrade-actions"
-        >
-          <ElButton
-            :disabled="loading || isRecoveryBusy(row) || pluginOperationBusy"
-            @click="getList()"
-          >
-            刷新
-          </ElButton>
-          <ElButton
-            :disabled="loading || !!listError || pluginOperationBusy"
-            :loading="sessionOf(row).phase === 'diagnosing'"
-            @click="handleInspectRecovery(row)"
-          >
-            诊断恢复状态
-          </ElButton>
-        </div>
-        <div v-else class="failed-upgrade-actions" v-loading="isRecoveryBusy(row)">
-          <ElButton
-            :disabled="loading || isRecoveryBusy(row) || pluginOperationBusy"
-            @click="getList()"
-          >
-            刷新
-          </ElButton>
-          <template
-            v-if="sessionOf(row).phase === 'needs_prepare' || sessionOf(row).phase === 'preparing'"
-          >
-            <ElUpload
-              accept=".zip"
-              :auto-upload="false"
-              :limit="1"
-              :show-file-list="true"
-              :disabled="isRecoveryBusy(row) || pluginOperationBusy"
-              :on-change="(file) => onRecoveryFileChange(row, file)"
-              :on-remove="() => onRecoveryFileRemove(row)"
-            >
-              <ElButton :disabled="isRecoveryBusy(row) || pluginOperationBusy">
-                选择 ZIP 插件包
-              </ElButton>
-              <template #tip>
-                <div class="failed-upgrade-upload-tip"> 仅接受 ZIP，且不超过 5MB </div>
-              </template>
-            </ElUpload>
-            <ElButton
-              type="primary"
-              :disabled="
-                isRecoveryBusy(row) || pluginOperationBusy || sessionOf(row).selectedFileName === ''
-              "
-              :loading="
-                sessionOf(row).phase === 'preparing' || sessionOf(row).phase === 'replacing'
-              "
-              @click="handlePrepareRecoveryCandidate(row)"
-            >
-              预检替换候选
-            </ElButton>
-          </template>
-          <ElButton
-            v-if="sessionOf(row).phase === 'needs_gate_a' || sessionOf(row).phase === 'verifying'"
-            type="primary"
-            :disabled="pluginOperationBusy"
-            :loading="sessionOf(row).phase === 'verifying'"
-            @click="handleVerifyRecovery(row)"
-          >
-            只读 Gate A 核验
-          </ElButton>
-          <ElButton
-            v-if="sessionOf(row).phase === 'retry_safe'"
-            type="primary"
-            :disabled="pluginOperationBusy"
-            :loading="sessionOf(row).phase === 'replacing'"
-            @click="handleReplaceRecoveryCandidate(row)"
-          >
-            替换已核验候选
-          </ElButton>
-          <ElButton
-            v-if="recoveryStep(row) === 3 && sessionOf(row).phase !== 'success'"
-            type="primary"
-            :disabled="pluginOperationBusy"
-            :loading="sessionOf(row).phase === 'retrying'"
-            @click="handleRetryRecovery(row)"
-          >
-            重新执行升级
-          </ElButton>
-        </div>
-      </section>
-
-      <!-- 工具栏 -->
-      <div class="flex flex-wrap items-center my-2 gap-2">
-        <ElButton @click="getList()" v-ripple :loading="loading" :disabled="pluginOperationBusy">
-          <template #icon>
-            <ArtSvgIcon icon="ri:refresh-line" />
-          </template>
-        </ElButton>
-        <ElButton
-          v-if="!hideGlobalPluginWrites"
-          @click="handleUpload"
-          v-ripple
-          :disabled="pluginOperationBusy"
-        >
-          <template #icon>
-            <ArtSvgIcon icon="ri:upload-line" />
-          </template>
-          上传插件包
-        </ElButton>
-        <ElButton
-          v-if="!hideGlobalPluginWrites"
-          type="danger"
-          @click="handleTerminal"
-          v-ripple
-          :disabled="pluginOperationBusy"
-        >
-          <template #icon>
-            <ArtSvgIcon icon="ri:terminal-box-line" />
-          </template>
-        </ElButton>
-
-        <div class="flex flex-wrap items-center gap-1 ml-auto max-w-full">
-          <div class="version-title">sandadmin版本</div>
-          <div class="version-value">
-            {{ version?.sandadmin_version?.describe }}
-          </div>
-          <div class="version-title">状态</div>
-          <div
-            class="version-value"
-            :class="[
-              version?.sandadmin_version?.notes === '正常' ? 'text-green-500' : 'text-red-500'
-            ]"
-          >
-            {{ version?.sandadmin_version?.notes }}
-          </div>
-          <div class="version-title">sandpackage安装器</div>
-          <div class="version-value">
-            {{ version?.sandpackage_version?.describe }}
-          </div>
-          <div class="version-title">状态</div>
-          <div
-            class="version-value"
-            :class="[
-              version?.sandpackage_version?.notes === '正常' ? 'text-green-500' : 'text-red-500'
-            ]"
-          >
-            {{ version?.sandpackage_version?.notes }}
-          </div>
-        </div>
-      </div>
-
       <!-- Tab切换 -->
       <ElTabs v-model="activeTab" type="border-card">
         <!-- 插件管理 Tab -->
         <ElTabPane label="插件管理" name="local">
+          <div class="local-toolbar">
+            <ElSpace wrap>
+              <ElButton
+                v-ripple
+                :loading="loading"
+                :disabled="pluginOperationBusy"
+                @click="getList()"
+              >
+                <template #icon>
+                  <ArtSvgIcon icon="ri:refresh-line" />
+                </template>
+                刷新
+              </ElButton>
+              <ElButton
+                v-if="!hideGlobalPluginWrites"
+                v-ripple
+                :disabled="pluginOperationBusy"
+                @click="handleUpload"
+              >
+                <template #icon>
+                  <ArtSvgIcon icon="ri:upload-line" />
+                </template>
+                上传插件包
+              </ElButton>
+              <ElButton
+                v-if="!hideGlobalPluginWrites"
+                v-ripple
+                :disabled="pluginOperationBusy"
+                @click="handleTerminal"
+              >
+                <template #icon>
+                  <ArtSvgIcon icon="ri:terminal-box-line" />
+                </template>
+                依赖安装终端
+              </ElButton>
+            </ElSpace>
+          </div>
+
+          <ElAlert
+            v-if="listError"
+            class="mb-3"
+            type="error"
+            :closable="false"
+            title="插件列表未能加载"
+          >
+            <div class="failed-upgrade-error-row">
+              <span>{{ listError }}</span>
+              <ElButton size="small" @click="getList()">重新加载</ElButton>
+            </div>
+          </ElAlert>
+
+          <ElCollapse class="environment-info">
+            <ElCollapseItem title="环境信息" name="environment">
+              <ElDescriptions :column="2" border>
+                <ElDescriptionsItem label="SandAdmin">
+                  {{ version?.sandadmin_version?.describe || '未知' }}
+                  <ElTag
+                    class="ml-2"
+                    size="small"
+                    :type="version?.sandadmin_version?.notes === '正常' ? 'success' : 'danger'"
+                  >
+                    {{ version?.sandadmin_version?.notes || '状态未知' }}
+                  </ElTag>
+                </ElDescriptionsItem>
+                <ElDescriptionsItem label="插件安装器">
+                  {{ version?.sandpackage_version?.describe || '未知' }}
+                  <ElTag
+                    class="ml-2"
+                    size="small"
+                    :type="version?.sandpackage_version?.notes === '正常' ? 'success' : 'danger'"
+                  >
+                    {{ version?.sandpackage_version?.notes || '状态未知' }}
+                  </ElTag>
+                </ElDescriptionsItem>
+              </ElDescriptions>
+            </ElCollapseItem>
+          </ElCollapse>
+
           <ArtTable
             :loading="loading"
             :data="installList"
@@ -264,13 +107,7 @@
                 placement="top"
               >
                 <template #content>
-                  <div>{{ row.stage_label }}</div>
-                  <div v-if="row.last_error" class="mt-1">
-                    {{ row.last_error }}
-                  </div>
-                  <div v-if="row.recovery_reason" class="mt-1">
-                    {{ row.recovery_reason }}
-                  </div>
+                  <div>{{ localDetailReason(row) }}</div>
                 </template>
                 <ElTag :type="stateTagType(row)">{{ stateText(row) }}</ElTag>
               </ElTooltip>
@@ -309,102 +146,109 @@
 
             <!-- 操作列 -->
             <template #operation="{ row }">
-              <span v-if="isLegacyFailedUpgradeRecovery(row)" class="failed-upgrade-op-hint">
-                请按上方恢复流程处理
-              </span>
-              <ElSpace v-else wrap>
+              <ElSpace wrap>
                 <ElLink
-                  v-if="row.registration_candidate === 1"
-                  type="primary"
+                  :type="isLegacyFailedUpgradeRecovery(row) ? 'warning' : 'info'"
                   :disabled="pluginOperationBusy"
-                  @click="handleRegisterExisting(row)"
+                  @click="openLocalDetail(row)"
                 >
-                  <ArtSvgIcon icon="ri:shield-check-line" class="mr-1" />登记现有插件
+                  <ArtSvgIcon icon="ri:file-info-line" class="mr-1" />
+                  {{ isLegacyFailedUpgradeRecovery(row) ? '恢复处理' : '查看详情' }}
                 </ElLink>
-                <template v-else-if="isCompatibleUpgradeCandidate(row)">
+                <template v-if="!isLegacyFailedUpgradeRecovery(row)">
                   <ElLink
+                    v-if="row.registration_candidate === 1"
                     type="primary"
                     :disabled="pluginOperationBusy"
-                    @click="handleUpgradeCandidate(row)"
+                    @click="handleRegisterExisting(row)"
                   >
-                    <ArtSvgIcon icon="ri:arrow-up-circle-line" class="mr-1" />确认升级
+                    <ArtSvgIcon icon="ri:shield-check-line" class="mr-1" />登记现有插件
                   </ElLink>
-                  <ElLink
-                    v-if="!isPostgresqlLifecycleRecord(row)"
-                    type="warning"
-                    :disabled="pluginOperationBusy"
-                    @click="handleDiscardCandidate(row)"
+                  <template v-else-if="isCompatibleUpgradeCandidate(row)">
+                    <ElLink
+                      type="primary"
+                      :disabled="pluginOperationBusy"
+                      @click="handleUpgradeCandidate(row)"
+                    >
+                      <ArtSvgIcon icon="ri:arrow-up-circle-line" class="mr-1" />确认升级
+                    </ElLink>
+                    <ElLink
+                      v-if="!isPostgresqlLifecycleRecord(row)"
+                      type="warning"
+                      :disabled="pluginOperationBusy"
+                      @click="handleDiscardCandidate(row)"
+                    >
+                      <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回升级包
+                    </ElLink>
+                  </template>
+                  <template v-else-if="isLegacyRecoverableCandidate(row)">
+                    <ElTag type="warning">这是较早版本上传的升级包，请先撤回后重新上传</ElTag>
+                    <ElLink
+                      type="warning"
+                      :disabled="pluginOperationBusy"
+                      @click="handleDiscardCandidate(row)"
+                    >
+                      <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回升级包
+                    </ElLink>
+                  </template>
+                  <template v-else-if="isReadyUpgradeCandidate(row)">
+                    <ElTag type="warning">
+                      {{
+                        isPostgresqlLifecycleRecord(row)
+                          ? '与当前宿主版本不兼容，不能升级'
+                          : '与当前宿主版本不兼容，仅可撤回升级包'
+                      }}
+                    </ElTag>
+                    <ElLink
+                      v-if="!isPostgresqlLifecycleRecord(row)"
+                      type="warning"
+                      :disabled="pluginOperationBusy"
+                      @click="handleDiscardCandidate(row)"
+                    >
+                      <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回升级包
+                    </ElLink>
+                  </template>
+                  <ElTag v-else-if="isUpgradeCandidateStage(row)" type="danger"
+                    >升级包不完整，请联系管理员</ElTag
                   >
-                    <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回候选
-                  </ElLink>
-                </template>
-                <template v-else-if="isLegacyRecoverableCandidate(row)">
-                  <ElTag type="warning">这是较早版本上传的候选，请先撤回后重新上传</ElTag>
-                  <ElLink
-                    type="warning"
-                    :disabled="pluginOperationBusy"
-                    @click="handleDiscardCandidate(row)"
+                  <ElPopconfirm
+                    v-else-if="canInstallLocal(row)"
+                    title="确定要安装当前插件吗?"
+                    @confirm="handleInstall(row)"
+                    confirm-button-text="确定"
+                    cancel-button-text="取消"
                   >
-                    <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回候选
-                  </ElLink>
-                </template>
-                <template v-else-if="isReadyUpgradeCandidate(row)">
-                  <ElTag type="warning">
-                    {{
-                      isPostgresqlLifecycleRecord(row)
-                        ? '与当前宿主版本不兼容，不能升级'
-                        : '与当前宿主版本不兼容，仅可撤回候选'
-                    }}
+                    <template #reference>
+                      <ElLink type="warning" :disabled="pluginOperationBusy">
+                        <ArtSvgIcon icon="ri:apps-2-add-line" class="mr-1" />安装
+                      </ElLink>
+                    </template>
+                  </ElPopconfirm>
+                  <ElPopconfirm
+                    v-if="canUninstallLocal(row)"
+                    title="确定要卸载当前插件吗?"
+                    @confirm="handleUninstall(row)"
+                    confirm-button-text="确定"
+                    cancel-button-text="取消"
+                  >
+                    <template #reference>
+                      <ElLink type="danger" :disabled="pluginOperationBusy">
+                        <ArtSvgIcon icon="ri:delete-bin-5-line" class="mr-1" />卸载
+                      </ElLink>
+                    </template>
+                  </ElPopconfirm>
+                  <ElTag
+                    v-if="
+                      !canInstallLocal(row) &&
+                      !canUninstallLocal(row) &&
+                      row.registration_candidate !== 1 &&
+                      !isUpgradeCandidateStage(row)
+                    "
+                    :type="row.state === 1 ? 'success' : 'warning'"
+                  >
+                    {{ localActionReason(row) }}
                   </ElTag>
-                  <ElLink
-                    v-if="!isPostgresqlLifecycleRecord(row)"
-                    type="warning"
-                    :disabled="pluginOperationBusy"
-                    @click="handleDiscardCandidate(row)"
-                  >
-                    <ArtSvgIcon icon="ri:arrow-go-back-line" class="mr-1" />撤回候选
-                  </ElLink>
                 </template>
-                <ElTag v-else-if="isUpgradeCandidateStage(row)" type="danger"
-                  >候选不完整，请联系管理员</ElTag
-                >
-                <ElPopconfirm
-                  v-else-if="canInstallLocal(row)"
-                  title="确定要安装当前插件吗?"
-                  @confirm="handleInstall(row)"
-                  confirm-button-text="确定"
-                  cancel-button-text="取消"
-                >
-                  <template #reference>
-                    <ElLink type="warning" :disabled="pluginOperationBusy">
-                      <ArtSvgIcon icon="ri:apps-2-add-line" class="mr-1" />安装
-                    </ElLink>
-                  </template>
-                </ElPopconfirm>
-                <ElPopconfirm
-                  v-if="canUninstallLocal(row)"
-                  title="确定要卸载当前插件吗?"
-                  @confirm="handleUninstall(row)"
-                  confirm-button-text="确定"
-                  cancel-button-text="取消"
-                >
-                  <template #reference>
-                    <ElLink type="danger" :disabled="pluginOperationBusy">
-                      <ArtSvgIcon icon="ri:delete-bin-5-line" class="mr-1" />卸载
-                    </ElLink>
-                  </template>
-                </ElPopconfirm>
-                <ElTag
-                  v-if="
-                    !canInstallLocal(row) &&
-                    !canUninstallLocal(row) &&
-                    row.registration_candidate !== 1 &&
-                    !isUpgradeCandidateStage(row)
-                  "
-                  :type="row.state === 1 ? 'success' : 'warning'"
-                >
-                  {{ localActionReason(row) }}
-                </ElTag>
               </ElSpace>
             </template>
           </ArtTable>
@@ -433,10 +277,24 @@
               </template>
               刷新仓库
             </ElButton>
-            <div v-if="repositoryCatalog" class="repository-source">
-              <span>{{ repositoryCatalog.repository }}</span>
-              <ElTag size="small" type="info">{{ repositoryCatalog.ref }}</ElTag>
-            </div>
+            <ElPopover v-if="repositoryCatalog" placement="bottom-end" trigger="click" :width="360">
+              <template #reference>
+                <ElButton text>
+                  <template #icon>
+                    <ArtSvgIcon icon="ri:information-line" />
+                  </template>
+                  仓库来源
+                </ElButton>
+              </template>
+              <ElDescriptions :column="1" size="small" border>
+                <ElDescriptionsItem label="仓库">
+                  {{ repositoryCatalog.repository }}
+                </ElDescriptionsItem>
+                <ElDescriptionsItem label="版本来源">
+                  {{ repositoryCatalog.ref }}
+                </ElDescriptionsItem>
+              </ElDescriptions>
+            </ElPopover>
           </div>
 
           <div v-if="repositoryLoading" class="repository-state" v-loading="true">
@@ -469,21 +327,22 @@
                 </div>
                 <div class="app-info">
                   <div class="app-title">{{ item.title }}</div>
-                  <div class="app-version">{{ item.app }}</div>
+                  <div class="app-version">
+                    {{ item.app }}
+                    <template v-if="item.versions[0]"> · 仓库版本 v{{ item.versions[0].version }} </template>
+                  </div>
                 </div>
-                <ElTag :type="repositoryLocalTagType(item.local)" size="small">
-                  {{ repositoryLocalLabel(item.local) }}
-                </ElTag>
+                <ElTooltip
+                  :disabled="!item.local.reason"
+                  :content="item.local.reason"
+                  placement="top"
+                >
+                  <ElTag :type="repositoryLocalTagType(item.local)" size="small">
+                    {{ repositoryLocalLabel(item.local) }}
+                  </ElTag>
+                </ElTooltip>
               </div>
               <p class="app-about">{{ item.about }}</p>
-              <ElAlert
-                v-if="item.local.reason"
-                class="repository-local-alert"
-                :type="item.local.blocked ? 'warning' : 'info'"
-                :closable="false"
-              >
-                {{ item.local.reason }}
-              </ElAlert>
               <div class="app-footer">
                 <span>{{ item.author }}</span>
                 <ElSpace wrap>
@@ -495,20 +354,21 @@
                     查看文档
                   </ElButton>
                   <ElButton
-                    v-if="item.local.blocked"
+                    v-if="item.versions[0]"
                     size="small"
-                    type="warning"
-                    @click="goToPluginManagement"
+                    :type="repositoryActionType(item.versions[0].action)"
+                    :loading="downloadingKey === repositoryVersionKey(item, item.versions[0])"
+                    :disabled="repositoryActionDisabled(item, item.versions[0])"
+                    @click="handleRepositoryVersionAction(item, item.versions[0])"
                   >
-                    去插件管理
+                    {{ repositoryActionLabel(item.versions[0].action) }}
                   </ElButton>
                   <ElButton
-                    type="primary"
                     size="small"
                     :disabled="item.versions.length === 0"
                     @click="showRepositoryVersions(item)"
                   >
-                    查看版本
+                    {{ item.versions.length > 1 ? '其他版本' : '版本详情' }}
                   </ElButton>
                 </ElSpace>
               </div>
@@ -526,6 +386,201 @@
       :after-upload="refreshAfterUpload"
       @busy-change="handleUploadBusyChange"
     />
+
+    <!-- 单个插件详情与恢复处理 -->
+    <ElDrawer
+      v-model="localDetailVisible"
+      :title="localDetailTitle"
+      size="min(720px, 94vw)"
+      @closed="closeLocalDetail"
+    >
+      <template v-if="selectedLocalRow">
+        <ElDescriptions :column="1" border>
+          <ElDescriptionsItem label="插件">
+            {{ selectedLocalRow.title || selectedLocalRow.app }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="标识">{{ selectedLocalRow.app }}</ElDescriptionsItem>
+          <ElDescriptionsItem label="记录版本">
+            {{ selectedLocalRow.version || '未知' }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="当前状态">
+            <ElTag :type="stateTagType(selectedLocalRow)">
+              {{ stateText(selectedLocalRow) }}
+            </ElTag>
+          </ElDescriptionsItem>
+        </ElDescriptions>
+
+        <ElAlert
+          class="mt-4"
+          :type="selectedLocalRow.state === 7 ? 'error' : 'info'"
+          :closable="false"
+          :title="localDetailReason(selectedLocalRow)"
+        />
+      </template>
+
+      <section v-if="recoveryDetailRow" class="recovery-detail">
+        <p class="failed-upgrade-steps" aria-label="升级恢复步骤">
+          <span :class="{ current: recoveryStep(recoveryDetailRow) === 1 }"> 1 检查恢复条件 </span>
+          <span class="step-arrow">→</span>
+          <span :class="{ current: recoveryStep(recoveryDetailRow) === 2 }"> 2 准备插件包 </span>
+          <span class="step-arrow">→</span>
+          <span :class="{ current: recoveryStep(recoveryDetailRow) === 2 }"> 3 核对插件包 </span>
+          <span class="step-arrow">→</span>
+          <span :class="{ current: recoveryStep(recoveryDetailRow) === 2 }"> 4 恢复插件文件 </span>
+          <span class="step-arrow">→</span>
+          <span :class="{ current: recoveryStep(recoveryDetailRow) === 3 }"> 5 重新升级 </span>
+        </p>
+        <p class="failed-upgrade-meta">
+          {{ recoveryVersionSummary(recoveryDetailRow) }}
+        </p>
+
+        <ElAlert
+          v-if="sessionOf(recoveryDetailRow).errorMessage"
+          class="mt-3"
+          type="error"
+          :closable="false"
+          title="恢复未完成"
+        >
+          {{ sessionOf(recoveryDetailRow).errorMessage }}
+        </ElAlert>
+        <ElAlert
+          v-else-if="sessionOf(recoveryDetailRow).phase === 'success'"
+          class="mt-3"
+          type="success"
+          :closable="false"
+        >
+          {{ sessionOf(recoveryDetailRow).message }}
+        </ElAlert>
+        <ElAlert
+          v-else-if="
+            sessionOf(recoveryDetailRow).message &&
+            (sessionOf(recoveryDetailRow).phase !== 'needs_verify' ||
+              sessionOf(recoveryDetailRow).message === FAILED_UPGRADE_RUNTIME_RESTORED_MESSAGE) &&
+            !sessionOf(recoveryDetailRow).blocked
+          "
+          class="mt-3"
+          type="info"
+          :closable="false"
+        >
+          {{ sessionOf(recoveryDetailRow).message }}
+        </ElAlert>
+
+        <div v-if="canRestoreRuntime(recoveryDetailRow)" class="failed-upgrade-actions">
+          <ElButton :disabled="loading || !!listError || pluginOperationBusy" @click="getList()">
+            刷新状态
+          </ElButton>
+          <ElButton
+            type="primary"
+            :disabled="pluginOperationBusy"
+            :loading="sessionOf(recoveryDetailRow).phase === 'restoring_runtime'"
+            @click="handleRestoreRuntime(recoveryDetailRow)"
+          >
+            恢复升级前文件
+          </ElButton>
+        </div>
+        <div v-else-if="sessionOf(recoveryDetailRow).blocked" class="failed-upgrade-actions"></div>
+        <div
+          v-else-if="
+            sessionOf(recoveryDetailRow).phase === 'needs_verify' ||
+            sessionOf(recoveryDetailRow).phase === 'diagnosing'
+          "
+          class="failed-upgrade-actions"
+        >
+          <ElButton
+            :disabled="loading || isRecoveryBusy(recoveryDetailRow) || pluginOperationBusy"
+            @click="getList()"
+          >
+            刷新状态
+          </ElButton>
+          <ElButton
+            :disabled="loading || !!listError || pluginOperationBusy"
+            :loading="sessionOf(recoveryDetailRow).phase === 'diagnosing'"
+            @click="handleInspectRecovery(recoveryDetailRow)"
+          >
+            检查恢复条件
+          </ElButton>
+        </div>
+        <div v-else class="failed-upgrade-actions" v-loading="isRecoveryBusy(recoveryDetailRow)">
+          <ElButton
+            :disabled="loading || isRecoveryBusy(recoveryDetailRow) || pluginOperationBusy"
+            @click="getList()"
+          >
+            刷新状态
+          </ElButton>
+          <template
+            v-if="
+              sessionOf(recoveryDetailRow).phase === 'needs_prepare' ||
+              sessionOf(recoveryDetailRow).phase === 'preparing'
+            "
+          >
+            <ElUpload
+              accept=".zip"
+              :auto-upload="false"
+              :limit="1"
+              :show-file-list="true"
+              :disabled="isRecoveryBusy(recoveryDetailRow) || pluginOperationBusy"
+              :on-change="onRecoveryDetailFileChange"
+              :on-remove="onRecoveryDetailFileRemove"
+            >
+              <ElButton :disabled="isRecoveryBusy(recoveryDetailRow) || pluginOperationBusy">
+                选择 ZIP 插件包
+              </ElButton>
+              <template #tip>
+                <div class="failed-upgrade-upload-tip">仅接受 ZIP，且不超过 5MB</div>
+              </template>
+            </ElUpload>
+            <ElButton
+              type="primary"
+              :disabled="
+                isRecoveryBusy(recoveryDetailRow) ||
+                pluginOperationBusy ||
+                sessionOf(recoveryDetailRow).selectedFileName === ''
+              "
+              :loading="
+                sessionOf(recoveryDetailRow).phase === 'preparing' ||
+                sessionOf(recoveryDetailRow).phase === 'replacing'
+              "
+              @click="handlePrepareRecoveryCandidate(recoveryDetailRow)"
+            >
+              检查插件包
+            </ElButton>
+          </template>
+          <ElButton
+            v-if="
+              sessionOf(recoveryDetailRow).phase === 'needs_gate_a' ||
+              sessionOf(recoveryDetailRow).phase === 'verifying'
+            "
+            type="primary"
+            :disabled="pluginOperationBusy"
+            :loading="sessionOf(recoveryDetailRow).phase === 'verifying'"
+            @click="handleVerifyRecovery(recoveryDetailRow)"
+          >
+            核对插件包
+          </ElButton>
+          <ElButton
+            v-if="sessionOf(recoveryDetailRow).phase === 'retry_safe'"
+            type="primary"
+            :disabled="pluginOperationBusy"
+            :loading="sessionOf(recoveryDetailRow).phase === 'replacing'"
+            @click="handleReplaceRecoveryCandidate(recoveryDetailRow)"
+          >
+            恢复插件文件
+          </ElButton>
+          <ElButton
+            v-if="
+              recoveryStep(recoveryDetailRow) === 3 &&
+              sessionOf(recoveryDetailRow).phase !== 'success'
+            "
+            type="primary"
+            :disabled="pluginOperationBusy"
+            :loading="sessionOf(recoveryDetailRow).phase === 'retrying'"
+            @click="handleRetryRecovery(recoveryDetailRow)"
+          >
+            重新执行升级
+          </ElButton>
+        </div>
+      </section>
+    </ElDrawer>
 
     <!-- 终端弹窗 -->
     <TerminalBox ref="terminalRef" @success="getList" />
@@ -703,10 +758,13 @@
     | 'upload'
 
   // ========== 基础状态 ==========
-  const activeTab = ref('local')
+  const activeTab = ref('repository')
   const version = ref<VersionInfo>({})
   const loading = ref(false)
   const listError = ref('')
+  const localDetailVisible = ref(false)
+  const selectedLocalApp = ref('')
+  const localDetailRecoveryExpected = ref(false)
   const installFormRef = ref<InstallFormBox | null>(null)
   const terminalRef = ref<TerminalBoxExpose | null>(null)
   const installList = ref<SandpackageInstallRow[]>([])
@@ -725,6 +783,21 @@
   const failedUpgradeRows = computed(() =>
     installList.value.filter((row) => isLegacyFailedUpgradeRecovery(row))
   )
+
+  const selectedLocalRow = computed(
+    () => installList.value.find((row) => row.app === selectedLocalApp.value) ?? null
+  )
+
+  const recoveryDetailRow = computed(() => {
+    const row = selectedLocalRow.value
+    return row && isLegacyFailedUpgradeRecovery(row) ? row : null
+  })
+
+  const localDetailTitle = computed(() => {
+    const row = selectedLocalRow.value
+    if (!row) return '插件详情'
+    return `${row.title || row.app}${recoveryDetailRow.value ? '恢复处理' : '详情'}`
+  })
 
   const recoveryWriteGate = computed<RecoveryWriteGate>(() => ({
     listLoading: loading.value,
@@ -775,12 +848,15 @@
     return readFailedUpgradeReason(row)
   }
 
-  const failedUpgradeTitle = (row: SandpackageInstallRow): string => {
-    return sessionOf(row).blocked ? '无法继续当前升级' : '数据库升级未完成'
-  }
-
   const recoveryFromVersion = (row: SandpackageInstallRow): string => {
     return sessionOf(row).fromVersion || readFailedUpgradeFromVersion(row)
+  }
+
+  const recoveryVersionSummary = (row: SandpackageInstallRow): string => {
+    const fromVersion = recoveryFromVersion(row)
+    return fromVersion
+      ? `记录版本：${fromVersion} → ${row.version}`
+      : `记录版本：${row.version || '未知'}`
   }
 
   const recoveryStep = (row: SandpackageInstallRow): 1 | 2 | 3 =>
@@ -836,9 +912,25 @@
     await getList()
   }
 
+  const openLocalDetail = (row: SandpackageInstallRow): void => {
+    selectedLocalApp.value = row.app
+    localDetailRecoveryExpected.value = isLegacyFailedUpgradeRecovery(row)
+    localDetailVisible.value = true
+  }
+
+  const closeLocalDetail = (): void => {
+    localDetailVisible.value = false
+    selectedLocalApp.value = ''
+    localDetailRecoveryExpected.value = false
+  }
+
   const rejectOrdinaryAction = (record: SandpackageInstallRow): boolean => {
-    if (!isLegacyFailedUpgradeRecovery(record)) return false
-    ElMessage.warning(FAILED_UPGRADE_FAILURE_MESSAGE)
+    if (record.ordinary_actions_blocked !== true) return false
+    ElMessage.warning(
+      isLegacyFailedUpgradeRecovery(record)
+        ? FAILED_UPGRADE_FAILURE_MESSAGE
+        : localDetailReason(record)
+    )
     return true
   }
 
@@ -972,7 +1064,7 @@
     const confirmation = exactRestoreRuntimeConfirmation(expected.app, expected.fromVersion)
     const typed = await promptConfirmation(
       '恢复升级前运行文件',
-      '系统只会隔离当前运行文件并恢复已核验备份，不会修改候选包、备份、登记信息或数据库。请输入下方确认内容。',
+      '系统只会隔离当前运行文件并恢复已核验备份，不会修改待升级插件包、备份、登记信息或数据库。请输入下方确认内容。',
       confirmation,
       '确认恢复'
     )
@@ -1049,6 +1141,14 @@
     }
   }
 
+  const onRecoveryDetailFileChange = (uploadFile: UploadFile): void => {
+    if (recoveryDetailRow.value) onRecoveryFileChange(recoveryDetailRow.value, uploadFile)
+  }
+
+  const onRecoveryDetailFileRemove = (): void => {
+    if (recoveryDetailRow.value) onRecoveryFileRemove(recoveryDetailRow.value)
+  }
+
   /**
    * 第二步：只封存并预检 ZIP。预检成功后才能进入只读 Gate A。
    */
@@ -1090,7 +1190,7 @@
       current.phase = 'needs_prepare'
       current.errorMessage = readRecoveryErrorMessage(
         error,
-        '替换候选未完成，请重新选择插件包后再试'
+        '插件文件恢复未完成，请重新选择插件包后再试'
       )
     }
   }
@@ -1112,8 +1212,8 @@
     }
     const confirmation = exactReplaceConfirmation(expected.app, expected.toVersion)
     const typed = await promptConfirmation(
-      '替换已核验候选',
-      '系统只会替换失败升级使用的候选包，不会执行安装或卸载。请输入下方确认内容。',
+      '恢复插件文件',
+      '系统只会恢复本次失败升级使用的插件文件，不会执行安装或卸载。请输入下方确认内容。',
       confirmation,
       '确认替换'
     )
@@ -1132,7 +1232,7 @@
       await getList(true)
     } catch (error: unknown) {
       current.phase = 'retry_safe'
-      current.errorMessage = readRecoveryErrorMessage(error, '替换候选未完成，请刷新后重新诊断')
+      current.errorMessage = readRecoveryErrorMessage(error, '插件文件恢复未完成，请刷新后重新检查')
     }
   }
 
@@ -1223,11 +1323,18 @@
 
   const localActionReason = (record: SandpackageInstallRow): string => {
     if (record.state === 1) return '已安装'
+    if (record.state === 7) return '已找到安装记录，但未找到插件文件。'
+    if (record.state === 5) return '安装目录正被占用，请稍后重试。'
+    if (record.state === 6) return '已找到插件文件，尚未完成登记。'
+    if (record.state === 8) return '上次操作未完成，请查看详情。'
+    return '当前状态需要处理，请查看详情。'
+  }
+
+  const localDetailReason = (record: SandpackageInstallRow): string => {
+    if (record.state === 7) return '已找到安装记录，但未找到插件文件。'
+    if (isLegacyFailedUpgradeRecovery(record)) return recoveryReason(record)
     return (
-      record.recovery_reason ||
-      record.last_error ||
-      record.stage_label ||
-      '当前状态需要先处理，不能直接安装或卸载'
+      record.recovery_reason || record.last_error || record.stage_label || localActionReason(record)
     )
   }
 
@@ -1398,8 +1505,8 @@
     if (!checkVersionCompatibility(record.support, version.value?.sandadmin_version?.describe)) {
       ElMessage.error(
         isPostgresqlLifecycleRecord(record)
-          ? '升级候选与当前宿主版本不兼容，不能升级'
-          : '升级候选与当前宿主版本不兼容，不能升级；如无需升级可撤回候选'
+          ? '升级包与当前宿主版本不兼容，不能升级'
+          : '升级包与当前宿主版本不兼容，不能升级；如无需升级可撤回升级包'
       )
       return
     }
@@ -1408,7 +1515,7 @@
     try {
       const result = await ElMessageBox.prompt(
         '系统将仅执行升级脚本 update.sql；不会执行 install.sql。请输入下方确认内容。',
-        '确认升级候选',
+        '确认升级包',
         {
           confirmButtonText: '确认升级',
           cancelButtonText: '取消',
@@ -1440,10 +1547,10 @@
     let confirmation = ''
     try {
       const result = await ElMessageBox.prompt(
-        '系统将仅恢复已验证的旧插件注册包并隔离当前候选；不会执行数据库回滚，因为候选尚未执行。请输入下方确认内容。',
-        '撤回升级候选',
+        '系统将仅恢复已验证的旧插件注册包并隔离当前升级包；不会执行数据库回滚，因为升级尚未执行。请输入下方确认内容。',
+        '撤回升级包',
         {
-          confirmButtonText: '撤回候选',
+          confirmButtonText: '撤回升级包',
           cancelButtonText: '取消',
           inputPlaceholder: expected,
           inputValidator: (value: string) => value === expected || '确认内容不匹配'
@@ -1459,7 +1566,7 @@
         appName: record.app,
         confirmation
       })
-      ElMessage.success('升级候选已撤回，旧插件注册包已恢复；数据库未执行无需回滚')
+      ElMessage.success('升级包已撤回，旧插件注册包已恢复；数据库未执行无需回滚')
     } catch {
       // Error already handled by http utility
     } finally {
@@ -1506,6 +1613,7 @@
 
   const stateText = (record: SandpackageInstallRow): string => {
     if (isLegacyFailedUpgradeRecovery(record)) return '升级未完成'
+    if (record.state === 7) return '安装文件缺失'
     if (record.state_text) return record.state_text
     return (
       {
@@ -1516,7 +1624,7 @@
         4: '等待依赖安装',
         5: '安装目录被占用',
         6: '发现未登记部署',
-        7: '部署文件不一致',
+        7: '安装文件缺失',
         8: '操作未完成'
       }[record.state] || '状态未知'
     )
@@ -1701,8 +1809,8 @@
   const repositoryLocalLabel = (local: RepositoryPluginLocal): string => {
     if (local.state === 0) return '未安装'
     if (local.state === 1) return `已安装 ${local.installed_version || local.version || ''}`.trim()
-    if (local.state === 2) return '已有待处理候选'
-    if (local.state === 7) return '安装文件异常'
+    if (local.state === 2) return '已有待处理安装包'
+    if (local.state === 7) return '安装文件缺失'
     return '需要管理'
   }
 
@@ -1772,19 +1880,19 @@
       prepared.state !== 2 ||
       prepared.ordinary_actions_blocked === true
     ) {
-      throw new Error('下载候选与所选插件身份或可执行状态不一致，请到插件管理查看')
+      throw new Error('下载的插件包与所选版本或当前状态不一致，请到插件管理查看')
     }
     if (
       action === 'upgrade' &&
       (prepared.update !== 1 || prepared.upgrade_from_version !== fromVersion)
     ) {
-      throw new Error('升级候选的来源版本与当前已安装版本不一致，请刷新后重试')
+      throw new Error('升级包的来源版本与当前已安装版本不一致，请刷新后重试')
     }
     if (
       action === 'install' &&
       (prepared.update === 1 || (prepared.upgrade_from_version ?? '') !== '')
     ) {
-      throw new Error('安装候选被识别为升级候选，已停止后续安装')
+      throw new Error('安装包被识别为升级包，已停止后续安装')
     }
   }
 
@@ -1983,8 +2091,16 @@
     }
   })
 
+  watch([localDetailVisible, selectedLocalRow], ([visible, row]) => {
+    if (!visible) return
+    if (!row || (localDetailRecoveryExpected.value && !isLegacyFailedUpgradeRecovery(row))) {
+      closeLocalDetail()
+    }
+  })
+
   onMounted(() => {
     getList()
+    fetchRepositoryCatalog()
   })
 </script>
 
@@ -2004,12 +2120,18 @@
     overflow: visible;
   }
 
-  .failed-upgrade-card {
-    padding: 16px;
-    margin-top: 16px;
-    background: var(--el-bg-color);
-    border: 1px solid var(--el-border-color);
-    border-radius: 8px;
+  .local-toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .environment-info {
+    margin-bottom: 16px;
+  }
+
+  .recovery-detail {
+    margin-top: 20px;
   }
 
   .failed-upgrade-steps {
@@ -2054,19 +2176,6 @@
     align-items: center;
   }
 
-  .version-title {
-    padding: 5px 10px;
-    font-size: 12px;
-    background: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color);
-  }
-
-  .version-value {
-    padding: 5px 10px;
-    font-size: 12px;
-    border: 1px solid var(--el-border-color);
-  }
-
   .repository-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -2077,15 +2186,6 @@
 
   .repository-search {
     width: min(360px, 100%);
-  }
-
-  .repository-source {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-left: auto;
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
   }
 
   .repository-state {
@@ -2168,10 +2268,6 @@
     -webkit-box-orient: vertical;
   }
 
-  .repository-local-alert {
-    margin-bottom: 12px;
-  }
-
   .app-footer {
     display: flex;
     align-items: center;
@@ -2181,7 +2277,6 @@
   }
 
   @media (width <= 768px) {
-    .failed-upgrade-card,
     .failed-upgrade-actions {
       width: 100%;
     }
@@ -2193,11 +2288,6 @@
     .version-item {
       flex-direction: column;
       align-items: flex-start;
-    }
-
-    .repository-source {
-      width: 100%;
-      margin-left: 0;
     }
   }
 

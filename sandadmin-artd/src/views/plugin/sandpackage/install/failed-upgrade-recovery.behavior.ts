@@ -14,6 +14,7 @@ import {
   exactRetryConfirmation,
   humanizeRecoveryMessage,
   isDurableRetryReadyRow,
+  isFailedUpgradeRecovery,
   parseRuntimeRestoreResult,
   parseInspectionResult,
   parsePrepareResult,
@@ -21,6 +22,7 @@ import {
   parseVerifyResult,
   reconcileFailedUpgradeSession,
   replaceConfirmationText,
+  shouldHideGlobalPluginWrites,
   type FailedUpgradeRecoveryPhase,
   type FailedUpgradeRecoverySession,
   type SandpackageInstallRow
@@ -32,7 +34,7 @@ import {
 } from './failed-upgrade-recovery.http-mock'
 import { mountSandpackageInstallPage } from './failed-upgrade-recovery.index-mount'
 
-function textOf(el: Element | null): string {
+function textOf(el: Node | null): string {
   return el?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
 }
 
@@ -140,9 +142,58 @@ async function confirmPrompt(root: ParentNode, value: string): Promise<void> {
   confirm.click()
 }
 
+async function openRecoveryDetail(root: ParentNode): Promise<void> {
+  await waitFor(() => buttonByText(root, '恢复处理') !== null, 'recovery entry rendered')
+  buttonByText(root, '恢复处理')?.click()
+  await waitFor(
+    () => document.querySelector('.el-drawer') !== null,
+    'recovery detail drawer opened'
+  )
+}
+
 export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[]> {
   const passed: string[] = []
   const expectedTuple = { app: 'sample-plugin', fromVersion: '0.6.0', toVersion: '0.7.0' }
+
+  const ordinaryBlockedRows = [5, 6, 7].map(
+    (state): SandpackageInstallRow => ({
+      app: `ordinary-${state}`,
+      title: `Ordinary ${state}`,
+      about: 'ordinary blocked state',
+      author: 'sand',
+      version: '0.6.0',
+      state,
+      ordinary_actions_blocked: true
+    })
+  )
+  for (const row of ordinaryBlockedRows) {
+    expectTrue(
+      !isFailedUpgradeRecovery(row),
+      `ordinary blocked state ${row.state} is not a failed database upgrade`
+    )
+  }
+  const exactRecovery = exactFailedRow({ recovery_mode: 'none' })
+  expectTrue(isFailedUpgradeRecovery(exactRecovery), 'exact failed-upgrade shape remains recovery')
+  for (const recoveryMode of [
+    'verification_required',
+    'runtime_restore_required',
+    'retry_safe',
+    'blocked'
+  ] as const) {
+    expectTrue(
+      isFailedUpgradeRecovery({ recovery_mode: recoveryMode }),
+      `explicit recovery mode remains recovery: ${recoveryMode}`
+    )
+  }
+  expectTrue(
+    !shouldHideGlobalPluginWrites(ordinaryBlockedRows, {}),
+    'ordinary blocked rows do not close unrelated global writes'
+  )
+  expectTrue(
+    shouldHideGlobalPluginWrites([exactRecovery], {}),
+    'actual failed upgrade closes global writes'
+  )
+  passed.push('ordinary blocked states stay separate from actual failed-upgrade recovery')
 
   const v2Inspection = parseInspectionResult(
     {
@@ -463,55 +514,83 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = mountSandpackageInstallPage(host)
-  await waitFor(() => textOf(host).includes('数据库升级未完成'), 'install page rendered')
+  await waitFor(() => buttonByText(host, '恢复处理') !== null, 'install page rendered')
+  expectTrue(
+    !textOf(host).includes('检查恢复条件'),
+    'recovery detail stays closed on initial render'
+  )
   expectTrue(buttonByText(host, '上传插件包') === null, 'exact-failed hides upload')
   expectTrue(buttonByText(host, '重新执行升级') === null, 'retry hidden before diagnosis')
-  const inspectBtn = buttonByText(host, '诊断恢复状态')
+  await openRecoveryDetail(host)
+  const inspectBtn = buttonByText(document, '检查恢复条件')
   expectTrue(inspectBtn !== null, 'diagnosis button present')
   inspectBtn?.click()
-  await waitFor(() => buttonByText(host, '预检替换候选') !== null, 'prepare after diagnosis')
-  expectTrue(buttonByText(host, '重新执行升级') === null, 'diagnosis alone cannot expose retry')
+  await waitFor(() => buttonByText(document, '检查插件包') !== null, 'prepare after diagnosis')
+  expectTrue(buttonByText(document, '重新执行升级') === null, 'diagnosis alone cannot expose retry')
   passed.push('mounted index.vue diagnosis opens only ZIP preflight')
 
   const zip = new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'sample-plugin.zip', {
     type: 'application/zip'
   })
-  await assignZipFile(host, zip)
+  await assignZipFile(document, zip)
   await waitFor(() => {
-    const prepare = buttonByText(host, '预检替换候选')
+    const prepare = buttonByText(document, '检查插件包')
     return prepare !== null && !prepare.disabled
   }, 'prepare enabled after zip')
-  buttonByText(host, '预检替换候选')?.click()
-  await waitFor(() => buttonByText(host, '只读 Gate A 核验') !== null, 'Gate A after prepare')
-  expectTrue(buttonByText(host, '替换已核验候选') === null, 'prepare cannot expose replace')
-  buttonByText(host, '只读 Gate A 核验')?.click()
-  await waitFor(() => buttonByText(host, '替换已核验候选') !== null, 'replace after Gate A')
-  expectTrue(buttonByText(host, '重新执行升级') === null, 'Gate A cannot expose retry')
-  buttonByText(host, '替换已核验候选')?.click()
+  buttonByText(document, '检查插件包')?.click()
+  await waitFor(() => buttonByText(document, '核对插件包') !== null, 'verify after prepare')
+  expectTrue(buttonByText(document, '恢复插件文件') === null, 'prepare cannot expose restore')
+  buttonByText(document, '核对插件包')?.click()
+  await waitFor(() => buttonByText(document, '恢复插件文件') !== null, 'restore after verify')
+  expectTrue(buttonByText(document, '重新执行升级') === null, 'verify cannot expose retry')
+  buttonByText(document, '恢复插件文件')?.click()
   await confirmPrompt(document, exactReplaceConfirmation('sample-plugin', '0.7.0'))
-  await waitFor(() => buttonByText(host, '重新执行升级') !== null, 'retry after replace refresh')
-  expectTrue(buttonByText(host, '替换已核验候选') === null, 'replace hidden on phase 3')
-  passed.push('prepare then Gate A then replace refreshes into retry')
+  await waitFor(
+    () => buttonByText(document, '重新执行升级') !== null,
+    'retry after restore refresh'
+  )
+  expectTrue(buttonByText(document, '恢复插件文件') === null, 'restore hidden on final step')
+  passed.push('prepare then verify then restore refreshes into retry')
 
   configureRecoveryHttpMock('mismatched_retry_ready')
-  buttonByText(host, '刷新')?.click()
+  buttonByText(document, '刷新状态')?.click()
   await waitFor(
     () =>
-      buttonByText(host, '重新执行升级') === null && buttonByText(host, '诊断恢复状态') !== null,
+      buttonByText(document, '重新执行升级') === null &&
+      buttonByText(document, '检查恢复条件') !== null,
     'mismatched refresh returns to diagnosis'
   )
   passed.push('mismatched durable tuple clears retry eligibility')
 
   for (const fixture of ['partial_modern_retry_safe', 'invalid_digest_retry_safe'] as const) {
     configureRecoveryHttpMock(fixture)
-    buttonByText(host, '刷新')?.click()
+    buttonByText(document, '刷新状态')?.click()
     await waitFor(
       () =>
-        buttonByText(host, '重新执行升级') === null && buttonByText(host, '诊断恢复状态') !== null,
+        buttonByText(document, '重新执行升级') === null &&
+        buttonByText(document, '检查恢复条件') !== null,
       `${fixture} refresh clears retry`
     )
   }
   passed.push('partial or malformed modern list markers clear stale retry actions')
+
+  configureRecoveryHttpMock('ordinary_blocked')
+  buttonByText(document, '刷新状态')?.click()
+  await waitFor(
+    () =>
+      buttonByText(host, '查看详情') !== null && buttonByText(document, '检查恢复条件') === null,
+    'ordinary blocked row closes recovery drawer'
+  )
+  expectTrue(textOf(host).includes('安装文件缺失'), 'state 7 uses the clear local label')
+  expectTrue(
+    textOf(host).includes('已找到安装记录，但未找到插件文件。'),
+    'state 7 uses the short management explanation'
+  )
+  expectTrue(
+    !textOf(host).includes('数据库升级未完成'),
+    'ordinary blocked row does not claim a failed database upgrade'
+  )
+  passed.push('ordinary state 7 stays in plugin details and closes stale recovery UI')
 
   app.unmount()
   host.remove()
@@ -520,31 +599,32 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   const restoreHost = document.createElement('div')
   document.body.appendChild(restoreHost)
   const restoreApp = mountSandpackageInstallPage(restoreHost)
+  await openRecoveryDetail(restoreHost)
   await waitFor(
-    () => buttonByText(restoreHost, '恢复升级前运行文件') !== null,
+    () => buttonByText(document, '恢复升级前文件') !== null,
     'runtime restore action rendered only for exact drift presentation'
   )
   for (const blockedAction of [
-    '诊断恢复状态',
-    '预检替换候选',
-    '只读 Gate A 核验',
-    '替换已核验候选',
+    '检查恢复条件',
+    '检查插件包',
+    '核对插件包',
+    '恢复插件文件',
     '重新执行升级'
   ]) {
     expectTrue(
-      buttonByText(restoreHost, blockedAction) === null,
+      buttonByText(document, blockedAction) === null,
       `runtime drift only permits restore: ${blockedAction}`
     )
   }
-  buttonByText(restoreHost, '恢复升级前运行文件')?.click()
+  buttonByText(document, '恢复升级前文件')?.click()
   await confirmPrompt(document, 'RESTORE RUNTIME sample-plugin@0.6.0')
   await waitFor(
-    () => buttonByText(restoreHost, '预检替换候选') !== null,
+    () => buttonByText(document, '检查插件包') !== null,
     'exact refreshed verification action advances runtime restore to ZIP preflight'
   )
   expectTrue(
-    buttonByText(restoreHost, '诊断恢复状态') === null &&
-      buttonByText(restoreHost, '重新执行升级') === null,
+    buttonByText(document, '检查恢复条件') === null &&
+      buttonByText(document, '重新执行升级') === null,
     'restore refresh opens only needs_prepare'
   )
   passed.push('runtime restore refreshes exact list action into ZIP preflight only')
@@ -560,19 +640,20 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
     const malformedRestoreHost = document.createElement('div')
     document.body.appendChild(malformedRestoreHost)
     const malformedRestoreApp = mountSandpackageInstallPage(malformedRestoreHost)
+    await openRecoveryDetail(malformedRestoreHost)
     await waitFor(
-      () => buttonByText(malformedRestoreHost, '恢复升级前运行文件') !== null,
+      () => buttonByText(document, '恢复升级前文件') !== null,
       `${refreshFixture} restore action rendered`
     )
-    buttonByText(malformedRestoreHost, '恢复升级前运行文件')?.click()
+    buttonByText(document, '恢复升级前文件')?.click()
     await confirmPrompt(document, 'RESTORE RUNTIME sample-plugin@0.6.0')
     await waitFor(
-      () => buttonByText(malformedRestoreHost, '诊断恢复状态') !== null,
+      () => buttonByText(document, '检查恢复条件') !== null,
       `${refreshFixture} refresh fails closed`
     )
     expectTrue(
-      buttonByText(malformedRestoreHost, '预检替换候选') === null &&
-        buttonByText(malformedRestoreHost, '重新执行升级') === null,
+      buttonByText(document, '检查插件包') === null &&
+        buttonByText(document, '重新执行升级') === null,
       `${refreshFixture} cannot infer a write action`
     )
     malformedRestoreApp.unmount()
@@ -584,7 +665,8 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   const retryHost = document.createElement('div')
   document.body.appendChild(retryHost)
   const retryApp = mountSandpackageInstallPage(retryHost)
-  await waitFor(() => buttonByText(retryHost, '重新执行升级') !== null, 'durable retry ready')
+  await openRecoveryDetail(retryHost)
+  await waitFor(() => buttonByText(document, '重新执行升级') !== null, 'durable retry ready')
   expectTrue(
     exactRetryConfirmation('sample-plugin', '0.6.0', '0.7.0') ===
       'RETRY sample-plugin@0.6.0->0.7.0',
@@ -593,25 +675,17 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   passed.push('durable retry readiness requires the exact retry confirmation tuple')
 
   configureRecoveryHttpMock('verification_required')
-  const toolbarRefresh = retryHost.querySelector('button')
-  if (!(toolbarRefresh instanceof HTMLButtonElement)) throw new Error('toolbar refresh missing')
-  toolbarRefresh.click()
-  await waitFor(() => buttonByText(retryHost, '诊断恢复状态') !== null, 'recovery row restored')
+  buttonByText(document, '刷新状态')?.click()
+  await waitFor(() => buttonByText(document, '检查恢复条件') !== null, 'recovery row restored')
 
   configureRecoveryHttpMock('blocked')
-  buttonByText(retryHost, '刷新')?.click()
+  buttonByText(document, '刷新状态')?.click()
   await waitFor(
-    () => buttonByText(retryHost, '重新执行升级') === null,
+    () => buttonByText(document, '重新执行升级') === null,
     'blocked refresh hides retry'
   )
-  expectTrue(
-    textOf(retryHost).includes('无法继续当前升级') || textOf(retryHost).includes('不属于已验证'),
-    'blocked copy'
-  )
-  expectTrue(
-    buttonsOf(retryHost).filter((button) => textOf(button) === '刷新').length === 0,
-    'blocked has no recovery buttons'
-  )
+  expectTrue(textOf(document).includes('当前状态不允许自动恢复'), 'blocked copy')
+  expectTrue(buttonByText(document, '刷新状态') === null, 'blocked has no recovery buttons')
   passed.push('blocked hides every recovery button')
 
   configureRecoveryHttpMock('error')
@@ -623,7 +697,7 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
     'list error visible'
   )
   expectTrue(buttonByText(errorHost, '重新执行升级') === null, 'list error hides retry')
-  expectTrue(buttonByText(errorHost, '预检替换候选') === null, 'list error closes writes')
+  expectTrue(buttonByText(errorHost, '检查插件包') === null, 'list error closes writes')
   passed.push('list failure is observable and closes recovery writes')
   errorApp.unmount()
   errorHost.remove()

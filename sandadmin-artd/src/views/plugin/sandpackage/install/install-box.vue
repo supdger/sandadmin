@@ -1,7 +1,7 @@
 <template>
   <ElDialog
     v-model="visible"
-    title="上传插件包-安装插件"
+    title="上传插件包"
     width="800"
     :close-on-click-modal="false"
     :close-on-press-escape="!loading"

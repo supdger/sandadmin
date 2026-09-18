@@ -54,3 +54,14 @@
 #### Scenario: Display package documentation
 - **WHEN** 用户选择查看文档
 - **THEN** 从已配置仓库的对应Release核验包后返回有界UTF8文本，不创建候选或执行SQL；界面不执行文档HTML，显示加载、失败、空内容状态且不会串页
+
+### Requirement: Accurate and understandable plugin presentation
+系统 SHALL 区分安装文件缺失与数据库升级失败，默认视图围绕浏览及管理任务展示，技术恢复流程仅主动展开。
+
+#### Scenario: Missing runtime is not failed database upgrade
+- **WHEN** 普通安装记录被阻断或插件运行目录缺失，且没有真实失败升级证据
+- **THEN** 显示实际异常原因，不显示数据库升级未完成、空来源版本箭头或升级恢复流程；该插件普通写入仍被禁止
+
+#### Scenario: Recovery details are opt-in
+- **WHEN** 用户打开插件仓库或插件管理默认视图
+- **THEN** 不展开恢复步骤；只有主动选择真实失败升级的恢复处理时才打开对应详情，刷新使条件失效时清除旧操作视图

@@ -34,17 +34,16 @@ export const FAILED_UPGRADE_FAILURE_MESSAGE =
 
 /** blocked 状态的稳定人话；核验未通过时不得露出写操作。 */
 export const FAILED_UPGRADE_BLOCKED_MESSAGE =
-  '当前数据库状态不属于已验证的可重试状态，系统未替换候选包、未执行脚本，也未修改运行文件。请按插件恢复说明处理。'
+  '当前状态不允许自动恢复。系统没有修改插件文件或数据库，请按恢复说明处理。'
 
 /** 核验成功后的稳定人话；不渲染后端任意 message。 */
-export const FAILED_UPGRADE_VERIFIED_MESSAGE =
-  '已核验数据库处于可重试的升级前状态。仍需使用已核验的候选包替换后重新确认升级。'
+export const FAILED_UPGRADE_VERIFIED_MESSAGE = '恢复条件检查通过。请继续检查用于恢复的插件包。'
 
 /** 预检成功后的稳定人话。 */
-export const FAILED_UPGRADE_PREPARED_MESSAGE = '已预检候选包，确认后才会替换当前失败候选。'
+export const FAILED_UPGRADE_PREPARED_MESSAGE = '插件包检查通过，确认后才会恢复插件文件。'
 
 /** 替换成功后的稳定人话。 */
-export const FAILED_UPGRADE_REPLACED_MESSAGE = '已替换为已核验候选，可以重新执行升级。'
+export const FAILED_UPGRADE_REPLACED_MESSAGE = '插件文件已恢复，可以重新执行升级。'
 
 /** 重试提交后的稳定人话。 */
 export const FAILED_UPGRADE_RETRIED_MESSAGE = '已重新提交升级。'
@@ -225,9 +224,9 @@ const HUMAN_MESSAGE_ALLOWLIST = new Set<string>([
   '插件包文件无效',
   '插件包不能超过 5MB',
   '请先选择已核验的 ZIP 插件包',
-  '候选预检结果无效，请重新选择插件包',
-  '未能取得已核验候选编号，请重新选择插件包',
-  '替换候选未完成，请重新选择插件包后再试',
+  '插件包检查结果无效，请重新选择插件包',
+  '未能确认已检查的插件包，请重新选择插件包',
+  '插件文件恢复未完成，请重新选择插件包后再试',
   '重新执行升级未完成，请刷新后重试',
   '恢复核验结果无效，请刷新后重试'
 ])
@@ -386,9 +385,7 @@ export function isExactFailedUpgradeShape(row: unknown): boolean {
   )
 }
 
-/**
- * 识别失败升级恢复行：精确形状、列表派生 recovery_mode，或 ordinary_actions_blocked。
- */
+/** 识别失败升级恢复行：只接受精确失败形状或明确的恢复模式。 */
 export function isFailedUpgradeRecovery(row: unknown): boolean {
   if (!isPlainObject(row)) return false
   const recoveryMode = readString(row, 'recovery_mode')
@@ -400,7 +397,6 @@ export function isFailedUpgradeRecovery(row: unknown): boolean {
   ) {
     return true
   }
-  if (readBoolean(row, 'ordinary_actions_blocked') === true) return true
   return isExactFailedUpgradeShape(row)
 }
 
@@ -772,7 +768,10 @@ export function parsePrepareResult(
   expected: RecoveryVersionTuple
 ): FailedUpgradePrepareResult {
   if (!isPlainObject(payload)) {
-    throw new FailedUpgradeRecoveryClosedError('recoverable', '候选预检结果无效，请重新选择插件包')
+    throw new FailedUpgradeRecoveryClosedError(
+      'recoverable',
+      '插件包检查结果无效，请重新选择插件包'
+    )
   }
   const replacementId =
     readString(payload, 'replacementId') ??
@@ -782,7 +781,7 @@ export function parsePrepareResult(
   if (replacementId === '') {
     throw new FailedUpgradeRecoveryClosedError(
       'recoverable',
-      '未能取得已核验候选编号，请重新选择插件包'
+      '未能确认已检查的插件包，请重新选择插件包'
     )
   }
   const app = readString(payload, 'app') ?? ''
@@ -1045,17 +1044,13 @@ export function canShowRecoveryVerifyAction(
   return !isRecoveryWriteBusy(session.phase) || session.phase === 'verifying'
 }
 
-/**
- * 任一 blocked 或精确失败升级行存在时，隐藏页面级上传/终端等会改插件状态的动作。
- */
+/** 任一真实失败升级恢复行存在时，隐藏页面级上传、终端等全局写动作。 */
 export function shouldHideGlobalPluginWrites(
   rows: readonly SandpackageInstallRow[],
   sessions: Record<string, FailedUpgradeRecoverySession>
 ): boolean {
-  return rows.some((row) => {
-    if (!isFailedUpgradeRecovery(row)) return false
-    if (isExactFailedUpgradeShape(row) || isBlockedRecoveryRow(row)) return true
-    const session = sessions[row.app]
-    return session?.blocked === true || session?.phase === 'blocked'
-  })
+  return (
+    rows.some((row) => isFailedUpgradeRecovery(row)) ||
+    Object.values(sessions).some((session) => session?.blocked === true)
+  )
 }
