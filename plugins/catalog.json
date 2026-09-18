@@ -1,4 +1,22 @@
 {
   "schema": 1,
-  "plugins": []
+  "plugins": [
+    {
+      "app": "sand-iam",
+      "title": "SandIAM 身份与访问控制",
+      "about": "面向 SandAdmin 的身份与访问控制插件，本次为隔离安装验证候选",
+      "author": "supdger",
+      "versions": [
+        {
+          "version": "0.7.3",
+          "tag": "sand-iam-v0.7.3-v38",
+          "asset": "sand-iam-0.7.3-v38-20260918T045858Z-release-unsigned.zip",
+          "sha256": "3f8d5e2cabc05eb3cfd42f1207e4a1e0cbf9e7522a07027ff63acbf8297f24cf",
+          "host_min": "6.0.11",
+          "host_max": "6.0.11",
+          "notes": "预发布候选：已验证独立PostgreSQL全新安装、菜单及基础读取接口；尚未验证升级和完整业务链。"
+        }
+      ]
+    }
+  ]
 }
