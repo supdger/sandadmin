@@ -52,10 +52,18 @@ class InstallController extends BaseController
     {
         $data = Server::installedList(runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR);
         $data = array_map(static function (array $item): array {
+            $local = isset($item['app']) && is_string($item['app'])
+                ? (new InstallLogic($item['app']))->ordinaryStatus()
+                : ['state' => 99, 'blocked' => true, 'reason' => '插件标识缺失，无法确认安装状态'];
+            $actual = array_merge($item, ['state' => $local['state']]);
             $presented = ($item['lifecycle_driver'] ?? '') === 'saipackage-pg-v1'
-                ? InstallLogic::presentInfo($item)
-                : array_merge(LegacyInstallLogic::presentInfo($item), InstallLogic::presentInfo($item));
-            return array_merge($item, $presented);
+                ? InstallLogic::presentInfo($actual)
+                : array_merge(LegacyInstallLogic::presentInfo($actual), InstallLogic::presentInfo($actual));
+            return array_merge($item, $presented, [
+                'state' => $local['state'],
+                'ordinary_actions_blocked' => $local['blocked'],
+                'recovery_reason' => $local['reason'],
+            ]);
         }, $data);
 
         $phpVersion = phpversion();
@@ -340,15 +348,31 @@ class InstallController extends BaseController
     /** 下载只准备候选，数据库生命周期由现有安装入口执行。 */
     public function repositoryDownload(Request $request): Response
     {
-        $app = $request->post('app');
-        $version = $request->post('version');
-        $sha256 = $request->post('sha256');
-        if (!is_string($app) || !is_string($version) || !is_string($sha256)
-            || strlen($app) > 64 || strlen($version) > 80 || !preg_match('/^[a-f0-9]{64}$/D', $sha256)) {
-            throw new ApiException('请选择有效的插件版本');
-        }
+        [$app, $version, $sha256] = $this->repositorySelection($request, false);
         $logic = $this->repositoryLogic();
         return $this->repositoryResponse($request, fn(callable $complete) => $logic->download($app, $version, $sha256, $complete));
+    }
+
+    /** 文档读取只校验清单与 ZIP，不读取或修复本地安装状态。 */
+    public function repositoryDocument(Request $request): Response
+    {
+        [$app, $version, $sha256] = $this->repositorySelection($request, true);
+        $logic = $this->repositoryLogic();
+        return $this->repositoryResponse($request, fn(callable $complete) => $logic->document($app, $version, $sha256, $complete));
+    }
+
+    /** @return array{string,string,string} */
+    private function repositorySelection(Request $request, bool $query): array
+    {
+        $app = $query ? $request->get('app') : $request->post('app');
+        $version = $query ? $request->get('version') : $request->post('version');
+        $sha256 = $query ? $request->get('sha256') : $request->post('sha256');
+        if (!is_string($app) || !preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app)
+            || !is_string($version) || !preg_match('/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/D', $version)
+            || !is_string($sha256) || !preg_match('/^[a-f0-9]{64}$/D', $sha256)) {
+            throw new ApiException('请选择有效的插件版本');
+        }
+        return [$app, $version, $sha256];
     }
 
     private function repositoryLogic(): \plugin\sandpackage\app\logic\RepositoryLogic

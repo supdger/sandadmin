@@ -34,6 +34,8 @@ export interface AppInfo {
   derived_upgrade_from_version?: string
   legacy_recovery_reason?: string
   upgrade_candidate_verified?: boolean
+  ordinary_actions_blocked?: boolean
+  recovery_reason?: string
 }
 
 export interface VersionInfo {
@@ -62,6 +64,24 @@ export interface RepositoryPluginVersion {
   host_min: string
   host_max?: string
   notes: string
+  action: RepositoryVersionAction
+  action_reason: string
+}
+
+export type RepositoryVersionAction =
+  | 'install'
+  | 'upgrade'
+  | 'installed'
+  | 'downgrade'
+  | 'manage'
+  | 'incompatible'
+
+export interface RepositoryPluginLocal {
+  state: number
+  version: string | null
+  installed_version: string | null
+  blocked: boolean
+  reason: string
 }
 
 export interface RepositoryPlugin {
@@ -69,6 +89,7 @@ export interface RepositoryPlugin {
   title: string
   about: string
   author: string
+  local: RepositoryPluginLocal
   versions: RepositoryPluginVersion[]
 }
 
@@ -82,6 +103,12 @@ export interface RepositoryDownloadRequest {
   app: string
   version: string
   sha256: string
+}
+
+export interface RepositoryDocumentResponse {
+  app: string
+  version: string
+  markdown: string
 }
 
 /** 失败升级恢复接口的外部响应都在页面层按 unknown 收窄。 */
@@ -201,6 +228,15 @@ export default {
     return request.post<AppInfo>({
       url: '/tool/install/repository/download',
       data,
+      timeout: 135000
+    })
+  },
+
+  /** 读取与清单版本、校验和绑定的发布包 README。 */
+  getRepositoryDocument(params: RepositoryDownloadRequest) {
+    return request.get<RepositoryDocumentResponse>({
+      url: '/tool/install/repository/document',
+      params,
       timeout: 135000
     })
   }

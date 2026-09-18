@@ -1,5 +1,13 @@
 <template>
-  <ElDialog v-model="visible" title="上传插件包-安装插件" width="800" :close-on-click-modal="false">
+  <ElDialog
+    v-model="visible"
+    title="上传插件包-安装插件"
+    width="800"
+    :close-on-click-modal="false"
+    :close-on-press-escape="!loading"
+    :show-close="!loading"
+    :before-close="beforeClose"
+  >
     <div class="flex flex-col items-center mb-6">
       <div class="w-[400px]">
         <div class="text-lg text-red-500 font-bold mb-2">
@@ -28,6 +36,7 @@
           :http-request="uploadFileHandler"
           :before-upload="beforeUpload"
           :show-file-list="false"
+          :disabled="disabled || loading"
           accept=".zip"
           class="w-full"
         >
@@ -51,8 +60,22 @@
   import type { UploadProps, UploadRequestOptions } from 'element-plus'
   import sandpackageApi, { type AppInfo } from '../api/index'
 
+  const props = withDefaults(
+    defineProps<{
+      disabled?: boolean
+      canStartWrite?: () => boolean
+      afterUpload?: () => Promise<void>
+    }>(),
+    {
+      disabled: false,
+      canStartWrite: () => true,
+      afterUpload: async () => undefined
+    }
+  )
+
   const emit = defineEmits<{
     (e: 'success'): void
+    (e: 'busy-change', busy: boolean): void
   }>()
 
   const visible = ref(false)
@@ -82,6 +105,7 @@
   }
 
   const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    if (props.disabled || loading.value) return false
     const message = uploadValidationMessage(file)
     if (!message) return true
 
@@ -90,6 +114,9 @@
   }
 
   const uploadFileHandler = async (options: UploadRequestOptions): Promise<unknown> => {
+    if (props.disabled || loading.value || !props.canStartWrite()) {
+      throw new Error('当前有插件操作正在进行，请稍后重试')
+    }
     const file = options.file
     const message = uploadValidationMessage(file)
     if (message) {
@@ -97,6 +124,7 @@
     }
 
     loading.value = true
+    emit('busy-change', true)
     try {
       const dataForm = new FormData()
       dataForm.append('file', file)
@@ -106,17 +134,24 @@
         Object.assign(appInfo, res)
         visible.value = false
         ElMessage.success('上传成功')
+        await props.afterUpload()
         emit('success')
       }
       return res
     } finally {
       loading.value = false
+      emit('busy-change', false)
     }
   }
 
   const open = () => {
+    if (props.disabled || loading.value) return
     visible.value = true
     Object.assign(appInfo, initialApp)
+  }
+
+  const beforeClose = (done: () => void): void => {
+    if (!loading.value) done()
   }
 
   defineExpose({ open })

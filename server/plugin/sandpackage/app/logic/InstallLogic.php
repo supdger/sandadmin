@@ -588,6 +588,54 @@ class InstallLogic
         ];
     }
 
+    /**
+     * Read-only repository preflight. It does not acquire locks, repair records
+     * or write installation state.
+     *
+     * @return array{state:int,version:?string,installed_version:?string,blocked:bool,reason:string}
+     */
+    public function ordinaryStatus(): array
+    {
+        $state = 99;
+        $version = null;
+        try {
+            $info = $this->getInfo();
+            $state = (int) $this->getInstallState();
+            $recordedVersion = $info['version'] ?? null;
+            if (is_string($recordedVersion) && $recordedVersion !== '' && strlen($recordedVersion) <= 80) {
+                $version = $recordedVersion;
+            }
+            $this->assertOrdinaryState();
+            if ($info !== [] && ($info['lifecycle_driver'] ?? '') !== self::DRIVER) {
+                throw new ApiException('安装记录属于旧生命周期，请从已安装插件管理页处理');
+            }
+            if ($state === self::UNINSTALLED) {
+                return ['state' => $state, 'version' => $version, 'installed_version' => null, 'blocked' => false, 'reason' => ''];
+            }
+            if ($state === self::INSTALLED) {
+                return ['state' => $state, 'version' => $version, 'installed_version' => $version, 'blocked' => false, 'reason' => ''];
+            }
+            $reason = match ($state) {
+                self::WAIT_INSTALL => '已有待安装候选，请从已安装插件管理页继续',
+                self::CONFLICT_PENDING => '存在依赖冲突候选，请从已安装插件管理页继续',
+                self::DEPENDENT_WAIT_INSTALL => '存在待执行依赖任务，请从已安装插件管理页继续',
+                default => '当前安装状态需要检查，请从已安装插件管理页处理',
+            };
+            return ['state' => $state, 'version' => $version, 'installed_version' => null, 'blocked' => false, 'reason' => $reason];
+        } catch (Throwable $error) {
+            $reason = match ($state) {
+                self::DIRECTORY_OCCUPIED => '安装候选目录已被占用或内容无效，请从已安装插件管理页处理',
+                self::RUNTIME_UNREGISTERED => '插件运行目录存在，但缺少安装登记，请从已安装插件管理页处理',
+                self::DEPLOYMENT_MISSING => '安装记录存在，但插件运行目录缺失，请从已安装插件管理页处理',
+                self::FAILED => '插件上次安装操作失败，请从已安装插件管理页恢复',
+                default => $error instanceof ApiException
+                    ? $error->getMessage()
+                    : '无法安全确认本地安装状态，请从已安装插件管理页处理',
+            };
+            return ['state' => $state, 'version' => $version, 'installed_version' => null, 'blocked' => true, 'reason' => $reason];
+        }
+    }
+
     private function assertAppName(string $app): void
     {
         if (!preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app)

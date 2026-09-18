@@ -25,5 +25,7 @@ Route::post('/app/sandpackage/install/retryFailedUpgrade', [plugin\sandpackage\a
 
 Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'repositoryCatalog']);
 Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'repositoryDownload']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'repositoryDocument']);
 Route::get('/tool/install/repository/catalog', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryCatalog']);
 Route::post('/tool/install/repository/download', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryDownload']);
+Route::get('/tool/install/repository/document', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryDocument']);

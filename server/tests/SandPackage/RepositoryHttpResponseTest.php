@@ -18,8 +18,22 @@ namespace {
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/RepositoryClient.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/RepositoryLogic.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/controller/InstallController.php';
+    $repositoryHttpRoot = sys_get_temp_dir() . '/repository-http-' . bin2hex(random_bytes(6));
+    mkdir($repositoryHttpRoot . '/runtime/sandpackage', 0755, true);
+    mkdir($repositoryHttpRoot . '/server/plugin', 0755, true);
+    function runtime_path(string $path = ''): string {
+        global $repositoryHttpRoot;
+        return $repositoryHttpRoot . '/runtime' . ($path === '' ? '' : '/' . $path);
+    }
+    function base_path(string $path = ''): string {
+        global $repositoryHttpRoot;
+        return $repositoryHttpRoot . '/server' . ($path === '' ? '' : '/' . $path);
+    }
     function config(string $key, mixed $default = null): mixed {
-        return ['plugin.sandadmin.app.version' => '6.0.11'][$key] ?? $default;
+        return [
+            'plugin.sandadmin.app.version' => '6.0.11',
+            'plugin.sandpackage.app.version' => '6.1.5',
+        ][$key] ?? $default;
     }
     function json(mixed $data, int $options = 0): \support\Response {
         return new \support\Response(200, ['Content-Type' => 'application/json'], json_encode($data, $options | JSON_THROW_ON_ERROR));
@@ -29,10 +43,15 @@ namespace plugin\sandpackage\app\service {
     final class GithubRepositoryClient implements RepositoryClient {
         public static bool $fail = false;
         public static int $calls = 0;
+        public static string $catalog = '{"schema":1,"plugins":[]}';
+        public static string $zip = '';
         public static function shared(): self { return new self(); }
         public function get(string $url, int $maxBytes, callable $complete): void {
             self::$calls++;
-            $complete(self::$fail ? null : '{"schema":1,"plugins":[]}', self::$fail ? new \plugin\sandadmin\exception\ApiException('仓库读取失败') : null);
+            $complete(
+                self::$fail ? null : (str_contains($url, 'raw.githubusercontent.com') ? self::$catalog : self::$zip),
+                self::$fail ? new \plugin\sandadmin\exception\ApiException('仓库读取失败') : null,
+            );
         }
     }
 }
@@ -102,4 +121,52 @@ namespace {
     check($request->connection->sent === [] && \plugin\sandpackage\app\service\GithubRepositoryClient::$calls === $before, 'closed connection before dispatch starts no network operation');
     try { $controller->repositoryDownload(requestFixture()); throw new RuntimeException('missing payload accepted'); }
     catch (\plugin\sandadmin\exception\ApiException) { check(\Workerman\Timer::$tasks === [], 'invalid download selection rejected before dispatch'); }
+
+    \plugin\sandpackage\app\service\GithubRepositoryClient::$fail = false;
+    $documentFile = tempnam(sys_get_temp_dir(), 'repository-http-document-');
+    $documentZip = new ZipArchive();
+    $documentZip->open($documentFile, ZipArchive::OVERWRITE);
+    $documentZip->addFromString('info.ini', "app = doc-sample\nversion = 1.0.0\n");
+    $documentZip->addFromString('README.md', "# HTTP document\n");
+    $documentZip->close();
+    $documentBytes = (string) file_get_contents($documentFile);
+    unlink($documentFile);
+    $documentSha = hash('sha256', $documentBytes);
+    \plugin\sandpackage\app\service\GithubRepositoryClient::$zip = $documentBytes;
+    \plugin\sandpackage\app\service\GithubRepositoryClient::$catalog = json_encode([
+        'schema' => 1,
+        'plugins' => [[
+            'app' => 'doc-sample', 'title' => 'Doc', 'about' => 'Fixture', 'author' => 'Test',
+            'versions' => [[
+                'version' => '1.0.0', 'tag' => 'doc-sample-v1.0.0', 'asset' => 'doc-sample-1.0.0.zip',
+                'sha256' => $documentSha, 'host_min' => '6.0.0', 'notes' => '',
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR);
+    $documentRequest = new \support\Request("GET /tool/install/repository/document?app=doc-sample&version=1.0.0&sha256={$documentSha} HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    $documentRequest->connection = new RecordingConnection();
+    $controller->repositoryDocument($documentRequest);
+    (array_shift(\Workerman\Timer::$tasks))();
+    [$size, $body] = explode("\r\n", $documentRequest->connection->sent[0], 2);
+    $documentData = json_decode(substr($body, 0, hexdec($size)), true, 32, JSON_THROW_ON_ERROR);
+    check($documentData['data'] === ['app' => 'doc-sample', 'version' => '1.0.0', 'markdown' => "# HTTP document\n"], 'GET document validates identity and returns markdown through async JSON');
+    $invalidDocument = new \support\Request("GET /tool/install/repository/document?app=../escape&version=1.0.0&sha256={$documentSha} HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    $invalidDocument->connection = new RecordingConnection();
+    try { $controller->repositoryDocument($invalidDocument); throw new RuntimeException('invalid document selection accepted'); }
+    catch (\plugin\sandadmin\exception\ApiException) { check(\Workerman\Timer::$tasks === [], 'document rejects arbitrary app paths before dispatch'); }
+
+    $pendingDirectory = runtime_path('sandpackage/index-pending');
+    mkdir($pendingDirectory, 0755, true);
+    file_put_contents($pendingDirectory . '/info.ini', "app = \"index-pending\"\nversion = \"1.0.0\"\nstate = 2\nlifecycle_driver = \"saipackage-pg-v1\"\n");
+    $indexResponse = $controller->index(requestFixture());
+    $indexData = json_decode($indexResponse->rawBody(), true, 32, JSON_THROW_ON_ERROR);
+    check($indexData['data']['data'][0]['state'] === 2
+        && $indexData['data']['data'][0]['ordinary_actions_blocked'] === false, 'installed-plugin index keeps a healthy uploaded state 2 candidate actionable');
+    unlink($pendingDirectory . '/info.ini');
+    rmdir($pendingDirectory);
+    rmdir(runtime_path('sandpackage'));
+    rmdir(runtime_path());
+    rmdir(base_path('plugin'));
+    rmdir(base_path());
+    rmdir($repositoryHttpRoot);
 }

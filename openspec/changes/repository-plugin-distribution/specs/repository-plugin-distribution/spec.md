@@ -16,7 +16,7 @@
 
 #### Scenario: Valid package
 - **WHEN** 管理员选择兼容且校验通过的版本
-- **THEN** 该插件进入本地安装列表，用户继续通过既有安装或升级确认操作完成生命周期
+- **THEN** 仓库界面在用户确认后串联候选准备和既有安装或升级入口，并刷新真实安装状态；无需切换页面再次点击安装
 
 #### Scenario: Invalid or changed package
 - **WHEN** 清单变化、校验值不匹配、包身份不一致、宿主版本不兼容或下载超限
@@ -36,3 +36,21 @@
 #### Scenario: Declared runtime dependencies
 - **WHEN** 插件发布契约明确声明插件本地运行依赖目录及文件数量、树摘要
 - **THEN** 打包器 SHALL 仅在源码及最终ZIP均匹配声明且满足原有数量、体积、安全路径边界时包含这些依赖；缺少声明或内容变化必须拒绝
+
+### Requirement: Local state aware actions
+系统 SHALL 以本机实际安装记录、运行目录与已有生命周期闸门计算仓库动作，插件管理集中提供适用的卸载、依赖和恢复入口。
+
+#### Scenario: Installed or blocked plugin
+- **WHEN** 已安装同版本、已安装更高版本，或记录与运行文件不一致
+- **THEN** 分别显示已安装、禁止降级或需处理状态；禁止重复安装或覆盖异常记录，显示原因并可跳转管理
+
+#### Scenario: Direct installation or upgrade
+- **WHEN** 管理员选择可操作版本并确认
+- **THEN** 串联既有下载及安装HTTP请求，核对候选身份和升级源版本；全程防重，真实状态未达到已安装时不报告成功
+
+### Requirement: Read-only version documentation
+系统 SHALL 在无写入权限状态下仍允许已认证超级管理员读取所选版本的校验后README文本。
+
+#### Scenario: Display package documentation
+- **WHEN** 用户选择查看文档
+- **THEN** 从已配置仓库的对应Release核验包后返回有界UTF8文本，不创建候选或执行SQL；界面不执行文档HTML，显示加载、失败、空内容状态且不会串页

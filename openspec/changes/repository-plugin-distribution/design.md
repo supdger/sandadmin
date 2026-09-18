@@ -4,7 +4,7 @@
 
 ## Goals / Non-Goals
 
-**Goals:** 仓库清单 → 版本 ZIP → 校验 → 待安装 → 既有生命周期。提供维护者单插件打包命令和清单维护说明。
+**Goals:** 仓库清单与本机状态 → 版本 ZIP → 校验 → 一次确认后既有安装生命周期；管理页处理卸载、依赖和恢复。提供维护者单插件打包命令和清单维护说明。
 
 **Non-Goals:** 账号订单平台、任意第三方URL安装、私有仓库token、新迁移引擎、自动依赖插件安装、实际业务插件搬迁、对外发布。
 
@@ -14,7 +14,7 @@
 - 默认仓库supdger/sandadmin、ref=main，可由服务端环境配置修改；无密钥。清单初始为空，404显式报错。
 - 下载提交app/version/sha256，服务器重新读取清单，拒绝变更和不兼容版本。ZIP info.ini在交现有InstallLogic前校验；下载只准备候选，不执行SQL。
 - 网络传输封装GithubRepositoryClient，使用curl_multi和Workerman Timer非阻塞轮询；连接5秒，总60秒，限制重定向、域名和字节数，每Worker并发2。清单最大1MiB，ZIP最大5MiB，解压继续使用现有64MiB/2048条目限制。失败关闭并清理资源。
-- 界面替换在线商店区域，移除账号购买；保留本地安装及恢复区域。复用hideGlobalPluginWrites、加载/空/失败状态，下载完成切回本地安装。Astra/medium独立设计已核对。
+- 界面替换在线商店区域，移除账号购买；保留本地安装及恢复区域。复用hideGlobalPluginWrites、加载/空/失败状态，仓库操作一次确认后串联下载与现有安装请求，不要求用户切页再点安装；失败或待处理时引导插件管理。Astra/medium独立设计已核对。
 - 单插件打包命令从plugins/<app>或显式源码目录读取，排除无关文件的方式采用明确载荷白名单，生成ZIP和目录条目；不依赖构建市场平台。
 
 ## Risks / Trade-offs
@@ -34,3 +34,10 @@
 插件方确认SandIAM的plugin/sand-iam/vendor属于正式SAML运行载荷。通用builder支持根release-build-contract.json内kind=reviewed-runtime-payload-inputs及generated_payloads精确plugin/<app>/vendor条目，复用file_count/tree_sha256字段；树摘要为依赖目录内部相对文件路径到SHA-256的映射，以SORT_STRING排序、JSON_UNESCAPED_SLASHES编码后计算SHA-256。无声明仍拒绝vendor，其他声明不自动扩大载荷白名单。对源码与最终ZIP分别核对，保留5MiB/64MiB/2048和符号链接/敏感路径拒绝。
 
 这只证明所声明运行依赖的完整性，不证明契约自身经过授权审查，也不替代插件已有工具链/源码快照/SDK/门户/签名发布契约。SandIAM正式发行继续使用插件侧正式builder，宿主消费符合安装结构的既有ZIP。
+
+## 状态感知、直接安装和文档
+
+- 用户新要求在既有变更内实现。catalog插件local包含state/version/installed_version/blocked/reason，版本action区分install、upgrade、installed、downgrade、manage、incompatible。读取真实运行目录与安装记录，复用普通生命周期只读预检；记录为已安装但文件缺失时不得显示可升级。
+- index展示真实状态并保留旧恢复字段。现有待安装候选、依赖或异常状态引导插件管理，不覆盖候选。用户当前0.6.0记录对应后端目录缺失，保留其记录和数据库，不自动恢复或重装。
+- 前端刷新状态后确认，串联download与现有install接口；安装仍在普通HTTP请求上下文中执行，不在异步下载Timer里调用SQL。升级确认源/目标与候选一致，链路全程防重；刷新看到真实state1才称成功。
+- 文档GET仅接受app/version/sha256，从同一受信Release下载并核验ZIP，只读根README.md，256KiB文本上限。不解压到插件目录，不暂存候选，不执行HTML或加载远程图片；前端插值显示Markdown原文，独立loading/error/empty及竞态保护。

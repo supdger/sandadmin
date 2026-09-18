@@ -12,6 +12,8 @@ use ZipArchive;
 /** Public repository distribution; installation remains owned by InstallLogic. */
 final class RepositoryLogic
 {
+    private const README_NAMES = ['README.md', 'README.MD', 'Readme.md', 'readme.md'];
+
     public function __construct(
         private RepositoryClient $client,
         private string $repository,
@@ -28,15 +30,26 @@ final class RepositoryLogic
     /** @param callable(?array, ?Throwable): void $complete */
     public function catalog(callable $complete): void
     {
+        $this->fetchCatalog(true, function (?array $catalog, ?Throwable $error) use ($complete): void {
+            if ($error !== null) { $complete(null, $error); return; }
+            $complete(['repository' => $this->repository, 'ref' => $this->ref, 'plugins' => $catalog['plugins']], null);
+        });
+    }
+
+    /** @param callable(?array, ?Throwable): void $complete */
+    private function fetchCatalog(bool $includeLocalState, callable $complete): void
+    {
         $ref = implode('/', array_map('rawurlencode', explode('/', $this->ref)));
         $url = 'https://raw.githubusercontent.com/' . $this->repository . '/' . $ref . '/plugins/catalog.json';
-        $this->client->get($url, 1048576, function (?string $body, ?Throwable $error) use ($complete): void {
+        $this->client->get($url, 1048576, function (?string $body, ?Throwable $error) use ($includeLocalState, $complete): void {
             if ($error !== null) { $complete(null, $error); return; }
             try {
                 $catalog = self::parseCatalog($body ?? '');
-                $result = ['repository' => $this->repository, 'ref' => $this->ref, 'plugins' => $catalog['plugins']];
+                if ($includeLocalState) {
+                    $catalog = $this->withLocalState($catalog);
+                }
             } catch (Throwable $error) { $complete(null, $error); return; }
-            $complete($result, null);
+            $complete($catalog, null);
         });
     }
 
@@ -46,21 +59,12 @@ final class RepositoryLogic
         $this->catalog(function (?array $catalog, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
             if ($error !== null) { $complete(null, $error); return; }
             try {
-                $release = null;
-                foreach ($catalog['plugins'] as $plugin) {
-                    if ($plugin['app'] !== $app) continue;
-                    foreach ($plugin['versions'] as $candidate) {
-                        if ($candidate['version'] === $version) $release = $candidate;
-                    }
-                }
-                if ($release === null) throw new ApiException('仓库中不存在此插件版本，请刷新插件清单');
+                $release = $this->selectRelease($catalog, $app, $version);
                 if (!hash_equals($release['sha256'], $sha256)) throw new ApiException('插件清单已变化，请刷新后重新选择版本');
-                if (!version_compare($this->hostVersion, $release['host_min'], '>=')
-                    || (isset($release['host_max']) && !version_compare($this->hostVersion, $release['host_max'], '<='))) {
-                    throw new ApiException('该插件版本与当前 SandAdmin 版本不兼容');
+                if (!in_array($release['action'] ?? null, ['install', 'upgrade'], true)) {
+                    throw new ApiException((string) ($release['action_reason'] ?? '当前安装状态不能准备此插件版本'));
                 }
-                $url = 'https://github.com/' . $this->repository . '/releases/download/'
-                    . rawurlencode($release['tag']) . '/' . rawurlencode($release['asset']);
+                $url = $this->releaseUrl($release);
             } catch (Throwable $error) { $complete(null, $error); return; }
             $this->client->get($url, 5242880, function (?string $body, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
                 if ($error !== null) { $complete(null, $error); return; }
@@ -71,28 +75,150 @@ final class RepositoryLogic
         });
     }
 
+    /** Documentation is package-only and deliberately ignores broken local state. @param callable(?array, ?Throwable): void $complete */
+    public function document(string $app, string $version, string $sha256, callable $complete): void
+    {
+        $this->fetchCatalog(false, function (?array $catalog, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
+            if ($error !== null) { $complete(null, $error); return; }
+            try {
+                $release = $this->selectRelease($catalog, $app, $version);
+                if (!hash_equals($release['sha256'], $sha256)) throw new ApiException('插件清单已变化，请刷新后重新选择版本');
+                $url = $this->releaseUrl($release);
+            } catch (Throwable $error) { $complete(null, $error); return; }
+            $this->client->get($url, 5242880, function (?string $body, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
+                if ($error !== null) { $complete(null, $error); return; }
+                try {
+                    $markdown = $this->readDocument($body ?? '', $app, $version, $sha256);
+                } catch (Throwable $error) { $complete(null, $error); return; }
+                $complete(['app' => $app, 'version' => $version, 'markdown' => $markdown], null);
+            });
+        });
+    }
+
     private function stage(string $body, string $app, string $version, string $sha256): array
     {
+        $file = $this->archiveFile($body, $sha256);
+        try {
+            $zip = $this->verifiedZip($file, $app, $version);
+            $zip->close();
+            $info = (new InstallLogic())->uploadFromPath($file);
+            return array_merge($info, InstallLogic::presentInfo($info));
+        } finally { if (is_file($file)) unlink($file); }
+    }
+
+    private function readDocument(string $body, string $app, string $version, string $sha256): string
+    {
+        $file = $this->archiveFile($body, $sha256);
+        try {
+            $zip = $this->verifiedZip($file, $app, $version);
+            try {
+                $matches = [];
+                foreach (self::README_NAMES as $name) {
+                    if ($zip->locateName($name) !== false) {
+                        $matches[] = $name;
+                    }
+                }
+                if (count($matches) !== 1) throw new ApiException('插件包缺少唯一的根目录 README.md');
+                $stat = $zip->statName($matches[0]);
+                if (!is_array($stat) || ($stat['size'] ?? 0) > 262144) throw new ApiException('插件文档超过 256 KiB 限制');
+                $markdown = $zip->getFromName($matches[0]);
+                if (!is_string($markdown) || strlen($markdown) > 262144) throw new ApiException('插件文档超过 256 KiB 限制');
+                if (preg_match('//u', $markdown) !== 1) throw new ApiException('插件文档必须是有效的 UTF-8 文本');
+                return $markdown;
+            } finally { $zip->close(); }
+        } finally { if (is_file($file)) unlink($file); }
+    }
+
+    private function archiveFile(string $body, string $sha256): string
+    {
         if (strlen($body) > 5242880 || !hash_equals($sha256, hash('sha256', $body))) {
-            throw new ApiException('插件包校验失败，未准备安装');
+            throw new ApiException('插件包校验失败');
         }
         $file = tempnam(sys_get_temp_dir(), 'sandpackage-download-');
         if ($file === false) throw new ApiException('无法创建插件下载临时文件');
+        if (file_put_contents($file, $body) !== strlen($body)) {
+            if (is_file($file)) unlink($file);
+            throw new ApiException('插件包保存失败');
+        }
+        return $file;
+    }
+
+    private function verifiedZip(string $file, string $app, string $version): ZipArchive
+    {
+        $zip = new ZipArchive();
+        if ($zip->open($file) !== true) throw new ApiException('下载文件不是有效的 ZIP 插件包');
         try {
-            if (file_put_contents($file, $body) !== strlen($body)) throw new ApiException('插件包保存失败');
-            $zip = new ZipArchive();
-            if ($zip->open($file) !== true) throw new ApiException('下载文件不是有效的 ZIP 插件包');
-            try {
-                $stat = $zip->statName('info.ini');
-                if (!$stat || $stat['size'] > 16384) throw new ApiException('插件包缺少有效的 info.ini');
-                $raw = $zip->getFromName('info.ini');
-                $info = is_string($raw) ? @parse_ini_string($raw, true, INI_SCANNER_TYPED) : false;
-                if (!is_array($info) || ($info['app'] ?? null) !== $app || ($info['version'] ?? null) !== $version) {
-                    throw new ApiException('插件包名称或版本与所选仓库版本不一致');
-                }
-            } finally { $zip->close(); }
-            return (new InstallLogic())->uploadFromPath($file);
-        } finally { if (is_file($file)) unlink($file); }
+            $stat = $zip->statName('info.ini');
+            if (!is_array($stat) || ($stat['size'] ?? 0) > 16384) throw new ApiException('插件包缺少有效的 info.ini');
+            $raw = $zip->getFromName('info.ini');
+            $info = is_string($raw) ? @parse_ini_string($raw, true, INI_SCANNER_TYPED) : false;
+            if (!is_array($info) || ($info['app'] ?? null) !== $app || ($info['version'] ?? null) !== $version) {
+                throw new ApiException('插件包名称或版本与所选仓库版本不一致');
+            }
+            return $zip;
+        } catch (Throwable $error) {
+            $zip->close();
+            throw $error;
+        }
+    }
+
+    private function selectRelease(array $catalog, string $app, string $version): array
+    {
+        foreach ($catalog['plugins'] as $plugin) {
+            if ($plugin['app'] !== $app) continue;
+            foreach ($plugin['versions'] as $candidate) {
+                if ($candidate['version'] === $version) return $candidate;
+            }
+        }
+        throw new ApiException('仓库中不存在此插件版本，请刷新插件清单');
+    }
+
+    private function releaseUrl(array $release): string
+    {
+        return 'https://github.com/' . $this->repository . '/releases/download/'
+            . rawurlencode($release['tag']) . '/' . rawurlencode($release['asset']);
+    }
+
+    private function withLocalState(array $catalog): array
+    {
+        foreach ($catalog['plugins'] as &$plugin) {
+            $local = (new InstallLogic($plugin['app']))->ordinaryStatus();
+            $plugin['local'] = $local;
+            foreach ($plugin['versions'] as &$release) {
+                [$release['action'], $release['action_reason']] = $this->releaseAction($local, $release);
+            }
+            unset($release);
+        }
+        unset($plugin);
+        return $catalog;
+    }
+
+    /** @return array{string,string} */
+    private function releaseAction(array $local, array $release): array
+    {
+        if ($local['blocked']) {
+            return ['manage', $local['reason']];
+        }
+        if (!$this->compatible($release)) {
+            $range = $release['host_min'] . (isset($release['host_max']) ? ' 至 ' . $release['host_max'] : ' 或更高');
+            return ['incompatible', '需要 SandAdmin ' . $range];
+        }
+        if ($local['state'] === InstallLogic::UNINSTALLED) {
+            return ['install', '未安装，可以安装此版本'];
+        }
+        if ($local['state'] !== InstallLogic::INSTALLED || $local['installed_version'] === null) {
+            return ['manage', $local['reason'] !== '' ? $local['reason'] : '当前安装状态需要从已安装插件管理页继续'];
+        }
+        $comparison = version_compare($release['version'], $local['installed_version']);
+        if ($comparison === 0) return ['installed', '当前已经安装此版本'];
+        if ($comparison < 0) return ['downgrade', '所选版本低于已安装版本，禁止降级'];
+        return ['upgrade', '可从 ' . $local['installed_version'] . ' 升级到此版本'];
+    }
+
+    private function compatible(array $release): bool
+    {
+        return version_compare($this->hostVersion, $release['host_min'], '>=')
+            && (!isset($release['host_max']) || version_compare($this->hostVersion, $release['host_max'], '<='));
     }
 
     /** Validate the entire manifest before displaying or trusting any release. */

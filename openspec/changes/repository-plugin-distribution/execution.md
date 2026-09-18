@@ -79,3 +79,22 @@
 用户截图localhost:3006的当前进程经lsof确认为当前sandadmin前端，代理8788；后端cwd也已确认。本实例及独立验收实例的SANDADMIN_PLUGIN_REF改为codex/plugin-catalog-preview并重载。真实经8788和3006/api访问仓库接口均HTTP200/业务200，返回SandIAM及预发布版本；原404已解除。
 
 正式GithubRepositoryClient与RepositoryLogic从真实远端清单和Release附件下载、验证SHA256/ZIP身份并在新临时目录调用InstallLogic暂存成功，state=2，runtime_deployed=false，无数据库操作。独立宿主先前同摘要包真实安装state=1证据保持。浏览器点击及真实升级仍未验收，不将预发布宣称稳定版本。
+
+## 状态感知与文档增量（用户后续要求）
+
+用户要求仓库直接安装/升级、自动判断已安装、本地安装改插件管理、文档查看。原3006/8788实例IAM记录0.6.0/state1但运行目录缺失；旧index仅展示记录导致误报，本次保持记录与数据库不变，修正真实状态读取为7。
+
+后端新增ordinaryStatus只读预检、catalog本机local及版本action、下载前动作拒绝和只读README接口。独立审查发现健康state2候选被误blocked，已修为普通管理操作允许、仓库仍manage避免重复下载；新增真实Controller::index临时目录测试。RepositoryDistribution及HttpResponse测试独立复跑通过。
+
+真实HTTP复验：8788 local.state7/version0.6.0/blocked=true/action=manage、index.state7；18918 local.state1/installed_version0.7.3/blocked=false/action=installed。两边文档均返回6591字节正确README；重复下载分别缺文件拒绝/已安装同版本拒绝。安装info.ini前后SHA256相同，未执行插件生命周期SQL、安装或卸载；普通HTTP认证和系统操作日志按宿主正常机制运行。四个宿主后端文件同步至本任务隔离实例，两个后端已重载。
+
+本轮浏览器工具最小复查仍报request-header policy加载失败；未改用脚本绕过，因此真实UI交互证据仍待完成。前端候选及独立验收进行中。
+
+### 前端增量完成与复核
+
+- 本地安装改插件管理，仓库展示本机状态及允许动作；一次确认串联刷新/候选准备/安装，核对身份和升级源版本，刷新确认state1才成功。文档抽屉以文本插值显示README，独立请求序号防串页。
+- 独立审查P2发现本地HTTP未占用全页互斥，已将五类本地写请求、上传、恢复活动阶段及既有终端活动任务纳入共享忙碌状态，刷新后释放；上传成功等待父页刷新。再次独立审查无must-fix。
+- 局部类型、ESLint、Stylelint、Prettier通过；最终主控重新执行完整pnpm run build通过（vue-tsc + Vite）。静态互斥断言不是浏览器并发证据。
+- 冻结前端三文件同步至本任务隔离实例。真实3006 Vite返回的新模块包含插件管理、查看文档、直接安装及共享互斥；这仅证明代码已提供，不等同浏览器点击验收。
+- 本轮未清理旧记录、执行插件安装/升级/卸载或发布新插件包。用户现有IAM 0.6.0缺运行文件状态未自动修复。真实一键点击和版本升级仍待独立浏览器/业务验收。
+- 额外状态机脚本行为段通过，但末尾原有静态版本断言写死6.1.4、当前配置6.1.5而失败，本轮未改其版本断言。
