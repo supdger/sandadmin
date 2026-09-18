@@ -71,3 +71,11 @@
 - 安装SandIAM后的前端Vite构建通过，14.93s；不等同完整业务验收。
 - Astra/medium独立读取安装/登录/接口/构建记录并检查Captcha修复，无must-fix。独立浏览器操作被request-header policy加载故障阻塞，未绕过工具策略。
 - 独立实例保留供用户访问：127.0.0.1:31918。本次未执行真实升级、GitHub发布、源码提交/推送或既有宿主部署。待发布清单及保持原名的ZIP已在任务outputs/plugin-release-preview整理，未写入已发布目录。
+
+## 已授权预发布与用户实例404修复
+
+用户再次明确授权在线预发布。源码提交3a80b25已推送supdger/sandadmin的codex/sandadmin-rename；Release `sand-iam-v0.7.3-v38`已发布为prerelease，附件保持正式ZIP原名和摘要。清单提交416230a已推送codex/plugin-catalog-preview；main未修改。origin为SaiAdmin上游，首次推送被403拒绝未产生变更，随后向已确认的github远端成功推送。
+
+用户截图localhost:3006的当前进程经lsof确认为当前sandadmin前端，代理8788；后端cwd也已确认。本实例及独立验收实例的SANDADMIN_PLUGIN_REF改为codex/plugin-catalog-preview并重载。真实经8788和3006/api访问仓库接口均HTTP200/业务200，返回SandIAM及预发布版本；原404已解除。
+
+正式GithubRepositoryClient与RepositoryLogic从真实远端清单和Release附件下载、验证SHA256/ZIP身份并在新临时目录调用InstallLogic暂存成功，state=2，runtime_deployed=false，无数据库操作。独立宿主先前同摘要包真实安装state=1证据保持。浏览器点击及真实升级仍未验收，不将预发布宣称稳定版本。
