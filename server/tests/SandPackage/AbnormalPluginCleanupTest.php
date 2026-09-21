@@ -55,7 +55,16 @@ final class CleanupPdo
         } elseif (str_starts_with($sql, 'SELECT id::text, parent_id::text')) {
             $rows = array_map(static fn (array $row): array => $row + ['row_value' => json_encode($row)], array_values($this->menus));
         } elseif (str_starts_with($sql, 'SELECT id::text FROM public.sand_system_menu WHERE')) {
-            foreach ($this->menus as $row) if (str_starts_with($row['code'], 'Probe')) $rows[] = ['id' => $row['id']];
+            preg_match_all("/(code|slug|component|path)\\s*(=|LIKE)\\s*'((?:[^']|'')*)'/i", $sql, $terms, PREG_SET_ORDER);
+            foreach ($this->menus as $row) {
+                foreach ($terms as $term) {
+                    $value = (string) ($row[strtolower($term[1])] ?? '');
+                    $pattern = str_replace("''", "'", $term[3]);
+                    $matches = strtoupper($term[2]) === '=' ? $value === $pattern
+                        : preg_match('/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote($pattern, '/')) . '$/sD', $value) === 1;
+                    if ($matches) { $rows[] = ['id' => $row['id']]; break; }
+                }
+            }
         } elseif (str_starts_with($sql, 'SELECT to_jsonb(r)')) {
             preg_match('/IN \(([^)]+)\)/', $sql, $match); $ids = explode(',', $match[1]);
             foreach ($this->roles as $row) if (in_array((string) $row['menu_id'], $ids, true)) $rows[] = ['row_value' => json_encode($row)];
@@ -221,4 +230,109 @@ $package['uninstall_sql'] = 'DROP TABLE probe_three;'; file_put_contents($candid
 mkdir($root . '/other-package'); file_put_contents($root . '/other-package/install.sql', 'CREATE TABLE probe_three (id int);');
 rejects(fn () => $service->inspect(), 'supplement cannot claim another registered plugin table');
 
+function menuDeclaration(string $candidate, string $menu, ?string $role = null): void {
+    $role ??= $menu;
+    file_put_contents($candidate . '/uninstall.sql', "BEGIN; DROP TABLE probe_one; DROP TABLE probe_two; DELETE FROM sand_system_role_menu WHERE menu_id IN (SELECT id FROM sand_system_menu WHERE $role); DELETE FROM sand_system_menu WHERE $menu; COMMIT;");
+}
+
+[$service, $pdo, $root, $candidate] = setup();
+$pdo->menus['1']['code'] = ''; $pdo->menus['2']['code'] = ''; $pdo->menus['2']['slug'] = 'probe-package:read';
+$pdo->menus['3'] = ['id' => '3', 'parent_id' => '1', 'name' => 'Page', 'code' => '', 'slug' => '', 'path' => 'page', 'component' => '/plugin/probe-package/page/index'];
+$pdo->roles[] = ['role_id' => 1, 'menu_id' => 3];
+$pdo->menus['4'] = ['id' => '4', 'parent_id' => '1', 'name' => 'Deep page', 'code' => '', 'slug' => '', 'path' => '/probe-package/history', 'component' => ''];
+$pdo->roles[] = ['role_id' => 1, 'menu_id' => 4];
+$pdo->menus['9']['code'] = ''; $pdo->menus['9']['slug'] = 'probe-package-other:read';
+$pdo->menus['9']['path'] = '/probe-package-other'; $pdo->menus['9']['component'] = '/plugin/probe-package-other/page';
+$condition = "path = '/probe-package' OR slug LIKE 'probe-package:%' OR component LIKE '/plugin/probe-package/%' OR path LIKE '/probe-package/%'";
+$reverse = "PATH like '/probe-package/%' OR COMPONENT like '/plugin/probe-package/%' OR SLUG like 'probe-package:%' OR PATH = '/probe-package'";
+menuDeclaration($candidate, $condition, $reverse);
+$preview = $service->inspect();
+check(count($preview['menus']) === 4, 'blank-code permissions are selected by exact plugin slug and owned page paths');
+$service->cleanup($preview['fingerprint'], 'probe-package');
+check(count($pdo->menus) === 1 && isset($pdo->menus[9]) && count($pdo->roles) === 1, 'normalized reordered menu predicates delete fixed owned IDs while preserving foreign blank-code menus');
+
+$unsafeConditions = [
+    "code = ''",
+    "name = 'Probe'",
+    "slug LIKE 'other-package:%'",
+    "slug LIKE 'probe-package%'",
+    "slug LIKE 'probe-package:_%'",
+    "slug = 'probe-package:read'",
+    "component LIKE '/plugin/other-package/%'",
+    "component LIKE '/plugin/probe-package%'",
+    "component LIKE 'plugin/probe-package/%'",
+    "path = '/other-package'",
+    "path LIKE '/probe-package%'",
+    "path LIKE '/probe-package/_%'",
+    "slug LIKE 'probe-package:%' ESCAPE 'x'",
+    "component LIKE '/plugin/probe-package/%' OR 1=1",
+];
+foreach ($unsafeConditions as $condition) {
+    [$service, $pdo, $root, $candidate] = setup(); menuDeclaration($candidate, $condition);
+    rejects(fn () => $service->inspect(), 'reject unsafe menu condition: ' . $condition);
+    check($pdo->executed === [], 'unsafe condition performs no database mutation');
+}
+[$service, $pdo, $root, $candidate] = setup();
+menuDeclaration($candidate, "path = '/probe-package' OR slug LIKE 'probe-package:%'");
+$pdo->menus['2']['slug'] = 'other-package:read';
+rejects(fn () => $service->inspect(), 'owned root does not authorize deletion of an unselected child');
+$pdo->menus['2']['slug'] = 'probe-package:read'; $pdo->menus['2']['component'] = '/plugin/other-package/page';
+rejects(fn () => $service->inspect(), 'matching plugin slug never overrides foreign component ownership');
+[$service, $pdo, $root, $candidate] = setup();
+menuDeclaration($candidate, "path = '/probe-package' OR slug LIKE 'probe-package:%'", "path = '/probe-package'");
+rejects(fn () => $service->inspect(), 'different role-menu and menu scopes remain rejected');
+rejects(fn () => new AbnormalPluginCleanup('probe_package', $root . '/probe_package', [], $root, $pdo), 'underscore app cannot expand LIKE ownership scope');
+
+[$service, $pdo, $root, $candidate] = setup();
+$quotedSql = <<<'SQL'
+BEGIN;
+DELETE FROM "public"."sand_system_role_menu" WHERE "menu_id" IN (
+    SELECT "id" FROM "public"."sand_system_menu"
+    WHERE "code" = 'Probe"Quoted' OR "code" LIKE 'Probe%'
+       OR "slug" LIKE 'probe-package:%'
+       OR "component" LIKE '/plugin/probe-package/%'
+       OR "path" = '/probe-package' OR "path" LIKE '/probe-package/%'
+);
+DELETE FROM "public"."sand_system_menu"
+WHERE "code" = 'Probe"Quoted' OR "code" LIKE 'Probe%'
+   OR "slug" LIKE 'probe-package:%'
+   OR "component" LIKE '/plugin/probe-package/%'
+   OR "path" = '/probe-package' OR "path" LIKE '/probe-package/%';
+DROP TABLE IF EXISTS "probe_one";
+DROP TABLE IF EXISTS "probe_two";
+COMMIT;
+SQL;
+file_put_contents($candidate . '/uninstall.sql', $quotedSql);
+$pdo->menus['1']['code'] = 'Probe"Quoted';
+check(count($service->inspect()['menus']) === 2, 'quoted PostgreSQL table and column identifiers support the real Workflow uninstall shape');
+$method = new ReflectionMethod($service, 'parseDeclaration');
+$parsed = $method->invoke($service, file_get_contents($candidate . '/install.sql'), $quotedSql);
+check(str_contains($parsed['menu_condition'], "'Probe\"Quoted'"), 'quoted identifier support preserves double quotes inside string literals');
+$service->cleanup($service->inspect()['fingerprint'], 'probe-package');
+check(count($pdo->menus) === 1 && count($pdo->roles) === 1, 'quoted predicates still delete only fixed owned menu IDs');
+foreach ([
+    ['"sand_system_menu"', '"SAND_SYSTEM_MENU"'],
+    ['"public"', '"Public"'],
+    ['"menu_id"', '"MENU_ID"'],
+    ['"id"', '"ID"'],
+    ['"slug"', '"Slug"'],
+    ['"code"', '"CODE"'],
+    ['"component"', '"unknown_field"'],
+    ['"path"', '"name"'],
+    ['"sand_system_menu"', '"sand_system_menu'],
+    ['"slug"', 'slug"'],
+] as [$from, $to]) {
+    [$service, $pdo, $root, $candidate] = setup();
+    file_put_contents($candidate . '/uninstall.sql', str_replace($from, $to, $quotedSql));
+    rejects(fn () => $service->inspect(), 'quoted identifier rejection: ' . $from . ' -> ' . $to);
+}
+foreach (["slugLIKE 'probe-package:%'", "codeLIKE 'Probe%'"] as $condition) {
+    [$service, $pdo, $root, $candidate] = setup(); menuDeclaration($candidate, $condition);
+    rejects(fn () => $service->inspect(), 'merged identifier is not a field/operator pair: ' . $condition);
+}
+[$service, $pdo, $root, $candidate] = setup();
+menuDeclaration($candidate, "CODE LIKE 'Probe%' OR SLUG LIKE 'probe-package:%' OR PATH = '/probe-package'");
+check(count($service->inspect()['menus']) === 2, 'uppercase unquoted identifiers retain PostgreSQL lowercase folding');
+menuDeclaration($candidate, '"slug"LIKE \'probe-package:%\' OR "code"LIKE \'Probe%\'');
+check(count($service->inspect()['menus']) === 2, 'quoted identifiers may directly precede LIKE without becoming merged tokens');
 echo "AbnormalPluginCleanup behavior checks passed.\n";

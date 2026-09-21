@@ -152,3 +152,15 @@
 前端最终Prettier、ESLint、生产与夹具vue-tsc、生产构建3065模块、夹具构建1865模块通过；真实Chrome组件行为18/18通过，包含大范围默认折叠、确认、防重、失败续作及重装入口。构建仅既有导入/包体积警告。OpenSpec strict及diff检查通过。按本任务已有授权提交到`codex/sandadmin-rename`并推送github同名分支，通知sand_plugins消费该修订；不会自动替消费者同步宿主或删除当前IAM数据。
 
 本轮实际模型记录：主控gpt-6-astra/low/openai；cleanup_design_review与cleanup_acceptance请求及实际均gpt-6-astra/medium/openai；cleanup_ui请求及实际均gpt-5.6-sol/medium/openai。
+
+## Permission-menu compatibility (2026-09-21)
+
+Added app-bound slug/component/path predicates and exact lowercase PostgreSQL quoted identifiers. Existing ownership-chain and child coverage checks remain; empty code and name are not ownership evidence.
+
+Source declarations were read directly from sand_plugins revision 0fc83bb43a5ec1e106c382e9228dc05779ae25da on codex/plugin-cleanup-contracts. The actual parser accepts SandAI 14-table and Workflow 7-table declarations. This proves declaration compatibility, not actual uninstallation of either plugin. Consumer reports Workflow 51/51 menu coverage and adjacent-path rejection. Existing released ZIPs were not replaced.
+
+Real PostgreSQL acceptance used the existing authorized isolated database and neutral cleanup-probe: install root/page/empty-code slug button, preserve an unrelated empty-code menu, simulate missing runtime, preview three owned menus, cleanup, reinstall, normal uninstall. Both quoted and unquoted variants passed; test data removed. Logs: work/cleanup-acceptance-20260921/slug-menu-lifecycle.log and quoted-slug-menu-lifecycle.log in the task workspace. Current IAM was inspected only: 86 tables, 176 menus; no deletion.
+
+Actual plugin SQL exposed quoted-identifier incompatibility, now fixed. Independent review exposed slugLIKE/codeLIKE being normalized despite invalid token boundaries; fixed and independently replayed. Final 96 behavior assertions pass, both committed plugin declarations pass, RepositoryDistribution passes, diff check passes. No UI changes; prior independent browser evidence reused. Independent reviewer reports no remaining must-fix.
+
+Commit/push uses the existing authorized host feature branch; consumers must pull the revision and separately verify real plugin lifecycle before publishing replacement candidates. Models: root gpt-6-astra/low/openai; cleanup_design_review and cleanup_acceptance requested/actual gpt-6-astra/medium/openai.

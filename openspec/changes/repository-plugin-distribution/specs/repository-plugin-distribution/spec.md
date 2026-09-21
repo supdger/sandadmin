@@ -106,3 +106,7 @@
 #### Scenario: Interrupted cleanup
 - **WHEN** 数据库提交回应丢失或后续归档未完成
 - **THEN** 保留可继续清理的管理入口，依据现场与持久记录判断是否仅需归档，不能盲目重放SQL或以删除登记掩盖数据库残留
+
+#### Scenario: Permission menus stored in slug
+- **WHEN** 插件权限节点以 slug 保存权限标识而 code 为空
+- **THEN** 可通过与插件标识严格绑定的 slug/component/path 条件选取，并继续证明路径或组件祖先归属及子节点覆盖；不得用空 code 或菜单名称扩大删除范围

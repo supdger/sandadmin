@@ -232,9 +232,9 @@ final class AbnormalPluginCleanup
                 $dropped[] = self::table($match[1]);
             } elseif (preg_match('/^ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(' . self::TABLE_NAME . ')\s+DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?[a-z_][a-z0-9_]*$/iD', $sql, $match)) {
                 $altered[] = self::table($match[1]);
-            } elseif (preg_match('/^DELETE\s+FROM\s+(?:public\.)?sand_system_menu\s+WHERE\s+(.+)$/isD', $sql, $match) && $menuCondition === null) {
+            } elseif (preg_match('/^DELETE\s+FROM\s+(?:' . self::fixedIdentifier('public') . '\.)?' . self::fixedIdentifier('sand_system_menu') . '\s+WHERE\s+(.+)$/isD', $sql, $match) && $menuCondition === null) {
                 $menuCondition = $this->condition($match[1]);
-            } elseif (preg_match('/^DELETE\s+FROM\s+(?:public\.)?sand_system_role_menu\s+WHERE\s+menu_id\s+IN\s*\(\s*SELECT\s+id\s+FROM\s+(?:public\.)?sand_system_menu\s+WHERE\s+(.+)\s*\)$/isD', $sql, $match) && $roleCondition === null) {
+            } elseif (preg_match('/^DELETE\s+FROM\s+(?:' . self::fixedIdentifier('public') . '\.)?' . self::fixedIdentifier('sand_system_role_menu') . '\s+WHERE\s+' . self::fixedIdentifier('menu_id') . '\s+IN\s*\(\s*SELECT\s+' . self::fixedIdentifier('id') . '\s+FROM\s+(?:' . self::fixedIdentifier('public') . '\.)?' . self::fixedIdentifier('sand_system_menu') . '\s+WHERE\s+(.+)\s*\)$/isD', $sql, $match) && $roleCondition === null) {
                 $roleCondition = $this->condition(trim($match[1]));
             } else {
                 throw new ApiException('卸载脚本包含未支持的清理语句；仅支持 owned 表 DROP/约束声明与限定菜单删除');
@@ -248,16 +248,42 @@ final class AbnormalPluginCleanup
             'install_hash' => hash('sha256', $install), 'uninstall_hash' => hash('sha256', $uninstall)];
     }
 
+    /** Unquoted identifiers fold to lowercase; quoted identifiers must already be exact. */
+    private static function fixedIdentifier(string $name): string
+    {
+        return '(?:' . preg_quote($name, '/') . '(?![a-z0-9_$])|(?-i:"' . preg_quote($name, '/') . '"))';
+    }
+
     private function condition(string $sql): string
     {
         $literal = "'(?:[^']|'')*'";
-        $term = "code\\s*(?:=\\s*($literal)|LIKE\\s+($literal)(?:\\s+ESCAPE\\s+($literal))?)";
+        $term = self::fixedIdentifier('code') . "\\s*(?:=\\s*($literal)|LIKE\\s+($literal)(?:\\s+ESCAPE\\s+($literal))?)";
+        $ownedTerm = "(" . implode('|', array_map(self::fixedIdentifier(...), ['slug', 'component', 'path'])) . ")\\s*(=|LIKE)\\s*($literal)";
         $parts = [];
         while ($sql !== '') {
-            if (!preg_match('/\A\s*' . $term . '/i', $sql, $match)) throw new ApiException('菜单删除条件不是受支持的 code 限定条件');
             $value = static fn (string $text): string => str_replace("''", "'", substr($text, 1, -1));
-            if (($match[1] ?? '') !== '') $parts[] = 'code = ' . $this->pdo->quote($value($match[1]));
-            else {
+            if (preg_match('/\A\s*' . $ownedTerm . '/i', $sql, $match)) {
+                $field = strtolower(trim($match[1], '"'));
+                $operator = strtoupper($match[2]);
+                $pattern = $value($match[3]);
+                $expected = match ($field . ' ' . $operator) {
+                    'slug LIKE' => $this->app . ':%',
+                    'component LIKE' => '/plugin/' . $this->app . '/%',
+                    'path =' => '/' . $this->app,
+                    'path LIKE' => '/' . $this->app . '/%',
+                    default => null,
+                };
+                if ($expected === null || $pattern !== $expected || strpbrk($this->app, '_%\\') !== false) {
+                    throw new ApiException('菜单 slug、component、path 条件只能使用该插件的精确路径或权限前缀');
+                }
+                $parts[] = $field . ' ' . $operator . ' ' . $this->pdo->quote($pattern);
+            } elseif (!preg_match('/\A\s*' . $term . '/i', $sql, $match)) {
+                throw new ApiException('菜单删除条件不是受支持的插件归属限定条件');
+            } elseif (($match[1] ?? '') !== '') {
+                if ($value($match[1]) === '') throw new ApiException('空 code 不能证明菜单归属');
+                $parts[] = 'code = ' . $this->pdo->quote($value($match[1]));
+            } else {
+                if ($value($match[2]) === '') throw new ApiException('空 code 不能证明菜单归属');
                 $part = 'code LIKE ' . $this->pdo->quote($value($match[2]));
                 if (($match[3] ?? '') !== '') {
                     $escape = $value($match[3]);
@@ -273,6 +299,8 @@ final class AbnormalPluginCleanup
             if (trim($sql) === '') throw new ApiException('菜单删除条件不完整');
         }
         if ($parts === []) throw new ApiException('菜单删除范围为空');
+        $parts = array_values(array_unique($parts));
+        sort($parts, SORT_STRING);
         return implode(' OR ', $parts);
     }
 
