@@ -28,9 +28,9 @@
       "versions": [
         {
           "version": "1.0.7",
-          "tag": "sandworkflow-v1.0.7-preview-216cccf",
+          "tag": "sandworkflow-v1.0.7-preview-ddea7b6",
           "asset": "sandworkflow-1.0.7.zip",
-          "sha256": "ffe6891ab7ee05763057e8bc4c4b04eaae75a0edc4618ea4afeaf80aaaee4b0a",
+          "sha256": "229d74a6ce801a75538554fa46e16f92b0a754f00edd4dabf48ccfe4d0f60806",
           "host_min": "6.0.11",
           "notes": "预发布：已在独立 PostgreSQL 验证安装、7表51菜单、缺失文件清理、重装和正常卸载；尚未验证升级与完整业务链。包含 AGPL-3.0 设计器，详见 LICENSE 与 NOTICE。",
           "host_max": "6.0.11"
@@ -46,9 +46,9 @@
       "versions": [
         {
           "version": "0.1.0",
-          "tag": "sand-ai-v0.1.0-preview-216cccf",
+          "tag": "sand-ai-v0.1.0-preview-2821503",
           "asset": "sand-ai-0.1.0.zip",
-          "sha256": "c670842a199813bfd440c183acff7c1b32fc9b6a37e3e15f4243eb925aa9d69d",
+          "sha256": "509fbb9ab18b112400d6979443fd00821e4bea293f033a0b130bc8ad8ac2909e",
           "host_min": "6.0.11",
           "host_max": "6.0.11",
           "notes": "预发布：已在独立 PostgreSQL 验证14表安装及正常卸载；尚未验证升级和完整业务链。"

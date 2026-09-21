@@ -119,7 +119,7 @@ php scripts/build-plugin-package.php /path/to/example-plugin dist/plugins exampl
 - 仅 HTTPS GitHub 及固定附件域名，验证 TLS，连接超时 5 秒，单次请求含重定向总时限 60 秒，最多 3 次重定向。下载操作会先刷新清单，再下载附件。
 - 传输使用 cURL multi 与 Worker 定时驱动，不在 HTTP Worker 等待网络；每进程最多 2 个活动请求，活动与排队请求总数最多 8。临时 ZIP 在成功及失败后清理。
 - 当前普通安装线拒绝非空 `sand_platform` 扩展；已有插件不得仅删除元数据来绕过真实依赖或迁移要求。迁仓不等于兼容验收。
-- 初始清单为空。这表示尚无按此契约发布的插件，不表示原插件不存在。
+- 当前清单登记 SandIAM、SandWorkflow 和 SandAI；每个条目都指向各自独立仓库的 Release ZIP。
 
 本功能不自动提交、上传 Release、移动旧插件源码、执行数据库迁移或重启服务。实际公开仓库访问、真实插件数据库安装、管理前端构建发布及业务链需要在发布候选上独立验证。
 
