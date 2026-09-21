@@ -2,6 +2,14 @@
 
 本文件从 SandAdmin 开源发布准备阶段开始维护。它不追溯性重写 SaiAdmin 或其他上游项目的历史；继承来源和授权见 [NOTICE](NOTICE)。
 
+## 6.1.5 - 2026-09-21
+
+- 发布 Packagist 稳定版，默认安装命令为 `composer require supdger/sandadmin`。
+- 删除仓库过程目录，将插件目录收敛为根级 `catalog.json`；源码根只保留后端、前端、文档和发布必需文件。
+- 宿主运行版本与 Composer 发布版本统一为 `6.1.5`，现有插件目录兼容上限同步到该版本。
+- 全新标准 Webman 消费项目已验证无需自定义 VCS 仓库即可安装并加载 SandPackage 命令。
+- 本次发布未创建数据库、执行迁移或重放登录与真实插件生命周期；这些仍是独立运行验收层。
+
 ## 6.1.5-rc.1 - 2026-09-21
 
 - 后端改为 Composer library，由标准 Webman 消费项目安装 `sandadmin` 与 `sandpackage` 载荷。

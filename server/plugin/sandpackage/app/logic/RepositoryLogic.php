@@ -40,7 +40,7 @@ final class RepositoryLogic
     private function fetchCatalog(bool $includeLocalState, callable $complete): void
     {
         $ref = implode('/', array_map('rawurlencode', explode('/', $this->ref)));
-        $url = 'https://raw.githubusercontent.com/' . $this->repository . '/' . $ref . '/plugins/catalog.json';
+        $url = 'https://raw.githubusercontent.com/' . $this->repository . '/' . $ref . '/catalog.json';
         $this->client->get($url, 1048576, function (?string $body, ?Throwable $error) use ($includeLocalState, $complete): void {
             if ($error !== null) { $complete(null, $error); return; }
             try {
