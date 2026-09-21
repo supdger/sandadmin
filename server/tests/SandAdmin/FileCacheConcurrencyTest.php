@@ -8,7 +8,7 @@ declare(strict_types=1);
  * All files belong to a new temporary directory; no installed host is booted.
  */
 
-require dirname(__DIR__, 3) . '/vendor/autoload.php';
+require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use plugin\sandadmin\app\cache\ReflectionCache;
 use plugin\sandadmin\app\cache\driver\File;

@@ -2,6 +2,12 @@
 
 本文件从 SandAdmin 开源发布准备阶段开始维护。它不追溯性重写 SaiAdmin 或其他上游项目的历史；继承来源和授权见 [NOTICE](NOTICE)。
 
+## Unreleased
+
+- 恢复 `server/` 完整 Webman 后端项目，SandAdmin 主线重新采用完整前后端源码仓库安装。
+- `/Users/code/project/sand_demo` 接管 SandAdmin 与独立 Sand 插件的统一演示和验收宿主职责。
+- `6.1.5` Composer 后端包保留为历史兼容发行，当前主线不再继续发布新的 Composer 后端包。
+
 ## 6.1.5 - 2026-09-21
 
 - 发布 Packagist 稳定版，默认安装命令为 `composer require supdger/sandadmin`。
@@ -17,8 +23,6 @@
 - `/Users/code/project/sand_demo` 成为 SandAdmin 与 Sand 插件统一演示消费者；源码与演示副本保持单向关系。
 - 隔离安装、重复安装、卸载、配置保护、命令加载、后端契约、前端生产构建和独立审查通过。
 - 本候选未在本轮创建数据库、执行迁移或重放登录与真实插件生命周期，因此发布为预发布版本。
-
-## Unreleased
 
 ### SandPackage
 

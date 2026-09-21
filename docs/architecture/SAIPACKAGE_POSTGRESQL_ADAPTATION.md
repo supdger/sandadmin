@@ -1,8 +1,9 @@
 # SaiPackage PostgreSQL 适配
 
-当前源码中的正常安装入口基于 Composer 锁定的 `saithink/saipackage 6.0.2`，
-revision `82043f83df45a6186ea872eef3bce388e0ad87e2`。未修改 vendor、未升级依赖，
-也未发布本次候选。
+当前源码在完整 Webman 项目中直接维护 SandPackage PostgreSQL 适配实现，并保留
+必要的上游兼容命名空间；不修改 `vendor/`，也不依赖 `supdger/sandadmin` 自身。
+早期实现基线来自 `saithink/saipackage 6.0.2` revision
+`82043f83df45a6186ea872eef3bce388e0ad87e2`。
 
 ## 正常流程
 

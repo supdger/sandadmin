@@ -604,9 +604,9 @@ function main(array $argv): void
     }
 }
 
-$autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!is_file($autoload)) {
-    fwrite(STDERR, "vendor/autoload.php 不存在，请先在仓库根安装开发依赖\n");
+    fwrite(STDERR, "server/vendor/autoload.php 不存在，请先在 server/ 安装依赖\n");
     exit(1);
 }
 require $autoload;

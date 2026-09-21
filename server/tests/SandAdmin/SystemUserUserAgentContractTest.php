@@ -8,7 +8,7 @@ declare(strict_types=1);
  */
 
 $repositoryRoot = dirname(__DIR__, 3);
-require $repositoryRoot . '/vendor/autoload.php';
+require $repositoryRoot . '/server/vendor/autoload.php';
 
 use plugin\sandadmin\app\event\SystemUser;
 
