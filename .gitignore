@@ -10,6 +10,14 @@
 # Local browser automation artifacts
 **/.playwright-cli/
 
+# Local agent/editor configuration and temporary delivery evidence
+.cursor/
+report/
+
+# Brand exploration belongs outside the product repository. Runtime assets live
+# with the frontend/backend code that references them.
+docs/brand/
+
 # Generated dependencies and runtime output
 **/node_modules/
 **/vendor/
