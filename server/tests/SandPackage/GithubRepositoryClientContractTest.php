@@ -37,10 +37,10 @@ function githubTransportRejects(string $url, string $message): void
     );
 }
 
-githubTransportRejects('http://raw.githubusercontent.com/org/repo/main/plugins/catalog.json', 'rejects non-HTTPS catalogue URLs exactly once');
-githubTransportRejects('https://token@raw.githubusercontent.com/org/repo/main/plugins/catalog.json', 'rejects URL credentials exactly once');
-githubTransportRejects('https://raw.githubusercontent.com:444/org/repo/main/plugins/catalog.json', 'rejects non-standard HTTPS ports exactly once');
-githubTransportRejects('https://raw.githubusercontent.com/org/repo/main/plugins/catalog.json?token=user-input', 'rejects user-supplied query tokens exactly once');
+githubTransportRejects('http://raw.githubusercontent.com/org/repo/main/catalog.json', 'rejects non-HTTPS catalogue URLs exactly once');
+githubTransportRejects('https://token@raw.githubusercontent.com/org/repo/main/catalog.json', 'rejects URL credentials exactly once');
+githubTransportRejects('https://raw.githubusercontent.com:444/org/repo/main/catalog.json', 'rejects non-standard HTTPS ports exactly once');
+githubTransportRejects('https://raw.githubusercontent.com/org/repo/main/catalog.json?token=user-input', 'rejects user-supplied query tokens exactly once');
 githubTransportRejects('https://example.com/org/repo/releases/download/v1/plugin.zip', 'rejects non-GitHub initial hosts exactly once');
 
 $calls = 0;

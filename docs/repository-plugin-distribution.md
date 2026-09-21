@@ -1,6 +1,6 @@
 # 从 GitHub 仓库安装插件
 
-插件仓库不需要独立市场服务、市场账号或订单。后台从 SandAdmin 的公开 GitHub 仓库读取 `plugins/catalog.json`，再按每个插件声明的独立公开仓库下载 Release 附件，核验后交给现有 SandPackage 安装器。
+插件仓库不需要独立市场服务、市场账号或订单。后台从 SandAdmin 的公开 GitHub 仓库读取根目录 `catalog.json`，再按每个插件声明的独立公开仓库下载 Release 附件，核验后交给现有 SandPackage 安装器。
 
 ## 使用者
 
@@ -78,7 +78,7 @@ php server/scripts/build-plugin-package.php /path/to/example-plugin dist/plugins
 维护者完成包验证后：
 
 1. 在插件自己的公开仓库创建对应 tag 的 Release，将 ZIP 作为附件上传。
-2. 把生成条目合入 SandAdmin `plugins/catalog.json` 的 `plugins` 数组；插件条目必须声明 `repository`。同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。
+2. 把生成条目合入 SandAdmin `catalog.json` 的 `plugins` 数组；插件条目必须声明 `repository`。同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。
 3. 将清单发布到消费者配置的 ref。先上传附件，再公开引用它的清单；不得用源码快照 ZIP 代替插件包。
 4. 保留旧版本附件及其摘要，升级路径由插件自己的 `update.sql` 负责。兼容字段表示宿主版本范围，不证明任意旧插件版本均可直接跨版本升级。
 

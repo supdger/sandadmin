@@ -1,6 +1,6 @@
 # SandAdmin
 
-SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理包，提供权限管理、系统配置、代码生成、任务调度和插件化扩展能力。源码仓库只维护 `server/` 后端安装载荷、`sandadmin-artd/` Vue 前端和公共文档；Webman 运行骨架属于消费项目，不在本仓重复维护。
+SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理包，提供权限管理、系统配置、代码生成、任务调度和插件化扩展能力。源码仓库只维护 `server/` 后端源码、`sandadmin-artd/` Vue 前端源码和公共文档；完整 Webman 运行环境、依赖和演示数据属于 `/Users/code/project/sand_demo` 等消费项目，不在本仓重复维护。
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
@@ -20,13 +20,13 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理包，提供�
 3. 参考包内 `server/install/` 配置 PostgreSQL；首次访问安装页前不要预建 `.env`。前端从 `sandadmin-artd/` 独立安装或构建。
 4. 仅在已明确准备的全新数据库上访问 `/install` 完成初始化。
 
-当前预发布版已登记 Packagist，可直接安装：
+已登记 Packagist，可直接安装最新稳定版：
 
 ```bash
-composer require supdger/sandadmin:6.1.5-rc.1
+composer require supdger/sandadmin
 ```
 
-升级时应使用明确的版本约束并提交消费者的 `composer.lock`。
+需要锁定特定版本时再使用 `composer require supdger/sandadmin:6.1.5`。升级时应提交消费者的 `composer.lock`。
 
 全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码。
 
@@ -47,7 +47,7 @@ composer require supdger/sandadmin:6.1.5-rc.1
 
 ## 可选插件
 
-`sandadmin/plugins/catalog.json` 只维护统一插件目录。每个可选插件拥有独立源码仓库和 Release，宿主不保存业务插件源码、安装包、运行副本或专属自动加载映射。安装器按目录声明的受信仓库下载所选插件；未选择插件的用户只会获取 SandAdmin 主体。
+根目录 `catalog.json` 只维护统一插件目录。每个可选插件拥有独立源码仓库和 Release，宿主不保存业务插件源码、安装包、运行副本或专属自动加载映射。安装器按目录声明的受信仓库下载所选插件；未选择插件的用户只会获取 SandAdmin 主体。
 
 SandAdmin 不主动写入其他工作区；每个消费者负责拉取并锁定所需宿主版本。插件实际安装与验收仍在消费工作区的独立验证宿主完成。
 

@@ -87,7 +87,7 @@ php webman sandpackage:recover finish-cleanup-fresh sand-iam \
 ## 验证与交付
 
 本次实现、独立审查、精确命令及真实验证缺口集中记录于
-[执行记录](../../openspec/changes/repair-host-recovery-and-cache-concurrency/execution.md)。
+[本地恢复回归证据](evidence/HOST-202609-003-local-recovery-regression.md)。
 
 真实 PostgreSQL 专项已在后续精确授权下通过，测试 schema 清理后独立核对无残留。
 本任务不修改 `sand_plugins`，不直接清理其冻结现场，也不通过修改登记或目录绕过官方入口。
