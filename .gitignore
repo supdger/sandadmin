@@ -12,6 +12,8 @@
 
 # Local agent/editor configuration and temporary delivery evidence
 .cursor/
+.agents/
+openspec/
 report/
 
 # Brand exploration belongs outside the product repository. Runtime assets live

@@ -45,7 +45,6 @@
 
 新 driver 的 `sandpackage:recover inspect <app>` 进入独立的新装恢复检查，
 区分未提交、提交未知和已提交待部署。写操作仍需现场指纹确认；未知旧现场不能自动重跑。
-范围与验证限制见 [HOST-202609-003](../host-requests/HOST-202609-003-fresh-install-recovery.md)。
 
 正常路径拒绝状态 6/7/8、未知状态、未完成旧候选、旧操作日志和宿主依赖进程记录。
 正常旧 installed 记录只有运行配置版本与登记版本一致时才允许升级；

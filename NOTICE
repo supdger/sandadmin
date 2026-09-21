@@ -7,9 +7,9 @@ The inherited SaiAdmin source and its MIT license notice are retained in the rep
 
 The `sandadmin-artd/` frontend retains its own MIT license from SuperManTT. Source-file notices for Webman, Workerman, Art Design Pro, and other dependencies remain intact.
 
-The compatibility services under `server/compat/Saithink/Saipackage` are
-retained from the MIT-licensed `saithink/saipackage`. SandAdmin preserves that
-PHP namespace for compatibility but does not install the upstream Webman
-plugin, which would conflict with `plugin/sandpackage`.
+The package-management service implementations under
+`server/plugin/sandpackage/app/service` include code derived from the
+MIT-licensed `saithink/saipackage`. They are maintained inside SandPackage so
+the public source tree does not require a separate compatibility namespace.
 
 SandAdmin is not an official SaiAdmin release and does not imply endorsement by SaiAdmin or its authors.
