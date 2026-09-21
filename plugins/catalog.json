@@ -4,7 +4,7 @@
     {
       "app": "sand-iam",
       "title": "SandIAM 身份与访问控制",
-      "about": "面向 SandAdmin 的身份与访问控制插件，本次为隔离安装验证候选",
+      "about": "统一管理组织、应用、身份与访问权限。",
       "author": "supdger",
       "versions": [
         {
@@ -21,17 +21,34 @@
     {
       "app": "sandworkflow",
       "title": "SandWorkflow 工作流",
-      "about": "PostgreSQL 版：可视化流程定义、发起审批、待办/已办/抄送、高级动作与流程数据管理插件（SandAdmin 6.x，运行时 NanoID）",
+      "about": "设计审批流程，处理待办、已办和抄送任务。",
       "author": "supdger",
       "versions": [
         {
           "version": "1.0.7",
-          "tag": "sandworkflow-v1.0.7-preview-61fd9b1d",
+          "tag": "sandworkflow-v1.0.7-preview-216cccf",
           "asset": "sandworkflow-1.0.7.zip",
-          "sha256": "38da042cd0fc897d9cf2a2d3dd929b2b0619a8b9b74bcf58cb6227f4eac55345",
+          "sha256": "ffe6891ab7ee05763057e8bc4c4b04eaae75a0edc4618ea4afeaf80aaaee4b0a",
           "host_min": "6.0.11",
-          "notes": "预发布：已验证包完整性、宿主安装器暂存及文档读取；尚未验证本次包的真实 PostgreSQL 安装、升级、卸载和完整业务链。包含 AGPL-3.0 设计器，详见 LICENSE 与 NOTICE。",
+          "notes": "预发布：已在独立 PostgreSQL 验证安装、7表51菜单、缺失文件清理、重装和正常卸载；尚未验证升级与完整业务链。包含 AGPL-3.0 设计器，详见 LICENSE 与 NOTICE。",
           "host_max": "6.0.11"
+        }
+      ]
+    },
+    {
+      "app": "sand-ai",
+      "title": "SandAI AI 能力底座",
+      "about": "接入 AI 模型服务，管理服务配置与调用能力。",
+      "author": "supdger",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "tag": "sand-ai-v0.1.0-preview-216cccf",
+          "asset": "sand-ai-0.1.0.zip",
+          "sha256": "c670842a199813bfd440c183acff7c1b32fc9b6a37e3e15f4243eb925aa9d69d",
+          "host_min": "6.0.11",
+          "host_max": "6.0.11",
+          "notes": "预发布：已在独立 PostgreSQL 验证14表安装及正常卸载；尚未验证升级和完整业务链。"
         }
       ]
     }
