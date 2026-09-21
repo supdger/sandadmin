@@ -6,7 +6,7 @@ use plugin\sandpackage\app\service\AbnormalPluginCleanup;
 
 $fixtureRoot = realpath(sys_get_temp_dir()) . '/sandpackage-abnormal-' . bin2hex(random_bytes(6));
 function base_path(string $path = ''): string { global $fixtureRoot; return $fixtureRoot . '/server' . ($path === '' ? '' : '/' . $path); }
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, 3) . '/vendor/autoload.php';
 require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
 require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/FreshInstallRecovery.php';
 require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/AbnormalPluginCleanup.php';

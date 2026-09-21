@@ -14,7 +14,7 @@ namespace Workerman {
     }
 }
 namespace {
-    require dirname(__DIR__, 2) . '/vendor/autoload.php';
+    require dirname(__DIR__, 3) . '/vendor/autoload.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/RepositoryClient.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/RepositoryLogic.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/controller/InstallController.php';

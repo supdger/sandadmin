@@ -42,5 +42,3 @@ PostgreSQL 宿主原名 **SaiAdmin-PG**，现更名为 **SandAdmin**。该更名
 4. 由每个使用方在目标 PostgreSQL 宿主完成构建、安装和受保护路径验收。
 
 在上述发布完成前，不应将旧 `saiadmin-pg` 引用视为已失效，也不要删除项目内为过渡保留的兼容加载逻辑。
-
-前端路径、图标资产、设计任务书和执行分工见[前端迁移与图标设计交接](../brand/sandadmin-frontend-and-icon-handoff.md)。

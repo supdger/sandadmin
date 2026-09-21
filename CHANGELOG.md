@@ -2,6 +2,14 @@
 
 本文件从 SandAdmin 开源发布准备阶段开始维护。它不追溯性重写 SaiAdmin 或其他上游项目的历史；继承来源和授权见 [NOTICE](NOTICE)。
 
+## 6.1.5-rc.1 - 2026-09-21
+
+- 后端改为 Composer library，由标准 Webman 消费项目安装 `sandadmin` 与 `sandpackage` 载荷。
+- 源码仓库移除 Webman 运行骨架、重复测试和根级维护样板，保留后端载荷、Vue 前端、公共文档及兼容目录。
+- `/Users/code/project/sand_demo` 成为 SandAdmin 与 Sand 插件统一演示消费者；源码与演示副本保持单向关系。
+- 隔离安装、重复安装、卸载、配置保护、命令加载、后端契约、前端生产构建和独立审查通过。
+- 本候选未在本轮创建数据库、执行迁移或重放登录与真实插件生命周期，因此发布为预发布版本。
+
 ## Unreleased
 
 ### SandPackage

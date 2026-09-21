@@ -70,7 +70,7 @@ php webman sandpackage:storage-migrate --apply --maintenance
 
 ```sh
 mkdir -p dist/plugins
-php scripts/build-plugin-package.php /path/to/example-plugin dist/plugins example-plugin-v1.0.0 6.0.11
+php server/scripts/build-plugin-package.php /path/to/example-plugin dist/plugins example-plugin-v1.0.0 6.0.11
 ```
 
 `example-plugin` 只是格式示例，不代表已有可安装插件。命令输出独立 ZIP 和 `<app>-<version>.catalog.json` 条目，ZIP 根目录直接包含 `info.ini`，不包裹额外目录。安装器使用原有插件标识，本次不将 `sand-iam` 重命名为 `iam`。

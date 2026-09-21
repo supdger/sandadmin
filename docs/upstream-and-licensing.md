@@ -10,7 +10,7 @@ SandAdmin 的代码与问题跟踪入口为 [supdger/sandadmin](https://github.c
 
 ## 保留的兼容标识
 
-品牌更名不等于破坏兼容性。历史 `sa_*` 标识、`saithink/saipackage` Composer 包和 `Saithink\\Saipackage` PHP 命名空间仍可能存在：它们分别用于兼容和第三方依赖解析。它们不表示 SandAdmin 是 SaiAdmin 官方发行版。
+品牌更名不等于破坏兼容性。历史 `sa_*` 标识仍可能用于数据库和接口兼容，但 SandAdmin 不安装上游 `saithink/saipackage` 运行副本；插件管理由本仓库的 `server/plugin/sandpackage` 提供。它们都不表示 SandAdmin 是 SaiAdmin 官方发行版。
 
 ## 许可证与再分发
 

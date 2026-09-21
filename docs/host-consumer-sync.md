@@ -8,7 +8,7 @@ SandAdmin 是通用宿主的唯一权威来源，只发布宿主版本、变更�
 
 | 消费方 | 宿主位置 | 用途 |
 | --- | --- | --- |
-| `sand_plugins` | `sandadmin-demo-host/` | 插件日常安装、演示、联调与验收 |
+| SandAdmin 与 `sand_plugins` | `/Users/code/project/sand_demo` | 零插件基线及插件日常安装、演示、联调与验收 |
 | `sand_ai` | 仓内 `server/`、`sandadmin-artd/` | SandAI 主应用的管理宿主 |
 | 未来消费者 | 由该工作区显式登记 | 自有应用或插件验证宿主 |
 
@@ -21,7 +21,7 @@ SandAdmin 是通用宿主的唯一权威来源，只发布宿主版本、变更�
 1. 其他项目向 SandAdmin 提交通用宿主需求、复现和契约。
 2. SandAdmin 在本仓实现，并完成零业务插件验证。
 3. SandAdmin 发布 tag、release candidate 或明确 commit，并提供变更说明。
-4. 每个消费工作区自行运行其 `scripts/sync-sandadmin-host.sh`，更新自己的宿主副本和锁定记录。
+4. 消费宿主通过 Composer 拉取锁定的 SandAdmin 版本；前端从同一 revision 取得消费副本。
 5. 消费方运行自己的业务验收，将宿主 revision、插件/应用版本和结果回传兼容矩阵。
 
 禁止 SandAdmin 的 post-commit hook 主动推送；禁止消费方把宿主副本或业务覆盖层反向同步进 SandAdmin；禁止把两个工作区当作可双向编辑的同一源码树。
@@ -45,7 +45,7 @@ SandAdmin 是通用宿主的唯一权威来源，只发布宿主版本、变更�
 
 消费方必须将 `server/storage/sandpackage/` 作为本机持久数据保护：从发布源排除，并在接收端保护其不受 `--delete` 删除。若同步根是 `server/`，规则应相对该根使用 `/storage/sandpackage/`；若根是整个项目，则使用 `/server/storage/sandpackage/`。继续保护旧 `runtime/`，不能因新目录引入而取消旧实例保护。正式同步前用临时夹具验证“源端数据不复制、目标数据不删除”，目录迁移必须作为独立的维护操作。
 
-`sand_plugins/sandadmin-demo-host` 用于稳定的日常演示与业务验收。安装、升级、卸载等破坏性生命周期应优先从同一锁定宿主版本创建可丢弃的隔离宿主，避免破坏长期演示环境。任何数据库创建、迁移、服务启停或清理仍需任务级明确授权。
+`/Users/code/project/sand_demo` 用于稳定的日常演示与业务验收。安装、升级、卸载等破坏性生命周期应优先从同一锁定宿主版本创建可丢弃的隔离宿主，避免破坏长期演示环境。任何数据库创建、迁移、服务启停或清理仍需任务级明确授权。
 
 ## 新消费者接入
 

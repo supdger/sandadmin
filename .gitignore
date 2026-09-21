@@ -21,6 +21,7 @@ docs/brand/
 # Generated dependencies and runtime output
 **/node_modules/
 **/vendor/
+/composer.lock
 **/runtime/
 server/storage/sandpackage/
 **/dist/

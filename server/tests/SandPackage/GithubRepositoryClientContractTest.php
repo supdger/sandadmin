@@ -7,7 +7,7 @@ declare(strict_types=1);
 use plugin\sandadmin\exception\ApiException;
 use plugin\sandpackage\app\service\GithubRepositoryClient;
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
 function githubTransportExpect(bool $condition, string $message): void
 {

@@ -18,8 +18,6 @@
 - [仓库插件分发](repository-plugin-distribution.md)
 - [插件管理端载荷激活契约](frontend-plugin-activation.md)
 - [上游来源、署名与许可证说明](upstream-and-licensing.md)
-- [贡献指南](../CONTRIBUTING.md)
-- [安全漏洞报告](../SECURITY.md)
 
 ## 文档责任边界
 
