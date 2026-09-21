@@ -4,11 +4,13 @@
 
 | 目录 | 责任 |
 | --- | --- |
-| `server/` | Webman 后端、核心配置、PostgreSQL 安装器和宿主运行时。 |
+| `server/` | Composer 安装器、后端插件载荷、配置模板、测试和维护脚本。 |
 | `server/plugin/sandadmin/` | SandAdmin 核心插件及核心安装 SQL。 |
 | `sandadmin-artd/` | Vue 管理前端。 |
 | `docs/` | 宿主公共文档、架构契约和兼容性说明。 |
-| `server/storage/sandpackage/` | 本机持久安装登记、候选、备份、归档及恢复数据；不随源码分发或缓存清理。 |
+| 消费宿主 `server/storage/sandpackage/` | 本机持久安装登记、候选、备份、归档及恢复数据；不随源码分发或缓存清理。 |
+
+`start.php`、`webman`、`app/`、`support/`、宿主 `config/` 和 Composer 锁文件由消费宿主维护。统一演示消费者位于 `/Users/code/project/sand_demo`，不反向承载源码。
 
 ## 数据和命名
 

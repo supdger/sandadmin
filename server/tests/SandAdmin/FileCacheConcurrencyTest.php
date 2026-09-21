@@ -8,7 +8,7 @@ declare(strict_types=1);
  * All files belong to a new temporary directory; no installed host is booted.
  */
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
 use plugin\sandadmin\app\cache\ReflectionCache;
 use plugin\sandadmin\app\cache\driver\File;
@@ -78,9 +78,15 @@ ensure($rounds >= 1 && extension_loaded('pcntl'), 'Positive rounds and pcntl req
 $root = sys_get_temp_dir() . '/sandadmin-file-cache-' . bin2hex(random_bytes(8));
 ensure(mkdir($root, 0700), 'Unable to create isolated fixture');
 mkdir($root . '/config');
-$config = require dirname(__DIR__, 2) . '/config/think-cache.php';
-$config['default'] = 'file';
-$config['stores']['file']['path'] = $root . '/cache/';
+$config = [
+    'default' => 'file',
+    'stores' => [
+        'file' => [
+            'type' => File::class,
+            'path' => $root . '/cache/',
+        ],
+    ],
+];
 if ($baseline) {
     $config['stores']['file']['type'] = ThinkFile::class;
 }

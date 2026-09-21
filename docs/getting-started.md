@@ -4,22 +4,22 @@
 
 ## 前置条件
 
-- PHP `>= 8.1`，版本要求以 [server/composer.json](../server/composer.json) 为准。
+- PHP `>= 8.1`，版本要求以[根 composer.json](../composer.json)为准。
 - PostgreSQL 实例和一个可供初始化的目标数据库。
 - Node.js `>= 20.19.0`、pnpm `>= 8.8.0`，版本要求以 [前端 package.json](../sandadmin-artd/package.json) 为准。
 
 ## 配置后端
 
-1. 复制 `server/.env.pgsql.example` 为未纳入版本控制的 `server/.env`。
-2. 在 `server/.env` 填写目标 PostgreSQL 连接信息；不要提交该文件或任何密码、密钥、令牌。
-3. 进入 `server/` 后执行 `composer install`。
-4. 使用 Webman 的标准启动方式启动服务，例如 `php start.php start`；守护或生产运行方式应由部署环境决定。
+1. 在消费目录创建标准 Webman：`composer create-project workerman/webman server`。
+2. 在消费者的 `composer.json` 登记本仓 VCS 地址，然后执行 `composer require supdger/sandadmin:@dev`；正式版本发布后应锁定 tag。
+3. 确认消费者 `config/database.php` 和 `config/think-orm.php` 使用包内模板；首次安装前不要创建 `.env`，因为安装页会把它视为“已经安装”。
+4. 使用 Webman 标准方式启动，例如 `php start.php start`，在 `/install` 填写 PostgreSQL 连接并由安装器生成 `.env`。已有实例或非交互部署才参考 `server/install/.env.example` 合并环境字段。
 
 核心安装路由由 `server/plugin/sandadmin/config/route.php` 提供。仅对全新或已按自身流程备份并确认可初始化的数据库访问 `/install`。
 
 ## 配置前端
 
-1. 进入 `sandadmin-artd/`。
+1. 从锁定的 SandAdmin revision 取得 `sandadmin-artd/` 消费副本。
 2. 执行 `corepack pnpm install` 安装依赖。
 3. 开发时执行 `corepack pnpm dev`；需要构建验证时执行 `corepack pnpm build`。
 

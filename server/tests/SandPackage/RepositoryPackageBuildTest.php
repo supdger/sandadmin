@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use plugin\sandpackage\app\logic\RepositoryLogic;
 
-require dirname(__DIR__, 2) . '/vendor/autoload.php';
+require dirname(__DIR__, 3) . '/vendor/autoload.php';
 
 function packageBuildExpect(bool $condition, string $message): void
 {
@@ -116,7 +116,7 @@ function packageBuildWriteContract(
 /** @return array{code:int,stdout:string,stderr:string} */
 function packageBuildRun(array $arguments): array
 {
-    $script = dirname(__DIR__, 3) . '/scripts/build-plugin-package.php';
+    $script = dirname(__DIR__, 2) . '/scripts/build-plugin-package.php';
     $command = array_merge([PHP_BINARY, $script], $arguments);
     $pipes = [];
     $process = proc_open($command, [

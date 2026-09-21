@@ -8,7 +8,7 @@ namespace {
     mkdir($root . '/runtime', 0700, true);
     function base_path(string $path = ''): string { global $root; return $root . '/server' . ($path === '' ? '' : '/' . $path); }
     function runtime_path(string $path = ''): string { global $root; return $root . '/runtime' . ($path === '' ? '' : '/' . $path); }
-    require dirname(__DIR__, 2) . '/vendor/autoload.php';
+    require dirname(__DIR__, 3) . '/vendor/autoload.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PluginStorage.php';
 
     function pass(bool $condition, string $message): void {
