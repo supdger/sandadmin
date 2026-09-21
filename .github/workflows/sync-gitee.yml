@@ -1,0 +1,68 @@
+name: Sync Gitee mirrors
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-gitee-mirrors
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GITEE_USERNAME: supdger
+      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+    steps:
+      - name: Mirror GitHub repositories to Gitee
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GITEE_TOKEN}" ]]; then
+            echo 'GITEE_TOKEN is not configured' >&2
+            exit 1
+          fi
+
+          askpass="${RUNNER_TEMP}/gitee-askpass.sh"
+          cat >"${askpass}" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' "$GITEE_USERNAME" ;;
+            *Password*) printf '%s\n' "$GITEE_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 700 "${askpass}"
+          export GIT_ASKPASS="${askpass}"
+          export GIT_TERMINAL_PROMPT=0
+
+          repositories=(
+            sandadmin
+            sand-plugins
+            sand-ai
+            sand-iam
+            sand-workflow
+          )
+
+          for repository in "${repositories[@]}"; do
+            mirror="${RUNNER_TEMP}/${repository}.git"
+            git clone --mirror \
+              "https://github.com/supdger/${repository}.git" \
+              "${mirror}"
+            git -C "${mirror}" push --prune \
+              "https://gitee.com/${GITEE_USERNAME}/${repository}.git" \
+              'refs/heads/*:refs/heads/*' \
+              'refs/tags/*:refs/tags/*'
+          done
