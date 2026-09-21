@@ -241,6 +241,57 @@ async function get(config: HttpRequestConfig): Promise<unknown> {
                   action: cleaned ? 'install' : 'manage',
                   action_reason: cleaned ? '' : '请先清理异常状态'
                 }))
+              },
+              {
+                app: 'long-title-plugin',
+                title: '用于验证超长插件名称在仓库卡片中能够稳定显示两行并提供完整提示的插件',
+                about:
+                  '这是一段用于验证两行简介截断效果的较长说明，同时覆盖不同宽度下卡片内容对齐、操作区域换行和文字不溢出的场景。',
+                author: 'a-very-long-plugin-author-name-for-responsive-layout',
+                local: {
+                  state: 0,
+                  version: null,
+                  installed_version: null,
+                  blocked: false,
+                  reason: ''
+                },
+                versions: [
+                  {
+                    version: '2.4.0',
+                    tag: 'v2.4.0',
+                    asset: 'long-title-plugin-2.4.0.zip',
+                    sha256: 'c'.repeat(64),
+                    host_min: '6.0.0',
+                    notes: 'long content fixture',
+                    action: 'install',
+                    action_reason: ''
+                  }
+                ]
+              },
+              {
+                app: 'workflow-helper',
+                title: 'Workflow Helper',
+                about: 'A compact repository card used to verify mixed content lengths.',
+                author: 'sand',
+                local: {
+                  state: 1,
+                  version: '1.2.0',
+                  installed_version: '1.2.0',
+                  blocked: false,
+                  reason: ''
+                },
+                versions: [
+                  {
+                    version: '1.2.0',
+                    tag: 'v1.2.0',
+                    asset: 'workflow-helper-1.2.0.zip',
+                    sha256: 'd'.repeat(64),
+                    host_min: '6.0.0',
+                    notes: 'installed fixture',
+                    action: 'installed',
+                    action_reason: '当前已安装'
+                  }
+                ]
               }
             ]
           : []

@@ -110,3 +110,18 @@
 #### Scenario: Permission menus stored in slug
 - **WHEN** 插件权限节点以 slug 保存权限标识而 code 为空
 - **THEN** 可通过与插件标识严格绑定的 slug/component/path 条件选取，并继续证明路径或组件祖先归属及子节点覆盖；不得用空 code 或菜单名称扩大删除范围
+
+### Requirement: Readable repository cards and menu labels
+插件仓库 SHALL 在长名称和窄屏下保持标题、状态和操作清晰分组；权限菜单名称 SHALL 明确对象与动作。宿主新装 SHALL 不再预置默认文档外链。
+
+#### Scenario: Long plugin metadata
+- **WHEN** 插件名称、简介或作者较长
+- **THEN** 状态不挤占标题，主次操作明确且不溢出；完整名称可查看
+
+#### Scenario: Existing upstream document link
+- **WHEN** 旧实例仍保留指向上游站点的默认 Document 外链
+- **THEN** 可定向移除该记录并清理菜单缓存，不影响其他菜单及插件权限
+
+#### Scenario: Orphan plugin permissions
+- **WHEN** 插件历史权限记录的父节点不存在
+- **THEN** 在插件权威来源修正安装生成和存量映射，保持逻辑权限标识及角色授权，不通过隐藏或盲删权限掩盖问题

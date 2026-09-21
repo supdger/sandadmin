@@ -329,20 +329,30 @@
             description="没有匹配当前关键词的插件"
           />
           <div v-else class="app-grid">
-            <article v-for="item in filteredRepositoryPlugins" :key="item.app" class="app-card">
-              <div class="app-card-header">
+            <article
+              v-for="item in filteredRepositoryPlugins"
+              :key="item.app"
+              class="repository-app-card"
+            >
+              <div class="repository-card-header">
                 <div class="repository-plugin-icon" aria-hidden="true">
                   <ArtSvgIcon icon="ri:plug-line" />
                 </div>
-                <div class="app-info">
-                  <div class="app-title">{{ item.title }}</div>
-                  <div class="app-version">
+                <div class="repository-card-heading">
+                  <ElTooltip :content="item.title" placement="top" :show-after="300">
+                    <div class="repository-card-title">{{ item.title }}</div>
+                  </ElTooltip>
+                  <div class="repository-card-version">
                     {{ item.app }}
                     <template v-if="item.versions[0]">
                       · 仓库版本 v{{ item.versions[0].version }}
                     </template>
                   </div>
                 </div>
+              </div>
+              <p class="repository-card-about">{{ item.about }}</p>
+              <div class="repository-card-meta">
+                <span class="repository-card-author">{{ item.author }}</span>
                 <ElTooltip
                   :disabled="!item.local.reason"
                   :content="item.local.reason"
@@ -353,35 +363,38 @@
                   </ElTag>
                 </ElTooltip>
               </div>
-              <p class="app-about">{{ item.about }}</p>
-              <div class="app-footer">
-                <span>{{ item.author }}</span>
-                <ElSpace wrap>
+              <div class="repository-card-footer">
+                <div class="repository-card-secondary-actions">
                   <ElButton
                     v-if="item.versions[0]"
+                    link
+                    type="primary"
                     size="small"
                     @click="openRepositoryDocument(item, item.versions[0])"
                   >
                     查看文档
                   </ElButton>
                   <ElButton
-                    v-if="item.versions[0]"
-                    size="small"
-                    :type="repositoryActionType(item.versions[0].action)"
-                    :loading="downloadingKey === repositoryVersionKey(item, item.versions[0])"
-                    :disabled="repositoryActionDisabled(item, item.versions[0])"
-                    @click="handleRepositoryVersionAction(item, item.versions[0])"
-                  >
-                    {{ repositoryActionLabel(item.versions[0].action) }}
-                  </ElButton>
-                  <ElButton
+                    link
+                    type="primary"
                     size="small"
                     :disabled="item.versions.length === 0"
                     @click="showRepositoryVersions(item)"
                   >
                     {{ item.versions.length > 1 ? '其他版本' : '版本详情' }}
                   </ElButton>
-                </ElSpace>
+                </div>
+                <ElButton
+                  v-if="item.versions[0]"
+                  class="repository-card-primary-action"
+                  size="small"
+                  :type="repositoryActionType(item.versions[0].action)"
+                  :loading="downloadingKey === repositoryVersionKey(item, item.versions[0])"
+                  :disabled="repositoryActionDisabled(item, item.versions[0])"
+                  @click="handleRepositoryVersionAction(item, item.versions[0])"
+                >
+                  {{ repositoryActionLabel(item.versions[0].action) }}
+                </ElButton>
               </div>
             </article>
           </div>
@@ -2768,7 +2781,10 @@
     gap: 16px;
   }
 
-  .app-card {
+  .repository-app-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     padding: 16px;
     background: var(--el-bg-color);
     border: 1px solid var(--el-border-color);
@@ -2781,58 +2797,101 @@
     }
   }
 
-  .app-card-header {
+  .repository-card-header {
     display: flex;
     gap: 12px;
-    align-items: center;
-    margin-bottom: 12px;
+    align-items: flex-start;
+    min-width: 0;
   }
 
   .repository-plugin-icon {
+    flex: 0 0 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
     color: var(--el-color-primary);
     background: var(--el-fill-color-light);
     border-radius: 8px;
   }
 
-  .app-info {
+  .repository-card-heading {
     flex: 1;
+    min-width: 0;
   }
 
-  .app-title {
+  .repository-card-title {
+    display: -webkit-box;
+    min-height: 48px;
+    overflow: hidden;
     font-size: 16px;
     font-weight: 600;
+    line-height: 24px;
     color: var(--el-text-color-primary);
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
-  .app-version {
+  .repository-card-version {
+    overflow: hidden;
     font-size: 12px;
+    line-height: 20px;
     color: var(--el-text-color-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .app-about {
+  .repository-card-about {
     display: -webkit-box;
-    margin-bottom: 12px;
+    min-height: 40px;
+    margin: 0;
     overflow: hidden;
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 20px;
     color: var(--el-text-color-regular);
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
   }
 
-  .app-footer {
+  .repository-card-meta,
+  .repository-card-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    min-width: 0;
+  }
+
+  .repository-card-meta {
     font-size: 12px;
     color: var(--el-text-color-secondary);
+  }
+
+  .repository-card-author {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .repository-card-meta :deep(.el-tag) {
+    flex: 0 0 auto;
+    margin-left: 12px;
+  }
+
+  .repository-card-secondary-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .repository-card-primary-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   @media (width <= 768px) {
@@ -2851,6 +2910,22 @@
 
     .cleanup-package-action {
       grid-template-columns: 1fr;
+    }
+  }
+
+  @media (width <= 480px) {
+    .repository-card-footer {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .repository-card-primary-action {
+      order: -1;
+      width: 100%;
+    }
+
+    .repository-card-secondary-actions {
+      width: 100%;
     }
   }
 
