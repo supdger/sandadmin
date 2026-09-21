@@ -90,7 +90,7 @@ namespace {
     check(is_file($root . '/sandadmin-artd/src/views/plugin/neutral-sample/index.vue'), 'upstream service deployed frontend source');
     $logic->setInfo(['title' => 'Neutral; "quoted"']);
     check($logic->getInfo()['title'] === 'Neutral; "quoted"', 'INI metadata preserves punctuation without injecting fields');
-    $journal = runtime_path('sandpackage/locks/neutral-sample-candidate.transaction.json');
+    $journal = base_path('storage/sandpackage/locks/neutral-sample-candidate.transaction.json');
     file_put_contents($journal, '{}');
     rejected(fn() => $logic->uninstall(false), 'old candidate journal blocks destructive lifecycle');
     unlink($journal);

@@ -105,7 +105,7 @@ namespace {
             'ownership' => array_fill_keys($tables, ['owner_app' => 'probe-package', 'evidence' => 'Isolated fixture setup and failed candidate SQL'])];
     }
     function service(InstallLogic $logic): FreshInstallRecovery {
-        return new FreshInstallRecovery('probe-package', runtime_path('sandpackage/probe-package'), $logic->getAllowedPath(), runtime_path('sandpackage'), Db::$pdo, $logic->getInfo(...));
+        return new FreshInstallRecovery('probe-package', base_path('storage/sandpackage/probe-package'), $logic->getAllowedPath(), base_path('storage/sandpackage'), Db::$pdo, $logic->getInfo(...));
     }
 
     $logic = fixture("SELECT 'unterminated;");
@@ -118,7 +118,7 @@ namespace {
 
     (new InstallLogic())->uploadFromPath($root . '/candidate.zip');
     rejects(fn () => (new InstallLogic('probe-package'))->install(false), 'new attempt keeps prior cleanup audit');
-    expect(count(glob(runtime_path('sandpackage/fresh-recovery/*.history'))) === 1, 'completed operation audit survives the next install');
+    expect(count(glob(base_path('storage/sandpackage/fresh-recovery/*.history'))) === 1, 'completed operation audit survives the next install');
 
     $logic = fixture('CREATE TABLE probe_one (id bigint); BROKEN;');
     rejects(fn () => $logic->install(false), 'implicit transaction failure propagates');
@@ -155,14 +155,14 @@ namespace {
     Db::$pdo->loseCommit = true;
     rejects(fn () => $logic->install(false), 'install COMMIT confirmation loss is surfaced');
     expect($logic->inspectFreshInstallRecovery()['phase'] === 'sql_commit_unknown' && isset(Db::$pdo->tables['public.probe_one']), 'ROLLBACK after lost COMMIT cannot claim not committed');
-    unlink(runtime_path('sandpackage/fresh-recovery/probe-package.json')); // Pre-journal frozen host record.
+    unlink(base_path('storage/sandpackage/fresh-recovery/probe-package.json')); // Pre-journal frozen host record.
     $inspect = $logic->inspectFreshInstallRecovery();
     expect($inspect['phase'] === 'sql_commit_unknown', 'old driver failure without new evidence is unknown');
     $manual = plan($logic);
     $inspect = $logic->inspectFreshInstallRecovery($manual);
     Db::$pdo->loseCommit = true;
     rejects(fn () => $logic->recoverFreshInstall('manual-cleanup-fresh', $inspect['confirmation'], $manual), 'cleanup COMMIT confirmation loss does not archive candidate');
-    expect(is_dir(runtime_path('sandpackage/probe-package')), 'unknown cleanup commit keeps original registry');
+    expect(is_dir(base_path('storage/sandpackage/probe-package')), 'unknown cleanup commit keeps original registry');
     $finish = $logic->inspectFreshInstallRecovery();
     expect($finish['actions'] === ['finish-cleanup-fresh'], 'exact cleanup postcondition gives explicit finish confirmation');
     $count = count(Db::$pdo->executed);
@@ -172,16 +172,16 @@ namespace {
     $logic = fixture('CREATE TABLE probe_one (id bigint); BROKEN;');
     rejects(fn () => $logic->install(false), 'prepare archive interruption');
     $inspect = $logic->inspectFreshInstallRecovery();
-    $journal = runtime_path('sandpackage/fresh-recovery/probe-package.json');
+    $journal = base_path('storage/sandpackage/fresh-recovery/probe-package.json');
     $record = json_decode(file_get_contents($journal), true);
-    $archive = runtime_path('sandpackage/fresh-recovery/probe-package-' . $record['operation']);
+    $archive = base_path('storage/sandpackage/fresh-recovery/probe-package-' . $record['operation']);
     file_put_contents($archive, 'injected archive conflict');
     rejects(fn () => $logic->recoverFreshInstall('cleanup-fresh', $inspect['confirmation']), 'archive failure remains resumable');
     unlink($archive);
     $finish = $logic->inspectFreshInstallRecovery();
     expect($finish['actions'] === ['finish-cleanup-fresh'], 'archive interruption offers an explicit finish action');
     // Simulate archive rename succeeded but final journal write was interrupted.
-    rename(runtime_path('sandpackage/probe-package'), $archive);
+    rename(base_path('storage/sandpackage/probe-package'), $archive);
     $finish = $logic->inspectFreshInstallRecovery();
     $logic->recoverFreshInstall('finish-cleanup-fresh', $finish['confirmation']);
     expect($logic->getInfo() === [], 'already archived candidate can finish after a process interruption');
@@ -189,11 +189,11 @@ namespace {
     $logic = fixture('BEGIN; CREATE TABLE probe_one (id bigint); COMMIT; BEGIN; BROKEN; COMMIT;');
     rejects(fn () => $logic->install(false), 'prepare cleanup pre-COMMIT interruption');
     $manual = plan($logic); $inspect = $logic->inspectFreshInstallRecovery($manual);
-    $journal = runtime_path('sandpackage/fresh-recovery/probe-package.json');
+    $journal = base_path('storage/sandpackage/fresh-recovery/probe-package.json');
     $record = json_decode(file_get_contents($journal), true);
     $record['phase'] = 'sql_commit_unknown'; $record['cleanup_stage'] = 'commit_intent';
     $record['cleanup_expected_database'] = ['identity' => $inspect['binding']['database']['identity'], 'relations' => []];
-    $record['archive'] = runtime_path('sandpackage/fresh-recovery/probe-package-' . $record['operation']);
+    $record['archive'] = base_path('storage/sandpackage/fresh-recovery/probe-package-' . $record['operation']);
     file_put_contents($journal, json_encode($record)); // Transaction was rolled back on process death.
     $inspect = $logic->inspectFreshInstallRecovery($manual);
     expect($inspect['actions'] === ['manual-cleanup-fresh'], 'exact original DB after cleanup interruption permits a new explicit cleanup');
@@ -202,10 +202,10 @@ namespace {
     $logic = fixture('BEGIN; CREATE TABLE probe_one (id bigint); COMMIT; BEGIN; BROKEN; COMMIT;');
     rejects(fn () => $logic->install(false), 'prepare ownership and database drift checks');
     $manual = plan($logic);
-    mkdir(runtime_path('sandpackage/other-plugin'), 0700, true);
-    file_put_contents(runtime_path('sandpackage/other-plugin/install.sql'), 'CREATE TABLE probe_one (id bigint);');
+    mkdir(base_path('storage/sandpackage/other-plugin'), 0700, true);
+    file_put_contents(base_path('storage/sandpackage/other-plugin/install.sql'), 'CREATE TABLE probe_one (id bigint);');
     rejects(fn () => $logic->inspectFreshInstallRecovery($manual), 'another registered candidate declaration prevents cross-plugin cleanup');
-    unlink(runtime_path('sandpackage/other-plugin/install.sql'));
+    unlink(base_path('storage/sandpackage/other-plugin/install.sql'));
     $bad = $manual; $bad['ownership']['public.probe_one']['owner_app'] = 'other-plugin';
     rejects(fn () => $logic->inspectFreshInstallRecovery($bad), 'foreign owner cannot authorize candidate cleanup');
     $inspect = $logic->inspectFreshInstallRecovery($manual);
@@ -244,16 +244,16 @@ namespace {
     UserMenuCache::$fail = true;
     rejects(fn () => $logic->install(false), 'prepare drift case');
     $inspect = $logic->inspectFreshInstallRecovery();
-    file_put_contents(runtime_path('sandpackage/probe-package/install.sql'), 'CREATE TABLE altered (id bigint);');
+    file_put_contents(base_path('storage/sandpackage/probe-package/install.sql'), 'CREATE TABLE altered (id bigint);');
     rejects(fn () => $logic->recoverFreshInstall('continue-fresh', $inspect['confirmation']), 'candidate SQL drift cannot be blessed by a new inspection');
 
     $logic = fixture('CREATE TABLE probe_one (id bigint); BROKEN;');
     rejects(fn () => $logic->install(false), 'prepare concurrent recovery case');
-    $lock = fopen(runtime_path('sandpackage/locks/upstream-host.lock'), 'c+');
+    $lock = fopen(base_path('storage/sandpackage/locks/upstream-host.lock'), 'c+');
     flock($lock, LOCK_EX | LOCK_NB);
     rejects(fn () => $logic->inspectFreshInstallRecovery(), 'second recovery cannot bypass the live host operation lock');
     flock($lock, LOCK_UN); fclose($lock);
-    $appLock = fopen(runtime_path('sandpackage/locks/probe-package-operation.lock'), 'c+');
+    $appLock = fopen(base_path('storage/sandpackage/locks/probe-package-operation.lock'), 'c+');
     flock($appLock, LOCK_EX | LOCK_NB);
     rejects(fn () => $logic->inspectFreshInstallRecovery(), 'second recovery cannot bypass the application lock');
     flock($appLock, LOCK_UN); fclose($appLock);
@@ -264,7 +264,7 @@ namespace {
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/command/Recover.php';
     $logic = fixture('BEGIN; CREATE TABLE probe_one (id bigint); COMMIT; BEGIN; BROKEN; COMMIT;');
     rejects(fn () => $logic->install(false), 'prepare original official CLI reproduction');
-    unlink(runtime_path('sandpackage/fresh-recovery/probe-package.json'));
+    unlink(base_path('storage/sandpackage/fresh-recovery/probe-package.json'));
     $command = new \plugin\sandpackage\app\command\Recover();
     $tester = new \Symfony\Component\Console\Tester\CommandTester($command);
     $status = $tester->execute(['action' => 'inspect', 'app' => 'probe-package']);

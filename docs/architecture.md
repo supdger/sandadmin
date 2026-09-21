@@ -8,6 +8,7 @@
 | `server/plugin/sandadmin/` | SandAdmin 核心插件及核心安装 SQL。 |
 | `sandadmin-artd/` | Vue 管理前端。 |
 | `docs/` | 宿主公共文档、架构契约和兼容性说明。 |
+| `server/storage/sandpackage/` | 本机持久安装登记、候选、备份、归档及恢复数据；不随源码分发或缓存清理。 |
 
 ## 数据和命名
 

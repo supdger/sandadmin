@@ -65,3 +65,29 @@
 #### Scenario: Recovery details are opt-in
 - **WHEN** 用户打开插件仓库或插件管理默认视图
 - **THEN** 不展开恢复步骤；只有主动选择真实失败升级的恢复处理时才打开对应详情，刷新使条件失效时清除旧操作视图
+
+### Requirement: Durable installation state
+系统 SHALL 将新实例的安装登记、候选及恢复数据保存到server/storage/sandpackage，统一生命周期的存储根；GET读取不得迁移或补登记。
+
+#### Scenario: Runtime cache removal
+- **WHEN** 新实例已经在持久根保存插件安装数据，runtime目录被清理
+- **THEN** 安装登记与恢复数据仍然存在，管理状态不因缓存清理而丢失
+
+#### Scenario: Legacy storage compatibility and conflict
+- **WHEN** 仅旧runtime/sandpackage存在数据
+- **THEN** 整根兼容旧位置，使用显式维护迁移入口；新旧根同时含数据时报告冲突并拒绝生命周期写入，不静默合并或忽略记录
+
+#### Scenario: Explicit storage migration
+- **WHEN** 管理员在维护窗口显式执行迁移
+- **THEN** 仅在锁可获得且无未结束事务、恢复或不安全路径绑定时原子搬迁完整旧根，保留数据内容；检查失败保持原根不变，干跑不写文件
+
+### Requirement: Reconciled local plugin inventory
+系统 SHALL 合并持久或兼容根登记与实际应用插件目录，对不一致状态明确呈现，不以目录存在证明安装完成。
+
+#### Scenario: Unregistered application plugin
+- **WHEN** 实际应用插件目录具有有效身份元数据但无安装登记
+- **THEN** 管理列表显示未登记且禁止普通安装覆盖，不执行插件PHP或隐式注册
+
+#### Scenario: Invalid or missing files
+- **WHEN** 登记存在但运行文件缺失，或可识别插件元数据损坏
+- **THEN** 显示对应异常，不漏列或误报已安装，不跟随符号链接读取目录外数据

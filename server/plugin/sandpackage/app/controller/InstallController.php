@@ -9,6 +9,7 @@ use plugin\sandadmin\basic\BaseController;
 use plugin\sandadmin\exception\ApiException;
 use plugin\sandpackage\app\logic\InstallLogic;
 use plugin\sandpackage\app\logic\LegacyInstallLogic;
+use plugin\sandpackage\app\service\PluginStorage;
 use Saithink\Saipackage\service\Server;
 use Saithink\Saipackage\service\Version;
 use support\annotation\Middleware;
@@ -50,11 +51,17 @@ class InstallController extends BaseController
      */
     public function index(Request $request): Response
     {
-        $data = Server::installedList(runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR);
+        $storage = new PluginStorage();
+        $records = $storage->managedRecords();
+        $runtime = $storage->runtimePlugins();
+        $data = array_values($records + $runtime);
         $data = array_map(static function (array $item): array {
             $local = isset($item['app']) && is_string($item['app'])
                 ? (new InstallLogic($item['app']))->ordinaryStatus()
                 : ['state' => 99, 'blocked' => true, 'reason' => '插件标识缺失，无法确认安装状态'];
+            if (isset($item['_error'])) $local = ['state' => 99, 'blocked' => true, 'reason' => $item['_error']];
+            unset($item['_path'], $item['_error']);
+            $item['title'] ??= $item['app'];
             $actual = array_merge($item, ['state' => $local['state']]);
             $presented = ($item['lifecycle_driver'] ?? '') === 'saipackage-pg-v1'
                 ? InstallLogic::presentInfo($actual)

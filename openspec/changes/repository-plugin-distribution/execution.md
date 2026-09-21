@@ -113,3 +113,22 @@
 - 独立Astra实际操作3006：仓库首屏、管理详情、README、版本弹窗、390×844窄屏通过，无新增must-fix；主控亲自查看实际截图。最终两处文案“安装文件缺失”“仓库版本”也已reload确认。
 - 截图保存在当前任务outputs/plugin-repository-after-desktop.png、plugin-repository-after-narrow.png、plugin-management-detail-after.png。
 - 未执行安装、升级、卸载或修复旧记录。真正失败升级恢复仅回归/源码证据，未页面演练；31918停在验证码登录，健康已装UI未覆盖。
+
+## 持久存储修复（2026-09-21）
+
+用户明确要求修复runtime扫描职责并通知sand_plugins。主控核实现存实现以runtime/sandpackage登记枚举；实际源码实例仅有SandAI0.1.0与SandIAM0.6.0旧记录，server/plugin仅宿主核心，未改旧记录或数据。
+
+本轮新增5.1-5.4，采用统一持久根、旧根整根兼容、显式维护迁移与登记/实际目录并集。保留文件登记格式，不引入数据库双写。候选含恢复所需数据，不能视为可删缓存。
+
+已通知sand_plugins任务“SandIAM 0.7.4 兼容迭代”。消费者发现rsync --delete会威胁新目录，已在其权威脚本server相对根增加/storage/sandpackage/***双向排除；消费者报告真实zsh+rsync临时source/target的dry-run/apply验证通过：新旧根同名文件不覆盖、源独有不复制、目标独有不删除、源整个保护目录不存在时目标仍保留；普通storage文件仍复制删除。消费者未同步真实demo、未迁移、未发布或提交。已有其他工作树改动保留。该项是消费者回报证据，不冒充主控独立执行。
+
+实现与独立复验结果随后记录；尚未迁移当前实例旧目录。
+
+### 实现与独立验收结果
+
+- PluginStorage统一普通安装、兼容恢复及CLI的整根路径：新实例server/storage/sandpackage，旧runtime有数据时整根兼容，双根拒绝。InstallController合并登记与实际info.ini应用目录，未登记state6、缺文件state7、坏元数据state99，GET不补登记或搬迁。
+- sandpackage:storage-migrate默认只读，--apply还需--maintenance。同盘原子rename且持有已有锁到结束；拒绝在途状态、未完成标记、未完成恢复、不安全路径、旧路径绑定及已有目标。终态且身份有效的fresh审计原样保留。
+- 主控执行通过：PluginStorageTest最终34条、RepositoryHttpResponseTest18条、RepositoryDistributionTest69条、UpstreamPostgresLifecycleTest44条、FreshInstallRecoveryTest51条、FailedUpgradeRecoveryV2Test18条。后五套在迁移准入delta前通过，delta只改显式迁移准入；独立审查亦复跑受影响套件。测试用真实临时文件/控制器及SQL recording，不是业务数据库验收。PHP语法7/7及OpenSpec strict、git diff --check通过。
+- 独立Astra发现并复现两项迁移准入问题：宽松state转换放行坏登记、拒绝正常成功新装审计。主控修复并增加拒绝原文保留和成功终态审计迁移测试；独立Storage34及真实InstallLogic正常安装完整journal模拟旧根再迁移通过，journal逐字节一致。无剩余本切片must-fix。
+- 当前源码实例实际CLI默认inspect通过：apply=false/migrated=false；缺少--maintenance的--apply被明确拒绝。当前8788无监听且无该runtime/webman.pid，未启动服务、未执行实际目录迁移、未修改插件业务数据库。
+- sand_plugins消费方已收到目录、解析接口和迁移命令；同步保护临时rsync验证已通过，实际demo同步和迁移仍未执行。发布清晰revision后消费方主动拉取，不能把当前代码/临时测试视为消费方已部署。

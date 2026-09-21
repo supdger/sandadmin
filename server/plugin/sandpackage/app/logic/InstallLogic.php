@@ -10,6 +10,7 @@ use plugin\sandadmin\exception\ApiException;
 use plugin\sandadmin\app\cache\UserMenuCache;
 use plugin\sandpackage\app\service\PostgresLifecycleSqlExecutor;
 use plugin\sandpackage\app\service\FreshInstallRecovery;
+use plugin\sandpackage\app\service\PluginStorage;
 
 /**
  * SaiPackage 6.0.2 / 82043f83 (MIT), with PostgreSQL and host compatibility.
@@ -33,6 +34,7 @@ class InstallLogic
     private ?string $commandType = null;
     private ?array $processRecord = null;
     private ?object $freshPdo = null;
+    private PluginStorage $storage;
 
     /**
      * @var string 安装目录
@@ -56,7 +58,8 @@ class InstallLogic
 
     public function __construct(string $appName = '')
     {
-        $this->installDir = runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR;
+        $this->storage = new PluginStorage();
+        $this->installDir = rtrim($this->storage->root(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $this->backupsDir = $this->installDir . 'backups' . DIRECTORY_SEPARATOR;
         if ($appName) {
             $this->assertAppName($appName);
@@ -532,7 +535,14 @@ class InstallLogic
     {
         if ($this->appDir === '') return [];
         $this->assertSafePath($this->appDir . 'info.ini');
-        return Server::getIni($this->appDir);
+        $file = $this->appDir . 'info.ini';
+        if (!is_file($file)) return [];
+        if (filesize($file) > 16384) throw new ApiException('安装登记超出大小限制');
+        $info = @parse_ini_file($file, true, INI_SCANNER_TYPED);
+        if (!is_array($info) || ($info['app'] ?? null) !== $this->appName || !is_string($info['version'] ?? null)) {
+            throw new ApiException('安装登记损坏或插件标识不匹配');
+        }
+        return $info;
     }
 
     /**
@@ -580,7 +590,8 @@ class InstallLogic
         $blocked = $state < 0 || $state >= self::DIRECTORY_OCCUPIED || !empty($info['operation_pending'])
             || (($info['lifecycle_driver'] ?? '') !== self::DRIVER && $state !== self::INSTALLED);
         return [
-            'state_text' => [0 => '未安装', 1 => '已安装', 2 => '等待安装', 3 => '等待处理依赖冲突', 4 => '等待依赖安装'][$state] ?? '需要检查旧安装状态',
+            'state_text' => [0 => '未安装', 1 => '已安装', 2 => '等待安装', 3 => '等待处理依赖冲突', 4 => '等待依赖安装',
+                5 => '安装目录占用', 6 => '未登记', 7 => '安装文件缺失', 8 => '安装失败', 99 => '安装信息异常'][$state] ?? '需要检查旧安装状态',
             'ordinary_actions_blocked' => $blocked,
             'recovery_reason' => $blocked ? (($info['lifecycle_driver'] ?? '') === self::DRIVER
                 ? '操作未完成；请使用 sandpackage:recover inspect 检查恢复动作，不能直接重试'
@@ -646,6 +657,9 @@ class InstallLogic
 
     private function assertOrdinaryState(): void
     {
+        if (rtrim($this->installDir, DIRECTORY_SEPARATOR) !== rtrim($this->storage->root(), DIRECTORY_SEPARATOR)) {
+            throw new ApiException('插件存储根已变化；请重新检查后再执行操作');
+        }
         $info = $this->getInfo();
         $state = $this->getInstallState();
         if ($state < 0 || $state >= self::DIRECTORY_OCCUPIED || !empty($info['operation_pending'])
@@ -714,6 +728,7 @@ class InstallLogic
 
     private function lock(): void
     {
+        if (rtrim($this->installDir, DIRECTORY_SEPARATOR) !== $this->storage->root()) throw new ApiException('插件存储根已变化；请重新执行操作');
         $this->safeDirectory($this->installDir . 'locks');
         $this->assertSafePath($this->appDir);
         $this->hostLock = $this->openLock($this->installDir . 'locks/upstream-host.lock');

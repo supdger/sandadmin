@@ -16,6 +16,7 @@ use plugin\sandadmin\app\cache\UserMenuCache;
 use plugin\sandpackage\app\service\PostgresLifecycleSqlExecutor;
 use support\Log;
 use think\facade\Db;
+use plugin\sandpackage\app\service\PluginStorage;
 
 /** Compatibility only: pre-upstream recovery records. Not used for new installs. */
 class LegacyInstallLogic
@@ -71,6 +72,7 @@ class LegacyInstallLogic
     private ?string $dependencyExecutionNonce = null;
 
     private ?string $pendingCandidateRegistrationManifest = null;
+    private PluginStorage $storage;
 
     /** @var resource|null */
     private $operationLock = null;
@@ -85,7 +87,8 @@ class LegacyInstallLogic
 
     public function __construct(string $appName = '')
     {
-        $this->installDir = runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR;
+        $this->storage = new PluginStorage();
+        $this->installDir = rtrim($this->storage->root(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $this->backupsDir = $this->installDir . 'backups' . DIRECTORY_SEPARATOR;
         if ($appName) {
             $this->assertAppName($appName);
@@ -2060,7 +2063,7 @@ class LegacyInstallLogic
             || !is_string($version) || !self::legacyStrictSemver($version)) {
             throw new ApiException('候选安装包标识或版本非法');
         }
-        $installRoot = rtrim(runtime_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'sandpackage';
+        $installRoot = (new PluginStorage())->root();
         $candidate = $installRoot . DIRECTORY_SEPARATOR . $app;
         self::legacySafeDirectoryNode($installRoot);
         self::legacyCanonicalChild($installRoot, $candidate);
@@ -2096,7 +2099,7 @@ class LegacyInstallLogic
         }
         self::assertCandidatePackageIdentity($info);
         $app = (string) $info['app'];
-        $installRoot = rtrim(runtime_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'sandpackage';
+        $installRoot = (new PluginStorage())->root();
         self::legacySafeDirectoryNode($installRoot);
         $candidate = $installRoot . DIRECTORY_SEPARATOR . $app;
         $backups = $installRoot . DIRECTORY_SEPARATOR . 'backups';
@@ -2169,7 +2172,7 @@ class LegacyInstallLogic
             || !hash_equals($registration, (string) ($info['registration_manifest'] ?? ''))) {
             throw new ApiException('较早版本候选恢复目录身份不匹配，需要人工处理');
         }
-        $installRoot = rtrim(runtime_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'sandpackage';
+        $installRoot = (new PluginStorage())->root();
         $backups = $installRoot . DIRECTORY_SEPARATOR . 'backups';
         $restored = $installRoot . DIRECTORY_SEPARATOR . $app;
         $backup = $backups . DIRECTORY_SEPARATOR . $backupId;
@@ -3954,7 +3957,7 @@ class LegacyInstallLogic
             $current = $parent;
         }
         $this->assertManagedDirectoryNode($current);
-        $runtimeRoot = rtrim(runtime_path(), DIRECTORY_SEPARATOR);
+        $runtimeRoot = dirname(rtrim($this->installDir, DIRECTORY_SEPARATOR));
         for ($node = $current; $node !== $runtimeRoot && str_starts_with($node, $runtimeRoot . DIRECTORY_SEPARATOR); $node = dirname($node)) {
             $this->assertManagedDirectoryNode(dirname($node));
         }
@@ -5830,6 +5833,7 @@ class LegacyInstallLogic
      */
     private function acquireOperationLock(bool $recoverTransactions = true)
     {
+        if (rtrim($this->installDir, DIRECTORY_SEPARATOR) !== $this->storage->root()) throw new ApiException('插件存储根已变化；请重新执行操作');
         if (is_resource($this->operationLock)) {
             $this->operationLockDepth++;
             return $this->operationLock;

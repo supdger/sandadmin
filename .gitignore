@@ -14,6 +14,7 @@
 **/node_modules/
 **/vendor/
 **/runtime/
+server/storage/sandpackage/
 **/dist/
 
 # Generated during the JWT plugin installation; never publish local signing keys.

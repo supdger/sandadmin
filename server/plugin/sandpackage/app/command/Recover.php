@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use plugin\sandpackage\app\logic\FailedUpgradeRecoveryAudit;
+use plugin\sandpackage\app\service\PluginStorage;
 
 /** Controlled CLI counterpart of the failed-upgrade recovery endpoints. */
 class Recover extends Command
@@ -46,7 +47,7 @@ class Recover extends Command
         try {
             $normal = new \plugin\sandpackage\app\logic\InstallLogic($app);
             $info = $normal->getInfo();
-            if (str_ends_with($action, '-fresh') || $action === 'inspect' && (($info['lifecycle_driver'] ?? '') === 'saipackage-pg-v1' || is_file(runtime_path() . '/sandpackage/fresh-recovery/' . $app . '.json'))) {
+            if (str_ends_with($action, '-fresh') || $action === 'inspect' && (($info['lifecycle_driver'] ?? '') === 'saipackage-pg-v1' || is_file((new PluginStorage())->root() . '/fresh-recovery/' . $app . '.json'))) {
                 $planPath = $input->getOption('plan');
                 $plan = null;
                 if (is_string($planPath) && $planPath !== '') {
