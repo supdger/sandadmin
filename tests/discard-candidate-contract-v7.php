@@ -80,8 +80,24 @@ namespace Saithink\Saipackage\service {
     final class Depends {}
 }
 
+namespace think\facade {
+    final class Db
+    {
+        public static array $executed = [];
+        public static function connect(string $name): object
+        {
+            if ($name !== 'pgsql') { throw new \RuntimeException('unexpected connection'); }
+            return new class {
+                public function connect(): object { return $this; }
+                public function inTransaction(): bool { return false; }
+                public function exec(string $sql): int { Db::$executed[] = trim($sql); return 1; }
+            };
+        }
+    }
+}
+
 namespace plugin\sandadmin\exception { class ApiException extends \RuntimeException {} }
-namespace plugin\sandadmin\app\cache { final class UserMenuCache { public static function clear(): void {} } }
+namespace plugin\sandadmin\app\cache { final class UserMenuCache { public static function clear(): void {} public static function clearMenuCache(): void {} } }
 
 namespace {
     use Saithink\Saipackage\service\Filesystem;
@@ -98,6 +114,8 @@ namespace {
     function env(string $name, mixed $default = null): mixed { return $default; }
     function config(string $name, mixed $default = null): mixed { return $name === 'plugin.sandadmin.app.version' ? '6.0.11' : $default; }
 
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/service/PluginStorage.php';
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
     require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
 
@@ -817,6 +835,10 @@ namespace {
         // update.sql may run; install.sql must never be selected for upgrade.
         $upgradeIncoming = $root . '/incoming-upgrade';
         package($upgradeIncoming, $candidate, 'upgrade');
+        foreach (['install', 'update', 'uninstall'] as $operation) {
+            write($upgradeIncoming . '/' . $operation . '.sql', "SELECT '" . strtoupper($operation) . "_FIXTURE';");
+        }
+        check(\think\facade\Db::$executed === [], 'candidate handling executed SQL');
         $upgradeArchive = $root . '/official-upgrade.zip';
         zipPackage($upgradeIncoming, $upgradeArchive);
         (new InstallLogic())->uploadFromPath($upgradeArchive);
@@ -830,7 +852,8 @@ namespace {
         }
         $upgraded = (new InstallLogic('sand-iam'))->getInfo();
         check(($upgraded['version'] ?? null) === '0.7.0' && ($upgraded['state'] ?? null) === InstallLogic::INSTALLED, 'confirmed update did not install 0.7');
-        check(Server::$sqlCalls === $beforeSql + 1 && Server::$sqlFiles[array_key_last(Server::$sqlFiles)] === 'update.sql', 'upgrade did not select update.sql exclusively');
+        check(Server::$sqlCalls === $beforeSql, 'upgrade used the obsolete SQL importer');
+        check(\think\facade\Db::$executed === ['BEGIN', "SELECT 'UPDATE_FIXTURE'", 'COMMIT'], 'upgrade did not execute update.sql exclusively through PostgreSQL');
         check(($upgradeReady['upgrade_from_version'] ?? null) === '0.6.0', 'ready upgrade did not expose source version');
 
         echo "discard-candidate real InstallLogic contract passed\n";

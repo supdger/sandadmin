@@ -98,6 +98,7 @@ namespace {
     use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use Saithink\Saipackage\service\Server;
 
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/service/PluginStorage.php';
     require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
     require __DIR__ . '/fixtures/InstallController.php';
 

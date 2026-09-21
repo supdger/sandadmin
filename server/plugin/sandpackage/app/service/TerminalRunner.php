@@ -371,13 +371,15 @@ PHP;
         $this->drainLauncherReports();
         @posix_kill(-$this->processGroupId, SIGTERM);
         $deadline = hrtime(true) + 2000000000;
-        while (($status = proc_get_status($this->process))['running'] && hrtime(true) < $deadline) {
+        while ((($status = proc_get_status($this->process))['running'] || @posix_kill(-$this->processGroupId, 0)) && hrtime(true) < $deadline) {
             usleep(50000);
         }
-        if (($status ?? proc_get_status($this->process))['running']) {
+        // The launcher may exit on TERM before its TERM-resistant descendants.
+        // Escalation must cover the isolated group, not only the launcher.
+        if (($status ?? proc_get_status($this->process))['running'] || @posix_kill(-$this->processGroupId, 0)) {
             @posix_kill(-$this->processGroupId, SIGKILL);
             $deadline = hrtime(true) + 2000000000;
-            while (($status = proc_get_status($this->process))['running'] && hrtime(true) < $deadline) {
+            while ((($status = proc_get_status($this->process))['running'] || @posix_kill(-$this->processGroupId, 0)) && hrtime(true) < $deadline) {
                 usleep(50000);
             }
         }

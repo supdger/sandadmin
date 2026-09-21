@@ -2868,6 +2868,10 @@ class LegacyInstallLogic
             || !hash_equals((string) $info['registration_manifest'], $deploymentManifest)) {
             throw new ApiException('升级前插件注册信息与当前部署不一致，未移动任何文件');
         }
+        if (!is_dir($this->backupsDir) && !mkdir($this->backupsDir, 0755, true) && !is_dir($this->backupsDir)) {
+            throw new ApiException('无法创建插件安装包备份目录');
+        }
+        $this->assertManagedDirectory($this->backupsDir);
         $preparedPackageManifest = $this->preparedPackageManifest($this->appDir);
         $preparedPackageDigest = $this->preparedPackageManifestDigest($preparedPackageManifest);
         $transaction = $this->candidateTransactionPath();

@@ -325,6 +325,7 @@ namespace {
     use plugin\sandpackage\app\service\TerminalRunner;
 
     require dirname(__DIR__) . '/app/service/PostgresLifecycleSqlExecutor.php';
+    require dirname(__DIR__) . '/app/service/PluginStorage.php';
     require dirname(__DIR__) . '/app/logic/LegacyInstallLogic.php';
     // Keep this historical terminal/lease fixture bound to its legacy backend.
     class_alias(InstallLogic::class, 'plugin\\sandpackage\\app\\logic\\InstallLogic');
@@ -1378,18 +1379,31 @@ namespace {
     $contractRequest = new TerminalRequestFixture(['command' => 'web-install.npm', 'extend' => 'module-install:test-plugin']);
     $terminalTermIgnoringRunner = new TerminalRunner();
     $terminalTermIgnoringGenerator = $terminalTermIgnoringRunner->exec();
-    $terminalTermIgnoringGenerator->rewind();
-    $childDeadline = microtime(true) + 2;
-    while (!is_file($terminalChildPidFile) && microtime(true) < $childDeadline) { usleep(10000); }
-    expect(is_file($terminalChildPidFile), 'TERM-ignoring dependency fixture did not spawn a child');
-    $terminalChildPid = (int) trim((string) file_get_contents($terminalChildPidFile));
-    expect($terminalChildPid > 0 && posix_kill($terminalChildPid, 0), 'TERM-ignoring dependency child was not live');
-    $terminalTermIgnoringRunner->abort();
-    while ($terminalTermIgnoringGenerator->valid()) { $terminalTermIgnoringGenerator->next(); }
-    $terminalChildState = trim((string) shell_exec('/bin/ps -o stat= -p ' . $terminalChildPid . ' 2>/dev/null'));
-    expect($terminalChildState === '' || str_starts_with($terminalChildState, 'Z'), 'TerminalRunner left TERM-ignoring descendant running after PGID KILL');
-    expect((Server::$info[$terminalTermIgnoringPaths['app_dir']]['process_recovery_required'] ?? 0) == 1 && is_file(runtime_path() . '/sandpackage/locks/host-npm.process.journal.json'), 'unreaped process state did not retain a durable recovery marker');
-    putenv('PATH=' . $originalPath);
+    $terminalFixtureGroupId = null;
+    try {
+        $terminalTermIgnoringGenerator->rewind();
+        $terminalFixtureGroupId = (new \ReflectionProperty(TerminalRunner::class, 'processGroupId'))->getValue($terminalTermIgnoringRunner);
+        expect(is_int($terminalFixtureGroupId) && $terminalFixtureGroupId > 0 && $terminalFixtureGroupId !== posix_getpgrp(), 'dependency fixture group was not isolated');
+        $childDeadline = microtime(true) + 2;
+        while (!is_file($terminalChildPidFile) && microtime(true) < $childDeadline) { usleep(10000); }
+        expect(is_file($terminalChildPidFile), 'TERM-ignoring dependency fixture did not spawn a child');
+        $terminalChildPid = (int) trim((string) file_get_contents($terminalChildPidFile));
+        expect($terminalChildPid > 0 && posix_kill($terminalChildPid, 0), 'TERM-ignoring dependency child was not live');
+        $terminalTermIgnoringRunner->abort();
+        while ($terminalTermIgnoringGenerator->valid()) { $terminalTermIgnoringGenerator->next(); }
+        $terminalChildState = trim((string) shell_exec('/bin/ps -o stat= -p ' . $terminalChildPid . ' 2>/dev/null'));
+        expect($terminalChildState === '' || str_starts_with($terminalChildState, 'Z'), 'TerminalRunner left TERM-ignoring descendant running after PGID KILL');
+        // Some hosts promptly reap orphaned children; only unresolved processes
+        // require a durable recovery marker after termination.
+        if (posix_kill(-$terminalFixtureGroupId, 0) || posix_kill($terminalChildPid, 0)) {
+            expect((Server::$info[$terminalTermIgnoringPaths['app_dir']]['process_recovery_required'] ?? 0) == 1 && is_file(runtime_path() . '/sandpackage/locks/host-npm.process.journal.json'), 'unreaped process state did not retain a durable recovery marker');
+        }
+    } finally {
+        if (is_int($terminalFixtureGroupId) && $terminalFixtureGroupId > 0 && $terminalFixtureGroupId !== posix_getpgrp()) {
+            @posix_kill(-$terminalFixtureGroupId, SIGKILL);
+        }
+        putenv('PATH=' . $originalPath);
+    }
 
     echo "PASS lifecycle non-DB contract\n";
 }

@@ -49,7 +49,7 @@ class InstallController extends BaseController
      */
     public function index(Request $request): Response
     {
-        $data = Server::installedList(runtime_path() . DIRECTORY_SEPARATOR . 'sandpackage' . DIRECTORY_SEPARATOR);
+        $data = Server::installedList((new \plugin\sandpackage\app\service\PluginStorage())->root() . DIRECTORY_SEPARATOR);
         $data = array_map(static function (array $item): array {
             return array_merge($item, InstallLogic::presentInfo($item));
         }, $data);

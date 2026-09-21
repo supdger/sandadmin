@@ -77,6 +77,7 @@ namespace {
     use Saithink\Saipackage\service\Server;
     use support\Log;
 
+    require dirname(__DIR__) . '/server/plugin/sandpackage/app/service/PluginStorage.php';
     require dirname(__DIR__) . '/server/plugin/sandpackage/app/logic/LegacyInstallLogic.php';
 
     function expect(bool $condition, string $message): void

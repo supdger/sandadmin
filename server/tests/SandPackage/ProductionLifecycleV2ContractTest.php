@@ -63,6 +63,7 @@ namespace {
     use plugin\sandpackage\app\logic\LegacyInstallLogic as InstallLogic;
     use think\facade\Db;
 
+    require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PluginStorage.php';
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/FailedUpgradeIdentityBinding.php';
     require_once dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/FailedUpgradeRecoveryVerifier.php';
