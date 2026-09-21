@@ -17,6 +17,23 @@
           "notes": "预发布候选：已验证独立PostgreSQL全新安装、菜单及基础读取接口；尚未验证升级和完整业务链。"
         }
       ]
+    },
+    {
+      "app": "sandworkflow",
+      "title": "SandWorkflow 工作流",
+      "about": "PostgreSQL 版：可视化流程定义、发起审批、待办/已办/抄送、高级动作与流程数据管理插件（SandAdmin 6.x，运行时 NanoID）",
+      "author": "supdger",
+      "versions": [
+        {
+          "version": "1.0.7",
+          "tag": "sandworkflow-v1.0.7-preview-61fd9b1d",
+          "asset": "sandworkflow-1.0.7.zip",
+          "sha256": "38da042cd0fc897d9cf2a2d3dd929b2b0619a8b9b74bcf58cb6227f4eac55345",
+          "host_min": "6.0.11",
+          "notes": "预发布：已验证包完整性、宿主安装器暂存及文档读取；尚未验证本次包的真实 PostgreSQL 安装、升级、卸载和完整业务链。包含 AGPL-3.0 设计器，详见 LICENSE 与 NOTICE。",
+          "host_max": "6.0.11"
+        }
+      ]
     }
   ]
 }
