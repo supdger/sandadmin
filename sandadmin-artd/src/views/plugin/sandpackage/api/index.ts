@@ -36,6 +36,7 @@ export interface AppInfo {
   upgrade_candidate_verified?: boolean
   ordinary_actions_blocked?: boolean
   recovery_reason?: string
+  cleanup_pending?: boolean
 }
 
 export interface VersionInfo {
@@ -114,6 +115,36 @@ export interface RepositoryDocumentResponse {
 /** 失败升级恢复接口的外部响应都在页面层按 unknown 收窄。 */
 export interface FailedUpgradeRecoveryRequest {
   appName: string
+}
+
+export interface CleanupInspectionMenu {
+  id: string
+  name: string
+  code: string
+}
+
+export interface CleanupInspection {
+  app: string
+  version: string
+  tables: string[]
+  menus: CleanupInspectionMenu[]
+  paths: string[]
+  fingerprint: string
+  phase: 'ready' | 'files_pending'
+  cleanup_package_version?: string
+}
+
+export interface CleanupResult {
+  app: string
+  state: 0
+  archive: string
+  restart_required: boolean
+  warning?: string
+}
+
+export interface CleanupPackageResult {
+  app: string
+  version: string
 }
 
 export default {
@@ -206,6 +237,30 @@ export default {
    */
   uninstallApp(data: { appName: string }) {
     return request.post<unknown>({ url: '/app/sandpackage/install/uninstall', data })
+  },
+
+  /** 只读检查异常插件清理范围。 */
+  inspectCleanup(data: { appName: string }) {
+    return request.post<CleanupInspection>({
+      url: '/tool/install/cleanup/inspect',
+      data
+    })
+  },
+
+  /** 保存用于补充识别残留范围的仓库包声明；不会安装插件或执行 SQL。 */
+  prepareCleanupPackage(data: { app: string; version: string; sha256: string }) {
+    return request.post<CleanupPackageResult>({
+      url: '/tool/install/cleanup/package',
+      data
+    })
+  },
+
+  /** 使用本次检查凭据清理异常插件，并恢复重新安装资格。 */
+  cleanupApp(data: { appName: string; fingerprint: string; confirmApp: string }) {
+    return request.post<CleanupResult>({
+      url: '/tool/install/cleanup',
+      data
+    })
   },
 
   /**

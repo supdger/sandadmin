@@ -98,6 +98,15 @@ namespace {
     mkdir(base_path('plugin/sandadmin'), 0700, true);
     file_put_contents(base_path('plugin/sandadmin/info.ini'), 'app="sandadmin"');
     pass(!isset($storage->runtimePlugins()['sandadmin']), 'host core is excluded from business inventory');
+    mkdir(runtime_path('sandpackage/cleanup'), 0700, true);
+    $pendingPath = runtime_path('sandpackage/cleanup/orphan-cleanup.json');
+    file_put_contents($pendingPath, json_encode(['app' => 'orphan-cleanup', 'phase' => 'files_pending']));
+    pass(isset($storage->managedRecords()['orphan-cleanup']), 'cleanup remains discoverable after candidate was archived');
+    pass((new \plugin\sandpackage\app\logic\InstallLogic('orphan-cleanup'))->getInstallState() === 8, 'pending cleanup blocks ordinary reinstall even without candidate');
+    pass(!isset($storage->managedRecords()['cleanup']), 'cleanup journal directory is not a plugin');
+    file_put_contents($pendingPath, json_encode(['app' => 'orphan-cleanup', 'phase' => 'cleaned']));
+    pass(!isset($storage->managedRecords()['orphan-cleanup']), 'finished cleanup no longer appears in plugin inventory');
+    pass((new \plugin\sandpackage\app\logic\InstallLogic('orphan-cleanup'))->getInstallState() === 0, 'finished cleanup permits uninstalled state');
     file_put_contents(base_path('storage/sandpackage/unknown.lock'), 'not a disposable lock');
     reject(fn () => $storage->root(), 'unknown non-empty lock file counts as data and detects dual roots');
     echo "Plugin storage fixture passed (temporary filesystem only; no existing host data or database changed).\n";

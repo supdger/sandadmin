@@ -291,6 +291,38 @@ namespace {
         rejected(fn() => downloadFixture(clientFor($next, '1.2.0'), '1.2.0'), 'recovery state blocks repository staging');
         $network = clientFor($zip); $network->error = new \plugin\sandadmin\exception\ApiException('仓库不可达');
         rejected(fn() => downloadFixture($network), 'network failure propagated without candidate writes');
+        $cleanupApp = 'cleanup-repository';
+        $cleanupRoot = (new \plugin\sandpackage\app\service\PluginStorage())->root();
+        $cleanupDir = $cleanupRoot . '/' . $cleanupApp;
+        mkdir($cleanupDir, 0700);
+        $oldInfo = "app=cleanup-repository\nversion=0.5.0\nstate=1\n";
+        file_put_contents($cleanupDir . '/info.ini', $oldInfo);
+        file_put_contents($cleanupDir . '/install.sql', 'CREATE TABLE cleanup_old (id bigint);');
+        $cleanupZip = file_get_contents(package($cleanupApp, '2.0.0'));
+        $prepare = static function (string $body, ?string $sha = null) use ($cleanupApp): array {
+            $client = new FixtureRepositoryClient(json_encode(manifest($body, '2.0.0', $cleanupApp)), $body);
+            $logic = new \plugin\sandpackage\app\logic\RepositoryLogic($client, 'supdger/sandadmin', 'main', '6.0.11');
+            $result = null; $error = null; $calls = 0;
+            $logic->cleanupPackage($cleanupApp, '2.0.0', $sha ?? hash('sha256', $body), static function (?array $data, ?Throwable $failure) use (&$result, &$error, &$calls): void { $result = $data; $error = $failure; $calls++; });
+            check($calls === 1, 'cleanup package completes once');
+            if ($error !== null) throw $error;
+            return $result;
+        };
+        $sqlBefore = Db::$sql;
+        rejected(fn() => $prepare($cleanupZip, str_repeat('0', 64)), 'cleanup package rejects changed catalog digest');
+        $prepared = $prepare($cleanupZip);
+        $supplement = file_get_contents($cleanupDir . '/.cleanup-package.json');
+        check($prepared === ['app' => $cleanupApp, 'version' => '2.0.0'] && json_decode($supplement, true)['sha256'] === hash('sha256', $cleanupZip), 'verified same-app release stores only supplemental declarations');
+        check(file_get_contents($cleanupDir . '/info.ini') === $oldInfo && file_get_contents($cleanupDir . '/install.sql') === 'CREATE TABLE cleanup_old (id bigint);', 'cleanup supplement never replaces old version or lifecycle scripts');
+        check(Db::$sql === $sqlBefore && !is_dir(base_path('plugin/' . $cleanupApp)), 'cleanup package neither executes SQL nor deploys runtime');
+        $wrongApp = file_get_contents(package('different-plugin', '2.0.0'));
+        rejected(fn() => $prepare($wrongApp), 'cleanup package rejects different app identity');
+        $unsafe = file_get_contents(package($cleanupApp, '2.0.0', [], ['../escape.sql' => 'unsafe']));
+        rejected(fn() => $prepare($unsafe), 'cleanup package rejects unsafe ZIP path without extraction');
+        check(file_get_contents($cleanupDir . '/.cleanup-package.json') === $supplement, 'rejected cleanup package preserves prior supplement');
+        if (!is_dir($cleanupRoot . '/cleanup')) mkdir($cleanupRoot . '/cleanup', 0700);
+        file_put_contents($cleanupRoot . '/cleanup/' . $cleanupApp . '.json', json_encode(['app' => $cleanupApp, 'phase' => 'prepared']));
+        rejected(fn() => $prepare($cleanupZip), 'active cleanup cannot change its supplemental package');
         echo "Repository distribution fixture passed (no real database/network/restart).\n";
     } finally {
         \Saithink\Saipackage\service\Filesystem::delDir($root);

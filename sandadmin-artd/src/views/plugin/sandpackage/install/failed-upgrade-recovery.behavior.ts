@@ -28,6 +28,8 @@ import {
   type SandpackageInstallRow
 } from './failed-upgrade-recovery'
 import {
+  cleanupHttpCounts,
+  configureCleanupSubmitFailureOnce,
   configureRecoveryHttpMock,
   configureRuntimeRestoreRefreshFixture,
   currentRecoveryPostUrl
@@ -47,6 +49,30 @@ function buttonByText(root: ParentNode, label: string): HTMLButtonElement | null
     if (textOf(button).includes(label)) return button
   }
   return null
+}
+
+function controlByText(root: ParentNode, label: string): HTMLElement | null {
+  for (const control of Array.from(root.querySelectorAll('button, a'))) {
+    if (textOf(control).includes(label) && control instanceof HTMLElement) return control
+  }
+  return null
+}
+
+function cleanupDialog(): HTMLElement | null {
+  const dialogs = Array.from(document.querySelectorAll('.el-dialog'))
+  for (let index = dialogs.length - 1; index >= 0; index -= 1) {
+    const dialog = dialogs[index]
+    if (dialog instanceof HTMLElement && textOf(dialog).includes('清理异常插件残留')) {
+      return dialog
+    }
+  }
+  return null
+}
+
+function recoveryDrawer(): HTMLElement | null {
+  const drawers = Array.from(document.querySelectorAll('.el-drawer.open'))
+  const drawer = drawers.at(-1)
+  return drawer instanceof HTMLElement ? drawer : null
 }
 
 function sessionPhase(session: FailedUpgradeRecoverySession): FailedUpgradeRecoveryPhase {
@@ -143,8 +169,8 @@ async function confirmPrompt(root: ParentNode, value: string): Promise<void> {
 }
 
 async function openRecoveryDetail(root: ParentNode): Promise<void> {
-  await waitFor(() => buttonByText(root, '恢复处理') !== null, 'recovery entry rendered')
-  buttonByText(root, '恢复处理')?.click()
+  await waitFor(() => controlByText(root, '恢复处理') !== null, 'recovery entry rendered')
+  controlByText(root, '恢复处理')?.click()
   await waitFor(
     () => document.querySelector('.el-drawer') !== null,
     'recovery detail drawer opened'
@@ -514,7 +540,7 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = mountSandpackageInstallPage(host)
-  await waitFor(() => buttonByText(host, '恢复处理') !== null, 'install page rendered')
+  await waitFor(() => controlByText(host, '恢复处理') !== null, 'install page rendered')
   expectTrue(
     !textOf(host).includes('检查恢复条件'),
     'recovery detail stays closed on initial render'
@@ -578,7 +604,7 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   buttonByText(document, '刷新状态')?.click()
   await waitFor(
     () =>
-      buttonByText(host, '查看详情') !== null && buttonByText(document, '检查恢复条件') === null,
+      controlByText(host, '查看详情') !== null && buttonByText(document, '检查恢复条件') === null,
     'ordinary blocked row closes recovery drawer'
   )
   expectTrue(textOf(host).includes('安装文件缺失'), 'state 7 uses the clear local label')
@@ -679,13 +705,17 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
   await waitFor(() => buttonByText(document, '检查恢复条件') !== null, 'recovery row restored')
 
   configureRecoveryHttpMock('blocked')
-  buttonByText(document, '刷新状态')?.click()
+  const blockedDrawer = recoveryDrawer()
+  if (!blockedDrawer) throw new Error('blocked recovery drawer missing')
+  buttonByText(blockedDrawer, '刷新状态')?.click()
   await waitFor(
-    () => buttonByText(document, '重新执行升级') === null,
+    () =>
+      buttonByText(blockedDrawer, '重新执行升级') === null &&
+      textOf(blockedDrawer).includes('当前状态不允许自动恢复'),
     'blocked refresh hides retry'
   )
-  expectTrue(textOf(document).includes('当前状态不允许自动恢复'), 'blocked copy')
-  expectTrue(buttonByText(document, '刷新状态') === null, 'blocked has no recovery buttons')
+  expectTrue(textOf(blockedDrawer).includes('当前状态不允许自动恢复'), 'blocked copy')
+  expectTrue(buttonByText(blockedDrawer, '刷新状态') === null, 'blocked has no recovery buttons')
   passed.push('blocked hides every recovery button')
 
   configureRecoveryHttpMock('error')
@@ -704,5 +734,169 @@ export async function runFailedUpgradeRecoveryBehaviorHarness(): Promise<string[
 
   retryApp.unmount()
   retryHost.remove()
+
+  configureRecoveryHttpMock('cleanup_large')
+  const cleanupHost = document.createElement('div')
+  document.body.appendChild(cleanupHost)
+  const cleanupApp = mountSandpackageInstallPage(cleanupHost)
+  await waitFor(() => controlByText(cleanupHost, '清理残留') !== null, 'cleanup entry rendered')
+  controlByText(cleanupHost, '清理残留')?.click()
+  await waitFor(
+    () =>
+      textOf(cleanupDialog()).includes('现存业务表（86）') &&
+      textOf(cleanupDialog()).includes('现存菜单（176）'),
+    'cleanup inspection rendered'
+  )
+  const tableDetails = cleanupDialog()?.querySelectorAll('details.cleanup-residue-details')[0]
+  const menuDetails = cleanupDialog()?.querySelectorAll('details.cleanup-residue-details')[1]
+  expectTrue(
+    tableDetails instanceof HTMLDetailsElement &&
+      menuDetails instanceof HTMLDetailsElement &&
+      !tableDetails.open &&
+      !menuDetails.open &&
+      tableDetails.querySelector('.cleanup-residue-scroll') !== null &&
+      menuDetails.querySelector('.cleanup-residue-scroll') !== null,
+    'cleanup table and menu details stay collapsed with bounded result containers'
+  )
+  const packageDetails = cleanupDialog()?.querySelector('details.cleanup-package')
+  const packageSummary = packageDetails?.querySelector('summary')
+  if (!(packageDetails instanceof HTMLDetailsElement) || !(packageSummary instanceof HTMLElement)) {
+    throw new Error('supplemental cleanup package disclosure missing')
+  }
+  expectTrue(!packageDetails.open, 'successful inspection keeps supplemental package collapsed')
+  packageSummary.click()
+  await waitFor(
+    () =>
+      packageDetails.open &&
+      buttonByText(cleanupDialog() ?? document, '使用此版本检查清理范围')?.disabled === false,
+    'supplemental cleanup package ready'
+  )
+  expectTrue(
+    textOf(cleanupDialog()).includes('v0.7.3'),
+    'latest same-app repository version is selected by default'
+  )
+  buttonByText(cleanupDialog() ?? document, '使用此版本检查清理范围')?.click()
+  await waitFor(
+    () => textOf(cleanupDialog()).includes('补充清理包 0.7.3'),
+    'supplemental cleanup package refreshes inspection'
+  )
+  expectTrue(
+    cleanupHttpCounts().packages === 1 && cleanupHttpCounts().inspections === 2,
+    'supplemental package only registers scope and reinspects'
+  )
+  const cleanupConfirm = buttonByText(cleanupDialog() ?? document, '清理并允许重新安装')
+  expectTrue(cleanupConfirm?.disabled === true, 'cleanup stays disabled before exact app input')
+  const cleanupInput = document.querySelector('#cleanup-confirm-app')
+  if (!(cleanupInput instanceof HTMLInputElement)) throw new Error('cleanup confirmation missing')
+  setNativeInputValue(cleanupInput, 'wrong-plugin')
+  await nextTick()
+  expectTrue(cleanupConfirm?.disabled === true, 'wrong cleanup app keeps submission disabled')
+  setNativeInputValue(cleanupInput, 'sample-plugin')
+  await waitFor(() => cleanupConfirm?.disabled === false, 'exact cleanup app enables submission')
+  cleanupConfirm?.click()
+  cleanupConfirm?.click()
+  await waitFor(
+    () => textOf(cleanupDialog()).includes('插件残留已清理'),
+    'cleanup success rendered'
+  )
+  const successCounts = cleanupHttpCounts()
+  expectTrue(successCounts.submits === 1, 'double cleanup click submits once')
+  expectTrue(successCounts.lists >= 2, 'cleanup success refreshes installed plugins')
+  expectTrue(successCounts.repositories >= 2, 'cleanup success refreshes repository state')
+  expectTrue(successCounts.reloads === 0, 'cleanup does not automatically reload backend')
+  expectTrue(
+    textOf(cleanupDialog()).includes('菜单缓存刷新失败') &&
+      buttonByText(cleanupDialog() ?? document, '重载后端服务') !== null,
+    'cleanup warning keeps an explicit backend reload action'
+  )
+  buttonByText(cleanupDialog() ?? document, '重载后端服务')?.click()
+  await waitFor(
+    () => buttonByText(cleanupDialog() ?? document, '重载后端服务') === null,
+    'backend reload clears restart requirement'
+  )
+  expectTrue(
+    cleanupHttpCounts().reloads === 1 &&
+      textOf(cleanupDialog()).includes('清理已完成，可以重新安装'),
+    'backend reload runs only after user action and exposes reinstall'
+  )
+  expectTrue(
+    textOf(cleanupDialog()).includes('菜单缓存刷新失败'),
+    'successful backend reload preserves the unresolved backend warning'
+  )
+  buttonByText(cleanupDialog() ?? document, '去插件仓库')?.click()
+  await waitFor(
+    () =>
+      textOf(cleanupHost).includes('sample-plugin') &&
+      textOf(cleanupHost).includes('未安装') &&
+      buttonByText(cleanupHost, '直接安装')?.disabled === false,
+    'cleaned plugin exposes repository reinstall entry'
+  )
+  passed.push('cleanup requires exact app, prevents duplicate submit, and refreshes both lists')
+  cleanupApp.unmount()
+  cleanupHost.remove()
+
+  configureRecoveryHttpMock('cleanup_ready')
+  configureCleanupSubmitFailureOnce()
+  const continuationHost = document.createElement('div')
+  document.body.appendChild(continuationHost)
+  const continuationApp = mountSandpackageInstallPage(continuationHost)
+  await waitFor(
+    () => controlByText(continuationHost, '清理残留') !== null,
+    'cleanup retry entry rendered'
+  )
+  controlByText(continuationHost, '清理残留')?.click()
+  await waitFor(
+    () => textOf(cleanupDialog()).includes('现存业务表（1）'),
+    'cleanup retry inspection rendered'
+  )
+  const firstAttemptInput = document.querySelector('#cleanup-confirm-app')
+  if (!(firstAttemptInput instanceof HTMLInputElement)) {
+    throw new Error('cleanup retry confirmation missing')
+  }
+  setNativeInputValue(firstAttemptInput, 'sample-plugin')
+  await waitFor(
+    () => buttonByText(cleanupDialog() ?? document, '清理并允许重新安装')?.disabled === false,
+    'cleanup retry enabled'
+  )
+  buttonByText(cleanupDialog() ?? document, '清理并允许重新安装')?.click()
+  await waitFor(
+    () => textOf(cleanupDialog()).includes('文件归档暂未完成'),
+    'cleanup failure remains visible'
+  )
+  expectTrue(
+    buttonByText(cleanupDialog() ?? document, '清理并允许重新安装') === null,
+    'failed cleanup discards inspected fingerprint'
+  )
+  expectTrue(
+    buttonByText(cleanupDialog() ?? document, '使用此版本检查清理范围') === null,
+    'failed cleanup locks supplemental range until phase is reinspected'
+  )
+  buttonByText(cleanupDialog() ?? document, '重新检查')?.click()
+  await waitFor(
+    () =>
+      textOf(cleanupDialog()).includes('数据库清理步骤已经完成') &&
+      textOf(cleanupDialog()).includes('没有发现插件业务表残留') &&
+      textOf(cleanupDialog()).includes('没有发现插件菜单残留'),
+    'files-pending continuation rendered'
+  )
+  const continuationInput = document.querySelector('#cleanup-confirm-app')
+  if (!(continuationInput instanceof HTMLInputElement)) {
+    throw new Error('cleanup continuation confirmation missing')
+  }
+  setNativeInputValue(continuationInput, 'sample-plugin')
+  await waitFor(
+    () => buttonByText(cleanupDialog() ?? document, '继续完成清理')?.disabled === false,
+    'cleanup continuation enabled'
+  )
+  buttonByText(cleanupDialog() ?? document, '继续完成清理')?.click()
+  await waitFor(
+    () => textOf(cleanupDialog()).includes('插件残留已清理'),
+    'cleanup continuation succeeds'
+  )
+  expectTrue(cleanupHttpCounts().submits === 2, 'failure continuation submits only after recheck')
+  passed.push('cleanup failure drops old fingerprint and resumes from files-pending inspection')
+  continuationApp.unmount()
+  continuationHost.remove()
+
   return passed
 }

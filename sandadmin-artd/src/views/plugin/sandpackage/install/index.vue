@@ -155,6 +155,15 @@
                   <ArtSvgIcon icon="ri:file-info-line" class="mr-1" />
                   {{ isLegacyFailedUpgradeRecovery(row) ? '恢复处理' : '查看详情' }}
                 </ElLink>
+                <ElLink
+                  v-if="canCleanupLocal(row)"
+                  type="danger"
+                  :disabled="pluginOperationBusy"
+                  @click="openCleanupDialog(row)"
+                >
+                  <ArtSvgIcon icon="ri:delete-bin-2-line" class="mr-1" />
+                  {{ row.cleanup_pending ? '继续清理' : '清理残留' }}
+                </ElLink>
                 <template v-if="!isLegacyFailedUpgradeRecovery(row)">
                   <ElLink
                     v-if="row.registration_candidate === 1"
@@ -329,7 +338,9 @@
                   <div class="app-title">{{ item.title }}</div>
                   <div class="app-version">
                     {{ item.app }}
-                    <template v-if="item.versions[0]"> · 仓库版本 v{{ item.versions[0].version }} </template>
+                    <template v-if="item.versions[0]">
+                      · 仓库版本 v{{ item.versions[0].version }}
+                    </template>
                   </div>
                 </div>
                 <ElTooltip
@@ -585,6 +596,235 @@
     <!-- 终端弹窗 -->
     <TerminalBox ref="terminalRef" @success="getList" />
 
+    <!-- 异常插件残留清理 -->
+    <ElDialog
+      v-model="cleanupVisible"
+      title="清理异常插件残留"
+      width="min(680px, 94vw)"
+      :close-on-click-modal="!cleanupSubmitting && !cleanupPackageLoading && !cleanupReloading"
+      :close-on-press-escape="!cleanupSubmitting && !cleanupPackageLoading && !cleanupReloading"
+      :show-close="!cleanupSubmitting && !cleanupPackageLoading && !cleanupReloading"
+      @close="invalidateCleanupRequest"
+      @closed="resetCleanupDialog"
+    >
+      <div v-if="cleanupInspecting" class="cleanup-loading" v-loading="true">
+        正在检查需要清理的内容
+      </div>
+
+      <ElResult
+        v-else-if="cleanupCompleted"
+        icon="success"
+        :title="cleanupCompleted.restart_required ? '插件残留已清理' : '清理已完成，可以重新安装'"
+      >
+        <template #sub-title>
+          <p>
+            {{
+              cleanupCompleted.restart_required
+                ? '文件已清理，请重载后端服务使变更生效。'
+                : '插件状态已刷新。'
+            }}
+          </p>
+          <p v-if="cleanupCompleted.archive">文件归档：{{ cleanupCompleted.archive }}</p>
+          <ElAlert
+            v-if="cleanupCompleted.warning"
+            class="mt-3"
+            type="warning"
+            :closable="false"
+            :title="cleanupCompleted.warning"
+          />
+          <ElAlert
+            v-if="cleanupReloadError"
+            class="mt-3"
+            type="error"
+            :closable="false"
+            :title="cleanupReloadError"
+          />
+        </template>
+      </ElResult>
+
+      <template v-else>
+        <ElAlert v-if="cleanupError" type="error" :closable="false" title="需要重新检查">
+          <div class="cleanup-error-row">
+            <span>{{ cleanupError }}</span>
+            <ElButton size="small" :disabled="cleanupSubmitting" @click="inspectCleanup">
+              重新检查
+            </ElButton>
+          </div>
+        </ElAlert>
+
+        <details
+          v-if="!cleanupRangeLocked"
+          class="cleanup-section cleanup-package"
+          :open="cleanupInspection === null"
+        >
+          <summary>
+            {{ cleanupInspection ? '更换清理包（可选）' : '补充清理范围' }}
+          </summary>
+          <p class="cleanup-empty">
+            可选择同一插件的已发布版本补充识别残留；此操作不会安装插件，也不会执行包内 SQL。
+          </p>
+          <div v-if="repositoryLoading" class="cleanup-package-state" v-loading="true">
+            正在读取插件仓库
+          </div>
+          <ElAlert
+            v-else-if="repositoryError"
+            class="mt-3"
+            type="error"
+            :closable="false"
+            title="插件仓库读取失败"
+          >
+            <ElButton size="small" @click="fetchRepositoryCatalog">重新读取仓库</ElButton>
+          </ElAlert>
+          <p v-else-if="cleanupRepositoryVersions.length === 0" class="cleanup-empty mt-3">
+            仓库中没有该插件的已发布版本，可刷新仓库后重试。
+          </p>
+          <div v-else class="cleanup-package-action">
+            <ElSelect
+              v-model="cleanupPackageVersion"
+              :disabled="cleanupPackageLoading"
+              aria-label="补充清理包版本"
+            >
+              <ElOption
+                v-for="item in cleanupRepositoryVersions"
+                :key="item.version"
+                :label="`v${item.version}${item.version === cleanupTargetVersion ? '（安装记录版本）' : ''}`"
+                :value="item.version"
+              />
+            </ElSelect>
+            <ElButton
+              type="primary"
+              :loading="cleanupPackageLoading"
+              :disabled="cleanupPackageVersion === '' || pluginOperationBusy"
+              @click="prepareCleanupPackage"
+            >
+              使用此版本检查清理范围
+            </ElButton>
+          </div>
+        </details>
+
+        <template v-if="cleanupInspection">
+          <ElDescriptions :column="1" border>
+            <ElDescriptionsItem label="插件">
+              {{ cleanupTargetTitle || cleanupInspection.app }}
+            </ElDescriptionsItem>
+            <ElDescriptionsItem label="插件标识">{{ cleanupInspection.app }}</ElDescriptionsItem>
+            <ElDescriptionsItem label="版本">
+              <div>安装记录版本 {{ cleanupInspection.version || '未知' }}</div>
+              <div v-if="cleanupInspection.cleanup_package_version">
+                补充清理包 {{ cleanupInspection.cleanup_package_version }}
+              </div>
+            </ElDescriptionsItem>
+          </ElDescriptions>
+
+          <ElAlert
+            v-if="cleanupInspection.phase === 'files_pending'"
+            class="mt-3"
+            type="warning"
+            :closable="false"
+            title="数据库清理步骤已经完成，请继续完成文件清理。"
+          />
+
+          <section class="cleanup-section">
+            <h4>现存业务表（{{ cleanupInspection.tables.length }}）</h4>
+            <details v-if="cleanupInspection.tables.length" class="cleanup-residue-details">
+              <summary>展开查看业务表</summary>
+              <div class="cleanup-residue-scroll cleanup-tags">
+                <ElTag v-for="table in cleanupInspection.tables" :key="table" type="danger">
+                  {{ table }}
+                </ElTag>
+              </div>
+            </details>
+            <p v-else class="cleanup-empty">没有发现插件业务表残留。</p>
+          </section>
+
+          <section class="cleanup-section">
+            <h4>现存菜单（{{ cleanupInspection.menus.length }}）</h4>
+            <details v-if="cleanupInspection.menus.length" class="cleanup-residue-details">
+              <summary>展开查看菜单</summary>
+              <div class="cleanup-residue-scroll">
+                <ElDescriptions :column="1" border size="small">
+                  <ElDescriptionsItem
+                    v-for="menu in cleanupInspection.menus"
+                    :key="menu.id"
+                    :label="menu.name || menu.code || menu.id"
+                  >
+                    {{ menu.code || '无权限标识' }} · ID {{ menu.id }}
+                  </ElDescriptionsItem>
+                </ElDescriptions>
+              </div>
+            </details>
+            <p v-else class="cleanup-empty">没有发现插件菜单残留。</p>
+          </section>
+
+          <section class="cleanup-section">
+            <h4>将归档的文件路径</h4>
+            <ul v-if="cleanupInspection.paths.length" class="cleanup-paths">
+              <li v-for="path in cleanupInspection.paths" :key="path">{{ path }}</li>
+            </ul>
+            <p v-else class="cleanup-empty">没有发现需要归档的插件文件。</p>
+          </section>
+
+          <ElAlert class="mt-3" type="warning" :closable="false" title="确认清理影响">
+            本次操作会删除上面列出的插件业务表和菜单数据。插件文件及旧包会被归档，但归档不包含数据库备份，无法据此恢复已删除的数据库数据。
+          </ElAlert>
+
+          <div class="cleanup-confirmation">
+            <label for="cleanup-confirm-app">
+              输入插件标识 <strong>{{ cleanupInspection.app }}</strong> 以确认
+            </label>
+            <ElInput
+              id="cleanup-confirm-app"
+              v-model="cleanupConfirmation"
+              :disabled="cleanupSubmitting"
+              autocomplete="off"
+              placeholder="请输入插件标识"
+              @keyup.enter="submitCleanup"
+            />
+          </div>
+        </template>
+      </template>
+
+      <template #footer>
+        <template v-if="cleanupCompleted">
+          <ElButton :disabled="cleanupReloading" @click="cleanupVisible = false">关闭</ElButton>
+          <ElButton
+            v-if="cleanupCompleted.restart_required"
+            type="warning"
+            :loading="cleanupReloading"
+            @click="reloadCleanupBackend"
+          >
+            重载后端服务
+          </ElButton>
+          <ElButton
+            type="primary"
+            :disabled="cleanupReloading || cleanupCompleted.restart_required"
+            @click="goToRepositoryAfterCleanup"
+          >
+            去插件仓库
+          </ElButton>
+        </template>
+        <template v-else>
+          <ElButton
+            :disabled="cleanupSubmitting || cleanupPackageLoading"
+            @click="cleanupVisible = false"
+          >
+            取消
+          </ElButton>
+          <ElButton
+            v-if="cleanupInspection"
+            type="danger"
+            :loading="cleanupSubmitting"
+            :disabled="!canSubmitCleanup"
+            @click="submitCleanup"
+          >
+            {{
+              cleanupInspection.phase === 'files_pending' ? '继续完成清理' : '清理并允许重新安装'
+            }}
+          </ElButton>
+        </template>
+      </template>
+    </ElDialog>
+
     <!-- 仓库版本选择对话框 -->
     <ElDialog
       v-model="repositoryVersionVisible"
@@ -687,7 +927,9 @@
     type RepositoryPlugin,
     type RepositoryPluginLocal,
     type RepositoryPluginVersion,
-    type RepositoryVersionAction
+    type RepositoryVersionAction,
+    type CleanupInspection,
+    type CleanupResult
   } from '../api/index'
   import InstallForm from './install-box.vue'
   import TerminalBox from './terminal.vue'
@@ -773,12 +1015,31 @@
   const terminalStore = useTerminalStore()
   const localWriteOwner = ref<LocalWriteOwner>('')
   const terminalLaunchPending = ref(false)
+  const cleanupVisible = ref(false)
+  const cleanupTargetApp = ref('')
+  const cleanupTargetTitle = ref('')
+  const cleanupTargetVersion = ref('')
+  const cleanupTargetPending = ref(false)
+  const cleanupInspection = ref<CleanupInspection | null>(null)
+  const cleanupCompleted = ref<CleanupResult | null>(null)
+  const cleanupInspecting = ref(false)
+  const cleanupSubmitting = ref(false)
+  const cleanupPackageLoading = ref(false)
+  const cleanupPackageVersion = ref('')
+  const cleanupRangeLocked = ref(false)
+  const cleanupReloading = ref(false)
+  const cleanupReloadError = ref('')
+  const cleanupError = ref('')
+  const cleanupConfirmation = ref('')
+  let cleanupRequestId = 0
 
   const isPostgresqlLifecycleRecord = (row: SandpackageInstallRow): boolean =>
     row.lifecycle_driver === 'saipackage-pg-v1'
 
   const isLegacyFailedUpgradeRecovery = (row: SandpackageInstallRow): boolean =>
-    !isPostgresqlLifecycleRecord(row) && isFailedUpgradeRecovery(row)
+    row.cleanup_pending !== true &&
+    !isPostgresqlLifecycleRecord(row) &&
+    isFailedUpgradeRecovery(row)
 
   const failedUpgradeRows = computed(() =>
     installList.value.filter((row) => isLegacyFailedUpgradeRecovery(row))
@@ -1321,6 +1582,187 @@
   const canUninstallLocal = (record: SandpackageInstallRow): boolean =>
     record.state === 1 && record.ordinary_actions_blocked !== true
 
+  const canCleanupLocal = (record: SandpackageInstallRow): boolean =>
+    record.state === 7 || record.cleanup_pending === true
+
+  const canSubmitCleanup = computed(
+    () =>
+      cleanupInspection.value !== null &&
+      cleanupConfirmation.value === cleanupInspection.value.app &&
+      !cleanupSubmitting.value
+  )
+
+  const cleanupErrorMessage = (error: unknown, fallback: string): string =>
+    error instanceof Error && error.message.trim() !== '' ? error.message : fallback
+
+  const invalidateCleanupRequest = (): void => {
+    cleanupRequestId += 1
+    cleanupInspecting.value = false
+  }
+
+  const resetCleanupDialog = (): void => {
+    invalidateCleanupRequest()
+    cleanupVisible.value = false
+    cleanupTargetApp.value = ''
+    cleanupTargetTitle.value = ''
+    cleanupTargetVersion.value = ''
+    cleanupTargetPending.value = false
+    cleanupInspection.value = null
+    cleanupCompleted.value = null
+    cleanupSubmitting.value = false
+    cleanupPackageLoading.value = false
+    cleanupPackageVersion.value = ''
+    cleanupRangeLocked.value = false
+    cleanupReloading.value = false
+    cleanupReloadError.value = ''
+    cleanupError.value = ''
+    cleanupConfirmation.value = ''
+  }
+
+  const inspectCleanup = async (): Promise<void> => {
+    const app = cleanupTargetApp.value
+    if (app === '' || cleanupSubmitting.value) return
+    const requestId = ++cleanupRequestId
+    cleanupInspecting.value = true
+    cleanupInspection.value = null
+    cleanupError.value = ''
+    cleanupConfirmation.value = ''
+    try {
+      const result = await sandpackageApi.inspectCleanup({ appName: app })
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      if (result.app !== app) {
+        throw new Error('清理检查结果与当前插件不一致，请重新检查')
+      }
+      cleanupInspection.value = result
+      cleanupRangeLocked.value =
+        cleanupRangeLocked.value || cleanupTargetPending.value || result.phase === 'files_pending'
+    } catch (error: unknown) {
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      cleanupError.value = cleanupErrorMessage(error, '清理检查失败，请稍后重试')
+    } finally {
+      if (requestId === cleanupRequestId) cleanupInspecting.value = false
+    }
+  }
+
+  const openCleanupDialog = (record: SandpackageInstallRow): void => {
+    if (pluginOperationBusy.value || !canCleanupLocal(record)) return
+    resetCleanupDialog()
+    cleanupTargetApp.value = record.app
+    cleanupTargetTitle.value = record.title
+    cleanupTargetVersion.value = record.version
+    cleanupTargetPending.value = record.cleanup_pending === true
+    cleanupRangeLocked.value = cleanupTargetPending.value
+    cleanupPackageVersion.value =
+      repositoryCatalog.value?.plugins.find((item) => item.app === record.app)?.versions[0]
+        ?.version ?? ''
+    cleanupVisible.value = true
+    inspectCleanup()
+  }
+
+  const prepareCleanupPackage = async (): Promise<void> => {
+    const selected = cleanupRepositoryVersions.value.find(
+      (item) => item.version === cleanupPackageVersion.value
+    )
+    if (
+      !selected ||
+      cleanupRangeLocked.value ||
+      cleanupPackageLoading.value ||
+      pluginOperationBusy.value
+    ) {
+      return
+    }
+    const app = cleanupTargetApp.value
+    const requestId = ++cleanupRequestId
+    cleanupPackageLoading.value = true
+    cleanupError.value = ''
+    try {
+      const result = await sandpackageApi.prepareCleanupPackage({
+        app,
+        version: selected.version,
+        sha256: selected.sha256
+      })
+      if (
+        requestId !== cleanupRequestId ||
+        !cleanupVisible.value ||
+        result.app !== app ||
+        result.version !== selected.version
+      ) {
+        throw new Error('补充清理包与当前选择不一致，请重新选择')
+      }
+      cleanupPackageLoading.value = false
+      await inspectCleanup()
+      if (cleanupVisible.value && cleanupInspection.value) {
+        ElMessage.success('已使用所选版本重新检查清理范围')
+      }
+    } catch (error: unknown) {
+      if (requestId === cleanupRequestId && cleanupVisible.value) {
+        cleanupError.value = cleanupErrorMessage(error, '补充清理范围检查失败，请重试')
+      }
+    } finally {
+      if (requestId === cleanupRequestId) cleanupPackageLoading.value = false
+    }
+  }
+
+  const submitCleanup = async (): Promise<void> => {
+    const inspection = cleanupInspection.value
+    if (!inspection || !canSubmitCleanup.value || pluginOperationBusy.value) return
+    const app = inspection.app
+    const fingerprint = inspection.fingerprint
+    const requestId = ++cleanupRequestId
+    cleanupSubmitting.value = true
+    cleanupRangeLocked.value = true
+    cleanupError.value = ''
+    try {
+      const result = await sandpackageApi.cleanupApp({
+        appName: app,
+        fingerprint,
+        confirmApp: cleanupConfirmation.value
+      })
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      if (result.app !== app || result.state !== 0) {
+        throw new Error('清理结果与当前插件不一致，请重新检查')
+      }
+      cleanupCompleted.value = result
+      cleanupInspection.value = null
+      cleanupConfirmation.value = ''
+      await Promise.all([getList(), fetchRepositoryCatalog()])
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      ElMessage.success('插件残留已清理，可以重新安装')
+    } catch (error: unknown) {
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      cleanupInspection.value = null
+      cleanupConfirmation.value = ''
+      cleanupError.value = `${cleanupErrorMessage(error, '清理未完成')}，请重新检查后再试`
+      await getList()
+      if (requestId !== cleanupRequestId || !cleanupVisible.value) return
+      const refreshed = installList.value.find((row) => row.app === app)
+      if (refreshed?.cleanup_pending === true) cleanupTargetPending.value = true
+    } finally {
+      if (requestId === cleanupRequestId) cleanupSubmitting.value = false
+    }
+  }
+
+  const goToRepositoryAfterCleanup = (): void => {
+    cleanupVisible.value = false
+    activeTab.value = 'repository'
+  }
+
+  const reloadCleanupBackend = async (): Promise<void> => {
+    const completed = cleanupCompleted.value
+    if (!completed?.restart_required || cleanupReloading.value) return
+    cleanupReloading.value = true
+    cleanupReloadError.value = ''
+    try {
+      await sandpackageApi.reloadBackend()
+      cleanupCompleted.value = { ...completed, restart_required: false }
+      ElMessage.success('后端服务已重载，现在可重新安装插件')
+    } catch (error: unknown) {
+      cleanupReloadError.value = cleanupErrorMessage(error, '后端服务重载失败，请重试')
+    } finally {
+      cleanupReloading.value = false
+    }
+  }
+
   const localActionReason = (record: SandpackageInstallRow): string => {
     if (record.state === 1) return '已安装'
     if (record.state === 7) return '已找到安装记录，但未找到插件文件。'
@@ -1331,6 +1773,9 @@
   }
 
   const localDetailReason = (record: SandpackageInstallRow): string => {
+    if (record.cleanup_pending === true) {
+      return record.recovery_reason || '上次清理尚未完成，请继续清理。'
+    }
     if (record.state === 7) return '已找到安装记录，但未找到插件文件。'
     if (isLegacyFailedUpgradeRecovery(record)) return recoveryReason(record)
     return (
@@ -1612,6 +2057,7 @@
   }
 
   const stateText = (record: SandpackageInstallRow): string => {
+    if (record.cleanup_pending === true) return record.state_text || '清理未完成'
     if (isLegacyFailedUpgradeRecovery(record)) return '升级未完成'
     if (record.state === 7) return '安装文件缺失'
     if (record.state_text) return record.state_text
@@ -1735,6 +2181,10 @@
   let repositoryDocumentRequestId = 0
 
   const repositoryPlugins = computed(() => repositoryCatalog.value?.plugins ?? [])
+  const cleanupRepositoryVersions = computed(
+    () =>
+      repositoryPlugins.value.find((item) => item.app === cleanupTargetApp.value)?.versions ?? []
+  )
   const filteredRepositoryPlugins = computed(() => {
     const keyword = repositoryKeyword.value.trim().toLocaleLowerCase()
     if (!keyword) return repositoryPlugins.value
@@ -1761,12 +2211,20 @@
           task.status === TaskStatus.RUNNING
       )
   )
+  const cleanupOperationBusy = computed(
+    () =>
+      cleanupInspecting.value ||
+      cleanupSubmitting.value ||
+      cleanupPackageLoading.value ||
+      cleanupReloading.value
+  )
   const pluginOperationBusy = computed(
     () =>
       repositoryDownloading.value ||
       localWriteBusy.value ||
       recoveryOperationBusy.value ||
-      terminalOperationBusy.value
+      terminalOperationBusy.value ||
+      cleanupOperationBusy.value
   )
   const repositoryWritesBlocked = computed(
     () => hideGlobalPluginWrites.value || pluginOperationBusy.value
@@ -2091,6 +2549,12 @@
     }
   })
 
+  watch(cleanupRepositoryVersions, (versions) => {
+    if (cleanupVisible.value && cleanupPackageVersion.value === '' && versions[0]) {
+      cleanupPackageVersion.value = versions[0].version
+    }
+  })
+
   watch([localDetailVisible, selectedLocalRow], ([visible, row]) => {
     if (!visible) return
     if (!row || (localDetailRecoveryExpected.value && !isLegacyFailedUpgradeRecovery(row))) {
@@ -2174,6 +2638,101 @@
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
+  }
+
+  .cleanup-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .cleanup-error-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .cleanup-section {
+    margin-top: 18px;
+
+    h4 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: var(--el-text-color-primary);
+    }
+  }
+
+  .cleanup-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .cleanup-residue-details {
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: var(--el-border-radius-base);
+
+    summary {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--el-color-primary);
+      cursor: pointer;
+    }
+  }
+
+  .cleanup-residue-scroll {
+    max-height: 220px;
+    padding: 0 12px 12px;
+    overflow: auto;
+  }
+
+  .cleanup-empty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+
+  .cleanup-package-state {
+    min-height: 80px;
+    margin-top: 12px;
+  }
+
+  .cleanup-package summary {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-color-primary);
+    cursor: pointer;
+  }
+
+  .cleanup-package[open] summary {
+    margin-bottom: 10px;
+  }
+
+  .cleanup-package-action {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .cleanup-paths {
+    padding-left: 20px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--el-text-color-regular);
+    overflow-wrap: anywhere;
+  }
+
+  .cleanup-confirmation {
+    display: grid;
+    gap: 8px;
+    margin-top: 18px;
+    font-size: 14px;
+    color: var(--el-text-color-regular);
   }
 
   .repository-toolbar {
@@ -2288,6 +2847,10 @@
     .version-item {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .cleanup-package-action {
+      grid-template-columns: 1fr;
     }
   }
 

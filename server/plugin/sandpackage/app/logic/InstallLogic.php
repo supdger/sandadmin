@@ -11,6 +11,7 @@ use plugin\sandadmin\app\cache\UserMenuCache;
 use plugin\sandpackage\app\service\PostgresLifecycleSqlExecutor;
 use plugin\sandpackage\app\service\FreshInstallRecovery;
 use plugin\sandpackage\app\service\PluginStorage;
+use plugin\sandpackage\app\service\AbnormalPluginCleanup;
 
 /**
  * SaiPackage 6.0.2 / 82043f83 (MIT), with PostgreSQL and host compatibility.
@@ -70,6 +71,7 @@ class InstallLogic
 
     public function getInstallState()
     {
+        if ($this->cleanupPending()) return self::FAILED;
         if (!is_dir($this->appDir)) {
             return is_dir(base_path() . '/plugin/' . $this->appName) ? self::RUNTIME_UNREGISTERED : self::UNINSTALLED;
         }
@@ -388,6 +390,84 @@ class InstallLogic
         }
     }
 
+    /** Inspection and execution share the existing host/app locks, never the ordinary uninstall gate. */
+    public function inspectCleanup(): array
+    {
+        $this->lock();
+        try {
+            $this->assertCleanupState();
+            return $this->abnormalCleanup()->inspect();
+        } finally { $this->unlock(); }
+    }
+
+    public function cleanup(string $fingerprint, string $confirmApp): array
+    {
+        $this->lock();
+        try {
+            $this->assertCleanupState();
+            $result = $this->abnormalCleanup()->cleanup($fingerprint, $confirmApp);
+            try {
+                if (UserMenuCache::clearMenuCache() === false) throw new \RuntimeException('菜单缓存未刷新');
+            } catch (Throwable $error) {
+                error_log('SandPackage cleanup cache ' . $this->appName . ': ' . $error->getMessage());
+                $result['warning'] = '插件残留已清理，但菜单缓存刷新失败；请检查缓存服务后重新加载后台';
+            }
+            return $result;
+        } finally { $this->unlock(); }
+    }
+
+    public function prepareCleanupPackage(array $package): array
+    {
+        $this->lock();
+        try {
+            if ($this->cleanupPending()) throw new ApiException('清理已开始，不能更换清理包；请继续当前清理');
+            $this->assertCleanupState();
+            if (($package['app'] ?? null) !== $this->appName || !is_string($package['version'] ?? null)
+                || !preg_match('/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/D', $package['version'])
+                || !is_string($package['sha256'] ?? null) || !preg_match('/^[a-f0-9]{64}$/D', $package['sha256'])) throw new ApiException('补充清理包身份无效');
+            foreach (['install_sql', 'uninstall_sql'] as $key) {
+                if (!is_string($package[$key] ?? null) || strlen($package[$key]) > 4194304) throw new ApiException('补充清理包声明无效');
+            }
+            $path = $this->appDir . '.cleanup-package.json';
+            $this->assertSafePath($path);
+            $temporary = $path . '.' . bin2hex(random_bytes(8)) . '.tmp';
+            $body = json_encode(array_intersect_key($package, array_flip(['app', 'version', 'sha256', 'install_sql', 'uninstall_sql'])), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            $handle = fopen($temporary, 'xb');
+            if ($handle === false) throw new ApiException('无法保存补充清理包');
+            try {
+                if (fwrite($handle, $body) !== strlen($body) || !fflush($handle) || !fsync($handle)) throw new ApiException('补充清理包未完整保存');
+                if (!rename($temporary, $path)) throw new ApiException('无法替换补充清理包');
+            } finally { fclose($handle); if (is_file($temporary)) unlink($temporary); }
+            return ['app' => $this->appName, 'version' => $package['version']];
+        } finally { $this->unlock(); }
+    }
+
+    public function cleanupPending(): bool
+    {
+        return AbnormalPluginCleanup::pending(rtrim($this->installDir, '/'), $this->appName);
+    }
+
+    private function abnormalCleanup(): AbnormalPluginCleanup
+    {
+        return new AbnormalPluginCleanup($this->appName, rtrim($this->appDir, '/'),
+            $this->getAllowedPath(), rtrim($this->installDir, '/'), $this->recoveryConnection());
+    }
+
+    private function assertCleanupState(): void
+    {
+        if ($this->cleanupPending()) return;
+        if ($this->getInstallState() !== self::DEPLOYMENT_MISSING) {
+            throw new ApiException('此入口用于运行文件缺失的插件；请刷新状态后选择对应操作');
+        }
+        $info = $this->getInfo();
+        foreach (['package_backup_id', 'registration_candidate', 'failed_upgrade', 'process_recovery_required', 'dependency_command_nonce'] as $key) {
+            if (!empty($info[$key])) throw new ApiException('存在升级或依赖操作记录，请先完成对应恢复再清理');
+        }
+        foreach (glob($this->installDir . 'locks/' . $this->appName . '-*.json') ?: [] as $journal) {
+            if (is_file($journal) || is_link($journal)) throw new ApiException('存在未完成的插件操作日志，请先完成对应恢复再清理');
+        }
+    }
+
     /**
      * 检查包是否完整
      * @throws Throwable
@@ -650,7 +730,7 @@ class InstallLogic
     private function assertAppName(string $app): void
     {
         if (!preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app)
-            || in_array($app, ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'fresh-recovery'], true)) {
+            || in_array($app, ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'fresh-recovery', 'cleanup'], true)) {
             throw new ApiException('插件标识无效或属于宿主保留目录');
         }
     }

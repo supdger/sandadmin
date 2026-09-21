@@ -95,6 +95,63 @@ final class RepositoryLogic
         });
     }
 
+    /** Supplemental declarations only: no installation, dependency update or SQL execution. */
+    public function cleanupPackage(string $app, string $version, string $sha256, callable $complete): void
+    {
+        $this->fetchCatalog(false, function (?array $catalog, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
+            if ($error !== null) { $complete(null, $error); return; }
+            try {
+                $release = $this->selectRelease($catalog, $app, $version);
+                if (!hash_equals($release['sha256'], $sha256)) throw new ApiException('插件清单已变化，请刷新后重新选择清理包');
+                if (!$this->compatible($release)) throw new ApiException('清理包不兼容当前宿主版本');
+                $url = $this->releaseUrl($release);
+            } catch (Throwable $error) { $complete(null, $error); return; }
+            $this->client->get($url, 5242880, function (?string $body, ?Throwable $error) use ($app, $version, $sha256, $complete): void {
+                if ($error !== null) { $complete(null, $error); return; }
+                try {
+                    $package = $this->cleanupDeclarations($body ?? '', $app, $version, $sha256);
+                    $result = (new InstallLogic($app))->prepareCleanupPackage($package);
+                } catch (Throwable $error) { $complete(null, $error); return; }
+                $complete($result, null);
+            });
+        });
+    }
+
+    private function cleanupDeclarations(string $body, string $app, string $version, string $sha256): array
+    {
+        $file = $this->archiveFile($body, $sha256);
+        try {
+            $zip = $this->verifiedZip($file, $app, $version);
+            try {
+                if ($zip->numFiles > 2048) throw new ApiException('清理包文件数量过多');
+                $names = []; $bytes = 0;
+                for ($index = 0; $index < $zip->numFiles; $index++) {
+                    $entry = $zip->statIndex($index);
+                    if (!is_array($entry)) throw new ApiException('清理包目录无法读取');
+                    $name = $entry['name'];
+                    $key = rtrim($name, '/');
+                    if ($name === '' || str_contains($name, '\\') || str_contains($name, ':')
+                        || preg_match('/[\x00-\x1f]/', $name) || array_intersect(explode('/', $key), ['', '.', '..'])
+                        || isset($names[$key])) throw new ApiException('清理包包含不安全或重复路径');
+                    $names[$key] = true;
+                    $zip->getExternalAttributesIndex($index, $os, $attributes);
+                    if ((($attributes >> 16) & 0170000) === 0120000) throw new ApiException('清理包不能包含符号链接');
+                    $bytes += $entry['size'];
+                    if ($bytes > 67108864) throw new ApiException('清理包解压大小超过限制');
+                }
+                $package = ['app' => $app, 'version' => $version, 'sha256' => $sha256];
+                foreach (['install', 'uninstall'] as $kind) {
+                    $stat = $zip->statName($kind . '.sql');
+                    if (!is_array($stat) || $stat['size'] > 4194304) throw new ApiException('清理包缺少有界的生命周期声明');
+                    $sql = $zip->getFromName($kind . '.sql');
+                    if (!is_string($sql) || preg_match('//u', $sql) !== 1) throw new ApiException('清理包 SQL 编码无效');
+                    $package[$kind . '_sql'] = $sql;
+                }
+                return $package;
+            } finally { $zip->close(); }
+        } finally { if (is_file($file)) unlink($file); }
+    }
+
     private function stage(string $body, string $app, string $version, string $sha256): array
     {
         $file = $this->archiveFile($body, $sha256);

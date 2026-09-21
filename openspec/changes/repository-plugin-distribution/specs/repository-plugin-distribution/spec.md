@@ -91,3 +91,18 @@
 #### Scenario: Invalid or missing files
 - **WHEN** 登记存在但运行文件缺失，或可识别插件元数据损坏
 - **THEN** 显示对应异常，不漏列或误报已安装，不跟随符号链接读取目录外数据
+
+### Requirement: Abnormal plugin cleanup and reinstall
+系统 SHALL 为运行文件缺失的有效安装登记提供可理解的清理入口，完成数据库、菜单与文件登记处理后允许重新安装，不要求重装宿主。
+
+#### Scenario: Confirm cleanup scope
+- **WHEN** 管理员检查异常插件
+- **THEN** 展示现存业务表、菜单及将归档文件，明确数据删除影响；未明确确认或现场指纹变化时不执行清理
+
+#### Scenario: Cleanup and reinstall
+- **WHEN** 管理员确认当前清理范围且不存在外部依赖冲突
+- **THEN** 在事务内清理限定的表和菜单，归档插件残留文件及登记，返回未安装并允许重新安装；宿主和其他插件数据保持不变
+
+#### Scenario: Interrupted cleanup
+- **WHEN** 数据库提交回应丢失或后续归档未完成
+- **THEN** 保留可继续清理的管理入口，依据现场与持久记录判断是否仅需归档，不能盲目重放SQL或以删除登记掩盖数据库残留

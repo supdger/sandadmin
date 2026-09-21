@@ -11,7 +11,7 @@ use RecursiveIteratorIterator;
 /** Resolves the single persistent plugin registry root and safely discovers local plugins. */
 final class PluginStorage
 {
-    private const RESERVED = ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'archives', 'uploads', 'replacements', 'quarantine', 'fresh-recovery', 'runtime-restores'];
+    private const RESERVED = ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'archives', 'uploads', 'replacements', 'quarantine', 'fresh-recovery', 'runtime-restores', 'cleanup'];
 
     public function __construct(private ?string $runtime = null, private ?string $server = null)
     {
@@ -82,10 +82,21 @@ final class PluginStorage
     public function managedRecords(): array
     {
         $records = [];
-        foreach ($this->directories($this->root()) as $app => $path) {
+        $root = $this->root();
+        foreach ($this->directories($root) as $app => $path) {
             $info = is_link($path) ? null : $this->readInfo($path, $app);
             if ($info !== null) $records[$app] = $info + ['_path' => $path];
             else $records[$app] = ['app' => $app, 'state' => 5, '_path' => $path, '_error' => '安装候选目录已被占用或元数据无效'];
+        }
+        // A crash after archiving the candidate must not hide the continuation entry.
+        $cleanupDirectory = $root . '/cleanup';
+        $this->assertDirectoryPath($cleanupDirectory);
+        foreach (glob($cleanupDirectory . '/*.json') ?: [] as $journal) {
+            $app = basename($journal, '.json');
+            if (!preg_match('/^[a-z][a-z0-9-]{1,63}$/D', $app) || in_array($app, self::RESERVED, true)) continue;
+            if (AbnormalPluginCleanup::pending($root, $app) && !isset($records[$app])) {
+                $records[$app] = ['app' => $app, 'title' => $app, 'version' => '', 'state' => 8];
+            }
         }
         return $records;
     }

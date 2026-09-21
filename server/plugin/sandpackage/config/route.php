@@ -29,3 +29,10 @@ Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController:
 Route::get('/tool/install/repository/catalog', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryCatalog']);
 Route::post('/tool/install/repository/download', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryDownload']);
 Route::get('/tool/install/repository/document', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryDocument']);
+
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'inspectCleanup']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'cleanup']);
+Route::post('/tool/install/cleanup/inspect', [plugin\sandpackage\app\controller\InstallController::class, 'inspectCleanup']);
+Route::post('/tool/install/cleanup', [plugin\sandpackage\app\controller\InstallController::class, 'cleanup']);
+Route::disableDefaultRoute([plugin\sandpackage\app\controller\InstallController::class, 'repositoryCleanupPackage']);
+Route::post('/tool/install/cleanup/package', [plugin\sandpackage\app\controller\InstallController::class, 'repositoryCleanupPackage']);

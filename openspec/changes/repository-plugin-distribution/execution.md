@@ -132,3 +132,23 @@
 - 独立Astra发现并复现两项迁移准入问题：宽松state转换放行坏登记、拒绝正常成功新装审计。主控修复并增加拒绝原文保留和成功终态审计迁移测试；独立Storage34及真实InstallLogic正常安装完整journal模拟旧根再迁移通过，journal逐字节一致。无剩余本切片must-fix。
 - 当前源码实例实际CLI默认inspect通过：apply=false/migrated=false；缺少--maintenance的--apply被明确拒绝。当前8788无监听且无该runtime/webman.pid，未启动服务、未执行实际目录迁移、未修改插件业务数据库。
 - sand_plugins消费方已收到目录、解析接口和迁移命令；同步保护临时rsync验证已通过，实际demo同步和迁移仍未执行。发布清晰revision后消费方主动拉取，不能把当前代码/临时测试视为消费方已部署。
+
+## 异常插件清理后重新安装（2026-09-21）
+
+用户明确要求异常安装不能只阻断，必须提供清理后重新安装的出口。本轮实现独立于普通卸载的清理预览和确认入口，基于原包及可选受验仓库同插件包的声明识别表和菜单；数据库事务、精确菜单ID、DROP RESTRICT、文件原子归档和持久日志续作。原登记已归档但流程未结束时，列表仍从清理日志提供入口，普通安装保持阻断；最终完成才回到未安装。
+
+独立审查先发现“无菜单DELETE声明时漏检查本插件菜单”缺陷；已修复为无条件检查归属菜单，并独立重放确认预览拒绝、候选保留、数据库零变更。后端增量独立审查无must-fix。清理故障行为45项通过，另通过PluginStorage、RepositoryDistribution（含补充包校验/不安装边界）、RepositoryHttpResponse、FreshInstallRecovery、UpstreamPostgresLifecycle、PostgresLifecycleSqlExecutor回归。
+
+真实生命周期在原已授权独立库`sandadmin_repository_acceptance_20260918`内进行；实际连接Unix本机，未新建数据库。使用中立`cleanup-probe`，真实InstallLogic安装→移走后端模拟state7→清理1表/2菜单→重新上传和安装state1→正常卸载state0，宿主菜单数量恢复；归档内原包及用户改动文件内容保留。额外真实复现旧包漏新版依赖表：创建第二张本次测试表及FK，旧预览具体拒绝→补充声明→2表预览→清理→重装→正常卸载通过。测试对象均移除，归档及审计保留。证据在任务工作区`work/cleanup-acceptance-20260921/lifecycle-final.log`、`supplemented-lifecycle.log`。
+
+当前用户宿主仅做范围检查和受验补充包准备：原IAM登记0.6.0保持，实际GithubRepositoryClient校验仓库0.7.3 ZIP后只保存声明，完整预览86表/176菜单/1目录；额外只读检查外部FK、事件触发器、共享菜单自定义触发器均为空。没有删除本实例表、菜单或安装记录，没有安装IAM。用户应在管理对话框查看范围后自行明确确认清理。当前8788新POST检查路由未登录返回业务401，GET清理404；热重载已加载路由。
+
+前端与真实页面独立验收尚在本轮收尾，见后续补充记录，不以以上后端证据替代。
+
+### 最终页面验收
+
+独立Astra通过真实Chrome操作实际组件HTTP夹具：86表/176菜单默认折叠，390×844窄屏检查，展开区域限制220px并独立滚动；首次归档失败撤掉旧确认，重新检查进入files_pending，重新输入标识继续成功；重载后进入仓库，同插件显示未安装且直接安装按钮可用。补包、错误标识禁用、待清理禁止换包及Escape关闭亦通过。后端缓存刷新警告不会因重载成功而隐藏。截图在任务工作区`work/cleanup-acceptance-20260921/ui-86-176-narrow.png`和`ui-reinstall-ready.png`。这是实际组件浏览器验收，非生产认证接口调用或当前IAM真实删除；真实数据库生命周期证据见上文。
+
+前端最终Prettier、ESLint、生产与夹具vue-tsc、生产构建3065模块、夹具构建1865模块通过；真实Chrome组件行为18/18通过，包含大范围默认折叠、确认、防重、失败续作及重装入口。构建仅既有导入/包体积警告。OpenSpec strict及diff检查通过。按本任务已有授权提交到`codex/sandadmin-rename`并推送github同名分支，通知sand_plugins消费该修订；不会自动替消费者同步宿主或删除当前IAM数据。
+
+本轮实际模型记录：主控gpt-6-astra/low/openai；cleanup_design_review与cleanup_acceptance请求及实际均gpt-6-astra/medium/openai；cleanup_ui请求及实际均gpt-5.6-sol/medium/openai。

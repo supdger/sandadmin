@@ -66,10 +66,13 @@ class InstallController extends BaseController
             $presented = ($item['lifecycle_driver'] ?? '') === 'saipackage-pg-v1'
                 ? InstallLogic::presentInfo($actual)
                 : array_merge(LegacyInstallLogic::presentInfo($actual), InstallLogic::presentInfo($actual));
+            $cleanupPending = (new InstallLogic($item['app']))->cleanupPending();
             return array_merge($item, $presented, [
                 'state' => $local['state'],
                 'ordinary_actions_blocked' => $local['blocked'],
-                'recovery_reason' => $local['reason'],
+                'cleanup_pending' => $cleanupPending,
+                'state_text' => $cleanupPending ? '清理未完成' : $presented['state_text'],
+                'recovery_reason' => $cleanupPending ? '上次清理尚未完成，请继续清理；系统会核对已完成步骤' : $local['reason'],
             ]);
         }, $data);
 
@@ -331,6 +334,26 @@ class InstallController extends BaseController
         return $this->success('卸载插件成功');
     }
 
+    public function inspectCleanup(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('清理检查仅支持 POST 请求', 400);
+        $app = trim((string) $request->post('appName', ''));
+        if ($app === '') throw new ApiException('请指定要检查的插件', 400);
+        return $this->success((new InstallLogic($app))->inspectCleanup());
+    }
+
+    public function cleanup(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('清理仅支持 POST 请求', 400);
+        $app = trim((string) $request->post('appName', ''));
+        $fingerprint = (string) $request->post('fingerprint', '');
+        $confirmApp = (string) $request->post('confirmApp', '');
+        if ($app === '' || !preg_match('/^[a-f0-9]{64}$/D', $fingerprint) || $confirmApp !== $app) {
+            throw new ApiException('请先检查清理范围，并输入插件标识确认', 400);
+        }
+        return $this->success((new InstallLogic($app))->cleanup($fingerprint, $confirmApp), '插件残留已清理，可以重新安装');
+    }
+
     /**
      * 重启
      * @param Request $request
@@ -358,6 +381,14 @@ class InstallController extends BaseController
         [$app, $version, $sha256] = $this->repositorySelection($request, false);
         $logic = $this->repositoryLogic();
         return $this->repositoryResponse($request, fn(callable $complete) => $logic->download($app, $version, $sha256, $complete));
+    }
+
+    public function repositoryCleanupPackage(Request $request): Response
+    {
+        if (strtoupper($request->method()) !== 'POST') throw new ApiException('补充清理包仅支持 POST 请求', 400);
+        [$app, $version, $sha256] = $this->repositorySelection($request, false);
+        $logic = $this->repositoryLogic();
+        return $this->repositoryResponse($request, fn(callable $complete) => $logic->cleanupPackage($app, $version, $sha256, $complete));
     }
 
     /** 文档读取只校验清单与 ZIP，不读取或修复本地安装状态。 */

@@ -21,6 +21,9 @@ export type RecoveryListFixture =
   | 'partial_modern_retry_safe'
   | 'invalid_digest_retry_safe'
   | 'ordinary_blocked'
+  | 'cleanup_ready'
+  | 'cleanup_large'
+  | 'cleanup_pending'
   | 'blocked'
   | 'missing'
   | 'error'
@@ -77,6 +80,23 @@ function rowForFixture(
     row.update = 0
     row.recovery_mode = 'none'
     row.recovery_reason = '安装记录存在，但插件运行目录缺失，请从已安装插件管理页处理'
+    return row
+  }
+  if (fixture === 'cleanup_ready' || fixture === 'cleanup_large') {
+    row.state = 7
+    row.stage = 'runtime_missing'
+    row.failed_stage = undefined
+    row.update = 0
+    row.ordinary_actions_blocked = true
+    return row
+  }
+  if (fixture === 'cleanup_pending') {
+    row.state = 8
+    row.stage = 'cleanup_pending'
+    row.failed_stage = undefined
+    row.update = 0
+    row.cleanup_pending = true
+    row.ordinary_actions_blocked = true
     return row
   }
   if (fixture === 'blocked') {
@@ -143,6 +163,14 @@ type RuntimeRestoreRefreshFixture =
 
 let runtimeRestoreRefreshFixture: RuntimeRestoreRefreshFixture = 'verification_required'
 let lastRecoveryPostUrl = ''
+let cleanupFailureRemaining = 0
+let cleanupSubmitCount = 0
+let cleanupInspectCount = 0
+let cleanupListCount = 0
+let cleanupRepositoryCount = 0
+let cleanupReloadCount = 0
+let cleanupPackageCount = 0
+let cleanupPackageVersion = ''
 
 function readPostedAppName(data: unknown): string {
   if (data instanceof FormData) {
@@ -166,6 +194,7 @@ function readPostedReplacementId(data: unknown): string {
 async function get(config: HttpRequestConfig): Promise<unknown> {
   const url = config.url ?? ''
   if (url.includes('/app/sandpackage/install/index')) {
+    cleanupListCount += 1
     if (listFixture === 'error') {
       throw new Error('FAILED_UPGRADE_RECOVERY_LIST_ERROR')
     }
@@ -177,6 +206,46 @@ async function get(config: HttpRequestConfig): Promise<unknown> {
       version: versionInfo
     }
   }
+  if (url.includes('/tool/install/repository/catalog')) {
+    cleanupRepositoryCount += 1
+    const cleaned = listFixture === 'missing' && cleanupSubmitCount > 0
+    const cleanupFixture =
+      listFixture === 'cleanup_ready' ||
+      listFixture === 'cleanup_large' ||
+      listFixture === 'cleanup_pending'
+    return {
+      repository: 'fixture',
+      ref: 'fixture',
+      plugins:
+        cleanupFixture || cleaned
+          ? [
+              {
+                app: 'sample-plugin',
+                title: 'Sample Plugin',
+                about: 'identity service',
+                author: 'sand',
+                local: {
+                  state: cleaned ? 0 : listFixture === 'cleanup_pending' ? 8 : 7,
+                  version: cleaned ? null : '0.7.0',
+                  installed_version: null,
+                  blocked: !cleaned,
+                  reason: cleaned ? '' : '需要清理'
+                },
+                versions: ['0.7.3', '0.6.0'].map((version) => ({
+                  version,
+                  tag: `v${version}`,
+                  asset: `sample-plugin-${version}.zip`,
+                  sha256: version === '0.7.3' ? 'a'.repeat(64) : 'b'.repeat(64),
+                  host_min: '6.0.0',
+                  notes: 'fixture',
+                  action: cleaned ? 'install' : 'manage',
+                  action_reason: cleaned ? '' : '请先清理异常状态'
+                }))
+              }
+            ]
+          : []
+    }
+  }
   throw new Error(`unmocked GET ${url}`)
 }
 
@@ -185,6 +254,63 @@ async function post(config: HttpRequestConfig): Promise<unknown> {
   lastRecoveryPostUrl = url
   const appName = readPostedAppName(config.data)
   const replacementId = readPostedReplacementId(config.data)
+  if (url === '/tool/install/cleanup/inspect') {
+    cleanupInspectCount += 1
+    const largeInspection = listFixture === 'cleanup_large'
+    return {
+      app: appName,
+      version: '0.7.0',
+      tables:
+        listFixture === 'cleanup_pending'
+          ? []
+          : largeInspection
+            ? Array.from({ length: 86 }, (_, index) => `sand_sample_table_${index + 1}`)
+            : ['sand_sample_record'],
+      menus:
+        listFixture === 'cleanup_pending'
+          ? []
+          : largeInspection
+            ? Array.from({ length: 176 }, (_, index) => ({
+                id: `${index + 1}`,
+                name: `示例菜单 ${index + 1}`,
+                code: `sample:menu:${index + 1}`
+              }))
+            : [{ id: '12', name: '示例插件', code: 'sample:index' }],
+      paths: ['/server/plugin/sample-plugin', '/storage/sandpackage/sample-plugin.zip'],
+      fingerprint: listFixture === 'cleanup_pending' ? 'files-pending-fingerprint' : 'fingerprint',
+      phase: listFixture === 'cleanup_pending' ? 'files_pending' : 'ready',
+      ...(cleanupPackageVersion ? { cleanup_package_version: cleanupPackageVersion } : {})
+    }
+  }
+  if (url === '/tool/install/cleanup/package') {
+    cleanupPackageCount += 1
+    if (!config.data || typeof config.data !== 'object' || Array.isArray(config.data)) {
+      throw new Error('invalid cleanup package request')
+    }
+    const version = 'version' in config.data ? config.data.version : ''
+    cleanupPackageVersion = typeof version === 'string' ? version : ''
+    return { app: 'sample-plugin', version: cleanupPackageVersion }
+  }
+  if (url === '/tool/install/cleanup') {
+    cleanupSubmitCount += 1
+    if (cleanupFailureRemaining > 0) {
+      cleanupFailureRemaining -= 1
+      listFixture = 'cleanup_pending'
+      throw new Error('文件归档暂未完成')
+    }
+    listFixture = 'missing'
+    return {
+      app: appName,
+      state: 0,
+      archive: '/storage/sandpackage/archive/sample-plugin',
+      restart_required: true,
+      warning: '菜单缓存刷新失败，请检查后端日志。'
+    }
+  }
+  if (url === '/app/sandpackage/install/reload') {
+    cleanupReloadCount += 1
+    return {}
+  }
   if (url.includes('inspectFailedUpgradeRecovery')) {
     const runtimeRestoreRequired = listFixture === 'runtime_restore_required'
     return {
@@ -268,6 +394,36 @@ const api = {
 export function configureRecoveryHttpMock(fixture: RecoveryListFixture): void {
   listFixture = fixture
   runtimeRestoreRefreshFixture = 'verification_required'
+  cleanupFailureRemaining = 0
+  cleanupSubmitCount = 0
+  cleanupInspectCount = 0
+  cleanupListCount = 0
+  cleanupRepositoryCount = 0
+  cleanupReloadCount = 0
+  cleanupPackageCount = 0
+  cleanupPackageVersion = ''
+}
+
+export function configureCleanupSubmitFailureOnce(): void {
+  cleanupFailureRemaining = 1
+}
+
+export function cleanupHttpCounts(): {
+  submits: number
+  inspections: number
+  lists: number
+  repositories: number
+  reloads: number
+  packages: number
+} {
+  return {
+    submits: cleanupSubmitCount,
+    inspections: cleanupInspectCount,
+    lists: cleanupListCount,
+    repositories: cleanupRepositoryCount,
+    reloads: cleanupReloadCount,
+    packages: cleanupPackageCount
+  }
 }
 
 /** Restore is followed by a fresh index response; keep its shape explicit in each behavior case. */
