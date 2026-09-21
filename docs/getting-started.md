@@ -11,7 +11,7 @@
 ## 配置后端
 
 1. 在消费目录创建标准 Webman：`composer create-project workerman/webman server`。
-2. 在消费者的 `composer.json` 登记本仓 VCS 地址，然后执行 `composer require supdger/sandadmin:@dev`；正式版本发布后应锁定 tag。
+2. 执行 `composer require supdger/sandadmin:6.1.5-rc.1`，从 Packagist 安装已发布版本，并提交消费者的 `composer.lock`。
 3. 确认消费者 `config/database.php` 和 `config/think-orm.php` 使用包内模板；首次安装前不要创建 `.env`，因为安装页会把它视为“已经安装”。
 4. 使用 Webman 标准方式启动，例如 `php start.php start`，在 `/install` 填写 PostgreSQL 连接并由安装器生成 `.env`。已有实例或非交互部署才参考 `server/install/.env.example` 合并环境字段。
 

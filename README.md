@@ -20,10 +20,9 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理包，提供�
 3. 参考包内 `server/install/` 配置 PostgreSQL；首次访问安装页前不要预建 `.env`。前端从 `sandadmin-artd/` 独立安装或构建。
 4. 仅在已明确准备的全新数据库上访问 `/install` 完成初始化。
 
-当前仓库尚未登记 Packagist 时，可在 Webman 消费项目中直接使用 VCS：
+当前预发布版已登记 Packagist，可直接安装：
 
 ```bash
-composer config repositories.sandadmin vcs https://github.com/supdger/sandadmin
 composer require supdger/sandadmin:6.1.5-rc.1
 ```
 
