@@ -21,7 +21,7 @@ SandAdmin 是通用宿主的唯一权威来源，只发布宿主版本、变更�
 1. 其他项目向 SandAdmin 提交通用宿主需求、复现和契约。
 2. SandAdmin 在本仓实现，并完成零业务插件验证。
 3. SandAdmin 发布 tag、release candidate 或明确 commit，并提供变更说明。
-4. 消费宿主通过 Composer 拉取锁定的 SandAdmin 版本；前端从同一 revision 取得消费副本。
+4. 消费宿主从锁定的 SandAdmin revision 单向同步后端项目与前端源码，并保留自己的运行配置和数据。
 5. 消费方运行自己的业务验收，将宿主 revision、插件/应用版本和结果回传兼容矩阵。
 
 禁止 SandAdmin 的 post-commit hook 主动推送；禁止消费方把宿主副本或业务覆盖层反向同步进 SandAdmin；禁止把两个工作区当作可双向编辑的同一源码树。

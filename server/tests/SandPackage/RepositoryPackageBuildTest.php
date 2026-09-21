@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use plugin\sandpackage\app\logic\RepositoryLogic;
 
-require dirname(__DIR__, 3) . '/vendor/autoload.php';
+require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 function packageBuildExpect(bool $condition, string $message): void
 {
@@ -165,7 +165,11 @@ try {
     $output = $root . '/output';
     mkdir($output, 0700);
     $result = packageBuildRun([$source, $output, 'v1.2.3', '6.0.0', '6.9.9']);
-    packageBuildExpect($result['code'] === 0, 'builds a valid plugin package without host bootstrap or database access');
+    packageBuildExpect(
+        $result['code'] === 0,
+        'builds a valid plugin package without host bootstrap or database access'
+            . ($result['stderr'] === '' ? '' : ': ' . trim($result['stderr'])),
+    );
     packageBuildExpect(!file_exists($executionMarker), 'reads backend version statically without executing plugin PHP');
 
     $zipPath = $output . '/' . $app . '-' . $version . '.zip';

@@ -47,7 +47,7 @@ namespace {
     function base_path($path = ''): string { global $root; return $root . '/server' . ($path ? '/' . $path : ''); }
     function runtime_path(string $path = ''): string { global $root; return $root . '/runtime' . ($path ? '/' . $path : ''); }
     function env(string $key, mixed $default = null): mixed { return $default; }
-    require dirname(__DIR__, 3) . '/vendor/autoload.php';
+    require dirname(__DIR__, 2) . '/vendor/autoload.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/logic/InstallLogic.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/PostgresLifecycleSqlExecutor.php';
     require dirname(__DIR__, 2) . '/plugin/sandpackage/app/service/FreshInstallRecovery.php';
