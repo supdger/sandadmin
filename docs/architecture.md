@@ -10,7 +10,7 @@
 | `docs/` | 宿主公共文档、架构契约和兼容性说明。 |
 | 消费宿主 `server/storage/sandpackage/` | 本机持久安装登记、候选、备份、归档及恢复数据；不随源码分发或缓存清理。 |
 
-`start.php`、`webman`、`app/`、`support/`、宿主 `config/` 和 Composer 锁文件均由本仓维护。统一演示消费者位于 `/Users/code/project/sand_demo`，只接收锁定 revision，不反向承载源码。
+`start.php`、`webman`、`app/`、`support/`、宿主 `config/` 和 Composer 锁文件均由本仓维护。统一演示消费者使用独立消费工作区，只接收锁定 revision，不反向承载源码。
 
 ## 数据和命名
 

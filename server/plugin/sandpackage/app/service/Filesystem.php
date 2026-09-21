@@ -1,6 +1,6 @@
 <?php
 
-namespace Saithink\Saipackage\service;
+namespace plugin\sandpackage\app\service;
 
 use Exception;
 use Throwable;

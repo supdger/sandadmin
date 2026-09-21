@@ -64,8 +64,7 @@
       "App\\": "./app",
       "app\\View\\Components\\": "./app/view/components",
       "plugin\\sandadmin\\": "./plugin/sandadmin",
-      "plugin\\sandpackage\\": "./plugin/sandpackage",
-      "Saithink\\Saipackage\\": "./compat/Saithink/Saipackage/"
+      "plugin\\sandpackage\\": "./plugin/sandpackage"
     }
   },
   "scripts": {
