@@ -1,6 +1,6 @@
 # 从 GitHub 仓库安装插件
 
-插件仓库不需要独立市场服务、市场账号或订单。后台从维护者指定的公开 GitHub 仓库读取 `plugins/catalog.json`，按版本下载同一仓库的 Release 附件，核验后交给现有 SandPackage 安装器。
+插件仓库不需要独立市场服务、市场账号或订单。后台从 SandAdmin 的公开 GitHub 仓库读取 `plugins/catalog.json`，再按每个插件声明的独立公开仓库下载 Release 附件，核验后交给现有 SandPackage 安装器。
 
 ## 使用者
 
@@ -51,10 +51,10 @@ php webman sandpackage:storage-migrate --apply --maintenance
 
 ## 维护者：单插件发布
 
-插件源包与运行目录分离。源包可位于 `plugins/<app>/`，也可在迁仓前位于已有权威插件工作区；打包命令接受显式目录，不复制或修改源目录。
+插件源包与运行目录分离。源包位于插件自己的权威仓库；迁仓期间也可从已有权威插件工作区的已提交目录打包。打包命令接受显式目录，不复制或修改源目录。
 
 ```text
-plugins/<app>/
+<plugin-repository>/
 ├── info.ini
 ├── config.json
 ├── install.sql
@@ -70,15 +70,15 @@ plugins/<app>/
 
 ```sh
 mkdir -p dist/plugins
-php scripts/build-plugin-package.php plugins/example-plugin dist/plugins example-plugin-v1.0.0 6.0.11
+php scripts/build-plugin-package.php /path/to/example-plugin dist/plugins example-plugin-v1.0.0 6.0.11
 ```
 
 `example-plugin` 只是格式示例，不代表已有可安装插件。命令输出独立 ZIP 和 `<app>-<version>.catalog.json` 条目，ZIP 根目录直接包含 `info.ini`，不包裹额外目录。安装器使用原有插件标识，本次不将 `sand-iam` 重命名为 `iam`。
 
 维护者完成包验证后：
 
-1. 在 `supdger/sandadmin` 创建对应 tag 的 Release，将 ZIP 作为附件上传。
-2. 把生成条目合入 `plugins/catalog.json` 的 `plugins` 数组；同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。
+1. 在插件自己的公开仓库创建对应 tag 的 Release，将 ZIP 作为附件上传。
+2. 把生成条目合入 SandAdmin `plugins/catalog.json` 的 `plugins` 数组；插件条目必须声明 `repository`。同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。
 3. 将清单发布到消费者配置的 ref。先上传附件，再公开引用它的清单；不得用源码快照 ZIP 代替插件包。
 4. 保留旧版本附件及其摘要，升级路径由插件自己的 `update.sql` 负责。兼容字段表示宿主版本范围，不证明任意旧插件版本均可直接跨版本升级。
 
@@ -90,6 +90,7 @@ php scripts/build-plugin-package.php plugins/example-plugin dist/plugins example
   "plugins": [
     {
       "app": "example-plugin",
+      "repository": "maintainer/example-plugin",
       "title": "示例插件",
       "about": "用途说明",
       "author": "维护者",
@@ -113,7 +114,7 @@ php scripts/build-plugin-package.php plugins/example-plugin dist/plugins example
 ## 边界与失败处理
 
 - 服务端仅超级管理员可读清单和准备候选；下载接口仅 POST。实际包地址从配置和已验证清单构造。
-- SHA-256 绑定所选清单版本及附件内容，但不替代仓库维护者权限管理；仓库自身是信任来源。
+- SHA-256 绑定所选清单版本及附件内容，但不替代仓库维护者权限管理；SandAdmin 目录及其声明的插件仓库共同构成信任来源。浏览器不能覆盖 `repository` 或提交下载 URL。
 - 清单上限 1MiB，下载 ZIP 上限 5MiB；现有解压上限 64MiB、2048 条目。超过限制应精简发布载荷，不能将未声明的依赖目录、测试或环境文件直接打入包。
 - 仅 HTTPS GitHub 及固定附件域名，验证 TLS，连接超时 5 秒，单次请求含重定向总时限 60 秒，最多 3 次重定向。下载操作会先刷新清单，再下载附件。
 - 传输使用 cURL multi 与 Worker 定时驱动，不在 HTTP Worker 等待网络；每进程最多 2 个活动请求，活动与排队请求总数最多 8。临时 ZIP 在成功及失败后清理。

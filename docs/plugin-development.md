@@ -1,6 +1,6 @@
 # 插件开发与发布约定
 
-本页适用于计划随 SandAdmin 发布或独立分发的插件。无需独立市场平台的清单、打包和下载安装流程见[仓库插件分发](repository-plugin-distribution.md)。具体业务约束由插件自己的 README 补充。
+本页适用于通过 SandAdmin 目录发现、从独立仓库发布的插件。无需独立市场平台的清单、打包和下载安装流程见[仓库插件分发](repository-plugin-distribution.md)。具体业务约束由插件自己的 README 补充。
 
 当前源码候选的普通安装已回归 SaiPackage 上游流程，数据库适配及旧记录切换见
 [SaiPackage PostgreSQL 适配](architecture/SAIPACKAGE_POSTGRESQL_ADAPTATION.md)。
@@ -16,6 +16,7 @@
 - 对应的安装、升级、卸载生命周期实现和 PostgreSQL SQL。
 - 后端与前端载荷的实际目录说明；若有宿主镜像副本，说明唯一权威来源与同步方式。
 - 适用的许可证、来源与第三方署名文件，确保单独分发后仍可追溯。
+- 独立公开源码仓库；Release、标签和 README 与目录声明的 `repository` 一致。
 
 若插件依赖另一个可选插件，`config.json` 的 `sand_platform.required_plugins` 必须声明依赖包名、最低兼容版本、发布包内相对路径和 SHA-256。发布构建负责写入实际校验值；源码占位值不能发布。安装器先复用已安装的兼容依赖，缺失时才安装校验通过的随包工件。依赖安装及跨插件服务目录注册须幂等，不能自动创建业务 application、credential 或 grant，也不能在安装失败时自动卸载共享依赖。
 

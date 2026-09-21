@@ -8,9 +8,9 @@ Sand 平台插件按需提供，不能成为使用 SandAdmin 的成本或隐含�
 
 ## 仓库模型
 
-目标采用一个 `sandadmin` 主仓库：`server/` 与 `sandadmin-artd/` 是宿主，`plugins/` 保存可选插件的独立发布源码及 `catalog.json`。插件独立版本、独立 ZIP，通过同仓 Release 附件分发；源码同仓不代表默认安装或成为宿主依赖。具体契约见[仓库插件分发](repository-plugin-distribution.md)。
+采用“统一目录、独立插件仓库”模型：`sandadmin` 的 `server/` 与 `sandadmin-artd/` 只包含宿主，`plugins/` 只保存 `catalog.json`。每个插件拥有独立源码仓库、版本和 Release，目录明确声明下载来源。具体契约见[仓库插件分发](repository-plugin-distribution.md)。
 
-当前迁移阶段：本轮仅新增仓库分发能力和空清单。现有 SandIAM、SandAI、SandWorkflow 的权威源码仍在 `sand_plugins`，不能在两处并行维护。每个插件正式迁入前须核对写者、现有候选及消费锁定版本，完成独立迁移记录后才切换权威来源；不在本轮自动搬迁。
+迁移期间以 `sand_plugins` 的已提交 revision 为拆分来源，本地未提交工作不得自动公开。每个插件完成历史拆分、独立 Release 校验和目录切换后，独立仓库成为唯一权威来源；`sand_plugins` 只保留迁移记录，不能继续并行发布。
 
 每个插件是独立发布单元，拥有自己的版本、README、依赖、生命周期、权限、配置、验证记录和发布包。主体发行包不应包含业务插件运行副本；GitHub 完整源码下载可包含可选插件源码。
 
@@ -30,7 +30,7 @@ Sand 平台插件按需提供，不能成为使用 SandAdmin 的成本或隐含�
 
 ## 源码、部署与验收
 
-现有插件完成权威来源迁移前，`sand_plugins` 仍是其权威源码工作区。正式迁入的源包可以保存在 `plugins/`；SandAdmin 源码工作树仍不得持久保存已安装的 `server/plugin/sand-*`、`server/plugin/sandworkflow` 或对应管理端业务插件运行副本。发布载荷、同步副本和真实安装验收材料只存在于消费工作区的演示或隔离宿主，每一份副本必须能追溯到插件权威来源、插件版本和锁定的 SandAdmin revision，禁止双向编辑。
+插件源码只存在于各自权威仓库；SandAdmin 的 `plugins/` 不保存源包。本源码工作树仍不得持久保存已安装的 `server/plugin/sand-*`、`server/plugin/sandworkflow` 或对应管理端业务插件运行副本。发布载荷、同步副本和真实安装验收材料只存在于插件仓库或消费工作区的演示、隔离宿主，每一份副本必须能追溯到插件权威来源、插件版本和锁定的 SandAdmin revision，禁止双向编辑。
 
 已有目录的迁移、删除或权威来源切换必须作为独立任务：先确认实际运行副本、发布包和回滚路径，再进行变更。2026-09-11 的现有副本迁移与可恢复归档见[零业务插件宿主纯净化记录](migrations/2026-09-11-clean-host.md)。
 

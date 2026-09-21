@@ -91,7 +91,7 @@ namespace {
         }
     }
     function manifest(string $zip, string $version = '1.0.0', string $app = 'neutral-sample'): array {
-        return ['schema' => 1, 'plugins' => [['app' => $app, 'title' => 'Neutral', 'about' => 'Fixture', 'author' => 'Test',
+        return ['schema' => 1, 'plugins' => [['app' => $app, 'repository' => 'supdger/' . $app, 'title' => 'Neutral', 'about' => 'Fixture', 'author' => 'Test',
             'versions' => [['version' => $version, 'tag' => $app . '-v' . $version, 'asset' => $app . '-' . $version . '.zip',
                 'sha256' => hash('sha256', $zip), 'host_min' => '6.0.0', 'host_max' => '6.9.9', 'notes' => 'Test release']]]]];
     }
@@ -167,6 +167,15 @@ namespace {
         $malicious = manifest($zip);
         $malicious['plugins'][0]['versions'][0]['asset'] = '../evil.zip';
         rejected(fn() => \plugin\sandpackage\app\logic\RepositoryLogic::parseCatalog(json_encode($malicious)), 'asset path traversal rejected');
+        $maliciousRepository = manifest($zip);
+        $maliciousRepository['plugins'][0]['repository'] = 'https://github.com/evil/repository';
+        rejected(fn() => \plugin\sandpackage\app\logic\RepositoryLogic::parseCatalog(json_encode($maliciousRepository)), 'arbitrary plugin repository URL rejected');
+        $legacyRepository = manifest($zip);
+        unset($legacyRepository['plugins'][0]['repository']);
+        check(
+            \plugin\sandpackage\app\logic\RepositoryLogic::parseCatalog(json_encode($legacyRepository), 'supdger/catalog')['plugins'][0]['repository'] === 'supdger/catalog',
+            'legacy catalog entry falls back to configured catalog repository'
+        );
         rejected(fn() => new \plugin\sandpackage\app\logic\RepositoryLogic($client, '../evil', 'main', '6.0.11'), 'untrusted repository configuration rejected');
         check(catalogFixture(clientFor($zip), '5.0.0')['plugins'][0]['versions'][0]['action'] === 'incompatible', 'catalog marks versions outside the host range as incompatible');
         rejected(fn() => downloadFixture(clientFor($zip), '1.0.0', null, '5.0.0'), 'incompatible host rejected before download');
@@ -272,7 +281,7 @@ namespace {
         $uploadedStatus = (new InstallLogic('neutral-sample'))->ordinaryStatus();
         check($uploadedStatus['state'] === 2 && !$uploadedStatus['blocked'], 'fresh state 2 candidate remains installable in the local index preflight');
         check(Db::$sql === [], 'successful download executes no SQL');
-        check($client->requests[count($client->requests)-1][0] === 'https://github.com/supdger/sandadmin/releases/download/neutral-sample-v1.0.0/neutral-sample-1.0.0.zip', 'download URL derived only from configured repository and validated manifest');
+        check($client->requests[count($client->requests)-1][0] === 'https://github.com/supdger/neutral-sample/releases/download/neutral-sample-v1.0.0/neutral-sample-1.0.0.zip', 'download URL derived only from validated plugin repository and manifest');
         rejected(fn() => downloadFixture(clientFor($zip)), 'duplicate candidate cannot overwrite pending install');
         $installed = (new InstallLogic('neutral-sample'))->install(false);
         check($installed['state'] === 1 && is_file(base_path('plugin/neutral-sample/config/app.php')), 'downloaded candidate uses existing real file deployment');

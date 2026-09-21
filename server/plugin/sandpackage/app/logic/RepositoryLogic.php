@@ -44,7 +44,7 @@ final class RepositoryLogic
         $this->client->get($url, 1048576, function (?string $body, ?Throwable $error) use ($includeLocalState, $complete): void {
             if ($error !== null) { $complete(null, $error); return; }
             try {
-                $catalog = self::parseCatalog($body ?? '');
+                $catalog = self::parseCatalog($body ?? '', $this->repository);
                 if ($includeLocalState) {
                     $catalog = $this->withLocalState($catalog);
                 }
@@ -224,7 +224,10 @@ final class RepositoryLogic
         foreach ($catalog['plugins'] as $plugin) {
             if ($plugin['app'] !== $app) continue;
             foreach ($plugin['versions'] as $candidate) {
-                if ($candidate['version'] === $version) return $candidate;
+                if ($candidate['version'] === $version) {
+                    $candidate['repository'] = $plugin['repository'];
+                    return $candidate;
+                }
             }
         }
         throw new ApiException('仓库中不存在此插件版本，请刷新插件清单');
@@ -232,7 +235,7 @@ final class RepositoryLogic
 
     private function releaseUrl(array $release): string
     {
-        return 'https://github.com/' . $this->repository . '/releases/download/'
+        return 'https://github.com/' . $release['repository'] . '/releases/download/'
             . rawurlencode($release['tag']) . '/' . rawurlencode($release['asset']);
     }
 
@@ -279,8 +282,9 @@ final class RepositoryLogic
     }
 
     /** Validate the entire manifest before displaying or trusting any release. */
-    public static function parseCatalog(string $json): array
+    public static function parseCatalog(string $json, string $defaultRepository = 'supdger/sandadmin'): array
     {
+        if (!self::validRepository($defaultRepository)) throw new ApiException('插件仓库配置无效');
         if (strlen($json) > 1048576) throw new ApiException('插件清单超过大小限制');
         try {
             $shape = json_decode($json, false, 32, JSON_THROW_ON_ERROR);
@@ -300,7 +304,11 @@ final class RepositoryLogic
                 || in_array($app, ['sandadmin', 'sandpackage', 'saiadmin', 'saipackage', 'locks', 'backups', 'fresh-recovery'], true)
                 || isset($apps[$app])) throw new ApiException('插件清单包含无效或重复的插件标识');
             $apps[$app] = true;
-            $item = ['app' => $app, 'title' => self::text($plugin, 'title', 200),
+            $repository = $plugin['repository'] ?? $defaultRepository;
+            if (!is_string($repository) || !self::validRepository($repository)) {
+                throw new ApiException('插件清单包含无效的插件仓库');
+            }
+            $item = ['app' => $app, 'repository' => $repository, 'title' => self::text($plugin, 'title', 200),
                 'about' => self::text($plugin, 'about', 4000), 'author' => self::text($plugin, 'author', 200), 'versions' => []];
             if (!is_array($plugin['versions'] ?? null) || !array_is_list($plugin['versions']) || count($plugin['versions']) > 50) {
                 throw new ApiException('插件版本清单无效');
@@ -328,6 +336,11 @@ final class RepositoryLogic
             $plugins[] = $item;
         }
         return ['schema' => 1, 'plugins' => $plugins];
+    }
+
+    private static function validRepository(string $repository): bool
+    {
+        return preg_match('~^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$~D', $repository) === 1;
     }
 
     private static function text(array $data, string $key, int $max, bool $optional = false): string

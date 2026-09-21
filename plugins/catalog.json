@@ -3,6 +3,7 @@
   "plugins": [
     {
       "app": "sand-iam",
+      "repository": "supdger/sand-iam",
       "title": "SandIAM 身份与访问控制",
       "about": "统一管理组织、应用、身份与访问权限。",
       "author": "supdger",
@@ -20,6 +21,7 @@
     },
     {
       "app": "sandworkflow",
+      "repository": "supdger/sand-workflow",
       "title": "SandWorkflow 工作流",
       "about": "设计审批流程，处理待办、已办和抄送任务。",
       "author": "supdger",
@@ -37,6 +39,7 @@
     },
     {
       "app": "sand-ai",
+      "repository": "supdger/sand-ai",
       "title": "SandAI AI 能力底座",
       "about": "接入 AI 模型服务，管理服务配置与调用能力。",
       "author": "supdger",

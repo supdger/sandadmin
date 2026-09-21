@@ -87,6 +87,7 @@ export interface RepositoryPluginLocal {
 
 export interface RepositoryPlugin {
   app: string
+  repository: string
   title: string
   about: string
   author: string
