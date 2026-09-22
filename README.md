@@ -4,7 +4,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，后续版本线从 `0.x` 开始，当前开发基线为 `0.1.0`（未发布）。历史 `6.1.5` 是曾发布 Composer 包使用的兼容版号，不表示 SandAdmin 已达到 6.x 或 1.0 的产品成熟度，也不应作为新项目选型依据。
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前基线为 `0.1.0`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
 
 ## 特性与边界
 
@@ -21,12 +21,6 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
 3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
-
-`supdger/sandadmin:6.1.5` 曾作为 Composer 后端包发布，保留供已锁定消费者追溯；当前主线不再继续发布新的 Composer 后端包，也不再把下列命令作为新项目安装入口：
-
-```bash
-composer require supdger/sandadmin:6.1.5
-```
 
 全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码。
 
