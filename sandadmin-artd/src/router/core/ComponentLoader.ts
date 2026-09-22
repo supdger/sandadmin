@@ -27,6 +27,7 @@ export class ComponentLoader {
   preloadMenuRoutes(menuList: AppRouteRecord[]): void {
     // 默认禁用全量路由预加载，以避免登录后瞬间发起大量 import() 请求导致浏览器假死及 Vite 服务过载。
     // 动态路由会在用户实际导航访问时由 vue-router 自动按需加载，无需提前全量加载。
+    void menuList
   }
 
   loadLayout(): () => Promise<any> {

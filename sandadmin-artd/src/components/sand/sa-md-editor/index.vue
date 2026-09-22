@@ -111,4 +111,3 @@
     'catalog'
   ] as any[]
 </script>
-

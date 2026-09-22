@@ -366,7 +366,11 @@
     (e: 'pagination:current-change', val: number): void
     (
       e: 'sort-change',
-      payload: { column: TableColumnCtx<Record<string, any>>; prop: string | null; order: 'ascending' | 'descending' | null }
+      payload: {
+        column: TableColumnCtx<Record<string, any>>
+        prop: string | null
+        order: 'ascending' | 'descending' | null
+      }
     ): void
   }>()
 

@@ -4,9 +4,9 @@
 
 ## Unreleased
 
-- SandAdmin 版本线采用 `0.x`，当前基线为 `0.1.0`；在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
+- 当前 SandAdmin、`sand-core` 与 `sand-package` 开发版本统一从上游式 `6.x` 口径调整为 `0.1.0`，明确项目尚处于大规模验证前的早期阶段。
 - 恢复 `server/` 完整 Webman 后端项目，SandAdmin 主线重新采用完整前后端源码仓库安装。
-- 独立消费工作区接管 SandAdmin 与 Sand 插件的统一演示和验收宿主职责。
+- `/Users/code/project/sand_demo` 接管 SandAdmin 与独立 Sand 插件的统一演示和验收宿主职责。
 
 ## 0.1.0 - 2026-09-21
 
@@ -20,14 +20,14 @@
 
 - 后端改为 Composer library，由标准 Webman 消费项目安装 `sandadmin` 与 `sandpackage` 载荷。
 - 源码仓库移除 Webman 运行骨架、重复测试和根级维护样板，保留后端载荷、Vue 前端、公共文档及兼容目录。
-- 独立消费工作区成为 SandAdmin 与 Sand 插件统一演示消费者；源码与演示副本保持单向关系。
+- `/Users/code/project/sand_demo` 成为 SandAdmin 与 Sand 插件统一演示消费者；源码与演示副本保持单向关系。
 - 隔离安装、重复安装、卸载、配置保护、命令加载、后端契约、前端生产构建和独立审查通过。
 - 本候选未在本轮创建数据库、执行迁移或重放登录与真实插件生命周期，因此发布为预发布版本。
 
 ### SandPackage
 
 - 增加 PostgreSQL 新装失败的官方检查及受确认恢复入口，保留提交未知状态，继续部署不重跑 SQL。
-  真实冻结现场恢复须另行完成。
+  见 [HOST-202609-003](docs/host-requests/HOST-202609-003-fresh-install-recovery.md)；真实冻结现场恢复须另行完成。
 - 正常安装链回归锁定的 SaiPackage 6.0.2，实现集中 PostgreSQL SQL 适配；旧恢复实现隔离保留。
   新普通候选不要求恢复清单，前端同步支持新的候选判断。当前仅完成源码和离线检查，尚未完成真实独立宿主验收。
 - `0.1.0` 修复安装完成后登记摘要未刷新、下一次升级在校验前移动当前插件包的问题。
@@ -37,6 +37,7 @@
 ### 宿主缓存
 
 - 文件缓存通过宿主驱动扩展保护多进程读写与标签复合操作，损坏标签安全失效重建；
+  见 [HOST-202609-004](docs/host-requests/HOST-202609-004-file-cache-concurrency.md)。
   无数据库的中立进程回归与真实 HTTP/JWT 验收分别记录。
 
 ### 文档与发布准备

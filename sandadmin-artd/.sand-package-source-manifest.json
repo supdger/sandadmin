@@ -1,0 +1,23 @@
+{
+    "schema": 1,
+    "package": "supdger/sand-package",
+    "version": "0.1.2",
+    "files": {
+        "src/views/plugin/sandpackage/api/index.ts": "9e30bc616d70362c25a8e5a749d5cf11d294edc61823ce03b56c33ecef5f8b04",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.behavior-entry.ts": "4ae8c84e359a81187489d83e49f7bb8b2b3e047e0ab97fd02479cec1649c220e",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.behavior.html": "6506dfe4397ad14f54dea597ccf2bf806445fd989bcd13f80a30af37dac9f7a1",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.behavior.ts": "f4f02b7f762bccd47554469e1a6ef35dab4a9ac232d91f90bddf2ff2b251f93b",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.directives-mock.ts": "d974149471143f2306b46ab8aecccfd2f0d3061ef3efecf8f5fcbff9bcd1203a",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.http-mock.ts": "2ed5103bf43ef094ec6e3ef9b121054f26ad2e866ea78e1d42a441d88de41ff6",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.index-mount.ts": "5a15e29b169f0bae053372e55f0cdf861d7e75c6b66ff3264d09fda1fb21e4c3",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.index-viewport-entry.ts": "fb241f81f78944523821eabd1678be01d8dc0530209f06c0707fb957f302877f",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.ts": "b7b8a78618821c2e81f3b2a06107859a7134a632fbf8599ecee0472867f31338",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.tsconfig.json": "5cffcf646eb023b599805be8c816905d9ccd83eca021718e901fd891a80bfdc8",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.viewport.html": "0d1f7e7ee1e15a25b3fcad7eac928501cb14037b4a0403ef320749a07eda3d25",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.vite.config.mts": "3dafca824894c55f72994c13c66aa3ad9b0ab6bbca1b6b5fba4710b440cd6968",
+        "src/views/plugin/sandpackage/install/index.vue": "14824026c3bc90fb665e778262ece34a0f85fd5658b33edfcf7e89699f1ab812",
+        "src/views/plugin/sandpackage/install/install-box.vue": "868861c6e257c3cad27e1108a594a7f28d1737d5a99e565bf39c991499cf9d90",
+        "src/views/plugin/sandpackage/install/terminal.vue": "6898ab0ce778dca092b66d3224f64e72cbf6c507d4c628bdbf50b48611d1eef8",
+        "src/views/plugin/sandpackage/store/terminal.ts": "86c6b586ade665655b65aca7b8ae3da252cefffa792526b7a95285a8d07d1ab9"
+    }
+}

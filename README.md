@@ -1,6 +1,6 @@
 # SandAdmin
 
-SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提供权限管理、系统配置、代码生成、任务调度和插件化扩展能力。仓库同时维护完整的 `server/` Webman 后端和 `sandadmin-artd/` Vue 管理前端；克隆仓库即可分别安装依赖并运行。
+SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提供权限管理、系统配置、代码生成、任务调度和插件化扩展能力。本仓库维护可直接运行的 `server/` Webman 宿主和与之锁定的 `sandadmin-artd/` Vue 管理前端；核心与插件安装器的权威源码分别由 Composer 包 `supdger/sand-core`、`supdger/sand-package` 维护。
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
@@ -8,7 +8,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 ## 特性与边界
 
-- PostgreSQL 优先：核心安装器按数据库驱动选择初始化脚本，核心 SQL 位于 `server/plugin/sandadmin/db/`。
+- PostgreSQL 优先：`sand-core` 安装到宿主后的核心安装器按数据库驱动选择初始化脚本，核心 SQL 运行路径为 `server/plugin/sandadmin/db/`。
 - 插件化：Sand 平台新插件使用 `sand_<domain>_*` 表前缀；可选插件独立打包发布，插件仓库直接读取 GitHub 清单和 Release 附件，无需独立市场平台。
 - 兼容优先：部分历史核心 `sa_*` 表和必要的第三方兼容标识不会因品牌更名被强制改写。
 - 非迁移工具：本仓库不承诺将既有 MySQL 实例原地迁移到 PostgreSQL；升级或迁移应先在隔离环境验证。
@@ -21,6 +21,18 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
 3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
+
+当前主线由两个 Composer 包提供可附加到已有 Webman 的后台能力：
+
+```bash
+composer config repositories.sand-core vcs https://github.com/supdger/sand-core
+composer config repositories.sand-package vcs https://github.com/supdger/sand-package
+composer require supdger/sand-core:^0.1 supdger/sand-package:^0.1
+php vendor/supdger/sand-core/tools/publish-frontend.php /path/to/sandadmin-artd
+php vendor/supdger/sand-package/tools/publish-frontend.php /path/to/sandadmin-artd
+```
+
+Composer 安装只发布 Webman 后端插件文件，不创建数据库、不执行迁移，也不安装 Node.js 依赖。两个显式命令只发布可直接 `pnpm dev` 的前端源码；`sand-package` 在 `sand-core` 基线上叠加插件管理页面。
 
 全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码。
 
@@ -41,16 +53,16 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 ## 可选插件
 
-根目录 `catalog.json` 只维护统一插件目录。每个可选插件拥有独立源码仓库和 Release，宿主不保存业务插件源码、安装包、运行副本或专属自动加载映射。安装器按目录声明的受信仓库下载所选插件；未选择插件的用户只会获取 SandAdmin 主体。
+根目录 `catalog.json` 只维护统一插件目录。`sand-core` 与 `sand-package` 是宿主基础 Composer 包，不属于 ZIP 业务插件；每个可选业务插件拥有独立源码仓库和 Release，宿主不保存其源码、安装包、运行副本或专属自动加载映射。安装器按目录声明的受信仓库下载所选插件；未选择插件的用户只会获取 SandAdmin 主体。
 
-统一演示与验收宿主只从 SandAdmin 和各插件权威仓库单向接收源码或发布包，不反向承载源码开发。插件实际安装与验收仍在消费工作区或可丢弃隔离宿主完成。
+`/Users/code/project/sand_demo` 是本机统一演示与验收宿主，只从 SandAdmin 和各插件权威仓库单向接收源码或发布包，不反向承载源码开发。插件实际安装与验收仍在该消费工作区或可丢弃隔离宿主完成。
 
 插件发布包必须在其自己的源码单元保留安装、升级、卸载、权限、兼容性和
 已知限制说明；宿主只维护公共约定与兼容性入口，避免两处文档漂移。
 
 ## 版本
 
-当前开发基线为 `0.1.0`，尚未形成 1.0 稳定性承诺。版本变化和历史发行说明见 [CHANGELOG](CHANGELOG.md)。
+当前开发基线为 `0.1.0`，尚未形成 1.0 稳定性承诺。版本变化见 [CHANGELOG](CHANGELOG.md)。
 
 ## 来源与许可证
 

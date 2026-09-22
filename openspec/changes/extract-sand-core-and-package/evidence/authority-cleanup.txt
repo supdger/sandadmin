@@ -1,0 +1,29 @@
+authority cleanup verification, 2026-09-22
+
+git tracked files:
+  server/plugin/sandadmin: 0
+  server/plugin/sandpackage: 0
+  server/compat/Saithink/Saipackage: 0
+
+staged removals: 197
+
+runtime directories:
+  server/plugin/sandadmin: present and ignored
+  server/plugin/sandpackage: present and ignored
+  server/compat/Saithink/Saipackage: present and ignored
+
+package parity:
+  sand-core/server/plugin/sandadmin == server/plugin/sandadmin
+  sand-package/server/plugin/sandpackage == server/plugin/sandpackage
+  sand-package/server/compat/Saithink/Saipackage == server/compat/Saithink/Saipackage
+
+runtime discovery:
+  plugin\sandadmin\basic\BaseController: ok
+  plugin\sandpackage\app\controller\InstallController: ok
+  Saithink\Saipackage\service\Version: ok
+  sand:orm, sand:plugin, sand:upgrade: discovered
+  sandpackage:recover, sandpackage:storage-migrate: discovered
+
+composer:
+  composer install --dry-run --no-interaction: nothing to install, update or remove
+  composer validate --strict --no-check-publish: valid

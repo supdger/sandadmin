@@ -1,9 +1,5 @@
 <template>
-  <aside
-    class="login-left-view"
-    :class="{ 'is-content-hidden': hideContent }"
-    aria-hidden="true"
-  >
+  <aside class="login-left-view" :class="{ 'is-content-hidden': hideContent }" aria-hidden="true">
     <div class="login-atmosphere" />
     <div class="login-grid" />
 
@@ -19,11 +15,7 @@
 
     <section class="brand-stage">
       <div class="brand-lockup">
-        <img
-          class="sand-mark"
-          src="@/assets/images/common/sandadmin-login-mark-v2.png"
-          alt=""
-        />
+        <img class="sand-mark" src="@/assets/images/common/sandadmin-login-mark-v2.png" alt="" />
 
         <h1 class="brand-name"><span>Sand</span>Admin</h1>
         <p class="brand-slogan">稳定、清晰、可控</p>
@@ -38,16 +30,18 @@
               <path d="M17 33c1-5 13-5 14 0" />
             </svg>
           </span>
-          <span><strong>身份与访问</strong><small>统一身份　安全可控</small></span>
+          <span><strong>身份与访问</strong><small>统一身份&ensp;安全可控</small></span>
         </li>
         <li>
           <span class="capability-icon">
             <svg viewBox="0 0 48 48" focusable="false">
-              <path d="M24 8c-4-4-10-3-12 1-5-1-9 4-7 9-5 3-4 10 1 12-1 5 4 9 9 7 3 5 10 5 13 0 5 2 10-2 9-7 5-2 6-9 1-12 2-5-2-10-7-9-2-4-8-5-12-1Z" />
+              <path
+                d="M24 8c-4-4-10-3-12 1-5-1-9 4-7 9-5 3-4 10 1 12-1 5 4 9 9 7 3 5 10 5 13 0 5 2 10-2 9-7 5-2 6-9 1-12 2-5-2-10-7-9-2-4-8-5-12-1Z"
+              />
               <path d="M24 13v22M16 19l8 5 8-5M16 30l8-5 8 5" />
             </svg>
           </span>
-          <span><strong>智能能力</strong><small>数据驱动　智能洞察</small></span>
+          <span><strong>智能能力</strong><small>数据驱动&ensp;智能洞察</small></span>
         </li>
         <li>
           <span class="capability-icon">
@@ -58,17 +52,13 @@
               <path d="M21 14 13 29M27 14l8 15M15 34h18" />
             </svg>
           </span>
-          <span><strong>流程协作</strong><small>高效协同　流程闭环</small></span>
+          <span><strong>流程协作</strong><small>高效协同&ensp;流程闭环</small></span>
         </li>
       </ul>
     </section>
 
     <div class="sand-dunes-frame">
-      <img
-        class="sand-dunes"
-        src="@/assets/images/common/sandadmin-login-dunes-v2.png"
-        alt=""
-      />
+      <img class="sand-dunes" src="@/assets/images/common/sandadmin-login-dunes-v2.png" alt="" />
     </div>
   </aside>
 </template>
@@ -116,8 +106,12 @@
     background-image:
       radial-gradient(rgb(255 255 255 / 42%) 0.55px, transparent 0.75px),
       radial-gradient(rgb(100 202 211 / 24%) 0.45px, transparent 0.7px);
-    background-position: 0 0, 7px 13px;
-    background-size: 8px 8px, 13px 13px;
+    background-position:
+      0 0,
+      7px 13px;
+    background-size:
+      8px 8px,
+      13px 13px;
     mix-blend-mode: screen;
   }
 
@@ -221,7 +215,9 @@
     border: 1px solid rgb(159 186 194 / 18%);
     border-radius: 50%;
     background: radial-gradient(circle at 35% 27%, rgb(41 70 85 / 72%), rgb(8 23 35 / 82%));
-    box-shadow: inset 0 0 21px rgb(98 151 162 / 10%), 0 9px 18px rgb(0 0 0 / 24%);
+    box-shadow:
+      inset 0 0 21px rgb(98 151 162 / 10%),
+      0 9px 18px rgb(0 0 0 / 24%);
   }
 
   .capability-icon svg {

@@ -119,4 +119,3 @@
   // 编辑配置
   const { deleteRow, deleteSelectedRows, selectedRows, handleSelectionChange } = useSandAdmin()
 </script>
-

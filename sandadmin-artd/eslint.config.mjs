@@ -73,6 +73,7 @@ export default [
       'node_modules',
       'dist',
       'public',
+      '.vscode/**',
       'src/assets/**',
       'src/utils/console.ts'
     ]
