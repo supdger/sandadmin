@@ -4,6 +4,8 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，后续版本线从 `0.x` 开始，当前开发基线为 `0.1.0`（未发布）。历史 `6.1.5` 是曾发布 Composer 包使用的兼容版号，不表示 SandAdmin 已达到 6.x 或 1.0 的产品成熟度，也不应作为新项目选型依据。
+
 ## 特性与边界
 
 - PostgreSQL 优先：核心安装器按数据库驱动选择初始化脚本，核心 SQL 位于 `server/plugin/sandadmin/db/`。
@@ -54,7 +56,7 @@ composer require supdger/sandadmin:6.1.5
 
 ## 版本
 
-版本变化见 [CHANGELOG](CHANGELOG.md)。
+当前开发基线为 `0.1.0`，尚未形成 1.0 稳定性承诺。版本变化和历史发行说明见 [CHANGELOG](CHANGELOG.md)。
 
 ## 来源与许可证
 
