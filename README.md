@@ -19,20 +19,8 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 1. 克隆仓库：`git clone https://github.com/supdger/sandadmin.git`。
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
-3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm dev`。
+3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install` 和 `pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
-
-当前主线由两个 Composer 包提供可附加到已有 Webman 的后台能力：
-
-```bash
-composer config repositories.sand-core vcs https://github.com/supdger/sand-core
-composer config repositories.sand-package vcs https://github.com/supdger/sand-package
-composer require supdger/sand-core:^0.1 supdger/sand-package:^0.1
-php vendor/supdger/sand-core/tools/publish-frontend.php /path/to/sandadmin-artd
-php vendor/supdger/sand-package/tools/publish-frontend.php /path/to/sandadmin-artd
-```
-
-Composer 安装只发布 Webman 后端插件文件，不创建数据库、不执行迁移，也不安装 Node.js 依赖。两个显式命令只发布可直接 `pnpm dev` 的前端源码；`sand-package` 在 `sand-core` 基线上叠加插件管理页面。
 
 全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码。
 
