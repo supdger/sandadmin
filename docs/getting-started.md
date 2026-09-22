@@ -25,25 +25,10 @@ Composer 安装阶段只发布后端 Webman 插件文件，不创建数据库、
 
 1. 进入同一 SandAdmin revision 的 `sandadmin-artd/`。
 2. 按需将 `.env.example` 和 `.env.development.example` 复制为对应 `.env` 文件。
-3. 执行 `corepack pnpm install --frozen-lockfile` 安装依赖。
-4. 开发时执行 `corepack pnpm dev`；需要构建验证时执行 `corepack pnpm build`。
+3. 执行 `pnpm install` 安装依赖。
+4. 开发时执行 `pnpm dev`；需要构建验证时执行 `pnpm build`。
 
 默认前端目录是 `sandadmin-artd`。服务和 Channel 端口分别由 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT` 控制；未配置时以后端配置的默认值为准。
-
-## 附加到已有 Webman
-
-已有 Webman 项目可以只安装核心，也可以同时安装插件管理能力：
-
-```bash
-composer config repositories.sand-core vcs https://github.com/supdger/sand-core
-composer config repositories.sand-package vcs https://github.com/supdger/sand-package
-composer require supdger/sand-core:^0.1
-composer require supdger/sand-package:^0.1
-php vendor/supdger/sand-core/tools/publish-frontend.php /path/to/sandadmin-artd
-php vendor/supdger/sand-package/tools/publish-frontend.php /path/to/sandadmin-artd
-```
-
-两个发布命令复制的是前端源码，不安装 Node.js 依赖，也不执行编译。`sand-package` 发布器要求目标中已经存在 `sand-core` 基线；发布器会记录来源清单，并拒绝覆盖不受管理或已经被本地修改的文件。仅需核心时省略 `sand-package` 的 Composer 依赖和发布命令。
 
 ## 首次验证
 
