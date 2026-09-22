@@ -157,18 +157,6 @@ export const useTerminalStore = defineStore(
     }
 
     /**
-     * 根据UUID查找任务索引
-     */
-    const findTaskIdxFromUuid = (uuid: string): number | false => {
-      for (let i = 0; i < taskList.value.length; i++) {
-        if (taskList.value[i].uuid === uuid) {
-          return i
-        }
-      }
-      return false
-    }
-
-    /**
      * 根据猜测查找任务索引
      */
     const findTaskIdxFromGuess = (idx: number): number | false => {
@@ -268,7 +256,11 @@ export const useTerminalStore = defineStore(
     /**
      * 添加 Node 相关任务
      */
-    const addNodeTask = (command: string, extend: string = '', callback?: (status: TaskStatus) => void) => {
+    const addNodeTask = (
+      command: string,
+      extend: string = '',
+      callback?: (status: TaskStatus) => void
+    ) => {
       const manager = packageManager.value === 'unknown' ? 'npm' : packageManager.value
       const fullCommand = `${command}.${manager}`
       addTask(fullCommand, extend, callback)
@@ -277,7 +269,11 @@ export const useTerminalStore = defineStore(
     /**
      * 添加任务
      */
-    const addTask = (command: string, extend: string = '', callback?: (status: TaskStatus) => void) => {
+    const addTask = (
+      command: string,
+      extend: string = '',
+      callback?: (status: TaskStatus) => void
+    ) => {
       const task: TerminalTask = {
         uuid: generateUUID(),
         createTime: formatDateTime(),

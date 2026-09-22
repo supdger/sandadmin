@@ -13,11 +13,13 @@
 ## 配置后端
 
 1. 克隆 SandAdmin 仓库并进入 `server/`。
-2. 执行 `composer install`，使用已提交的 `composer.lock` 安装后端依赖。
+2. 执行 `composer install`，使用已提交的 `composer.lock` 安装后端依赖以及锁定版本的 `supdger/sand-core`、`supdger/sand-package`。
 3. 首次安装前不要创建 `.env`，因为安装页会把它视为“已经安装”；`server/.env.example` 只用于字段参考和非交互环境。
 4. 执行 `php start.php`，在 `/core/install` 填写已准备好的 PostgreSQL 数据库连接并由安装器生成 `.env`。
 
 核心安装路由由 `server/plugin/sandadmin/config/route.php` 提供。仅对全新或已按自身流程备份并确认可初始化的数据库访问 `/install`。
+
+Composer 安装阶段只发布后端 Webman 插件文件，不创建数据库、不执行 SQL、不启停服务。数据库初始化仍只能由明确访问安装流程触发。
 
 ## 配置前端
 
@@ -27,6 +29,21 @@
 4. 开发时执行 `corepack pnpm dev`；需要构建验证时执行 `corepack pnpm build`。
 
 默认前端目录是 `sandadmin-artd`。服务和 Channel 端口分别由 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT` 控制；未配置时以后端配置的默认值为准。
+
+## 附加到已有 Webman
+
+已有 Webman 项目可以只安装核心，也可以同时安装插件管理能力：
+
+```bash
+composer config repositories.sand-core vcs https://github.com/supdger/sand-core
+composer config repositories.sand-package vcs https://github.com/supdger/sand-package
+composer require supdger/sand-core:^0.1
+composer require supdger/sand-package:^0.1
+php vendor/supdger/sand-core/tools/publish-frontend.php /path/to/sandadmin-artd
+php vendor/supdger/sand-package/tools/publish-frontend.php /path/to/sandadmin-artd
+```
+
+两个发布命令复制的是前端源码，不安装 Node.js 依赖，也不执行编译。`sand-package` 发布器要求目标中已经存在 `sand-core` 基线；发布器会记录来源清单，并拒绝覆盖不受管理或已经被本地修改的文件。仅需核心时省略 `sand-package` 的 Composer 依赖和发布命令。
 
 ## 首次验证
 

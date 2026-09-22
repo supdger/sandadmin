@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dd78396bb18e3b3f37ef8eb4a6114370",
+    "content-hash": "6eae2edfe7fdcc2e6fe1f90189c67918",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3224,6 +3224,124 @@
                 "source": "https://github.com/smalot/pdfparser/tree/v2.12.5"
             },
             "time": "2026-04-17T11:37:58+00:00"
+        },
+        {
+            "name": "supdger/sand-core",
+            "version": "0.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/supdger/sand-core.git",
+                "reference": "40e45c9a8e415a1bd1329f033ec3075a3c87d794"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/40e45c9a8e415a1bd1329f033ec3075a3c87d794",
+                "reference": "40e45c9a8e415a1bd1329f033ec3075a3c87d794",
+                "shasum": ""
+            },
+            "require": {
+                "aliyuncs/oss-sdk-php": "^2.7",
+                "godruoyi/php-snowflake": "^3.0.0",
+                "illuminate/events": "^12.43",
+                "illuminate/pagination": "^12.43",
+                "openspout/openspout": "^4.0",
+                "php": ">=8.2",
+                "phpmailer/phpmailer": "^6.9 || ^7.0",
+                "ramsey/uuid": "^4.0",
+                "smalot/pdfparser": "^2.12",
+                "tinywan/jwt": "^1.11",
+                "tinywan/storage": "^1.1",
+                "topthink/think-orm": "^2.0.53 || ^3.0.0",
+                "topthink/think-validate": "^3.0",
+                "webman/cache": "^2.1",
+                "webman/captcha": "^1.0",
+                "webman/channel": "^2.1",
+                "webman/console": "^2.1",
+                "webman/database": "^2.1",
+                "webman/event": "^1.0",
+                "webman/redis": "^2.1",
+                "webman/think-cache": "^2.1",
+                "webman/think-orm": "^2.1",
+                "workerman/crontab": "^1.0",
+                "workerman/webman-framework": "^2.1",
+                "zoujingli/ip2region": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SandAdmin\\Core\\": "server/",
+                    "plugin\\sandadmin\\": "server/plugin/sandadmin/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/sandadmin-artd/node_modules",
+                    "/sandadmin-artd/dist",
+                    "/sandadmin-artd/.env*",
+                    "/**/.DS_Store",
+                    "/**/.idea",
+                    "/**/.vscode"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
+            "support": {
+                "source": "https://github.com/supdger/sand-core/tree/0.1.2",
+                "issues": "https://github.com/supdger/sand-core/issues"
+            },
+            "time": "2026-09-22T09:25:59+00:00"
+        },
+        {
+            "name": "supdger/sand-package",
+            "version": "0.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/supdger/sand-package.git",
+                "reference": "3cf882367e18e671c060e8dfcd4c33a8427f515d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/3cf882367e18e671c060e8dfcd4c33a8427f515d",
+                "reference": "3cf882367e18e671c060e8dfcd4c33a8427f515d",
+                "shasum": ""
+            },
+            "require": {
+                "nelexa/zip": "^4.0",
+                "php": ">=8.2",
+                "supdger/sand-core": "^0.1",
+                "tinywan/jwt": "^1.11",
+                "webman/console": "^2.1",
+                "workerman/webman-framework": "^2.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SandAdmin\\Package\\": "server/",
+                    "plugin\\sandpackage\\": "server/plugin/sandpackage/",
+                    "Saithink\\Saipackage\\": "server/compat/Saithink/Saipackage/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/sandadmin-artd/node_modules",
+                    "/sandadmin-artd/dist",
+                    "/sandadmin-artd/.env*",
+                    "/**/.DS_Store",
+                    "/**/.idea",
+                    "/**/.vscode"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
+            "support": {
+                "source": "https://github.com/supdger/sand-package/tree/0.1.2",
+                "issues": "https://github.com/supdger/sand-package/issues"
+            },
+            "time": "2026-09-22T09:26:05+00:00"
         },
         {
             "name": "symfony/cache",

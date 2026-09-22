@@ -23,8 +23,20 @@
     "issues": "https://github.com/supdger/sandadmin/issues",
     "source": "https://github.com/supdger/sandadmin"
   },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/supdger/sand-core"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/supdger/sand-package"
+    }
+  ],
   "require": {
     "php": ">=8.2",
+    "supdger/sand-core": "^0.1",
+    "supdger/sand-package": "^0.1",
     "workerman/webman-framework": "^2.1",
     "monolog/monolog": "^2.0",
     "nelexa/zip": "^4.0",
@@ -62,9 +74,7 @@
     "psr-4": {
       "app\\": "./app",
       "App\\": "./app",
-      "app\\View\\Components\\": "./app/view/components",
-      "plugin\\sandadmin\\": "./plugin/sandadmin",
-      "plugin\\sandpackage\\": "./plugin/sandpackage"
+      "app\\View\\Components\\": "./app/view/components"
     }
   },
   "scripts": {

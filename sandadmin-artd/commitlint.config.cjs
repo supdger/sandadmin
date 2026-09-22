@@ -6,6 +6,8 @@
  */
 
 module.exports = {
+  // 继承的规则
+  extends: ['@commitlint/config-conventional'],
   // 自定义规则
   rules: {
     // 提交类型枚举，git提交type必须是以下类型

@@ -94,9 +94,7 @@
     disabled?: boolean
   }
 
-  const props = withDefaults(defineProps<Props>(), {
-    disabled: false
-  })
+  const { disabled = false } = defineProps<Props>()
 
   const modelValue = defineModel<string>()
   const visible = ref(false)
