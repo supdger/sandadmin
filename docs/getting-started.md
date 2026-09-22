@@ -21,6 +21,22 @@
 
 Composer 安装阶段只发布后端 Webman 插件文件，不创建数据库、不执行 SQL、不启停服务。数据库初始化仍只能由明确访问安装流程触发。
 
+## 附加到已有 Webman
+
+只需要后台核心时，在 Webman 项目中执行：
+
+```bash
+composer require supdger/sand-core:^0.1
+```
+
+需要插件管理能力时，再执行：
+
+```bash
+composer require supdger/sand-package:^0.1
+```
+
+Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码，不需要额外的发布命令。前端依赖安装、开发服务、构建和数据库初始化仍由项目自行执行。
+
 ## 配置前端
 
 1. 进入同一 SandAdmin revision 的 `sandadmin-artd/`。
