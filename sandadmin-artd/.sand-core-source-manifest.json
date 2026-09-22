@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "files": {
         ".env.development.example": "ed765a8215a6361c287b91276623ec1e27c54019c72cb46a8ddc131970c0c316",
         ".env.example": "f720ca22e4e615b36e44596064828030d3442a2ecd5a2832cc3b849cb84f740c",
