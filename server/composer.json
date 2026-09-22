@@ -23,16 +23,6 @@
     "issues": "https://github.com/supdger/sandadmin/issues",
     "source": "https://github.com/supdger/sandadmin"
   },
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "https://github.com/supdger/sand-core"
-    },
-    {
-      "type": "vcs",
-      "url": "https://github.com/supdger/sand-package"
-    }
-  ],
   "require": {
     "php": ">=8.2",
     "supdger/sand-core": "^0.1",

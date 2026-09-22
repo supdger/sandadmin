@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6eae2edfe7fdcc2e6fe1f90189c67918",
+    "content-hash": "4c9801cf29dfed5f9d4b9fd585e1d1e5",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3273,23 +3273,14 @@
                     "plugin\\sandadmin\\": "server/plugin/sandadmin/"
                 }
             },
-            "archive": {
-                "exclude": [
-                    "/sandadmin-artd/node_modules",
-                    "/sandadmin-artd/dist",
-                    "/sandadmin-artd/.env*",
-                    "/**/.DS_Store",
-                    "/**/.idea",
-                    "/**/.vscode"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
-                "source": "https://github.com/supdger/sand-core/tree/0.1.4",
-                "issues": "https://github.com/supdger/sand-core/issues"
+                "issues": "https://github.com/supdger/sand-core/issues",
+                "source": "https://github.com/supdger/sand-core/tree/0.1.4"
             },
             "time": "2026-09-22T17:17:08+00:00"
         },
@@ -3323,23 +3314,14 @@
                     "Saithink\\Saipackage\\": "server/compat/Saithink/Saipackage/"
                 }
             },
-            "archive": {
-                "exclude": [
-                    "/sandadmin-artd/node_modules",
-                    "/sandadmin-artd/dist",
-                    "/sandadmin-artd/.env*",
-                    "/**/.DS_Store",
-                    "/**/.idea",
-                    "/**/.vscode"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
-                "source": "https://github.com/supdger/sand-package/tree/0.1.4",
-                "issues": "https://github.com/supdger/sand-package/issues"
+                "issues": "https://github.com/supdger/sand-package/issues",
+                "source": "https://github.com/supdger/sand-package/tree/0.1.4"
             },
             "time": "2026-09-22T17:17:13+00:00"
         },

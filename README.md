@@ -26,6 +26,20 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 默认前端目录为 `sandadmin-artd`；服务与 Channel 端口变量为 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT`。
 
+已有 Webman 项目可直接安装后台核心：
+
+```bash
+composer require supdger/sand-core:^0.1
+```
+
+需要插件管理能力时，再安装：
+
+```bash
+composer require supdger/sand-package:^0.1
+```
+
+Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
+
 ## 文档
 
 - [文档总览](docs/README.md)
