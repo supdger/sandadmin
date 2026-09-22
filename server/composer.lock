@@ -3227,16 +3227,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "40e45c9a8e415a1bd1329f033ec3075a3c87d794"
+                "reference": "af7d09b7878c55b183042f4c7c5a96e48bbe9dff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/40e45c9a8e415a1bd1329f033ec3075a3c87d794",
-                "reference": "40e45c9a8e415a1bd1329f033ec3075a3c87d794",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/af7d09b7878c55b183042f4c7c5a96e48bbe9dff",
+                "reference": "af7d09b7878c55b183042f4c7c5a96e48bbe9dff",
                 "shasum": ""
             },
             "require": {
@@ -3288,23 +3288,23 @@
             ],
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
-                "source": "https://github.com/supdger/sand-core/tree/0.1.2",
+                "source": "https://github.com/supdger/sand-core/tree/0.1.3",
                 "issues": "https://github.com/supdger/sand-core/issues"
             },
-            "time": "2026-09-22T09:25:59+00:00"
+            "time": "2026-09-22T17:06:31+00:00"
         },
         {
             "name": "supdger/sand-package",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-package.git",
-                "reference": "3cf882367e18e671c060e8dfcd4c33a8427f515d"
+                "reference": "a3897f71cb18f5ee35fca0f908b05d1431557821"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-package/zipball/3cf882367e18e671c060e8dfcd4c33a8427f515d",
-                "reference": "3cf882367e18e671c060e8dfcd4c33a8427f515d",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/a3897f71cb18f5ee35fca0f908b05d1431557821",
+                "reference": "a3897f71cb18f5ee35fca0f908b05d1431557821",
                 "shasum": ""
             },
             "require": {
@@ -3338,10 +3338,10 @@
             ],
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
-                "source": "https://github.com/supdger/sand-package/tree/0.1.2",
+                "source": "https://github.com/supdger/sand-package/tree/0.1.3",
                 "issues": "https://github.com/supdger/sand-package/issues"
             },
-            "time": "2026-09-22T09:26:05+00:00"
+            "time": "2026-09-22T17:06:36+00:00"
         },
         {
             "name": "symfony/cache",
