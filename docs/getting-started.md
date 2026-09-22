@@ -2,6 +2,8 @@
 
 本文适用于全新的 SandAdmin PostgreSQL 开发或验证环境。它不提供 MySQL 原地迁移方案，也不替代生产变更流程。
 
+> SandAdmin 当前开发基线为 `0.1.0`（未发布），仍处于早期验证阶段。文档中的可运行步骤不等同于生产就绪或 1.0 稳定性承诺；历史 `6.1.5` Composer 包仅供既有消费者追溯。
+
 ## 前置条件
 
 - PHP `>= 8.2`，版本要求以[后端 composer.json](../server/composer.json)为准。
