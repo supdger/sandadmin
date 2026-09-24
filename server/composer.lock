@@ -3227,16 +3227,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "b0be14f792f1ddfd5f69c79c9dc11de5e70169ab"
+                "reference": "4a44d4887be32c00c9940364d87e56911ba3f092"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/b0be14f792f1ddfd5f69c79c9dc11de5e70169ab",
-                "reference": "b0be14f792f1ddfd5f69c79c9dc11de5e70169ab",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/4a44d4887be32c00c9940364d87e56911ba3f092",
+                "reference": "4a44d4887be32c00c9940364d87e56911ba3f092",
                 "shasum": ""
             },
             "require": {
@@ -3280,9 +3280,9 @@
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
                 "issues": "https://github.com/supdger/sand-core/issues",
-                "source": "https://github.com/supdger/sand-core/tree/0.1.4"
+                "source": "https://github.com/supdger/sand-core/tree/0.1.5"
             },
-            "time": "2026-09-22T17:17:08+00:00"
+            "time": "2026-09-24T03:33:13+00:00"
         },
         {
             "name": "supdger/sand-package",
