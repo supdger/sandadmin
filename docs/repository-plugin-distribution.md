@@ -71,7 +71,7 @@ php webman sandpackage:storage-migrate --apply --maintenance
 维护者完成包验证后：
 
 1. 在插件自己的公开仓库创建对应 tag 的 Release，将 ZIP 作为附件上传。
-2. 把生成条目合入 SandAdmin `catalog.json` 的 `plugins` 数组；插件条目必须声明 `repository`。同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。
+2. 把生成条目合入 SandAdmin `catalog.json` 的 `plugins` 数组；插件条目必须声明 `repository`。同一个插件的新版本追加到该插件的 `versions` 中，并补充 `notes`。不要重复 app 或 version。提交前执行 `python3 tools/check-plugin-catalog.py --verify-assets`，检查当前宿主版本、附件摘要、包身份和 `info.ini` 的 `support`；检查失败的版本不得进入公开清单。
 3. 将清单发布到消费者配置的 ref。先上传附件，再公开引用它的清单；不得用源码快照 ZIP 代替插件包。
 4. 保留旧版本附件及其摘要，升级路径由插件自己的 `update.sql` 负责。兼容字段表示宿主版本范围，不证明任意旧插件版本均可直接跨版本升级。
 
@@ -102,7 +102,9 @@ php webman sandpackage:storage-migrate --apply --maintenance
 }
 ```
 
-上面摘要是说明占位，不能原样发布。`host_max` 可选，包含上下边界；版本采用三段数字，可附预发布标记。`info.ini` 的 `app/version` 必须与清单及后端 `config/app.php` 一致。
+上面摘要是说明占位，不能原样发布。`host_min` 是此插件版本依赖的宿主能力首次进入正式宿主版本的版本号，不是固定的项目初始版本。插件提出的新宿主需求须先在宿主 issue 中落地并发布；例如能力在宿主 `0.1.3` 落地，依赖它的插件版本才可声明 `host_min = 0.1.3`、`support = >=0.1.3`，并在发布说明中记录宿主 issue、实现版本及验收证据。旧插件版本保留原有下限，不随新插件版本整体抬高。兼容后续版本时不填写 `host_max`；确有经过验证的上界才填写，且不得与 `host_min` 相同而锁死单个补丁版本。
+
+`info.ini` 的 `app/version` 必须与清单及后端 `config/app.php` 一致，`support` 的最低版本必须与清单下限一致。当前 SandPackage 尚需发布支持最低版本声明的新版本，之后才能重新上架插件；静态检查无法代替对宿主 issue 落地版本及真实安装、升级、业务链的验收。
 
 ## 边界与失败处理
 
@@ -112,7 +114,7 @@ php webman sandpackage:storage-migrate --apply --maintenance
 - 仅 HTTPS GitHub 及固定附件域名，验证 TLS，连接超时 5 秒，单次请求含重定向总时限 60 秒，最多 3 次重定向。下载操作会先刷新清单，再下载附件。
 - 传输使用 cURL multi 与 Worker 定时驱动，不在 HTTP Worker 等待网络；每进程最多 2 个活动请求，活动与排队请求总数最多 8。临时 ZIP 在成功及失败后清理。
 - 当前普通安装线拒绝非空 `sand_platform` 扩展；已有插件不得仅删除元数据来绕过真实依赖或迁移要求。迁仓不等于兼容验收。
-- 当前清单登记 SandIAM、SandWorkflow 和 SandAI；每个条目都指向各自独立仓库的 Release ZIP。
+- SandIAM、SandWorkflow 和 SandAI 的旧预发布包不支持当前宿主，暂不登记到待发布清单。完成包内兼容声明修复、重新构建和真实宿主验收后再上架。
 
 本功能不自动提交、上传 Release、移动旧插件源码、执行数据库迁移或重启服务。实际公开仓库访问、真实插件数据库安装、管理前端构建发布及业务链需要在发布候选上独立验证。
 

@@ -1,0 +1,31 @@
+name: Plugin catalog compatibility
+
+on:
+  pull_request:
+    paths:
+      - catalog.json
+      - server/composer.json
+      - server/composer.lock
+      - tools/check-plugin-catalog.py
+      - .github/workflows/plugin-catalog.yml
+  push:
+    branches: [main]
+    paths:
+      - catalog.json
+      - server/composer.json
+      - server/composer.lock
+      - tools/check-plugin-catalog.py
+      - .github/workflows/plugin-catalog.yml
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress --no-scripts
+        working-directory: server
+      - run: python3 tools/check-plugin-catalog.py --verify-assets
