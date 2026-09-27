@@ -15,9 +15,9 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 ## 快速开始
 
-运行环境、配置项和首次安装步骤见[本地运行与首次安装](docs/getting-started.md)。简要流程为：
+运行环境、配置项和首次安装步骤见[本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)。简要流程为：
 
-1. 从仓库的 **Code → Download ZIP** 下载源码包；包内是 `server/`、`sandadmin-artd/` 及必须保留的版权文件。需要参与源码开发时再克隆仓库。
+1. 下载源码 ZIP 或克隆仓库。源码 ZIP 包含 `server/`、`sandadmin-artd/` 及必须保留的版权文件；克隆后的工作目录还包含 README、插件目录和 Git 配置。
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
 3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install` 和 `pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
@@ -43,16 +43,16 @@ Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码�
 
 ## 文档
 
-- [文档总览](docs/README.md)
-- [本地运行与首次安装](docs/getting-started.md)
-- [架构与插件边界](docs/architecture.md)
-- [仓库与插件治理](docs/repository-governance.md)
-- [插件开发与发布约定](docs/plugin-development.md)
-- [仓库插件分发](docs/repository-plugin-distribution.md)
-- [插件管理端载荷激活契约](docs/frontend-plugin-activation.md)
-- [宿主发布与消费同步](docs/host-consumer-sync.md)
-- [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
-- [上游来源、署名与许可证说明](docs/upstream-and-licensing.md)
+- [文档总览](https://github.com/supdger/sandadmin/wiki)
+- [本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)
+- [架构与插件边界](https://github.com/supdger/sandadmin/wiki/architecture)
+- [仓库与插件治理](https://github.com/supdger/sandadmin/wiki/repository-governance)
+- [插件开发与发布约定](https://github.com/supdger/sandadmin/wiki/plugin-development)
+- [仓库插件分发](https://github.com/supdger/sandadmin/wiki/repository-plugin-distribution)
+- [插件管理端载荷激活契约](https://github.com/supdger/sandadmin/wiki/frontend-plugin-activation)
+- [宿主发布与消费同步](https://github.com/supdger/sandadmin/wiki/host-consumer-sync)
+- [更名与插件兼容性通知](https://github.com/supdger/sandadmin/wiki/sandadmin-rename-notice)
+- [上游来源、署名与许可证说明](https://github.com/supdger/sandadmin/wiki/upstream-and-licensing)
 
 ## 可选插件
 
@@ -65,7 +65,7 @@ Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码�
 
 ## 版本
 
-当前版本为 `0.1.1`，尚未形成 1.0 稳定性承诺。版本变化见 [CHANGELOG](CHANGELOG.md)。
+当前版本为 `0.1.1`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](https://github.com/supdger/sandadmin/wiki/changelog)。
 
 ## 来源与许可证
 
