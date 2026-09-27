@@ -4,7 +4,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前基线为 `0.1.0`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.1.1`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
 
 ## 特性与边界
 
@@ -15,9 +15,9 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 ## 快速开始
 
-运行环境、配置项和首次安装步骤见[本地运行与首次安装](docs/getting-started.md)。简要流程为：
+运行环境、配置项和首次安装步骤见[本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)。简要流程为：
 
-1. 克隆仓库：`git clone https://github.com/supdger/sandadmin.git`。
+1. 下载源码 ZIP 或克隆仓库。源码 ZIP 包含 `server/`、`sandadmin-artd/` 及必须保留的版权文件；克隆后的工作目录还包含 README、插件目录和 Git 配置。
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
 3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install` 和 `pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
@@ -29,29 +29,30 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 已有 Webman 项目可直接安装后台核心：
 
 ```bash
-composer require supdger/sand-core:^0.1
+composer require supdger/sand-core
 ```
 
 需要插件管理能力时，再安装：
 
 ```bash
-composer require supdger/sand-package:^0.1
+composer require supdger/sand-package
 ```
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
+未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 ## 文档
 
-- [文档总览](docs/README.md)
-- [本地运行与首次安装](docs/getting-started.md)
-- [架构与插件边界](docs/architecture.md)
-- [仓库与插件治理](docs/repository-governance.md)
-- [插件开发与发布约定](docs/plugin-development.md)
-- [仓库插件分发](docs/repository-plugin-distribution.md)
-- [插件管理端载荷激活契约](docs/frontend-plugin-activation.md)
-- [宿主发布与消费同步](docs/host-consumer-sync.md)
-- [更名与插件兼容性通知](docs/compatibility/sandadmin-rename-notice.md)
-- [上游来源、署名与许可证说明](docs/upstream-and-licensing.md)
+- [文档总览](https://github.com/supdger/sandadmin/wiki)
+- [本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)
+- [架构与插件边界](https://github.com/supdger/sandadmin/wiki/architecture)
+- [仓库与插件治理](https://github.com/supdger/sandadmin/wiki/repository-governance)
+- [插件开发与发布约定](https://github.com/supdger/sandadmin/wiki/plugin-development)
+- [仓库插件分发](https://github.com/supdger/sandadmin/wiki/repository-plugin-distribution)
+- [插件管理端载荷激活契约](https://github.com/supdger/sandadmin/wiki/frontend-plugin-activation)
+- [宿主发布与消费同步](https://github.com/supdger/sandadmin/wiki/host-consumer-sync)
+- [更名与插件兼容性通知](https://github.com/supdger/sandadmin/wiki/sandadmin-rename-notice)
+- [上游来源、署名与许可证说明](https://github.com/supdger/sandadmin/wiki/upstream-and-licensing)
 
 ## 可选插件
 
@@ -64,7 +65,7 @@ Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码�
 
 ## 版本
 
-当前开发基线为 `0.1.0`，尚未形成 1.0 稳定性承诺。版本变化见 [CHANGELOG](CHANGELOG.md)。
+当前版本为 `0.1.1`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](https://github.com/supdger/sandadmin/wiki/changelog)。
 
 ## 来源与许可证
 

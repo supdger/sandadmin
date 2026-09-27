@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.1.4",
+    "version": "0.1.7",
     "files": {
         ".env.development.example": "ed765a8215a6361c287b91276623ec1e27c54019c72cb46a8ddc131970c0c316",
         ".env.example": "f720ca22e4e615b36e44596064828030d3442a2ecd5a2832cc3b849cb84f740c",
@@ -330,7 +330,7 @@
         "src/views/auth/login/style.css": "862397c90407103d7498d05095c22576f555b770acd357fcb49192b93c10a21e",
         "src/views/auth/register/index.vue": "66d4471d0a8274f3af697d991a2be6f18271ab3190846c79a26a4d10ca119314",
         "src/views/dashboard/console/index.vue": "569cc9679d5ca127e7f4afc6b1c9d859d238cb3b2a10ae92fdcda8e686728138",
-        "src/views/dashboard/console/modules/about-project.vue": "67d351adf322df85d880ea230c54d119d9aaa1857c3e51b95a89b5d65010ca35",
+        "src/views/dashboard/console/modules/about-project.vue": "f4f2de87c2c31394585577b71c5bba617e4dab2faf3bfd16e9aeab0f91ad5512",
         "src/views/dashboard/console/modules/active-user.vue": "3099b21d6a19b55d2f9dcff6e9ffeb05394a7d290e2847bfd01f5e204a2b91ef",
         "src/views/dashboard/console/modules/card-list.vue": "f82a09b9ab8ed31594844d422731aa4f1ffbb29ce3cbf67fb7c6efe0bfd74110",
         "src/views/dashboard/console/modules/dynamic-stats.vue": "ac324b0311208e12e9f80396b6b44b613c895af048952894a841f644b6670832",
