@@ -17,7 +17,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 运行环境、配置项和首次安装步骤见[本地运行与首次安装](docs/getting-started.md)。简要流程为：
 
-1. 克隆仓库：`git clone https://github.com/supdger/sandadmin.git`。
+1. 从仓库的 **Code → Download ZIP** 下载源码包；包内是 `server/`、`sandadmin-artd/` 及必须保留的版权文件。需要参与源码开发时再克隆仓库。
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
 3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install` 和 `pnpm dev`。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
@@ -29,16 +29,17 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 已有 Webman 项目可直接安装后台核心：
 
 ```bash
-composer require supdger/sand-core:^0.1
+composer require supdger/sand-core
 ```
 
 需要插件管理能力时，再安装：
 
 ```bash
-composer require supdger/sand-package:^0.1
+composer require supdger/sand-package
 ```
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
+未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 ## 文档
 

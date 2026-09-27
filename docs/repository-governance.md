@@ -10,6 +10,8 @@ Sand 平台插件按需提供，不能成为使用 SandAdmin 的成本或隐含�
 
 采用“统一目录、独立插件仓库”模型：`sandadmin` 的 `server/` 与 `sandadmin-artd/` 只包含宿主源码，根目录 `catalog.json` 保存插件目录。每个插件拥有独立源码仓库、版本和 Release，目录明确声明下载来源。具体契约见[仓库插件分发](repository-plugin-distribution.md)。
 
+普通使用者从仓库的 **Code → Download ZIP** 获取 `server/`、`sandadmin-artd/` 和必要的版权文件；`docs/`、清单和仓库说明仍留在 Git 源码仓库，但不进入源码 ZIP。仓库根目录不提交仅用于维护的 `tools/` 或 `.github/workflows/`。
+
 迁移期间以 `sand_plugins` 的已提交 revision 为拆分来源，本地未提交工作不得自动公开。每个插件完成历史拆分、独立 Release 校验和目录切换后，独立仓库成为唯一权威来源；`sand_plugins` 只保留迁移记录，不能继续并行发布。
 
 每个插件是独立发布单元，拥有自己的版本、README、依赖、生命周期、权限、配置、验证记录和发布包。SandAdmin 的完整源码下载和发行版均不得包含业务插件源码或运行副本。

@@ -12,7 +12,7 @@
 
 ## 配置后端
 
-1. 克隆 SandAdmin 仓库并进入 `server/`。
+1. 从仓库的 **Code → Download ZIP** 下载源码包，解压后进入 `server/`；参与源码开发时可以克隆仓库。
 2. 执行 `composer install`，使用已提交的 `composer.lock` 安装后端依赖以及锁定版本的 `supdger/sand-core`、`supdger/sand-package`。
 3. 首次安装前不要创建 `.env`，因为安装页会把它视为“已经安装”；`server/.env.example` 只用于字段参考和非交互环境。
 4. 执行 `php start.php`，在 `/core/install` 填写已准备好的 PostgreSQL 数据库连接并由安装器生成 `.env`。
@@ -26,16 +26,17 @@ Composer 安装阶段只发布后端 Webman 插件文件，不创建数据库、
 只需要后台核心时，在 Webman 项目中执行：
 
 ```bash
-composer require supdger/sand-core:^0.1
+composer require supdger/sand-core
 ```
 
 需要插件管理能力时，再执行：
 
 ```bash
-composer require supdger/sand-package:^0.1
+composer require supdger/sand-package
 ```
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码，不需要额外的发布命令。前端依赖安装、开发服务、构建和数据库初始化仍由项目自行执行。
+未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本。
 
 ## 配置前端
 
