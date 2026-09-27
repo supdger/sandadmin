@@ -8,6 +8,12 @@
 - 恢复 `server/` 完整 Webman 后端项目，SandAdmin 主线重新采用完整前后端源码仓库安装。
 - `/Users/code/project/sand_demo` 接管 SandAdmin 与独立 Sand 插件的统一演示和验收宿主职责。
 
+## 0.1.1 - 2026-09-27
+
+- 用户下载的源码 ZIP 仅包含 `server/`、`sandadmin-artd/` 和必要的版权文件；仓库保留文档、插件目录及其兼容性校验。
+- 已有 Webman 项目的默认安装命令不再指定 `sand-core` 和 `sand-package` 的版本。
+- 本次不修改插件目录内容、插件安装代码或独立插件版本。
+
 ## 0.1.0 - 2026-09-21
 
 - 发布 Packagist 稳定版，默认安装命令为 `composer require supdger/sandadmin`。
