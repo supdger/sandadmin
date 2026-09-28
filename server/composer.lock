@@ -3286,16 +3286,16 @@
         },
         {
             "name": "supdger/sand-package",
-            "version": "0.1.6",
+            "version": "0.1.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-package.git",
-                "reference": "106847de812e663c64294633c36c7c0444c4dafd"
+                "reference": "8f813daf881ee2b185d9328de3f30a7b35d1f127"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-package/zipball/106847de812e663c64294633c36c7c0444c4dafd",
-                "reference": "106847de812e663c64294633c36c7c0444c4dafd",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/8f813daf881ee2b185d9328de3f30a7b35d1f127",
+                "reference": "8f813daf881ee2b185d9328de3f30a7b35d1f127",
                 "shasum": ""
             },
             "require": {
@@ -3321,9 +3321,9 @@
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
                 "issues": "https://github.com/supdger/sand-package/issues",
-                "source": "https://github.com/supdger/sand-package/tree/0.1.6"
+                "source": "https://github.com/supdger/sand-package/tree/0.1.8"
             },
-            "time": "2026-09-27T09:33:59+00:00"
+            "time": "2026-09-27T11:15:53+00:00"
         },
         {
             "name": "symfony/cache",
