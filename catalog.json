@@ -5,7 +5,7 @@
       "app": "sand-iam",
       "repository": "supdger/sand-iam",
       "title": "SandIAM 身份与访问控制",
-      "about": "统一管理组织、应用、身份与访问权限。",
+      "about": "统一管理组织、应用、身份与访问权限。当前推荐 0.8.3 为实机测试预发布版。",
       "author": "supdger",
       "versions": [
         {
