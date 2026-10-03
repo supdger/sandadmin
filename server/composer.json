@@ -25,7 +25,7 @@
   },
   "require": {
     "php": ">=8.2",
-    "supdger/sand-core": "^0.1",
+    "supdger/sand-core": "^0.1.9",
     "supdger/sand-package": "^0.1",
     "workerman/webman-framework": "^2.1",
     "monolog/monolog": "^2.0",
