@@ -1,5 +1,4 @@
-/.github/*
-!/.github/dependabot.yml
+/.github/
 /tools/
 /docs/
 
