@@ -4,7 +4,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.1.1`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.2.0`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
 
 ## 特性与边界
 
@@ -40,7 +40,7 @@ composer require supdger/sand-package
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
 
-后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.1。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
+本版锁定 Sand Core `0.2.0` 和 SandPackage `0.2.1`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.1。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 ## 文档
@@ -65,9 +65,13 @@ Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码�
 插件发布包必须在其自己的源码单元保留安装、升级、卸载、权限、兼容性和
 已知限制说明；宿主只维护公共约定与兼容性入口，避免两处文档漂移。
 
+## 基础包更新
+
+本仓库通过 Dependabot 每个工作日（周一至周五）北京时间 04:00 检查 `sand-core` 与 `sand-package`，以分组 PR 提出依赖约束和锁文件更新。维护者检查发布载荷并完成回归后，提交宿主版本；已有部署由各宿主维护者选择升级，不会因基础包发布自动改变。
+
 ## 版本
 
-当前版本为 `0.1.1`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](https://github.com/supdger/sandadmin/wiki/changelog)。
+当前版本为 `0.2.0`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](CHANGELOG.md)。
 
 ## 来源与许可证
 

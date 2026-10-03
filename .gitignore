@@ -1,4 +1,11 @@
-/.github/
+/.github/*
+!/.github/dependabot.yml
 /tools/
 /docs/
-/CHANGELOG.md
+
+/.agents/
+
+# Composer-generated private runtime configuration
+/sandadmin-artd/.env
+/sandadmin-artd/.env.development
+/server/config/plugin/tinywan/jwt/
