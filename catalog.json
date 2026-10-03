@@ -5,16 +5,16 @@
       "app": "sand-iam",
       "repository": "supdger/sand-iam",
       "title": "SandIAM 身份与访问控制",
-      "about": "统一管理组织、应用、身份与访问权限。当前推荐 0.8.3 为实机测试预发布版。",
+      "about": "统一管理组织、应用、身份与访问权限。",
       "author": "supdger",
       "versions": [
         {
           "version": "0.8.3",
-          "tag": "v0.8.3-preview",
+          "tag": "v0.8.3",
           "asset": "sand-iam-0.8.3.zip",
           "sha256": "ead163aceb2aa04bcbe8ba52a0820bf711716de88899bf68dedf3a0b1b164746",
           "host_min": "0.1.0",
-          "notes": "实机测试预发布（unsigned）：PHP-Casbin 4.5.0 授权裁决、目标引导与空条件编辑修复；完整账本及结构核验后兼容 43→44 迁移或 44 载荷升级，不按版本名盲迁移。Windows 标准升级、保存/发布/允许拒绝/撤销与审计通过；Mac 仅事务回滚验证，尚未持久升级/界面复验。管理端需宿主构建激活，详见 Release。"
+          "notes": "PHP-Casbin 4.5.0 授权裁决、目标引导与空条件编辑修复；完整账本及结构核验后兼容 43→44 迁移或 44 载荷升级，不按版本名盲迁移。Windows 标准升级、保存/发布/允许拒绝/撤销与审计通过；Mac 仅事务回滚验证，尚未持久升级/界面复验。管理端需宿主构建激活，详见 Release。"
         },
         {
           "version": "0.7.3",
