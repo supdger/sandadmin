@@ -39,6 +39,8 @@ composer require supdger/sand-package
 ```
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
+
+后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.1。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 ## 文档
