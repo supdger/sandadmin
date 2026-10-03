@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: composer
+    directory: /server
+    schedule:
+      interval: daily
+      time: "04:00"
+      timezone: Asia/Shanghai
+    allow:
+      - dependency-name: supdger/sand-core
+      - dependency-name: supdger/sand-package
+    groups:
+      sand-foundation:
+        patterns:
+          - supdger/sand-core
+          - supdger/sand-package
+    versioning-strategy: increase
+    open-pull-requests-limit: 1

@@ -22,17 +22,6 @@
                 v-if="!hideGlobalPluginWrites"
                 v-ripple
                 :disabled="pluginOperationBusy"
-                @click="handleUpload"
-              >
-                <template #icon>
-                  <ArtSvgIcon icon="ri:upload-line" />
-                </template>
-                上传插件包
-              </ElButton>
-              <ElButton
-                v-if="!hideGlobalPluginWrites"
-                v-ripple
-                :disabled="pluginOperationBusy"
                 @click="handleTerminal"
               >
                 <template #icon>
@@ -123,7 +112,7 @@
                 :disabled="pluginOperationBusy"
                 @click="handleExecFront(row)"
               >
-                <ArtSvgIcon icon="ri:download-line" class="mr-1" />点击安装
+                <ArtSvgIcon icon="ri:download-line" class="mr-1" />处理依赖
               </ElLink>
               <ElTag v-else-if="row.state === 1" type="success">已安装</ElTag>
               <ElTag v-else type="info">-</ElTag>
@@ -138,7 +127,7 @@
                 :disabled="pluginOperationBusy"
                 @click="handleExecBackend(row)"
               >
-                <ArtSvgIcon icon="ri:download-line" class="mr-1" />点击安装
+                <ArtSvgIcon icon="ri:download-line" class="mr-1" />处理依赖
               </ElLink>
               <ElTag v-else-if="row.state === 1" type="success">已安装</ElTag>
               <ElTag v-else type="info">-</ElTag>
@@ -220,19 +209,14 @@
                   <ElTag v-else-if="isUpgradeCandidateStage(row)" type="danger"
                     >升级包不完整，请联系管理员</ElTag
                   >
-                  <ElPopconfirm
-                    v-else-if="canInstallLocal(row)"
-                    title="确定要安装当前插件吗?"
-                    @confirm="handleInstall(row)"
-                    confirm-button-text="确定"
-                    cancel-button-text="取消"
+                  <ElLink
+                    v-if="row.state === 8 && row.existing_schema_attach_pending === 1"
+                    type="warning"
+                    :disabled="pluginOperationBusy"
+                    @click="handleExistingSchemaAttachRecovery(row)"
                   >
-                    <template #reference>
-                      <ElLink type="warning" :disabled="pluginOperationBusy">
-                        <ArtSvgIcon icon="ri:apps-2-add-line" class="mr-1" />安装
-                      </ElLink>
-                    </template>
-                  </ElPopconfirm>
+                    <ArtSvgIcon icon="ri:refresh-line" class="mr-1" />继续数据库重接恢复
+                  </ElLink>
                   <ElPopconfirm
                     v-if="canUninstallLocal(row)"
                     title="确定要卸载当前插件吗?"
@@ -248,10 +232,10 @@
                   </ElPopconfirm>
                   <ElTag
                     v-if="
-                      !canInstallLocal(row) &&
                       !canUninstallLocal(row) &&
                       row.registration_candidate !== 1 &&
-                      !isUpgradeCandidateStage(row)
+                      !isUpgradeCandidateStage(row) &&
+                      row.existing_schema_attach_pending !== 1
                     "
                     :type="row.state === 1 ? 'success' : 'warning'"
                   >
@@ -276,6 +260,17 @@
                 <ArtSvgIcon icon="ri:search-line" />
               </template>
             </ElInput>
+            <ElButton
+              v-if="!hideGlobalPluginWrites"
+              v-ripple
+              :disabled="pluginOperationBusy"
+              @click="handleUpload"
+            >
+              <template #icon>
+                <ArtSvgIcon icon="ri:upload-line" />
+              </template>
+              上传插件包
+            </ElButton>
             <ElButton
               :loading="repositoryLoading"
               :disabled="repositoryDownloading"
@@ -304,6 +299,35 @@
                 </ElDescriptionsItem>
               </ElDescriptions>
             </ElPopover>
+          </div>
+
+          <div v-if="repositoryCandidateRows.length" class="mb-3">
+            <ElAlert title="待安装插件包" type="info" :closable="false">
+              <ElSpace v-for="row in repositoryCandidateRows" :key="row.app" wrap>
+                <span>{{ row.title || row.app }} v{{ row.version }}</span>
+                <ElPopconfirm
+                  title="确定要安装当前插件包吗?"
+                  confirm-button-text="确定"
+                  cancel-button-text="取消"
+                  @confirm="handleInstall(row)"
+                >
+                  <template #reference>
+                    <ElButton link type="primary" :disabled="repositoryWritesBlocked"
+                      >继续安装</ElButton
+                    >
+                  </template>
+                </ElPopconfirm>
+                <ElButton
+                  v-if="row.existing_schema_available === 1"
+                  link
+                  type="primary"
+                  :disabled="repositoryWritesBlocked"
+                  @click="handleExistingSchemaAttach(row)"
+                >
+                  使用现有数据库安装
+                </ElButton>
+              </ElSpace>
+            </ElAlert>
           </div>
 
           <div v-if="repositoryLoading" class="repository-state" v-loading="true">
@@ -344,10 +368,24 @@
                   </ElTooltip>
                   <div class="repository-card-version">
                     {{ item.app }}
-                    <template v-if="item.versions[0]">
-                      · 仓库版本 v{{ item.versions[0].version }}
+                    <template v-if="item.recommended">
+                      · 最新兼容版本 v{{ item.recommended.version }}
+                    </template>
+                    <template v-else>
+                      ·
+                      {{
+                        item.recommended_version === undefined
+                          ? '请更新安装器后查看推荐版本'
+                          : '暂无兼容版本'
+                      }}
                     </template>
                   </div>
+                  <ElTag
+                    v-if="item.recommended && isRepositoryPrerelease(item.recommended)"
+                    size="small"
+                    type="warning"
+                    >预发布</ElTag
+                  >
                 </div>
               </div>
               <p class="repository-card-about">{{ item.about }}</p>
@@ -366,11 +404,11 @@
               <div class="repository-card-footer">
                 <div class="repository-card-secondary-actions">
                   <ElButton
-                    v-if="item.versions[0]"
+                    v-if="item.recommended"
                     link
                     type="primary"
                     size="small"
-                    @click="openRepositoryDocument(item, item.versions[0])"
+                    @click="openRepositoryDocument(item, item.recommended)"
                   >
                     查看文档
                   </ElButton>
@@ -385,19 +423,28 @@
                   </ElButton>
                 </div>
                 <ElButton
-                  v-if="item.versions[0]"
+                  v-if="item.recommended"
                   class="repository-card-primary-action"
                   size="small"
-                  :type="repositoryActionType(item.versions[0].action)"
-                  :loading="downloadingKey === repositoryVersionKey(item, item.versions[0])"
-                  :disabled="repositoryActionDisabled(item, item.versions[0])"
-                  @click="handleRepositoryVersionAction(item, item.versions[0])"
+                  :type="repositoryActionType(item.recommended.action)"
+                  :loading="downloadingKey === repositoryVersionKey(item, item.recommended)"
+                  :disabled="repositoryActionDisabled(item, item.recommended)"
+                  @click="handleRepositoryVersionAction(item, item.recommended)"
                 >
-                  {{ repositoryActionLabel(item.versions[0].action) }}
+                  {{
+                    downloadingKey === repositoryVersionKey(item, item.recommended)
+                      ? item.recommended.action === 'upgrade'
+                        ? '正在升级'
+                        : '正在安装'
+                      : repositoryVersionActionLabel(item, item.recommended)
+                  }}
                 </ElButton>
               </div>
             </article>
           </div>
+        </ElTabPane>
+        <ElTabPane label="系统更新" name="system" lazy>
+          <SystemUpdate :external-busy="existingPluginOperationBusy || hideGlobalPluginWrites" @busy="systemUpdateBusy = $event" />
         </ElTabPane>
       </ElTabs>
     </ElCard>
@@ -869,6 +916,7 @@
             <div class="version-info-row">
               <span class="version-name">v{{ item.version }}</span>
               <ElTag size="small" type="info">{{ item.tag }}</ElTag>
+              <ElTag v-if="isRepositoryPrerelease(item)" size="small" type="warning">预发布</ElTag>
             </div>
             <div class="version-compatibility">
               兼容 SandAdmin {{ item.host_min
@@ -888,7 +936,13 @@
               :disabled="repositoryActionDisabled(currentRepositoryPlugin, item)"
               @click="handleRepositoryVersionAction(currentRepositoryPlugin, item)"
             >
-              {{ repositoryActionLabel(item.action) }}
+              {{
+                downloadingKey === repositoryVersionKey(currentRepositoryPlugin, item)
+                  ? item.action === 'upgrade'
+                    ? '正在升级'
+                    : '正在安装'
+                  : repositoryActionLabel(item.action)
+              }}
             </ElButton>
           </ElSpace>
         </div>
@@ -930,7 +984,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, reactive, computed, onMounted, watch } from 'vue'
+  import { ref, reactive, computed, onMounted, onActivated, onDeactivated, watch } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
   import type { ColumnOption } from '@/types'
   import type { UploadFile } from 'element-plus'
@@ -941,11 +995,15 @@
     type RepositoryPluginLocal,
     type RepositoryPluginVersion,
     type RepositoryVersionAction,
+    type ExistingSchemaAttachProof,
+    type ExistingSchemaAttachRecovery,
     type CleanupInspection,
     type CleanupResult
   } from '../api/index'
+  import { checkVersionCompatibility } from './version-compatibility'
   import InstallForm from './install-box.vue'
   import TerminalBox from './terminal.vue'
+  import SystemUpdate from './system-update.vue'
   import { TaskStatus, useTerminalStore } from '../store/terminal'
   import {
     FAILED_UPGRADE_BLOCKED_MESSAGE,
@@ -1006,6 +1064,7 @@
   type LocalWriteOwner =
     | ''
     | 'install'
+    | 'attach'
     | 'uninstall'
     | 'upgrade'
     | 'discard'
@@ -1183,7 +1242,7 @@
   }
 
   const refreshAfterUpload = async (): Promise<void> => {
-    await getList()
+    await Promise.all([getList(), fetchRepositoryCatalog()])
   }
 
   const openLocalDetail = (row: SandpackageInstallRow): void => {
@@ -1562,38 +1621,14 @@
     }
   }
 
-  const checkVersionCompatibility = (
-    support: string | undefined,
-    hostVersion: string | undefined
-  ): boolean => {
-    if (!support || !hostVersion) return false
-
-    const match = hostVersion.match(
-      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/
-    )
-    if (!match) return false
-
-    const prerelease = match[4]
-    if (
-      prerelease &&
-      prerelease.split('.').some((item) => /^\d+$/.test(item) && !/^(0|[1-9]\d*)$/.test(item))
-    ) {
-      return false
-    }
-
-    const supportTokens = support.split('|')
-    if (supportTokens.length === 0 || supportTokens.some((token) => !/^\d+\.x$/.test(token))) {
-      return false
-    }
-    return supportTokens.some((token) => token.slice(0, -2) === match[1])
-  }
-
   const canInstallLocal = (record: SandpackageInstallRow): boolean =>
     record.ordinary_actions_blocked !== true &&
     (record.state === 0 || (record.state === 2 && record.update !== 1))
 
   const canUninstallLocal = (record: SandpackageInstallRow): boolean =>
-    record.state === 1 && record.ordinary_actions_blocked !== true
+    record.state === 1 &&
+    record.ordinary_actions_blocked !== true &&
+    record.existing_schema_attached !== 1
 
   const canCleanupLocal = (record: SandpackageInstallRow): boolean =>
     record.state === 7 || record.cleanup_pending === true
@@ -1778,6 +1813,7 @@
 
   const localActionReason = (record: SandpackageInstallRow): string => {
     if (record.state === 1) return '已安装'
+    if (record.state === 0 || canInstallLocal(record)) return '请到插件仓库安装'
     if (record.state === 7) return '已找到安装记录，但未找到插件文件。'
     if (record.state === 5) return '安装目录正被占用，请稍后重试。'
     if (record.state === 6) return '已找到插件文件，尚未完成登记。'
@@ -1797,7 +1833,7 @@
   }
 
   const handleInstall = async (record: SandpackageInstallRow) => {
-    if (pluginOperationBusy.value || !canInstallLocal(record)) return
+    if (repositoryWritesBlocked.value || !canInstallLocal(record)) return
     if (rejectOrdinaryAction(record)) return
     // 检查
     if (version.value?.sandpackage_version?.state === 'fail') {
@@ -1826,8 +1862,104 @@
     } catch {
       // Error already handled by http utility
     } finally {
-      await getList()
+      await Promise.all([getList(), fetchRepositoryCatalog()])
       releaseLocalWrite('install')
+    }
+  }
+
+  const handleExistingSchemaAttach = async (record: SandpackageInstallRow) => {
+    if (repositoryWritesBlocked.value || !canInstallLocal(record) || record.state !== 2) return
+    if (record.existing_schema_available !== 1 || rejectOrdinaryAction(record)) return
+    if (!checkVersionCompatibility(record.support, version.value?.sandadmin_version?.describe)) {
+      ElMessage.error('插件与当前宿主版本不兼容')
+      return
+    }
+    let database = ''
+    try {
+      const answer = await ElMessageBox.prompt('填写当前宿主实际连接的数据库名', '使用现有数据库安装', {
+        inputValue: 'sandai',
+        inputPattern: /^[a-z][a-z0-9_]{0,62}$/,
+        inputErrorMessage: '数据库名格式无效',
+        confirmButtonText: '检查数据库',
+        cancelButtonText: '取消'
+      })
+      database = answer.value
+    } catch {
+      return
+    }
+    let proof: ExistingSchemaAttachProof
+    try {
+      proof = await sandpackageApi.inspectExistingSchemaAttach({
+        appName: record.app,
+        database
+      })
+    } catch {
+      // Error already handled by http utility
+      return
+    }
+    if (proof.app !== record.app || proof.version !== record.version || proof.database !== database) {
+      ElMessage.error('预检结果与当前插件不一致，请刷新后重试')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(
+        `已核对 ${proof.ledger_rows} 条迁移记录和 ${proof.table_count} 张表。继续后将部署插件文件并接管 ${database} 中的现有结构，不会运行建表脚本或重启服务。`,
+        '确认使用现有数据库',
+        { confirmButtonText: '确认安装', cancelButtonText: '取消', type: 'warning' }
+      )
+    } catch {
+      return
+    }
+    if (!acquireLocalWrite('attach')) return
+    try {
+      await sandpackageApi.attachExistingSchema({
+        appName: record.app,
+        database,
+        confirmation: proof.confirmation
+      })
+      ElMessage.success('已接管现有数据库并部署插件文件；服务尚未重载')
+    } catch {
+      // Error already handled by http utility
+    } finally {
+      await getList()
+      releaseLocalWrite('attach')
+    }
+  }
+
+  const handleExistingSchemaAttachRecovery = async (record: SandpackageInstallRow) => {
+    if (pluginOperationBusy.value || record.state !== 8 || record.existing_schema_attach_pending !== 1) return
+    let inspection: ExistingSchemaAttachRecovery
+    try {
+      inspection = await sandpackageApi.inspectExistingSchemaAttachRecovery({ appName: record.app })
+    } catch {
+      // Error already handled by http utility
+      return
+    }
+    if (inspection.app !== record.app || inspection.version !== record.version) {
+      ElMessage.error('恢复检查与当前插件不一致，请刷新后重试')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(
+        `已核对 ${inspection.database} 中原有结构和本次文件现场。继续后只补齐候选插件文件，不执行数据库脚本或重启服务。`,
+        '继续数据库重接',
+        { confirmButtonText: '继续安装', cancelButtonText: '取消', type: 'warning' }
+      )
+    } catch {
+      return
+    }
+    if (!acquireLocalWrite('attach')) return
+    try {
+      await sandpackageApi.continueExistingSchemaAttach({
+        appName: record.app,
+        confirmation: inspection.confirmation
+      })
+      ElMessage.success('插件文件已恢复；服务尚未重载')
+    } catch {
+      // Error already handled by http utility
+    } finally {
+      await getList()
+      releaseLocalWrite('attach')
     }
   }
 
@@ -2193,7 +2325,17 @@
   let repositoryRequestId = 0
   let repositoryDocumentRequestId = 0
 
-  const repositoryPlugins = computed(() => repositoryCatalog.value?.plugins ?? [])
+  const repositoryPlugins = computed(() =>
+    (repositoryCatalog.value?.plugins ?? []).map((plugin) => ({
+      ...plugin,
+      recommended: plugin.versions.find((release) => release.version === plugin.recommended_version)
+    }))
+  )
+  const isRepositoryPrerelease = (release: RepositoryPluginVersion): boolean =>
+    /(?:preview|alpha|beta|rc)(?:[.\d-]|$)/i.test(release.tag) || release.version.includes('-')
+  const repositoryCandidateRows = computed(() =>
+    installList.value.filter((row) => row.state === 2 && canInstallLocal(row))
+  )
   const cleanupRepositoryVersions = computed(
     () =>
       repositoryPlugins.value.find((item) => item.app === cleanupTargetApp.value)?.versions ?? []
@@ -2231,7 +2373,8 @@
       cleanupPackageLoading.value ||
       cleanupReloading.value
   )
-  const pluginOperationBusy = computed(
+  const systemUpdateBusy = ref(false)
+  const existingPluginOperationBusy = computed(
     () =>
       repositoryDownloading.value ||
       localWriteBusy.value ||
@@ -2239,6 +2382,7 @@
       terminalOperationBusy.value ||
       cleanupOperationBusy.value
   )
+  const pluginOperationBusy = computed(() => existingPluginOperationBusy.value || systemUpdateBusy.value)
   const repositoryWritesBlocked = computed(
     () => hideGlobalPluginWrites.value || pluginOperationBusy.value
   )
@@ -2251,6 +2395,9 @@
     const requestId = ++repositoryRequestId
     repositoryLoading.value = true
     repositoryError.value = ''
+    repositoryCatalog.value = null
+    currentRepositoryPlugin.value = null
+    repositoryVersionVisible.value = false
     try {
       const response = await sandpackageApi.getRepositoryCatalog()
       if (requestId !== repositoryRequestId) return
@@ -2303,6 +2450,22 @@
       incompatible: '版本不兼容'
     })[action]
 
+  const repositoryVersionActionLabel = (
+    plugin: RepositoryPlugin,
+    item: RepositoryPluginVersion
+  ): string => {
+    if (item.action === 'install' && plugin.local.state === 2) return '继续安装'
+    if (
+      item.action === 'manage' &&
+      repositoryCandidateRows.value.some((row) => row.app === plugin.app)
+    ) {
+      return '上方处理本地包'
+    }
+    if (item.action === 'upgrade') return `升级到 v${item.version}`
+    if (item.action === 'install') return `安装 v${item.version}`
+    return repositoryActionLabel(item.action)
+  }
+
   const repositoryActionType = (
     action: RepositoryVersionAction
   ): 'primary' | 'warning' | 'info' => {
@@ -2314,7 +2477,13 @@
     plugin: RepositoryPlugin | null,
     item: RepositoryPluginVersion
   ): boolean => {
-    if (item.action === 'manage') return pluginOperationBusy.value
+    if (repositoryLoading.value || repositoryError.value !== '') return true
+    if (item.action === 'manage') {
+      return (
+        pluginOperationBusy.value ||
+        (plugin !== null && repositoryCandidateRows.value.some((row) => row.app === plugin.app))
+      )
+    }
     if (item.action !== 'install' && item.action !== 'upgrade') return true
     return !plugin || plugin.local.blocked || repositoryWritesBlocked.value
   }
@@ -2420,6 +2589,26 @@
         )
       }
 
+      const continuingCandidate = selectedAction === 'install' && refreshed.plugin.local.state === 2
+      if (
+        continuingCandidate &&
+        (!refreshedLocalRow ||
+          !canInstallLocal(refreshedLocalRow) ||
+          refreshedLocalRow.state !== 2 ||
+          refreshedLocalRow.version !== refreshed.item.version ||
+          refreshed.plugin.local.version !== refreshed.item.version ||
+          refreshed.plugin.local.candidate_sha256 !== refreshed.item.sha256)
+      ) {
+        throw new Error('待安装插件包与仓库版本不一致，请刷新后重试')
+      }
+      if (
+        selectedAction === 'install' &&
+        !continuingCandidate &&
+        refreshed.plugin.local.state !== 0
+      ) {
+        throw new Error('本地插件状态已变化，请刷新仓库后重试')
+      }
+
       const fromVersion =
         selectedAction === 'upgrade' ? refreshed.plugin.local.installed_version || '' : ''
       if (selectedAction === 'upgrade' && fromVersion === '') {
@@ -2448,18 +2637,29 @@
         return
       }
 
-      const prepared = await sandpackageApi.downloadRepositoryPlugin({
-        app: refreshed.plugin.app,
-        version: refreshed.item.version,
-        sha256: refreshed.item.sha256
-      })
-      validatePreparedCandidate(
-        prepared,
-        refreshed.plugin.app,
-        refreshed.item.version,
-        selectedAction,
-        fromVersion
-      )
+      if (continuingCandidate) {
+        if (!refreshedLocalRow) throw new Error('待安装插件包不存在，请刷新后重试')
+        validatePreparedCandidate(
+          refreshedLocalRow,
+          refreshed.plugin.app,
+          refreshed.item.version,
+          selectedAction,
+          fromVersion
+        )
+      } else {
+        const prepared = await sandpackageApi.downloadRepositoryPlugin({
+          app: refreshed.plugin.app,
+          version: refreshed.item.version,
+          sha256: refreshed.item.sha256
+        })
+        validatePreparedCandidate(
+          prepared,
+          refreshed.plugin.app,
+          refreshed.item.version,
+          selectedAction,
+          fromVersion
+        )
+      }
 
       await sandpackageApi.installApp({
         appName: refreshed.plugin.app,
@@ -2557,7 +2757,7 @@
 
   // 监听 tab 切换
   watch(activeTab, (val) => {
-    if (val === 'repository' && !repositoryLoaded.value && !repositoryLoading.value) {
+    if (val === 'repository' && !repositoryLoading.value) {
       fetchRepositoryCatalog()
     }
   })
@@ -2573,6 +2773,19 @@
     if (!row || (localDetailRecoveryExpected.value && !isLegacyFailedUpgradeRecovery(row))) {
       closeLocalDetail()
     }
+  })
+
+  let repositoryWasDeactivated = false
+  onDeactivated(() => {
+    repositoryWasDeactivated = true
+    repositoryRequestId += 1
+    repositoryLoading.value = false
+  })
+  onActivated(() => {
+    if (!repositoryWasDeactivated) return
+    repositoryWasDeactivated = false
+    getList()
+    if (activeTab.value === 'repository') fetchRepositoryCatalog()
   })
 
   onMounted(() => {

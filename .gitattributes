@@ -7,3 +7,5 @@
 /docs/ export-ignore
 /tools/ export-ignore
 /sandadmin-artd/** text=auto eol=lf
+/openspec/ export-ignore
+/.agents/ export-ignore
