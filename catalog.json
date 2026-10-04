@@ -67,6 +67,14 @@
       "author": "supdger",
       "versions": [
         {
+          "version": "0.1.1",
+          "tag": "v0.1.1",
+          "asset": "sand-license-0.1.1.zip",
+          "sha256": "59ba8ee89ed884960dcbcc0f9a7feba38f3718895ba425ea00b93a0a939cc2dc",
+          "host_min": "0.1.0",
+          "notes": "修复九个商业模块为宿主左侧独立菜单和路由，保留原31项API权限及角色范围；0.1.0升级只调整菜单，不改业务表。依赖SandIAM0.8.4及已有PostgreSQL/Redis/HTTPS。源码、包与模拟后端桌面导航验收通过，本发布批次未执行真实PostgreSQL升级或生产部署；Windows服务端密钥ACL仍未实现。详见包内README和Release。"
+        },
+        {
           "version": "0.1.0",
           "tag": "v0.1.0",
           "asset": "sand-license-0.1.0.zip",
