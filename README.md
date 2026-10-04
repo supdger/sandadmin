@@ -40,7 +40,7 @@ composer require supdger/sand-package
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
 
-本版锁定 Sand Core `0.2.1` 和 SandPackage `0.2.1`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.1。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
+本版锁定 Sand Core `0.2.1` 和 SandPackage `0.2.2`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.2。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 Sand Core 0.2.1 修复插件安装触发服务重启时，管理端初始化遇到短暂连接中断后停留在 500 页的问题。初始化会在有限次数内自动恢复；持续故障、登录失效、权限或业务拒绝仍显示对应结果。此修复不包含数据库迁移，已有实例需更新依赖并重新构建、发布管理端，详见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)。

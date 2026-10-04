@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-package",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "files": {
         "src/views/plugin/sandpackage/api/index.ts": "5237d755ca1fc6186a6a73e5cf50291d09876a3c43407b0fb3dca39fd722351c",
         "src/views/plugin/sandpackage/api/system-update.ts": "c43a15812c7a07e48c72d7aeacd59893b9322ce3eb1d3a7cdc3623cb78b390cc",
