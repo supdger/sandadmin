@@ -60,6 +60,23 @@
       ]
     },
     {
+      "app": "sand-license",
+      "repository": "supdger/sand-license",
+      "title": "SandLicense 商业许可",
+      "about": "软件许可、设备席位、可信履约和会员周期权益（PostgreSQL；依赖 SandIAM 正式服务授权）",
+      "author": "supdger",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "tag": "v0.1.0",
+          "asset": "sand-license-0.1.0.zip",
+          "sha256": "27ef49df888030f430a4bd6871361af447e3bd29eeee0a34c2fb7108434adb7e",
+          "host_min": "0.1.0",
+          "notes": "首版商业许可：多产品许可、设备席位、可信履约和会员周期权益。固定依赖 SandIAM 0.8.4；运行需已有 PostgreSQL、Redis 和可信 HTTPS 配置，安装器不建库。隔离验收使用 Core 0.2.0 / SandPackage 0.2.1；目录与公开 ZIP 校验不代表生产部署或客户应用接入。Windows 服务端密钥 ACL 尚未实现，详见包内 README 和 Release。"
+        }
+      ]
+    },
+    {
       "app": "sand-ai",
       "repository": "supdger/sand-ai",
       "title": "SandAI AI 能力底座（开发中）",
