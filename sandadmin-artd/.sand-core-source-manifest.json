@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "files": {
         ".env.development.example": "ed765a8215a6361c287b91276623ec1e27c54019c72cb46a8ddc131970c0c316",
         ".env.example": "f720ca22e4e615b36e44596064828030d3442a2ecd5a2832cc3b849cb84f740c",
@@ -19,10 +19,11 @@
         "commitlint.config.cjs": "2a5704436bedce02b1a20ee6046cf3ee907dab5d3733ddb21cd60bcf3f4e232c",
         "eslint.config.mjs": "fc1eab1be082b9caaf5c78fc0e8cefec58f1b3379f760470c07a70ef76e166b4",
         "index.html": "96d8e91385c9e7d7b0534787eb8ae8c7d845b274b8d950b3ac365404701e6a0b",
-        "package.json": "89690fe28e09b01ea7258369203f614a8375755f722e1c9e9943a9a3b4e2e1d5",
+        "package.json": "67e8c7bb1d10d6165d5ee4b76a42e763c7e4f5d6a527cb2cdc006f6feeee0119",
         "pnpm-lock.yaml": "09ad82ffe305fef5a8e9a6dc6e46ca989e7587cd5d49ccf70558fda1e8ee6ce5",
         "pnpm-workspace.yaml": "ad80da90c671a79f234fa19690f6994835a964456a17efa724d03aed369a5605",
         "public/favicon.ico": "8da578cfc0efe63d36d022d989dae138aa496e3640a7e820b19e12ddeb13fa52",
+        "public/sandadmin-entry-check.svg": "125c972206ac790f0eecabe33f50e3d9fdb4c0a943c9c21e360ba80a0289d43f",
         "public/sandadmin-mark.png": "c445254de1397f0340766ed0cf5084857ec0168e9599155d25423074d405acff",
         "public/sandadmin-mark.svg": "7bb6300b335d90f68b3328e6bccf32f3014e321a28e693ecc968f014693e99a6",
         "scripts/clean-dev.ts": "22530bcb7290ca2aff8cc4fbd3a1f8aa2028698405f5161ec5e3dae2bc7053eb",
@@ -398,6 +399,6 @@
         "src/views/tool/crontab/modules/log-list.vue": "2d111981d34cd57a0a0f1553b48039f5c225bef2c271420bd1918ff829886070",
         "src/views/tool/crontab/modules/table-search.vue": "8151b0095660dd0aee27297ba7f73de9029016dd4dfc3bb3aff722a766f2091c",
         "tsconfig.json": "109ce492f228500c7d99748656ebd90ae149837a11f70ada84d1d54038fdc94c",
-        "vite.config.ts": "9f6b83d49d16fc0d581fe1d62841941fe0f5d9215c836d4bf602e6f0bfc4974f"
+        "vite.config.ts": "df844a04b8c601053f3dec3db58bb8cf93d0bc4fd17c28900fd99acd8cd229fd"
     }
 }

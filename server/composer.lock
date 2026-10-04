@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2c67cc62a5a68fce03c188790c6b56eb",
+    "content-hash": "748c26c8042085930c4ab3d72142381e",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3227,16 +3227,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "d054e79ba964ecc1770ff50b71d71384b35ec640"
+                "reference": "5956228296e419814996ae13af4f37bd807ef22d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/d054e79ba964ecc1770ff50b71d71384b35ec640",
-                "reference": "d054e79ba964ecc1770ff50b71d71384b35ec640",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/5956228296e419814996ae13af4f37bd807ef22d",
+                "reference": "5956228296e419814996ae13af4f37bd807ef22d",
                 "shasum": ""
             },
             "require": {
@@ -3280,9 +3280,9 @@
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
                 "issues": "https://github.com/supdger/sand-core/issues",
-                "source": "https://github.com/supdger/sand-core/tree/0.2.1"
+                "source": "https://github.com/supdger/sand-core/tree/0.2.2"
             },
-            "time": "2026-10-04T04:44:42+00:00"
+            "time": "2026-10-04T09:30:55+00:00"
         },
         {
             "name": "supdger/sand-package",
