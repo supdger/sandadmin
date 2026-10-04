@@ -4,7 +4,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.2.0`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.2.1`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
 
 ## 特性与边界
 
@@ -18,11 +18,13 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 运行环境、配置项和首次安装步骤见[本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)。简要流程为：
 
 1. 下载源码 ZIP 或克隆仓库。源码 ZIP 包含 `server/`、`sandadmin-artd/` 及必须保留的版权文件；克隆后的工作目录还包含 README、插件目录和 Git 配置。
-2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在并运行 `php start.php`。
-3. 在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install` 和 `pnpm dev`。
+2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在；Windows运行 `php windows.php`，macOS/Linux运行 `php start.php start`，保持后端终端运行。
+3. 准备 Node.js 22（至少 22.12.0）和 pnpm 11.19.0，在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install --frozen-lockfile` 和 `pnpm run dev`，保持前端终端运行。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
 
-全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码。
+安装完成页会检查管理端静态资源；前端尚未启动时，页面保留安装成功结果和启动步骤，启动后点击“重新检查”再进入登录。重新打开 `/core/install` 可继续恢复后台入口，无需重新安装数据库。默认前端端口为 `3006`，端口占用时会明确报错；独立域名或子路径部署请配置后台地址，见[首次安装与后台入口](https://github.com/supdger/sandadmin/wiki/getting-started#完成安装并进入后台)。
+
+全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码，恢复入口也不会再次显示初始密码。静态资源响应不等于登录成功，请确认后台菜单与用户信息正常加载。
 
 默认前端目录为 `sandadmin-artd`；服务与 Channel 端口变量为 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT`。
 
@@ -40,7 +42,7 @@ composer require supdger/sand-package
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
 
-本版锁定 Sand Core `0.2.1` 和 SandPackage `0.2.2`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.2。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
+本版锁定 Sand Core `0.2.2` 和 SandPackage `0.2.2`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.2。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。管理员先按 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新) 配置本机更新、静态发布及健康检查命令；完成配置后，由超级管理员在页面检查所选升级并确认执行。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
 Sand Core 0.2.1 修复插件安装触发服务重启时，管理端初始化遇到短暂连接中断后停留在 500 页的问题。初始化会在有限次数内自动恢复；持续故障、登录失效、权限或业务拒绝仍显示对应结果。此修复不包含数据库迁移，已有实例需更新依赖并重新构建、发布管理端，详见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)。
@@ -73,7 +75,7 @@ Sand Core 0.2.1 修复插件安装触发服务重启时，管理端初始化遇�
 
 ## 版本
 
-当前版本为 `0.2.0`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](CHANGELOG.md)。
+当前版本为 `0.2.1`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](CHANGELOG.md)。
 
 ## 来源与许可证
 
