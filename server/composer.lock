@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "be141cd0d7637b7b03e53a3c8036738f",
+    "content-hash": "8f2d152bbe84ac57005993e8cf471eeb",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3227,16 +3227,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "1939ac2c8b796c0aa74680b9eefbc1aad2bc4728"
+                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/1939ac2c8b796c0aa74680b9eefbc1aad2bc4728",
-                "reference": "1939ac2c8b796c0aa74680b9eefbc1aad2bc4728",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/7ea906743f9c912d03cc9f0fc1e68366c310c393",
+                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393",
                 "shasum": ""
             },
             "require": {
@@ -3280,28 +3280,28 @@
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
                 "issues": "https://github.com/supdger/sand-core/issues",
-                "source": "https://github.com/supdger/sand-core/tree/0.2.3"
+                "source": "https://github.com/supdger/sand-core/tree/0.2.4"
             },
-            "time": "2026-10-05T04:40:28+00:00"
+            "time": "2026-10-05T14:18:00+00:00"
         },
         {
             "name": "supdger/sand-package",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-package.git",
-                "reference": "971b0f405f97d6238a4859ca04f13ccfd0289e50"
+                "reference": "f30ac91684a3f00874e027d5e4964cd969ac7a4f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-package/zipball/971b0f405f97d6238a4859ca04f13ccfd0289e50",
-                "reference": "971b0f405f97d6238a4859ca04f13ccfd0289e50",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/f30ac91684a3f00874e027d5e4964cd969ac7a4f",
+                "reference": "f30ac91684a3f00874e027d5e4964cd969ac7a4f",
                 "shasum": ""
             },
             "require": {
                 "nelexa/zip": "^4.0",
                 "php": ">=8.2",
-                "supdger/sand-core": "^0.2",
+                "supdger/sand-core": "^0.2.4",
                 "tinywan/jwt": "^1.11",
                 "webman/console": "^2.1",
                 "workerman/webman-framework": "^2.1"
@@ -3321,9 +3321,9 @@
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
                 "issues": "https://github.com/supdger/sand-package/issues",
-                "source": "https://github.com/supdger/sand-package/tree/0.2.3"
+                "source": "https://github.com/supdger/sand-package/tree/0.2.4"
             },
-            "time": "2026-10-04T19:33:50+00:00"
+            "time": "2026-10-05T14:18:03+00:00"
         },
         {
             "name": "symfony/cache",
