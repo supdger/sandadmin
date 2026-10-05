@@ -67,6 +67,14 @@
       "author": "supdger",
       "versions": [
         {
+          "version": "0.1.2",
+          "tag": "v0.1.2",
+          "asset": "sand-license-0.1.2.zip",
+          "sha256": "b2005276fb366a4f04dfd75cba47fca4894a495392e531c7d2ea0009b05d15ae",
+          "host_min": "0.1.0",
+          "notes": "修复混合及双列布局下商业授权侧边菜单不显示，根目录路由调整为/sand-license；保留菜单编号、停用状态与角色权限。旧/plugin/sand-license/*书签需从菜单重新进入。静态、包及独立浏览器菜单验收通过，本轮未执行数据库升级或宿主部署。依赖及业务载荷沿用0.1.1，详见Release。"
+        },
+        {
           "version": "0.1.1",
           "tag": "v0.1.1",
           "asset": "sand-license-0.1.1.zip",
