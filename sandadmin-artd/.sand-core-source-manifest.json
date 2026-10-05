@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "files": {
         ".env.development.example": "ed765a8215a6361c287b91276623ec1e27c54019c72cb46a8ddc131970c0c316",
         ".env.example": "f720ca22e4e615b36e44596064828030d3442a2ecd5a2832cc3b849cb84f740c",
@@ -187,7 +187,7 @@
         "src/components/core/views/exception/ArtException.vue": "ce9039eb400c4022807196da8b8cf263bd638861facb9571f9d0eed5f9e11ed9",
         "src/components/core/views/login/AuthTopBar.vue": "381f1351a1acde2d2712430716d206586f763dc66b67f281657c6372bdc03650",
         "src/components/core/views/login/LoginAppearancePicker.vue": "63f610c42bd39d3977ad8ec120dc82bf19052d29c436c2d7a66293be241b3daa",
-        "src/components/core/views/login/LoginLeftView.vue": "186f85a0129e92d50b953b4826fc0f20fc1384a08d4c2649aaaf013eb5321d5c",
+        "src/components/core/views/login/LoginLeftView.vue": "27958976a5dc5948e9796147bea3bac3fc50c34ba2385a3b469515ff36741e62",
         "src/components/core/views/result/ArtResultPage.vue": "ab7c214fa22c6092f040a01e764faa541723dd7b6de1f34322efe4f66efc0d63",
         "src/components/core/widget/art-icon-button/index.vue": "d4090d9a13cc0781b82a3f73084016cc7b48814cbeb701d5ea29bd0f7846e820",
         "src/components/sand/sa-button/index.vue": "aad44b8ed49361fb9542362578ef9cbc3907fbd6ac15b446df5a92fb02eda336",
@@ -325,7 +325,7 @@
         "src/utils/ui/tabs.ts": "24370de7a7eb8cb44d0de84337ae8d49827de1e5430af68c31bd483af832ebd4",
         "src/views/auth/forget-password/index.vue": "fb992045b11cd5d63eb304e65d0a317f6c411ffa5b0dc56bf9174077384f81c7",
         "src/views/auth/login/index.vue": "e071e92dd05102079ee05f748d4f715e2c62a83655318d1bef0300ca95c68e22",
-        "src/views/auth/login/style.css": "862397c90407103d7498d05095c22576f555b770acd357fcb49192b93c10a21e",
+        "src/views/auth/login/style.css": "1021bb417ae197103ec26811b37b8fc7847a5abeb846fcf47153265c88e3b153",
         "src/views/auth/register/index.vue": "66d4471d0a8274f3af697d991a2be6f18271ab3190846c79a26a4d10ca119314",
         "src/views/dashboard/console/index.vue": "569cc9679d5ca127e7f4afc6b1c9d859d238cb3b2a10ae92fdcda8e686728138",
         "src/views/dashboard/console/modules/about-project.vue": "f4f2de87c2c31394585577b71c5bba617e4dab2faf3bfd16e9aeab0f91ad5512",
