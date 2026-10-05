@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "files": {
         ".env.development.example": "ed765a8215a6361c287b91276623ec1e27c54019c72cb46a8ddc131970c0c316",
         ".env.example": "f720ca22e4e615b36e44596064828030d3442a2ecd5a2832cc3b849cb84f740c",
@@ -260,8 +260,8 @@
         "src/router/core/RouteTransformer.ts": "f18c0551520349b6cc1e346a5d8cf93c27e47137ba3dfe0e402a8f6adda9bf2a",
         "src/router/core/RouteValidator.ts": "6115bd1ad58c248f717474affc494ab42e23d0efc3156570f6c9f3da805f7333",
         "src/router/core/index.ts": "30cbff450bd7934355f37ad58c2cc4de2049bd2231baabe0543801c1a12a494d",
-        "src/router/guards/afterEach.ts": "f009241531183e1478b8a48246295fb8e3a81fff00a556daad7458d5578fcfee",
-        "src/router/guards/beforeEach.ts": "b82ba6d78a261aa54591d3c1c598d5106e144b9a6bfe65caba76d15d1fa60177",
+        "src/router/guards/afterEach.ts": "481df278f59e51ad84ee5ffc1cdc1a3180f9b42253fa049701ccf837d5b8730c",
+        "src/router/guards/beforeEach.ts": "a47d631085296afa7cc45537da2d29b6ab704bda8cccbd1105fca2bfe0666d03",
         "src/router/index.ts": "40d9a23692f2df3370e3466f5028622102b493ee588827f6d76ed9cc7f6d5b61",
         "src/router/modules/dashboard.ts": "bca6e971152ba38fc4c6fd668a59337588e86299197d40ec76e620b1d80e792b",
         "src/router/modules/exception.ts": "45ccfe77dc8d5bf605d023a57ac243d11cbad7bcb9cd0c29dc288c5709523287",
@@ -321,7 +321,7 @@
         "src/utils/ui/emojo.ts": "c1c07bfb48cd61c994581bc0170dcc9a288e87cc0a018d3420100b98d0693e9a",
         "src/utils/ui/iconify-loader.ts": "be504e87fbe739c90c76f7c1192dc1ff7d1cb17de9eef7a6412e2ff9e7b35470",
         "src/utils/ui/index.ts": "5790f1a83408776b0bc681506e4b9aacb5cce013cf1b02b029e892ef8d7894f0",
-        "src/utils/ui/loading.ts": "40330e56934a7310508672e8fef0df2b6983a49c779bfbd8e158cfc8e33dd0d6",
+        "src/utils/ui/loading.ts": "66ba8c6c36e5f50caeba0372594ec592ec2eb81d33806765950aa773293d0730",
         "src/utils/ui/tabs.ts": "24370de7a7eb8cb44d0de84337ae8d49827de1e5430af68c31bd483af832ebd4",
         "src/views/auth/forget-password/index.vue": "fb992045b11cd5d63eb304e65d0a317f6c411ffa5b0dc56bf9174077384f81c7",
         "src/views/auth/login/index.vue": "e071e92dd05102079ee05f748d4f715e2c62a83655318d1bef0300ca95c68e22",

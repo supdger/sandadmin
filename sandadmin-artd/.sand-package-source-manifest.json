@@ -1,13 +1,14 @@
 {
     "schema": 1,
     "package": "supdger/sand-package",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "files": {
-        "src/views/plugin/sandpackage/api/index.ts": "5237d755ca1fc6186a6a73e5cf50291d09876a3c43407b0fb3dca39fd722351c",
+        "src/views/plugin/sandpackage/api/index.ts": "9e91924e541ea725aecaf3bf1464afebe264e2beb2925593c48b02aca188b5ba",
         "src/views/plugin/sandpackage/api/system-update.ts": "c43a15812c7a07e48c72d7aeacd59893b9322ce3eb1d3a7cdc3623cb78b390cc",
         "src/views/plugin/sandpackage/install/failed-upgrade-recovery.ts": "b7b8a78618821c2e81f3b2a06107859a7134a632fbf8599ecee0472867f31338",
-        "src/views/plugin/sandpackage/install/index.vue": "4e7e33f469c4aa49e8e6e7fdc3f129f6211fa69f5db2eeaabff5d641b718bd08",
+        "src/views/plugin/sandpackage/install/index.vue": "b1cbe0c14394eebc79b56a4ee9ee59b751609a239c9e7ef3cfffedf025bb54cc",
         "src/views/plugin/sandpackage/install/install-box.vue": "868861c6e257c3cad27e1108a594a7f28d1737d5a99e565bf39c991499cf9d90",
+        "src/views/plugin/sandpackage/install/read-recovery.ts": "d0e56a288b7f50f62ca9e7a97ce061e7e6ed9e45598f1c21603ced8b337e24fe",
         "src/views/plugin/sandpackage/install/system-update.vue": "658bfc035a3644f40839a8592d33d4440409449e8df552feeecf3d4b00857fc4",
         "src/views/plugin/sandpackage/install/terminal.vue": "6898ab0ce778dca092b66d3224f64e72cbf6c507d4c628bdbf50b48611d1eef8",
         "src/views/plugin/sandpackage/install/version-compatibility.ts": "50b371b425ad0ce317c62d9f78d61cfac5c495228939c4e7689cc288e15e6688",
