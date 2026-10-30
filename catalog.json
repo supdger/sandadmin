@@ -103,7 +103,7 @@
      "version": "0.2.42",
      "tag": "v0.2.42",
      "asset": "sand-ai-0.2.42.zip",
-     "sha256": "330f509cceeaee4af9292d7937d6283dd4662dbf12c162ffd26c97a47761e8f9",
+     "sha256": "794ae99a5d4be671b02a48f64986bbb6cc2fe922f4208092be08bd8802faea4a",
      "host_min": "0.2.3",
      "notes": "统一产品验收 32/32（真实 HTTP/DB/provider 证据）；计费/IAM 归因、渠道验签+双入口隔离+api_base 参数化、知识向量检索、Skill 全生命周期、会议复核→SandWorkflow 审批桥接；迁移 0161/0162。最低 SandAdmin 0.2.3。"
     }
