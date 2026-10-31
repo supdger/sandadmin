@@ -103,9 +103,9 @@
      "version": "0.3.0",
      "tag": "v0.3.0",
      "asset": "sand-ai-0.3.0.zip",
-     "sha256": "806194463e5a0c51987bb9a38f538ecd00ae879393ffa726ea722c2242cac9ca",
+     "sha256": "16916856e5aa777993d2cfc4e67bdf4fc8699b592d1e1847b05ea14aa04d9f24",
      "host_min": "0.2.3",
-     "notes": "统一产品验收 32/32 里程碑；计费/IAM 归因、渠道验签+隔离+api_base、知识向量、Skill 生命周期、会议复核→SandWorkflow 审批；迁移 0161/0162；捆绑 SandIAM 0.8.4。"
+     "notes": "统一产品验收 32/32 里程碑；计费/IAM 归因、渠道验签+隔离+api_base、知识向量、Skill 生命周期、会议复核→SandWorkflow 审批；迁移 0161/0162；捆绑 SandIAM 0.8.4。 兼容旧版 SandPackage 5M 下载限：未捆绑依赖 zip（SandIAM 0.8.4 由仓库依赖声明自动安装）。"
     }
    ]
   }
