@@ -69,7 +69,6 @@
         </div>
       </div>
     </ElDialog>
-
   </div>
 </template>
 
@@ -95,12 +94,16 @@
 
   const frontInstall = (extend: string) => {
     if (!extend) return
-    terminal.addNodeTask('web-install', extend, (status) => reportInstallResult(status, '前端依赖更新'))
+    terminal.addNodeTask('web-install', extend, (status) =>
+      reportInstallResult(status, '前端依赖更新')
+    )
   }
 
   const backendInstall = (extend: string) => {
     if (!extend) return
-    terminal.addTask('composer.update', extend, (status) => reportInstallResult(status, '后端依赖更新'))
+    terminal.addTask('composer.update', extend, (status) =>
+      reportInstallResult(status, '后端依赖更新')
+    )
   }
 
   const getTagType = (

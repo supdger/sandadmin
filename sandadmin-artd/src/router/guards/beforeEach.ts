@@ -13,24 +13,35 @@ import { staticRoutes } from '../routes/staticRoutes'
 import { loadingService } from '@/utils/ui/loading'
 import { useCommon } from '@/hooks/core/useCommon'
 import { useWorktabStore } from '@/store/modules/worktab'
-import { fetchGetUserInfo, fetchGetDictList } from '@/api/auth'
+import { fetchGetUserInfo, fetchGetDictList, fetchGetMenuList } from '@/api/auth'
+import type { InitializationRequestOptions } from '@/api/auth'
 import { ApiStatus } from '@/utils/http/status'
-import { isHttpError } from '@/utils/http/error'
+import {
+  HttpError,
+  isHttpError,
+  isRecoverableInitializationError,
+  showError
+} from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager } from '../core'
 
 let routeRegistry: RouteRegistry | null = null
 const menuProcessor = new MenuProcessor()
 
-let pendingLoading = false
 let routeInitFailed = false
+let routeInitErrorPage = 'Exception500'
+let routeGeneration = 0
+let resetTimer: ReturnType<typeof setTimeout> | null = null
+
+class RouteInitializationCancelled extends Error {}
+class NoAccessibleRoutesError extends Error {}
 let routeInitPromise: Promise<AppRouteRecord[]> | null = null
 
 export function getPendingLoading(): boolean {
-  return pendingLoading
+  return loadingService.isLoading()
 }
 
 export function resetPendingLoading(): void {
-  pendingLoading = false
+  loadingService.hideLoading()
 }
 
 export function getRouteInitFailed(): boolean {
@@ -38,6 +49,8 @@ export function getRouteInitFailed(): boolean {
 }
 
 export function resetRouteInitState(): void {
+  loadingService.hideLoading()
+  routeGeneration += 1
   routeInitFailed = false
   routeInitPromise = null
 }
@@ -55,7 +68,7 @@ export function setupBeforeEachGuard(router: Router): void {
         await handleRouteGuard(to, from, next, router)
       } catch (error) {
         console.error('[RouteGuard] Failed to process beforeEach guard:', error)
-        closeLoading()
+        closeLoading(to)
         next({ name: 'Exception500' })
       }
     }
@@ -64,7 +77,7 @@ export function setupBeforeEachGuard(router: Router): void {
 
 export async function ensureDynamicRoutesReady(
   router: Router,
-  options: { showLoading?: boolean } = {}
+  options: { showLoading?: boolean; loadingOwner?: object } = {}
 ): Promise<AppRouteRecord[]> {
   ensureRouteRegistry(router)
 
@@ -78,23 +91,27 @@ export async function ensureDynamicRoutesReady(
   }
 
   if (options.showLoading) {
-    openLoading()
+    openLoading(options.loadingOwner)
   }
 
   if (!routeInitPromise) {
-    routeInitPromise = initializeDynamicRoutes(router)
+    const generation = routeGeneration
+    routeInitPromise = initializeDynamicRoutes(router, generation)
       .then((menuList) => {
-        routeInitFailed = false
+        if (generation === routeGeneration) routeInitFailed = false
         return menuList
       })
       .catch((error) => {
+        if (generation !== routeGeneration) throw new RouteInitializationCancelled()
         if (!isUnauthorizedError(error)) {
           routeInitFailed = true
+          routeInitErrorPage = initializationErrorPage(error)
+          if (isHttpError(error)) showError(error)
         }
         throw error
       })
       .finally(() => {
-        routeInitPromise = null
+        if (generation === routeGeneration) routeInitPromise = null
       })
   }
 
@@ -107,24 +124,12 @@ function ensureRouteRegistry(router: Router): void {
   }
 }
 
-function closeLoading(): void {
-  if (!pendingLoading) {
-    return
-  }
-
-  nextTick(() => {
-    loadingService.hideLoading()
-    pendingLoading = false
-  })
+function closeLoading(owner: object): void {
+  nextTick(() => loadingService.hideLoading(owner))
 }
 
-function openLoading(): void {
-  if (pendingLoading) {
-    return
-  }
-
-  pendingLoading = true
-  loadingService.showLoading()
+function openLoading(owner?: object): void {
+  loadingService.showLoading(owner)
 }
 
 function shouldShowRouteLoading(
@@ -152,27 +157,31 @@ async function handleRouteGuard(
   }
 
   if (shouldShowRouteLoading(to, userStore)) {
-    openLoading()
+    openLoading(to)
   }
 
   if (routeInitFailed) {
-    if (to.matched.length > 0) {
+    closeLoading(to)
+    if (isStaticRoute(to.path)) {
       next()
     } else {
-      next({ name: 'Exception500', replace: true })
+      next({ name: routeInitErrorPage, replace: true })
     }
     return
   }
 
   if (shouldInitializeDynamicRoutes(to) && !routeRegistry?.isRegistered() && userStore.isLogin) {
     try {
-      const menuList = await ensureDynamicRoutesReady(router, { showLoading: true })
+      const menuList = await ensureDynamicRoutesReady(router, {
+        showLoading: true,
+        loadingOwner: to
+      })
       continueWithDynamicRoutes(to, next, router, menuList)
     } catch (error) {
       console.error('[RouteGuard] Failed to initialize dynamic routes:', error)
-      closeLoading()
+      closeLoading(to)
 
-      if (isUnauthorizedError(error)) {
+      if (error instanceof RouteInitializationCancelled || isUnauthorizedError(error)) {
         next(false)
         return
       }
@@ -181,7 +190,7 @@ async function handleRouteGuard(
         console.error(`[RouteGuard] Http error ${error.code}: ${error.message}`)
       }
 
-      next({ name: 'Exception403', replace: true })
+      next({ name: initializationErrorPage(error), replace: true })
     }
     return
   }
@@ -221,7 +230,7 @@ function continueWithDynamicRoutes(
   }
 
   if (!isRegisteredRouteTarget(router, to)) {
-    closeLoading()
+    closeLoading(to)
     const { homePath } = useCommon()
     const fallbackPath = homePath.value || findDefaultMenuPath(menuList) || '/'
     console.warn(`[RouteGuard] Missing route for path "${to.path}", redirecting to home page.`)
@@ -324,16 +333,72 @@ function isStaticRoute(path: string): boolean {
   return checkRoute(staticRoutes, path)
 }
 
-async function initializeDynamicRoutes(router: Router): Promise<AppRouteRecord[]> {
-  // 并行获取用户信息、字典数据和菜单列表，减少串行等待的网络延迟
-  const [, , menuList] = await Promise.all([
-    fetchUserInfo(),
-    fetchDictList(),
-    menuProcessor.getMenuList()
-  ])
+async function initializeDynamicRoutes(
+  router: Router,
+  generation: number
+): Promise<AppRouteRecord[]> {
+  // A shared deadline preserves the normal GET timeout, including retry waits.
+  const deadline = Date.now() + 15000
+  let stopped = false
+  const assertCurrent = () => {
+    if (stopped || generation !== routeGeneration || !useUserStore().isLogin) {
+      throw new RouteInitializationCancelled()
+    }
+  }
+  const timeoutError = () =>
+    new HttpError('初始化请求超时，请稍后重试', ApiStatus.requestTimeout, {
+      transport: 'timeout'
+    })
+  const read = async <T>(
+    fetch: (options: InitializationRequestOptions) => Promise<T>
+  ): Promise<T> => {
+    for (let attempt = 0; ; attempt += 1) {
+      assertCurrent()
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) {
+        throw timeoutError()
+      }
+      try {
+        const result = await fetch({ timeout: remaining, showErrorMessage: false })
+        assertCurrent()
+        if (Date.now() >= deadline) throw timeoutError()
+        return result
+      } catch (error) {
+        assertCurrent()
+        if (
+          !isRecoverableInitializationError(error) ||
+          attempt >= 5 ||
+          deadline - Date.now() <= 1000
+        ) {
+          throw error
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+      }
+    }
+  }
+  // Retry only the reads; menu processing and state mutation never run in a retry.
+  const [userInfo, dictList, menuList] = await Promise.all([
+    read(fetchGetUserInfo),
+    read(fetchGetDictList),
+    menuProcessor.getMenuList(() => read(fetchGetMenuList))
+  ]).catch((error: unknown) => {
+    stopped = true
+    throw error
+  })
+  if (generation !== routeGeneration || !useUserStore().isLogin) {
+    throw new RouteInitializationCancelled()
+  }
+  if (Array.isArray(menuList) && menuList.length === 0) {
+    throw new NoAccessibleRoutesError('No accessible menu routes.')
+  }
   if (!menuProcessor.validateMenuList(menuList)) {
     throw new Error('Failed to load menu list, please login again.')
   }
+
+  const userStore = useUserStore()
+  userStore.setUserInfo(userInfo)
+  userStore.checkAndClearWorktabs()
+  useDictStore().setDictList(dictList)
 
   routeRegistry?.register(menuList)
 
@@ -347,36 +412,34 @@ async function initializeDynamicRoutes(router: Router): Promise<AppRouteRecord[]
   return menuList
 }
 
-/**
- * 获取用户信息并存储到用户状态管理中
- */
-async function fetchUserInfo(): Promise<void> {
-  const userStore = useUserStore()
-  const data = await fetchGetUserInfo()
-  userStore.setUserInfo(data)
-  userStore.checkAndClearWorktabs()
-}
-
-/**
- * 获取字典数据
- */
-async function fetchDictList(): Promise<void> {
-  const dictStore = useDictStore()
-  const data = await fetchGetDictList()
-  dictStore.setDictList(data)
-}
-
 export function resetRouterState(delay: number): void {
-  setTimeout(() => {
+  if (resetTimer !== null) {
+    clearTimeout(resetTimer)
+    resetTimer = null
+  }
+  // Invalidate pending requests immediately, even when route removal is delayed.
+  resetRouteInitState()
+  const reset = () => {
+    resetTimer = null
     routeRegistry?.unregister()
     IframeRouteManager.getInstance().clear()
 
     const menuStore = useMenuStore()
     menuStore.removeAllDynamicRoutes()
     menuStore.setMenuList([])
+  }
+  if (delay > 0) {
+    resetTimer = setTimeout(reset, delay)
+  } else {
+    reset()
+  }
+}
 
-    resetRouteInitState()
-  }, delay)
+function initializationErrorPage(error: unknown): string {
+  return error instanceof NoAccessibleRoutesError ||
+    (isHttpError(error) && error.code === ApiStatus.forbidden)
+    ? 'Exception403'
+    : 'Exception500'
 }
 
 function handleRootPathRedirect(to: RouteLocationNormalized, next: NavigationGuardNext): boolean {

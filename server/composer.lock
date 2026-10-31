@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dd78396bb18e3b3f37ef8eb4a6114370",
+    "content-hash": "aceb031c9c367fbc2068be51f8c1fecb",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3226,6 +3226,139 @@
             "time": "2026-04-17T11:37:58+00:00"
         },
         {
+            "name": "supdger/sand-core",
+            "version": "0.2.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/supdger/sand-core.git",
+                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/7ea906743f9c912d03cc9f0fc1e68366c310c393",
+                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393",
+                "shasum": ""
+            },
+            "require": {
+                "aliyuncs/oss-sdk-php": "^2.7",
+                "godruoyi/php-snowflake": "^3.0.0",
+                "illuminate/events": "^12.43",
+                "illuminate/pagination": "^12.43",
+                "openspout/openspout": "^4.0",
+                "php": ">=8.2",
+                "phpmailer/phpmailer": "^6.9 || ^7.0",
+                "ramsey/uuid": "^4.0",
+                "smalot/pdfparser": "^2.12",
+                "tinywan/jwt": "^1.11",
+                "tinywan/storage": "^1.1",
+                "topthink/think-orm": "^2.0.53 || ^3.0.0",
+                "topthink/think-validate": "^3.0",
+                "webman/cache": "^2.1",
+                "webman/captcha": "^1.0",
+                "webman/channel": "^2.1",
+                "webman/console": "^2.1",
+                "webman/database": "^2.1",
+                "webman/event": "^1.0",
+                "webman/redis": "^2.1",
+                "webman/think-cache": "^2.1",
+                "webman/think-orm": "^2.1",
+                "workerman/crontab": "^1.0",
+                "workerman/webman-framework": "^2.1",
+                "zoujingli/ip2region": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SandAdmin\\Core\\": "server/",
+                    "plugin\\sandadmin\\": "server/plugin/sandadmin/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/sandadmin-artd/node_modules",
+                    "/sandadmin-artd/dist",
+                    "/sandadmin-artd/.env*",
+                    "/**/.DS_Store",
+                    "/**/.idea",
+                    "/**/.vscode"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
+            "support": {
+                "source": "https://github.com/supdger/sand-core/tree/0.2.4",
+                "issues": "https://github.com/supdger/sand-core/issues"
+            },
+            "time": "2026-10-05T14:18:00+00:00"
+        },
+        {
+            "name": "supdger/sand-package",
+            "version": "0.2.14",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/supdger/sand-package.git",
+                "reference": "9a38a0f170afdba7937ee036006d3ab1c2827430"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/9a38a0f170afdba7937ee036006d3ab1c2827430",
+                "reference": "9a38a0f170afdba7937ee036006d3ab1c2827430",
+                "shasum": ""
+            },
+            "require": {
+                "nelexa/zip": "^4.0",
+                "php": ">=8.2",
+                "supdger/sand-core": "^0.2.4",
+                "tinywan/jwt": "^1.11",
+                "webman/console": "^2.1",
+                "workerman/webman-framework": "^2.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "SandAdmin\\Package\\": "server/",
+                    "plugin\\sandpackage\\": "server/plugin/sandpackage/",
+                    "Saithink\\Saipackage\\": "server/compat/Saithink/Saipackage/"
+                }
+            },
+            "archive": {
+                "exclude": [
+                    "/sandadmin-artd/node_modules",
+                    "/sandadmin-artd/dist",
+                    "/sandadmin-artd/.env*",
+                    "/**/.DS_Store",
+                    "/**/.idea",
+                    "/**/.vscode",
+                    "/vendor",
+                    "/composer.lock",
+                    "/.github",
+                    "/.gitattributes",
+                    "/tests",
+                    "/server/tests",
+                    "/server/plugin/sandpackage/tests",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.behavior*",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.directives-mock.ts",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.http-mock.ts",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.index-mount.ts",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.index-viewport-entry.ts",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.tsconfig.json",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.viewport.html",
+                    "/sandadmin-artd/**/failed-upgrade-recovery.vite.config.mts"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
+            "support": {
+                "source": "https://github.com/supdger/sand-package/tree/0.2.14",
+                "issues": "https://github.com/supdger/sand-package/issues"
+            },
+            "time": "2026-10-11T13:57:39+00:00"
+        },
+        {
             "name": "symfony/cache",
             "version": "v7.4.19",
             "source": {
@@ -4173,16 +4306,16 @@
         },
         {
             "name": "symfony/mime",
-            "version": "v7.4.19",
+            "version": "v7.4.22",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/mime.git",
-                "reference": "f8ac7d0a800bcabbcd1f7de56594cf05e6cd5693"
+                "reference": "94a4c017435bc515f5ac80421a2c555fb9ca3676"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/mime/zipball/f8ac7d0a800bcabbcd1f7de56594cf05e6cd5693",
-                "reference": "f8ac7d0a800bcabbcd1f7de56594cf05e6cd5693",
+                "url": "https://api.github.com/repos/symfony/mime/zipball/94a4c017435bc515f5ac80421a2c555fb9ca3676",
+                "reference": "94a4c017435bc515f5ac80421a2c555fb9ca3676",
                 "shasum": ""
             },
             "require": {
@@ -4238,7 +4371,7 @@
                 "mime-type"
             ],
             "support": {
-                "source": "https://github.com/symfony/mime/tree/v7.4.19"
+                "source": "https://github.com/symfony/mime/tree/v7.4.22"
             },
             "funding": [
                 {
@@ -4258,7 +4391,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-04T10:45:44+00:00"
+            "time": "2026-10-28T17:57:58+00:00"
         },
         {
             "name": "symfony/polyfill-ctype",
@@ -5904,12 +6037,12 @@
             "version": "v5.7.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/vlucas/phpdotenv.git",
+                "url": "https://github.com/phpdotenv/phpdotenv.git",
                 "reference": "301c07936b16d88628b126b01d082ba153cf4c40"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/301c07936b16d88628b126b01d082ba153cf4c40",
+                "url": "https://api.github.com/repos/phpdotenv/phpdotenv/zipball/301c07936b16d88628b126b01d082ba153cf4c40",
                 "reference": "301c07936b16d88628b126b01d082ba153cf4c40",
                 "shasum": ""
             },

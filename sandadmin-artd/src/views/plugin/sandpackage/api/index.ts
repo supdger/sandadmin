@@ -7,6 +7,12 @@
  */
 import request from '@/utils/http'
 
+interface RepositoryReadOptions {
+  signal?: AbortSignal
+  showErrorMessage?: boolean
+}
+
+
 export interface AppInfo {
   app: string
   title: string
@@ -37,6 +43,35 @@ export interface AppInfo {
   ordinary_actions_blocked?: boolean
   recovery_reason?: string
   cleanup_pending?: boolean
+  existing_schema_available?: number
+  existing_schema_attached?: number
+  existing_schema_attach_pending?: number
+}
+
+export interface ExistingSchemaAttachProof {
+  app: string
+  version: string
+  database: string
+  package_sha256: string
+  candidate_tree_sha256: string
+  manifest_sha256: string
+  identity: string
+  schema: string
+  ledger_rows: number
+  table_count: number
+  token: string
+  confirmation: string
+}
+
+export interface ExistingSchemaAttachRecovery {
+  app: string
+  version: string
+  database: string
+  phase: 'not_started' | 'pending' | 'complete'
+  fingerprint: string
+  confirmation: string
+  sql_executed: false
+  restart_required: true
 }
 
 export interface VersionInfo {
@@ -81,6 +116,7 @@ export interface RepositoryPluginLocal {
   state: number
   version: string | null
   installed_version: string | null
+  candidate_sha256?: string
   blocked: boolean
   reason: string
 }
@@ -92,6 +128,7 @@ export interface RepositoryPlugin {
   about: string
   author: string
   local: RepositoryPluginLocal
+  recommended_version?: string | null
   versions: RepositoryPluginVersion[]
 }
 
@@ -152,8 +189,8 @@ export default {
   /**
    * 获取已安装的插件列表
    */
-  getAppList() {
-    return request.get<AppListResponse>({ url: '/app/sandpackage/install/index' })
+  getAppList(options: RepositoryReadOptions = {}) {
+    return request.get<AppListResponse>({ url: '/app/sandpackage/install/index', ...options })
   },
 
   /**
@@ -168,6 +205,34 @@ export default {
    */
   installApp(data: { appName: string; confirmation?: string }) {
     return request.post<AppInfo>({ url: '/app/sandpackage/install/install', data })
+  },
+
+  inspectExistingSchemaAttach(data: { appName: string; database: string }) {
+    return request.post<ExistingSchemaAttachProof>({
+      url: '/app/sandpackage/install/inspectExistingSchemaAttach',
+      data
+    })
+  },
+
+  attachExistingSchema(data: { appName: string; database: string; confirmation: string }) {
+    return request.post<AppInfo>({
+      url: '/app/sandpackage/install/attachExistingSchema',
+      data
+    })
+  },
+
+  inspectExistingSchemaAttachRecovery(data: { appName: string }) {
+    return request.post<ExistingSchemaAttachRecovery>({
+      url: '/app/sandpackage/install/inspectExistingSchemaAttachRecovery',
+      data
+    })
+  },
+
+  continueExistingSchemaAttach(data: { appName: string; confirmation: string }) {
+    return request.post<{ app: string; state: number; sql_executed: false; restart_required: true }>({
+      url: '/app/sandpackage/install/continueExistingSchemaAttach',
+      data
+    })
   },
 
   /**
@@ -272,10 +337,11 @@ export default {
   },
 
   /** 获取服务端固定仓库的插件清单。 */
-  getRepositoryCatalog() {
+  getRepositoryCatalog(options: RepositoryReadOptions = {}) {
     return request.get<RepositoryCatalog>({
       url: '/tool/install/repository/catalog',
-      timeout: 65000
+      timeout: 65000,
+      ...options
     })
   },
 
