@@ -8,3 +8,8 @@
 /sandadmin-artd/.env
 /sandadmin-artd/.env.development
 /server/config/plugin/tinywan/jwt/
+
+# Internal dev-process artifacts (repo-content-hygiene: not for repo consumers)
+/.agents/
+/openspec/
+.sand-*-source-manifest.json
