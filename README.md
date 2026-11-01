@@ -4,7 +4,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 
 > **来源说明**：SandAdmin 是基于 [SaiAdmin 6.x](https://github.com/saithink/saiadmin6.x) 修改和维护的独立 PostgreSQL fork。它不是 SaiAdmin 官方发行版，也不代表 SaiAdmin 或其作者的背书。名称、目录和运行配置已按 SandAdmin 维护；为了已有实例与第三方依赖兼容，部分历史标识仍会保留在实现层。
 
-> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始，当前版本为 `0.2.3`。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。
+> **版本状态**：SandAdmin 尚处于早期开发与验证阶段，版本线从 `0.x` 开始。在完成更大范围的安装、升级、插件生命周期和业务链验证前，不作 1.0 稳定性承诺。当前版本号见 [变更记录](CHANGELOG.md)与[版本与验证范围](https://github.com/supdger/sandadmin/wiki/version-scope)。
 
 ## 特性与边界
 
@@ -18,7 +18,7 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 运行环境、配置项和首次安装步骤见[本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)。简要流程为：
 
 1. 下载源码 ZIP 或克隆仓库。源码 ZIP 包含 `server/`、`sandadmin-artd/` 及必须保留的版权文件；克隆后的工作目录还包含 README、插件目录和 Git 配置。
-2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在；Windows运行 `php windows.php`，macOS/Linux运行 `php start.php start`，保持后端终端运行。
+2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在；Windows 运行 `php windows.php`，macOS/Linux 运行 `php start.php start`，保持后端终端运行。
 3. 准备 Node.js 22（至少 22.12.0）和 pnpm 11.19.0，在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install --frozen-lockfile` 和 `pnpm run dev`，保持前端终端运行。
 4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
 
@@ -42,21 +42,37 @@ composer require supdger/sand-package
 
 Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码；安装过程不会安装前端依赖、构建前端或初始化数据库。
 
-本版锁定 Sand Core `0.2.4` 和 SandPackage `0.2.4`，源码下载附带匹配的管理前端。后台系统更新要求 Sand Core 至少 0.2.0、SandPackage 至少 0.2.2。SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。标准宿主由框架识别服务重载、健康检查和专用静态发布环境，超级管理员在页面检查所选升级并确认执行；自定义部署扩展见 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新)。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 未指定版本时，由 Composer 根据项目依赖和可用版本选择合适的版本；只有需要固定版本时才在命令中指定版本。
 
-Sand Core 0.2.4 修复插件安装后页面已恢复但全屏加载遮罩不退出的问题，保留初始化的暂态恢复；SandPackage 0.2.4 为仓库只读请求增加有限恢复。持续故障、登录失效、权限或业务拒绝仍显示对应结果，安装写请求不会自动重放。此修复不包含数据库迁移，已有实例需更新依赖并重新构建、发布管理端，详见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)。
+本仓库通过 `server/composer.json` 声明 Sand Core 与 SandPackage 的依赖约束，实际锁定版本以 `server/composer.lock` 为准；源码下载附带与之匹配的管理前端。各版本号及验证范围见[版本与验证范围](https://github.com/supdger/sandadmin/wiki/version-scope)。
+
+SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。标准宿主由框架识别服务重载、健康检查和专用静态发布环境，超级管理员在页面检查所选升级并确认执行；最低版本要求和自定义部署扩展见 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新)。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
+
+各版本的具体修复、升级影响和已知限制见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)；基础包发行不会自动升级已有部署，已有实例需更新依赖并重新构建、发布管理端。
 
 ## 文档
 
+使用与安装：
+
 - [文档总览](https://github.com/supdger/sandadmin/wiki)
 - [本地运行与首次安装](https://github.com/supdger/sandadmin/wiki/getting-started)
+- [配置参考](https://github.com/supdger/sandadmin/wiki/configuration)
+- [从仓库安装插件](https://github.com/supdger/sandadmin/wiki/repository-plugin-distribution)
+- [排障](https://github.com/supdger/sandadmin/wiki/troubleshooting)
+
+部署与版本：
+
+- [部署与升级](https://github.com/supdger/sandadmin/wiki/deployment)
+- [版本与验证范围](https://github.com/supdger/sandadmin/wiki/version-scope)
+- [基础包与插件版本更新](https://github.com/supdger/sandadmin/wiki/plugin-updates)
+- [宿主发布与消费同步](https://github.com/supdger/sandadmin/wiki/host-consumer-sync)
+
+开发与治理：
+
 - [架构与插件边界](https://github.com/supdger/sandadmin/wiki/architecture)
 - [仓库与插件治理](https://github.com/supdger/sandadmin/wiki/repository-governance)
 - [插件开发与发布约定](https://github.com/supdger/sandadmin/wiki/plugin-development)
-- [仓库插件分发](https://github.com/supdger/sandadmin/wiki/repository-plugin-distribution)
-- [插件管理端载荷激活契约](https://github.com/supdger/sandadmin/wiki/frontend-plugin-activation)
-- [宿主发布与消费同步](https://github.com/supdger/sandadmin/wiki/host-consumer-sync)
+- [插件管理端载荷激活契约（设计契约，未实现）](https://github.com/supdger/sandadmin/wiki/frontend-plugin-activation)
 - [更名与插件兼容性通知](https://github.com/supdger/sandadmin/wiki/sandadmin-rename-notice)
 - [上游来源、署名与许可证说明](https://github.com/supdger/sandadmin/wiki/upstream-and-licensing)
 
@@ -64,7 +80,7 @@ Sand Core 0.2.4 修复插件安装后页面已恢复但全屏加载遮罩不退�
 
 根目录 `catalog.json` 只维护统一插件目录。`sand-core` 与 `sand-package` 是宿主基础 Composer 包，不属于 ZIP 业务插件；每个可选业务插件拥有独立源码仓库和 Release，宿主不保存其源码、安装包、运行副本或专属自动加载映射。安装器按目录声明的受信仓库下载所选插件；未选择插件的用户只会获取 SandAdmin 主体。
 
-`/Users/code/project/sand_demo` 是本机统一演示与验收宿主，只从 SandAdmin 和各插件权威仓库单向接收源码或发布包，不反向承载源码开发。插件实际安装与验收仍在该消费工作区或可丢弃隔离宿主完成。
+演示与验收使用维护者指定的独立宿主工作区，只从 SandAdmin 和各插件权威仓库单向接收源码或发布包，不反向承载源码开发。插件实际安装与验收在该消费工作区或可丢弃的隔离宿主完成。
 
 插件发布包必须在其自己的源码单元保留安装、升级、卸载、权限、兼容性和
 已知限制说明；宿主只维护公共约定与兼容性入口，避免两处文档漂移。
@@ -75,7 +91,7 @@ Sand Core 0.2.4 修复插件安装后页面已恢复但全屏加载遮罩不退�
 
 ## 版本
 
-当前版本为 `0.2.3`，尚未形成 1.0 稳定性承诺。版本变化见 [变更记录](CHANGELOG.md)。
+版本线仍为 `0.x`，尚未形成 1.0 稳定性承诺。当前版本与逐版本变化见 [变更记录](CHANGELOG.md)，组合版本与验证范围见[版本与验证范围](https://github.com/supdger/sandadmin/wiki/version-scope)。
 
 ## 来源与许可证
 
