@@ -12,4 +12,3 @@
 # Internal dev-process artifacts (repo-content-hygiene: not for repo consumers)
 /.agents/
 /openspec/
-.sand-*-source-manifest.json
