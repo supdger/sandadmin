@@ -2,8 +2,7 @@
 /.idea
 /.vscode
 /vendor
-/plugin/sandadmin/
-/plugin/sandpackage/
+/plugin/
 /compat/Saithink/Saipackage/
 *.log
 .env
