@@ -3227,16 +3227,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.2.4",
+            "version": "0.2.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393"
+                "reference": "28781b6596c29c41dc5c9bb7e5c0df2c9255f5df"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/7ea906743f9c912d03cc9f0fc1e68366c310c393",
-                "reference": "7ea906743f9c912d03cc9f0fc1e68366c310c393",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/28781b6596c29c41dc5c9bb7e5c0df2c9255f5df",
+                "reference": "28781b6596c29c41dc5c9bb7e5c0df2c9255f5df",
                 "shasum": ""
             },
             "require": {
@@ -3273,29 +3273,60 @@
                     "plugin\\sandadmin\\": "server/plugin/sandadmin/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "archive": {
+                "exclude": [
+                    "/**/.DS_Store",
+                    "/**/._*",
+                    "/**/.git",
+                    "/**/.gitattributes",
+                    "/**/.github",
+                    "/**/.husky",
+                    "/**/.idea",
+                    "/**/.vscode",
+                    "/**/Thumbs.db",
+                    "/**/commitlint.config.cjs",
+                    "/**/composer.lock",
+                    "/**/desktop.ini",
+                    "/**/dist",
+                    "/**/lint-staged.config.cjs",
+                    "/**/lint-staged.config.js",
+                    "/**/lint-staged.config.mjs",
+                    "/**/node_modules",
+                    "/**/tests",
+                    "/**/vendor",
+                    "/sandadmin-artd/.env",
+                    "/sandadmin-artd/.env.development",
+                    "/sandadmin-artd/.env.production",
+                    "/sandadmin-artd/scripts/clean-dev.ts"
+                ]
+            },
+            "scripts": {
+                "sand:publish": [
+                    "@php tools/publish-frontend.php"
+                ]
+            },
             "license": [
                 "MIT"
             ],
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
-                "issues": "https://github.com/supdger/sand-core/issues",
-                "source": "https://github.com/supdger/sand-core/tree/0.2.4"
+                "source": "https://github.com/supdger/sand-core/tree/0.2.6",
+                "issues": "https://github.com/supdger/sand-core/issues"
             },
-            "time": "2026-10-05T14:18:00+00:00"
+            "time": "2026-11-02T03:47:42+00:00"
         },
         {
             "name": "supdger/sand-package",
-            "version": "0.2.14",
+            "version": "0.2.16",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-package.git",
-                "reference": "9a38a0f170afdba7937ee036006d3ab1c2827430"
+                "reference": "6ed21f2bd1deb1acebc646722626dd3345457839"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-package/zipball/9a38a0f170afdba7937ee036006d3ab1c2827430",
-                "reference": "9a38a0f170afdba7937ee036006d3ab1c2827430",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/6ed21f2bd1deb1acebc646722626dd3345457839",
+                "reference": "6ed21f2bd1deb1acebc646722626dd3345457839",
                 "shasum": ""
             },
             "require": {
@@ -3316,27 +3347,28 @@
             },
             "archive": {
                 "exclude": [
-                    "/sandadmin-artd/node_modules",
-                    "/sandadmin-artd/dist",
-                    "/sandadmin-artd/.env*",
                     "/**/.DS_Store",
+                    "/**/._*",
+                    "/**/.git",
+                    "/**/.gitattributes",
+                    "/**/.github",
+                    "/**/.husky",
                     "/**/.idea",
                     "/**/.vscode",
-                    "/vendor",
-                    "/composer.lock",
-                    "/.github",
-                    "/.gitattributes",
-                    "/tests",
-                    "/server/tests",
-                    "/server/plugin/sandpackage/tests",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.behavior*",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.directives-mock.ts",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.http-mock.ts",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.index-mount.ts",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.index-viewport-entry.ts",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.tsconfig.json",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.viewport.html",
-                    "/sandadmin-artd/**/failed-upgrade-recovery.vite.config.mts"
+                    "/**/Thumbs.db",
+                    "/**/commitlint.config.cjs",
+                    "/**/composer.lock",
+                    "/**/desktop.ini",
+                    "/**/dist",
+                    "/**/lint-staged.config.cjs",
+                    "/**/lint-staged.config.js",
+                    "/**/lint-staged.config.mjs",
+                    "/**/node_modules",
+                    "/**/tests",
+                    "/**/vendor",
+                    "/sandadmin-artd/.env",
+                    "/sandadmin-artd/.env.development",
+                    "/tools"
                 ]
             },
             "license": [
@@ -3344,10 +3376,10 @@
             ],
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
-                "source": "https://github.com/supdger/sand-package/tree/0.2.14",
+                "source": "https://github.com/supdger/sand-package/tree/0.2.16",
                 "issues": "https://github.com/supdger/sand-package/issues"
             },
-            "time": "2026-10-11T13:57:39+00:00"
+            "time": "2026-11-02T03:48:16+00:00"
         },
         {
             "name": "symfony/cache",
