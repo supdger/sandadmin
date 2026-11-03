@@ -20,11 +20,11 @@ SandAdmin 是一个基于 Webman 的 PostgreSQL 原生后台管理项目，提�
 1. 下载源码 ZIP 或克隆仓库。源码 ZIP 包含 `server/`、`sandadmin-artd/` 及必须保留的版权文件；克隆后的工作目录还包含 README、插件目录和 Git 配置。
 2. 在 `server/` 执行 `composer install`，保持 `.env` 不存在；Windows 运行 `php windows.php`，macOS/Linux 运行 `php start.php start`，保持后端终端运行。
 3. 准备 Node.js 22（至少 22.12.0）和 pnpm 11.19.0，在 `sandadmin-artd/` 按需复制 `.env*.example`，执行 `pnpm install --frozen-lockfile` 和 `pnpm run dev`，保持前端终端运行。
-4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install` 完成初始化。
+4. 自行准备空 PostgreSQL 数据库，访问 `http://localhost:8787/core/install`。安装令牌在服务端控制台输出，同时保存到 `server/runtime/install-token`；在安装表单填入令牌、数据库连接信息和管理员账号后完成初始化。
 
-安装完成页会检查管理端静态资源；前端尚未启动时，页面保留安装成功结果和启动步骤，启动后点击“重新检查”再进入登录。重新打开 `/core/install` 可继续恢复后台入口，无需重新安装数据库。默认前端端口为 `3006`，端口占用时会明确报错；独立域名或子路径部署请配置后台地址，见[首次安装与后台入口](https://github.com/supdger/sandadmin/wiki/getting-started#完成安装并进入后台)。
+安装完成页会检查管理端静态资源；前端尚未启动时，页面保留安装成功结果和启动步骤，启动后点击“重新检查”再进入登录。安装完成后 `/core/install` 返回 404，不能再次打开安装向导，之后直接访问后台地址。默认前端端口为 `3006`，端口占用时会明确报错；独立域名或子路径部署请配置后台地址，见[首次安装与后台入口](https://github.com/supdger/sandadmin/wiki/getting-started#完成安装并进入后台)。
 
-全新安装完成后，使用 `admin` / `123456` 登录管理后台，并在首次登录后立即修改默认密码。该初始凭据仅适用于由当前安装器创建的全新数据库；已安装实例不会被安装器重置管理员密码，恢复入口也不会再次显示初始密码。静态资源响应不等于登录成功，请确认后台菜单与用户信息正常加载。
+管理员用户名和密码在安装表单中填写，密码至少 12 位；密码留空则随机生成强密码，仅在安装成功页显示一次，首次登录须先修改密码。安装器不创建任何内置默认口令；已安装实例不会被安装器重置管理员密码。静态资源响应不等于登录成功，请确认后台菜单与用户信息正常加载。
 
 默认前端目录为 `sandadmin-artd`；服务与 Channel 端口变量为 `SANDADMIN_SERVER_PORT`、`SANDADMIN_CHANNEL_PORT`。
 
@@ -48,7 +48,7 @@ Composer 会自动发布对应的后端插件和 `sandadmin-artd` 前端源码�
 
 SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级宿主核心和插件管理器。标准宿主由框架识别服务重载、健康检查和专用静态发布环境，超级管理员在页面检查所选升级并确认执行；最低版本要求和自定义部署扩展见 [后台系统更新](https://github.com/supdger/sandadmin/wiki/getting-started#后台系统更新)。当前执行器支持 Linux/macOS，以及具备 PHP CLI、`proc_open` 和 PowerShell 的 Windows 宿主；涉及数据库或宿主骨架变更的发行不会进入这一更新入口。
 
-各版本的具体修复、升级影响和已知限制见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)；基础包发行不会自动升级已有部署，已有实例需更新依赖并重新构建、发布管理端。
+各版本的具体修复、升级影响和已知限制见 [基础包更新记录](https://github.com/supdger/sandadmin/wiki/plugin-updates)；基础包发行不会自动升级已有部署，已有实例需更新依赖并重新构建、发布管理端。从低于 Sand Core 0.2.7 升级的已有实例，还须在目标库手动执行一次幂等的 `db/update-0.2.7.pgsql`（位于安装后的 `server/plugin/sandadmin/db/`），并立即修改仍在使用的旧默认口令。
 
 ## 文档
 
