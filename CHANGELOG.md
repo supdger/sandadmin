@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 未发布
+
+- 修复 macOS 下 libpq 建立 PostgreSQL 连接时的 GSSAPI 加密协商与 webman worker fork 叠加、导致 worker 以 SIGSEGV（exit status 11）崩溃的问题：进程引导在用户未显式设置 `PGGSSENCMODE`（真实环境变量或 `.env`）时默认置为 `disable`，用户显式设置一律尊重、不覆盖；think-orm 连接在上述默认场景同时在 DSN 写入 `gssencmode=disable`，webman/database（illuminate）路径因 PostgresConnector 不支持自定义 DSN 参数仍由环境变量统一生效。
+
 ## 0.2.3（2026-10-05）
 
 - 锁定 Sand Core、SandPackage 0.2.4，并发布匹配的前端源码，修复插件安装后加载遮罩不退出及仓库只读请求遇到服务重载暂态失败后不恢复的问题。

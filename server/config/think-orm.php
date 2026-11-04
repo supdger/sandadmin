@@ -19,22 +19,43 @@ $resolve = static function (string $name, mixed $value, bool $allowEmpty = false
     return '';
 };
 
+$pgType = env('DB_TYPE', 'pgsql');
+$pgHost = env('DB_HOST', '127.0.0.1');
+$pgPort = env('DB_PORT', 5432);
+$pgDatabase = $resolve('DB_NAME', env('DB_NAME'));
+
+// libpq 层面 PGGSSENCMODE 由 support/gssencmode.php 统一处理：用户未显式设置时
+// 默认置为 disable 并定义 SANDADMIN_PGGSSENCMODE_DEFAULTED。此时把 gssencmode
+// 写进 DSN 作为第二层防护（pdo_pgsql 透传 libpq 关键字）；用户显式设置
+// PGGSSENCMODE（真实环境变量或 .env）时 DSN 不追加该关键字，完全尊重用户值。
+// DSN 拼写与 think-orm Pgsql::parseDsn 的输出保持一致，仅多 gssencmode 一段。
+$pgDsn = '';
+if ($pgType === 'pgsql' && defined('SANDADMIN_PGGSSENCMODE_DEFAULTED')) {
+    $pgDsn = 'pgsql:dbname=' . $pgDatabase . ';host=' . $pgHost;
+    if ($pgPort !== '' && $pgPort !== null) {
+        $pgDsn .= ';port=' . $pgPort;
+    }
+    $pgDsn .= ';gssencmode=' . (getenv('PGGSSENCMODE') ?: 'disable');
+}
+
 return [
     'default' => 'pgsql',
     'connections' => [
         'pgsql' => [
             // 数据库类型
-            'type' => env('DB_TYPE', 'pgsql'),
+            'type' => $pgType,
             // 服务器地址
-            'hostname' => env('DB_HOST', '127.0.0.1'),
+            'hostname' => $pgHost,
             // 数据库名
-            'database' => $resolve('DB_NAME', env('DB_NAME')),
+            'database' => $pgDatabase,
+            // 连接 DSN；为空时由 think-orm 按上述字段自行拼装
+            'dsn' => $pgDsn,
             // 数据库用户名
             'username' => $resolve('DB_USER', env('DB_USER')),
             // 数据库密码
             'password' => $resolve('DB_PASSWORD', env('DB_PASSWORD'), true),
             // 数据库连接端口
-            'hostport' => env('DB_PORT', 5432),
+            'hostport' => $pgPort,
             // 数据库连接参数
             'params' => [
                 // 连接超时3秒

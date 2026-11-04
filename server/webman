@@ -24,6 +24,11 @@ if (class_exists(Dotenv::class) && file_exists(run_path('.env'))) {
     }
 }
 
+// .env 加载之后、命令引导之前：未显式设置时默认关闭 libpq GSSAPI 协商。
+// 注意：composer install 会按 webman/console 骨架覆盖本文件；非 start 命令经
+// support/bootstrap.php、start 分支的 worker 经 onWorkerStart 仍被覆盖注入。
+require_once __DIR__ . '/support/gssencmode.php';
+
 $appConfig = require $appConfigFile;
 if ($timezone = $appConfig['default_timezone'] ?? '') {
     date_default_timezone_set($timezone);

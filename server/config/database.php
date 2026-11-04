@@ -34,6 +34,9 @@ return [
             'prefix' => env('DB_PREFIX', ''),
             'strict' => true,
             'engine' => null,
+            // libpq GSSAPI 协商默认由 PGGSSENCMODE 环境变量控制（见 support/gssencmode.php）。
+            // illuminate/database 的 PostgresConnector 只按白名单拼 DSN，不支持自定义
+            // 'dsn' 或任意连接参数，故本路径不提供 gssencmode 配置键，由环境变量统一生效。
             'options' => [
                 PDO::ATTR_EMULATE_PREPARES => false, // Must be false for Swoole and Swow drivers.
             ],
