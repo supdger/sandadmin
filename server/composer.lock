@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "78dd6a0840b3ebe0f8975d4276a7d59b",
+    "content-hash": "515b04fc1fd9bb4fea80ec818411a3ec",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3317,16 +3317,16 @@
         },
         {
             "name": "supdger/sand-package",
-            "version": "0.2.18",
+            "version": "0.2.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-package.git",
-                "reference": "c417c58c32d26ae84adeaa20fc020a1205cd18ee"
+                "reference": "38979e0ed06367dc9dee79acf88a57d4ee5068d1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-package/zipball/c417c58c32d26ae84adeaa20fc020a1205cd18ee",
-                "reference": "c417c58c32d26ae84adeaa20fc020a1205cd18ee",
+                "url": "https://api.github.com/repos/supdger/sand-package/zipball/38979e0ed06367dc9dee79acf88a57d4ee5068d1",
+                "reference": "38979e0ed06367dc9dee79acf88a57d4ee5068d1",
                 "shasum": ""
             },
             "require": {
@@ -3376,10 +3376,10 @@
             ],
             "description": "SandAdmin plugin package manager for PostgreSQL hosts.",
             "support": {
-                "source": "https://github.com/supdger/sand-package/tree/0.2.18",
+                "source": "https://github.com/supdger/sand-package/tree/0.2.19",
                 "issues": "https://github.com/supdger/sand-package/issues"
             },
-            "time": "2026-11-04T04:52:24+00:00"
+            "time": "2026-11-04T06:48:03+00:00"
         },
         {
             "name": "symfony/cache",
