@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.8.5",
+     "tag": "v0.8.5",
+     "asset": "sand-iam-0.8.5.zip",
+     "sha256": "9679ede3987788b847993b764a2258820bbd97ccc5324510b68458283a63be54",
+     "host_min": "0.1.0",
+     "notes": "UX Phase 1：管理菜单归组（33 可见顶层项收拢为 4 个一级分组），type=2 分组 + 子页绝对路径保证有效 URL 不变；install.sql/update.sql 重建并 PG 两遍验证幂等，无新增结构迁移。候选构建 1050 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.8.4",
      "tag": "v0.8.4",
      "asset": "sand-iam-0.8.4.zip",
@@ -107,6 +115,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.3.2",
+     "tag": "v0.3.2",
+     "asset": "sand-ai-0.3.2.zip",
+     "sha256": "5c904b8c164c1622e3397e18be4e93f15bc5cbac2413ba39c400b918539ec36c",
+     "host_min": "0.2.3",
+     "notes": "UX Phase 1 改版 + 评审修复：滚动/卡片布局、文案标识清理、折叠机器步骤、幂等 setup/bootstrap（401/403 静默）、菜单归组 URL 不变、编码可见稳定；内嵌 SandIAM 0.8.5（sha256 9679ede3…）"
+    },
     {
      "version": "0.3.1",
      "tag": "v0.3.1",
