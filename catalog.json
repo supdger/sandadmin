@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.9.2",
+     "tag": "v0.9.2",
+     "asset": "sand-iam-0.9.2.zip",
+     "sha256": "c54d14982115cbfeeb468755645ba0a80b0250883acea0746b9dd19c69b2e837",
+     "host_min": "0.1.0",
+     "notes": "全新安装零步化：SAND_IAM_CONTEXT_SIGNING_KEY 懒供给（ContextSigningKeyProvisioner 私有锁生成+备份+原子写 .env+进程内刷新）修复试用签发 503；新增幂等 ensure-defaults 端点自动创建默认客户主体/律序应用/prod 环境/client，SandIAM 与 SandAI 首页实体为空时自动调用。无新增数据库迁移，install/update/uninstall SQL 与 0.9.1 逐字节一致；构建 1055 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.9.1",
      "tag": "v0.9.1",
      "asset": "sand-iam-0.9.1.zip",
@@ -139,6 +147,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.4.2",
+     "tag": "v0.4.2",
+     "asset": "sand-ai-0.4.2.zip",
+     "sha256": "f24c5cc4ff6ff5b362b48b26a9a1f11ae3f8f26e281aaf48169fecb45156455d",
+     "host_min": "0.2.3",
+     "notes": "Neuron 运行时兜底自愈（宿主 reload 继承陈旧 ClassLoader 致 deployment verify 必现 Neuron material runtime unavailable）+ 首页实体为空自动 ensure-defaults；内嵌 SandIAM 0.9.2（sha256 c54d1498…，签名密钥懒供给+ensure-defaults）。"
+    },
     {
      "version": "0.4.1",
      "tag": "v0.4.1",
