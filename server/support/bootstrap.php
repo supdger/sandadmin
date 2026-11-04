@@ -50,6 +50,9 @@ if (class_exists('Dotenv\Dotenv') && file_exists(base_path(false) . '/.env')) {
     }
 }
 
+// .env 加载之后、配置与首个数据库连接之前：未显式设置时默认关闭 libpq GSSAPI 协商。
+require_once __DIR__ . '/gssencmode.php';
+
 Config::clear();
 support\App::loadAllConfig(['route']);
 if ($timezone = config('app.default_timezone')) {

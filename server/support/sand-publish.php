@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// 本入口不加载 .env：插件 Install::install 可能触库，最早处默认关闭 libpq GSSAPI 协商。
+require_once __DIR__ . '/gssencmode.php';
+
 $root = dirname(__DIR__);
 $autoload = $root . '/vendor/autoload.php';
 if (!is_file($autoload)) {

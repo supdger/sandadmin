@@ -20,6 +20,11 @@ if (class_exists('Dotenv\Dotenv') && file_exists(base_path() . '/.env')) {
     }
 }
 
+// .env 加载之后、配置与子进程拉起之前：未显式设置时默认关闭 libpq GSSAPI 协商。
+// 注意：composer install 会按 webman-framework 骨架覆盖本文件；真正的持久覆盖
+// 由子进程 onWorkerStart 加载的 support/bootstrap.php 中同一注入保证。
+require_once __DIR__ . '/support/gssencmode.php';
+
 App::loadAllConfig(['route']);
 
 $errorReporting = config('app.error_reporting');
