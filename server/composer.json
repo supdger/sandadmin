@@ -36,7 +36,7 @@
     "require": {
         "php": ">=8.2",
         "supdger/sand-core": "^0.2.8",
-        "supdger/sand-package": "^0.2.19",
+        "supdger/sand-package": "^0.2.20",
         "workerman/webman-framework": "^2.1",
         "monolog/monolog": "^2.0",
         "nelexa/zip": "^4.0",
