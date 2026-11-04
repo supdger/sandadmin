@@ -124,6 +124,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.3.4",
+     "tag": "v0.3.4",
+     "asset": "sand-ai-0.3.4.zip",
+     "sha256": "0711287c5329f9f4b13e45f4ef90587ebcb903e4a80e0bbfa671e206ff7857b7",
+     "host_min": "0.2.3",
+     "notes": "B1/S1 修复：setup/bootstrap 自动补齐内部安全材料（幂等 .env 重载+protect-config+首次 initialize），写操作不再报 SAND_AI_IDEMPOTENCY_KEY_UNAVAILABLE，失败给中文可重试 security_init_failed；管理端英文/内部标识清零；内嵌 SandIAM 0.8.6（sha256 21ab8aae…）。"
+    },
+    {
      "version": "0.3.3",
      "tag": "v0.3.3",
      "asset": "sand-ai-0.3.3.zip",
