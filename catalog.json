@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.9.0",
+     "tag": "v0.9.0",
+     "asset": "sand-iam-0.9.0.zip",
+     "sha256": "f7046aa0a1e4e07d0b7929f0c5e8a094d0e215c3258061dfdac029f4644e7ee3",
+     "host_min": "0.1.0",
+     "notes": "UX Phase 2：新首页应用×服务授权网格（已有应用一键允许默认能力，新应用管理员命名接入并可选一键发证，密钥明文仅展示一次，生成密钥不再触碰既有授权）；菜单与术语通俗化（身份与权限/首页/SCIM/RADIUS/OAuth/CAS 通俗标签），新装与升级经生命周期幂等收敛；载荷行业中性化，无新增数据库迁移；构建 1054 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.8.6",
      "tag": "v0.8.6",
      "asset": "sand-iam-0.8.6.zip",
@@ -123,6 +131,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.4.0",
+     "tag": "v0.4.0",
+     "asset": "sand-ai-0.4.0.zip",
+     "sha256": "63206016d02d8fbbe7ca06aa99284a7f7ce7a1f1e498e65504afab9eb66ef422",
+     "host_min": "0.2.3",
+     "notes": "UX-P2：服务商预设卡片与测试连接（P6）、首页开通向导合并与一键默认编排（P7）、管理员试用通道（后台会话代签 SandIAM 短期运行身份，一次性 330 秒凭证零持久化，P8）；内嵌 SandIAM 0.9.0（sha256 f7046aa0…，首页授权网格+术语通俗化）。"
+    },
     {
      "version": "0.3.5",
      "tag": "v0.3.5",
