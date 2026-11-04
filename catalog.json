@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.8.6",
+     "tag": "v0.8.6",
+     "asset": "sand-iam-0.8.6.zip",
+     "sha256": "21ab8aaed74f52382b654d1a7abb18e83021c7b99e16fb7ef72f9c52d7e82710",
+     "host_min": "0.1.0",
+     "notes": "修复 0.8.5 发行包布局回归：门户 SPA 源码顶层目录由 app/ 回退为 portal/（app/ 为 SandPackage 受控宿主载荷保留前缀，0.8.5 资产无法安装）；生命周期 SQL 与载荷行为不变，构建 1050 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.8.5",
      "tag": "v0.8.5",
      "asset": "sand-iam-0.8.5.zip",
@@ -115,6 +123,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.3.3",
+     "tag": "v0.3.3",
+     "asset": "sand-ai-0.3.3.zip",
+     "sha256": "d6fb18907b3aa251b0f42807444d94db5f5f16ebaeedf9a8fa4037274a65a997",
+     "host_min": "0.2.3",
+     "notes": "仅打包修复：内嵌 SandIAM 0.8.6（sha256 21ab8aae…），修复 0.8.5 顶层 app/ 布局缺陷导致的安装 400；无载荷变更。"
+    },
     {
      "version": "0.3.2",
      "tag": "v0.3.2",
