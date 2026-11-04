@@ -124,6 +124,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.3.5",
+     "tag": "v0.3.5",
+     "asset": "sand-ai-0.3.5.zip",
+     "sha256": "da31c29035694095cdeb17cb36e38b33fd445c9111db881b9703bdfa6d436871",
+     "host_min": "0.2.3",
+     "notes": "UX-P1d 零步化与文案中文化：写路径按需惰性初始化内部安全材料、材料就绪后解析幂等 key id，新装实例首写不再需要单独设置步骤；.env 刷新定向材料自有键（非材料键不载入、已声明进程值不覆盖）；审计中文展示字典 + 服务商类型显示标签清零残余英文/内部标识；内嵌 SandIAM 0.8.6（sha256 21ab8aae…）。"
+    },
+    {
      "version": "0.3.4",
      "tag": "v0.3.4",
      "asset": "sand-ai-0.3.4.zip",
