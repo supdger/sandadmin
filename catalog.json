@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.9.4",
+     "tag": "v0.9.4",
+     "asset": "sand-iam-0.9.4.zip",
+     "sha256": "bfa6e9e1d4686f0b8020602e1ef1d927ef6fa836df5a78fea73a9ceeb93b3ea9",
+     "host_min": "0.1.0",
+     "notes": "修复试用签发与一键授权懒供给链实体分裂及数据分级不匹配：试用链收敛到 AccessMatrixInput 规范默认链路（收养既有 system 应用、admin_trial client 归并 prod 环境并锚定），访问矩阵优先解析 sand-ai 业务 client，upsertGrant 新建 grant data_class 置 NULL、存量 internal 试用 grant 就地归一（停用/撤销不复活）。无新增数据库迁移，install/update/uninstall SQL 与 0.9.3 逐字节一致；构建 1055 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.9.3",
      "tag": "v0.9.3",
      "asset": "sand-iam-0.9.3.zip",
@@ -155,6 +163,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.4.4",
+     "tag": "v0.4.4",
+     "asset": "sand-ai-0.4.4.zip",
+     "sha256": "74bed9096244cc190562ffc1f2741efffd6fbb4980b047fa8f735e4e4753bc4c",
+     "host_min": "0.2.3",
+     "notes": "试用签发实体链收敛到规范默认链路（SandIamAdminTrialEntityStore 经 AccessMatrixInput::DEFAULT_* 解析、admin_trial client 归并 prod、试用 grant data_class 就地归一 NULL）；内嵌 SandIAM 0.9.4（矩阵 client 解析修正 + upsertGrant data_class=NULL）。发行 ZIP 内嵌 sand-iam-0.9.4.zip，摘要与独立发布包一致；资产 1422 成员；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
     {
      "version": "0.4.3",
      "tag": "v0.4.3",
