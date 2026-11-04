@@ -50,6 +50,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "1.0.8",
+     "tag": "sandworkflow-v1.0.8",
+     "asset": "sandworkflow-1.0.8.zip",
+     "sha256": "7f386770c21a9bda2ec6011dab64fe0d5e4ff73b0eba074aeb27900c0dc99f21",
+     "host_min": "0.1.0",
+     "notes": "修正 info.ini support 为 >=0.1.0 与宿主匹配；回流已发布卸载修复"
+    },
+    {
      "version": "1.0.7",
      "tag": "sandworkflow-v1.0.7-preview-ddea7b6",
      "asset": "sandworkflow-1.0.7.zip",
@@ -99,6 +107,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.3.1",
+     "tag": "v0.3.1",
+     "asset": "sand-ai-0.3.1.zip",
+     "sha256": "730102306d3c3e71aed6524423c8ed276a251f0287d4550c5dbe00dd6db8f238",
+     "host_min": "0.2.3",
+     "notes": "修复 0.3.0 未捆绑依赖工件导致的安装 400；内嵌 SandIAM 0.8.4（sha256 f062fc43…）"
+    },
     {
      "version": "0.3.0",
      "tag": "v0.3.0",
