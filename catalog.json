@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.9.1",
+     "tag": "v0.9.1",
+     "asset": "sand-iam-0.9.1.zip",
+     "sha256": "619f56a6d0558a64da31ae644b94f0b2a6ec0b6110bd566f5daf2fdb5f1ca6e2",
+     "host_min": "0.1.0",
+     "notes": "修复访问矩阵一键授权 503：多 action 授权时 service_grant 审计行共用父 request_id 撞 uk(request_id,action,event_key) 唯一约束，23505 被误读为幂等抢占、回滚后返回 REPLAY_UNAVAILABLE；现按 action code 派生 childRequestId 并在重放无果时回传链上原因。无新增数据库迁移，install/update/uninstall SQL 与 0.9.0 逐字节一致；构建 1054 文件/条目一致、重复构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.9.0",
      "tag": "v0.9.0",
      "asset": "sand-iam-0.9.0.zip",
@@ -131,6 +139,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.4.1",
+     "tag": "v0.4.1",
+     "asset": "sand-ai-0.4.1.zip",
+     "sha256": "1218fd162f7f904c7cab89c8f554e3a52e292696673ff6b4e73094265c31316e",
+     "host_min": "0.2.3",
+     "notes": "仅重打包：内嵌 SandIAM 0.9.1（sha256 619f56a6…，访问矩阵一键授权 503 修复）；SandAI 业务载荷与 0.4.0 一致。"
+    },
     {
      "version": "0.4.0",
      "tag": "v0.4.0",
