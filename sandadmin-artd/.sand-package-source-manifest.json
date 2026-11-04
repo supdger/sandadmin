@@ -1,18 +1,19 @@
 {
     "schema": 1,
     "package": "supdger/sand-package",
-    "version": "0.2.18",
+    "version": "0.2.19",
     "files": {
         "src/views/plugin/sandpackage/api/index.ts": "fc33c634e905353faf8324bc3311e0a5ddc3d222a8679f41f7d5bf0d247803e7",
         "src/views/plugin/sandpackage/api/system-update.ts": "f2c33520cfa368c660f7d6e7c831c4b4f533b2598f74321d2a92c5ca916607e5",
-        "src/views/plugin/sandpackage/install/dependency-chain.ts": "77f9e2ac184cf4f94f5727724f0692ef515890c511a22c992a94ebb04f1748da",
+        "src/views/plugin/sandpackage/install/dependency-chain.ts": "e5bcf9dc37b42212d8e22292eea11ffa515b94ba44f54047f81f85ecbe2db2d3",
         "src/views/plugin/sandpackage/install/failed-upgrade-recovery.ts": "5ac56246b72ecfe4d083584caabaef96845880378bc85bb457cf1ae4ac0a1ac6",
-        "src/views/plugin/sandpackage/install/index.vue": "2c4bd34405f2daa8e5cfc69f65f6427d8f7e030e43f1552c15ad070f3b0bc6ab",
+        "src/views/plugin/sandpackage/install/index.vue": "a89e0b75348e4b624fe51513b419a1460babaf141ebfc03915a5f84333e7f846",
         "src/views/plugin/sandpackage/install/install-box.vue": "75e70a10e32530770baf04f1e5ede920c1edb9364b914b4cd93793157d2f95df",
         "src/views/plugin/sandpackage/install/read-recovery.ts": "d0e56a288b7f50f62ca9e7a97ce061e7e6ed9e45598f1c21603ced8b337e24fe",
         "src/views/plugin/sandpackage/install/system-update.vue": "e3f2a70e755018c9adc5e774294124e5f349f7b424094eb8e7be9e9479e274a9",
-        "src/views/plugin/sandpackage/install/terminal.vue": "4695f34f3610cccaabc872183f9e9933ef53c52e00885eca370504d258203117",
+        "src/views/plugin/sandpackage/install/terminal.vue": "2a97dc9f3cec54cb7631194f340fcf14b94988417f4f31e286f05963df418573",
         "src/views/plugin/sandpackage/install/version-compatibility.ts": "50b371b425ad0ce317c62d9f78d61cfac5c495228939c4e7689cc288e15e6688",
+        "src/views/plugin/sandpackage/store/install-orchestrator.ts": "d5053f4a9480a17407655a10800b9be93b3374566307ff9b1953502b2326aac8",
         "src/views/plugin/sandpackage/store/terminal.ts": "86c6b586ade665655b65aca7b8ae3da252cefffa792526b7a95285a8d07d1ab9"
     }
 }
