@@ -75,6 +75,7 @@ SandPackage 提供后台「插件管理 → 系统更新」，可检查并升级
 - [插件管理端载荷激活契约（设计契约，未实现）](https://github.com/supdger/sandadmin/wiki/frontend-plugin-activation)
 - [更名与插件兼容性通知](https://github.com/supdger/sandadmin/wiki/sandadmin-rename-notice)
 - [上游来源、署名与许可证说明](https://github.com/supdger/sandadmin/wiki/upstream-and-licensing)
+- [发布验收清单与新用户验收关卡](RELEASE-CHECKLIST.md)
 
 ## 可选插件
 
