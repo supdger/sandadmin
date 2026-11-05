@@ -172,6 +172,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.4.8",
+     "tag": "v0.4.8",
+     "asset": "sand-ai-0.4.8.zip",
+     "sha256": "a9a1058447aa5492930f2a01621fea72bda713b1af9bcdfedf2e97a21f351f4a",
+     "host_min": "0.2.3",
+     "notes": "P11 验收阻断 B-1 修复：新增 FileParsedTextDrawer「解析出的文字」抽屉，经既有 /v1/files/{id}/source-blocks 逐块渲染 preview 中文定位并分页读取，文件列表、找回流程与只读按号查询均直达，任务页空态说明按调用身份隔离（凭证隔离不放宽）；G-10 运行时错误中文化，标题「请求未完成」，error_code/request_id 只进 console，/_FORBIDDEN$/ 通用兜底；G-9 费用页顶部新增「近 30 天合计」卡片。内嵌 SandIAM 保持 0.9.5，发行 ZIP 内嵌 sand-iam-0.9.5.zip 摘要与独立发布包一致；资产 1424 成员；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.4.7",
      "tag": "v0.4.7",
      "asset": "sand-ai-0.4.7.zip",
