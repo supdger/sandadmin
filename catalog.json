@@ -9,6 +9,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.9.5",
+     "tag": "v0.9.5",
+     "asset": "sand-iam-0.9.5.zip",
+     "sha256": "4088c451dff38c7553dac26047163b5555d65f1ed01e8a6dd9e2c16bbf633176",
+     "host_min": "0.1.0",
+     "notes": "修复管理端英文原始报错透传到界面提示（ux_p2b P11 严重项 S-2 SandIAM 侧）：访问矩阵/资源列表/目标向导/任务路径/应用业务动作页的读取与授权调用补 showErrorMessage:false，宿主 toast 不再直出英文原文；list/disable/post/read SandIamResource 增加可选 showErrorMessage 参数（默认 true 向后兼容），被压制错误统一走 describeSandIamError 全中文描述并渲染内联错误面。无新增数据库迁移，install/update/uninstall SQL 与 0.9.4 逐字节一致；构建 1055 文件/条目一致、独立双阶段构建位一致；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.9.4",
      "tag": "v0.9.4",
      "asset": "sand-iam-0.9.4.zip",
@@ -163,6 +171,14 @@
    "about": "PostgreSQL 版：模型、私有文件解析、检索和受控 AI 任务插件；依赖宿主 SandIAM 身份与服务授权。",
    "author": "supdger",
    "versions": [
+    {
+     "version": "0.4.7",
+     "tag": "v0.4.7",
+     "asset": "sand-ai-0.4.7.zip",
+     "sha256": "890a174ff270297c7030d40e71bdf5feda88af0cddea417ede1c20b1df948652",
+     "host_min": "0.2.3",
+     "notes": "P11 验收三严重修复：S-1 首页环境列表读取失败与确认为空分离（读取失败+重试，瞬时失败不再降级为误导性向导态，ensure 后重读失败传播 loadError）；S-2 新增 api/errorText.ts 统一中文错误入口并给 onboarding/iam/budget/capability/usage 调用补 showErrorMessage:false 压制宿主英文 toast，被压制路径均有内联中文错误面；S-3 bind-default-chat 默认能力档补 document_parse（native_document_parse local_only）与 SandIAM 默认授权一致，旧档回放不静默改档，CAPABILITY_UNSUPPORTED 指路能力配置页并附直达链接。内嵌 SandIAM 升至 0.9.5（sha256 4088c451）携带同款 toast 抑制修复，发行 ZIP 内嵌 sand-iam-0.9.5.zip 摘要与独立发布包一致；资产 1423 成员；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
     {
      "version": "0.4.6",
      "tag": "v0.4.6",
