@@ -12,8 +12,14 @@
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
+use Sandadmin\Http\JobController;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
 // own routes through Webman's plugin configuration.
 Route::disableDefaultRoute();
+
+$jobRoute = Route::get('/api/jobs/{id}', [JobController::class, 'show']);
+if (class_exists(\plugin\sandadmin\app\middleware\CheckLogin::class)) {
+    $jobRoute->middleware([\plugin\sandadmin\app\middleware\CheckLogin::class]);
+}
