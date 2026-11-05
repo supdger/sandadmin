@@ -12,8 +12,14 @@
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
+use app\controller\FileController;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
 // own routes through Webman's plugin configuration.
 Route::disableDefaultRoute();
+
+Route::post('/api/files', [FileController::class, 'store']);
+Route::post('/api/files/{id}/usages', [FileController::class, 'registerUsage']);
+Route::delete('/api/files/{id}/usages', [FileController::class, 'unregisterUsage']);
+Route::delete('/api/files/{id}', [FileController::class, 'destroy']);
