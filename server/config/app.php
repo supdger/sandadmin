@@ -15,7 +15,8 @@
 use support\Request;
 
 return [
-    'debug' => true,
+    // 默认关闭；仅开发机在 .env 设 APP_DEBUG=true。APP_ENV=production 时开启会拒绝启动（app\bootstrap\ProductionDebugGuard）。
+    'debug' => filter_var(env('APP_DEBUG', false), FILTER_VALIDATE_BOOLEAN),
     'error_reporting' => E_ALL,
     'default_timezone' => 'Asia/Shanghai',
     'request_class' => Request::class,
