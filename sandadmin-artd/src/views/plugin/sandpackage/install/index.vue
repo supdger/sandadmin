@@ -18,17 +18,6 @@
                 </template>
                 刷新
               </ElButton>
-              <ElButton
-                v-if="!hideGlobalPluginWrites"
-                v-ripple
-                :disabled="pluginOperationBusy"
-                @click="handleTerminal"
-              >
-                <template #icon>
-                  <ArtSvgIcon icon="ri:terminal-box-line" />
-                </template>
-                依赖安装终端
-              </ElButton>
             </ElSpace>
           </div>
 
@@ -2372,11 +2361,6 @@
     if (outcome?.kind === 'installed') {
       ElMessage.success(`${record.title || record.app} 依赖安装完成`)
     }
-  }
-
-  const handleTerminal = () => {
-    if (pluginOperationBusy.value) return
-    terminalRef.value?.open()
   }
 
   // ========== 一键安装依赖链 ==========

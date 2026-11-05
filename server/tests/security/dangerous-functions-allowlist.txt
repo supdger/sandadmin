@@ -1,0 +1,4 @@
+# 安全 P0-F5 门禁：宿主中允许出现进程执行类函数的文件（相对 server/）。新增命中即失败。
+# 均非 HTTP 请求路径：
+windows.php
+app/process/Monitor.php
