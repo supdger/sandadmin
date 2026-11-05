@@ -164,6 +164,14 @@
    "author": "supdger",
    "versions": [
     {
+     "version": "0.4.6",
+     "tag": "v0.4.6",
+     "asset": "sand-ai-0.4.6.zip",
+     "sha256": "aeeb0b2ba85bc7381095d3b4a3962a0185446379a9b790748f7ee287bbd4fed3",
+     "host_min": "0.2.3",
+     "notes": "开通向导 ambiguous 找回死锁修复：新增 intentContinuable（仅 saved/tested/published 三确认态放行）渲染独立「继续开通」区段并复用原 activate() 管线（不新增端点、不重发已确认请求）；canActivate 放行可续办 intent，busy/存储错误/ambiguous/conflict 仍阻断；save_unknown 找回遇 SAND_AI_RESOURCE_NOT_FOUND 解除 intent 锁；*_unknown 与 ambiguous/conflict 保持 fail-closed。内嵌 SandIAM 保持 0.9.4，发行 ZIP 内嵌 sand-iam-0.9.4.zip 摘要与独立发布包一致；资产 1422 成员；本次未执行安装/升级 SQL 或重跑业务验收。"
+    },
+    {
      "version": "0.4.5",
      "tag": "v0.4.5",
      "asset": "sand-ai-0.4.5.zip",
