@@ -74,7 +74,8 @@
         "psr-4": {
             "app\\": "./app",
             "App\\": "./app",
-            "app\\View\\Components\\": "./app/view/components"
+            "app\\View\\Components\\": "./app/view/components",
+            "Sandadmin\\": "src/"
         }
     },
     "scripts": {
@@ -105,6 +106,15 @@
     "extra": {
         "sandadmin": {
             "frontend-path": "../sandadmin-artd"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "phpstan/phpstan": "^2.1"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Sandadmin\\Tests\\": "tests/"
         }
     }
 }
