@@ -6,7 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { getPreferences, putPreferences, type Preferences } from '@/api/preferences';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
+import { useCan } from '@/hooks/useCan';
 import { useThemeMode } from '@/layouts/themeMode';
+import { isSystemApiError } from '@/lib/apiClient';
 import type { ThemeMode } from '@/lib/theme';
 
 const PREFERENCES_QUERY_KEY = ['me', 'preferences'] as const;
@@ -26,6 +28,9 @@ export function PreferencesPage() {
   const { t } = useTranslation('shell');
   const queryClient = useQueryClient();
   const { setMode } = useThemeMode();
+  // Saving preferences is a write — read-only accounts see the page but
+  // every control stays disabled with an explanatory hint.
+  const canWrite = useCan('preferences:write');
 
   const prefs = useQuery({
     queryKey: PREFERENCES_QUERY_KEY,
@@ -39,8 +44,10 @@ export function PreferencesPage() {
       queryClient.setQueryData(PREFERENCES_QUERY_KEY, next);
       Toast.success(t('preferences.saved'));
     },
-    onError: () => {
-      Toast.error(t('preferences.saveFailed'));
+    onError: (error) => {
+      // Infrastructural failures surface the unified system message; business
+      // errors keep the generic save-failed copy.
+      Toast.error(isSystemApiError(error) ? error.message : t('preferences.saveFailed'));
     },
   });
 
@@ -53,7 +60,9 @@ export function PreferencesPage() {
   }
 
   if (prefs.isError) {
-    return <ErrorState kind="error" onRetry={() => void prefs.refetch()} />;
+    return (
+      <ErrorState kind="error" error={prefs.error} onRetry={() => void prefs.refetch()} />
+    );
   }
 
   const current = prefs.data;
@@ -72,6 +81,9 @@ export function PreferencesPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <PageHeader title={t('preferences.title')} />
+      {canWrite ? null : (
+        <Typography.Text type="tertiary">{t('preferences.readOnlyHint')}</Typography.Text>
+      )}
 
       <Card title={t('preferences.appearance.title')}>
         <div className="flex flex-col gap-2">
@@ -79,7 +91,7 @@ export function PreferencesPage() {
           <RadioGroup
             value={current.theme}
             onChange={onThemeChange}
-            disabled={save.isPending}
+            disabled={save.isPending || !canWrite}
           >
             {THEME_OPTIONS.map((opt) => (
               <Radio key={opt.value} value={opt.value}>
@@ -103,7 +115,7 @@ export function PreferencesPage() {
           <Switch
             checked={emailNotify}
             onChange={onEmailNotifyChange}
-            disabled={save.isPending}
+            disabled={save.isPending || !canWrite}
             aria-label={t('preferences.notifications.emailLabel')}
           />
         </div>

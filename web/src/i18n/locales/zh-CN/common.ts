@@ -18,8 +18,20 @@ export default {
   },
 
   errors: {
-    network: '网络好像出了点问题，请稍后再试',
-    server: '服务好像出了点问题，请稍后再试',
+    system: {
+      message: '系统出了点问题，请稍后再试',
+      copy: '复制问题信息',
+      copied: '问题信息已复制，可以发给管理员帮忙排查',
+      copyFailed: '复制失败，请手动记下下面的信息',
+      report: {
+        time: '时间',
+        page: '页面地址',
+        method: '请求方法',
+        path: '请求路径',
+        status: 'HTTP 状态',
+        requestId: '请求编号',
+      },
+    },
     forbidden: {
       title: '没有权限',
       description: '你还没有访问这个页面的权限，需要的话可以联系管理员开通',

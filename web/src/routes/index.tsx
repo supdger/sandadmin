@@ -3,7 +3,7 @@ import { createBrowserRouter } from 'react-router';
 
 import { ErrorState } from '@/components/ErrorState';
 import { AppShell } from '@/layouts/AppShell';
-import { RequireAuth } from './guards';
+import { RequireAuth, RequirePermission } from './guards';
 
 type RouteModule = { default: RouteObject[] };
 
@@ -34,7 +34,12 @@ export const routes: RouteObject[] = [
       {
         element: <AppShell />,
         children: [
-          ...privateRoutes,
+          // Permission-gated pages; routes without handle.permission and
+          // the catch-all 404 pass straight through.
+          {
+            element: <RequirePermission />,
+            children: privateRoutes,
+          },
           // Catch-all 404 inside the shell.
           { path: '*', element: <ErrorState kind="404" /> },
         ],

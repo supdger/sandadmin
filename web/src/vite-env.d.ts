@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_COPYRIGHT?: string;
   readonly VITE_DEFAULT_LOCALE?: string;
   readonly VITE_ENABLE_MOCKS?: string;
+  readonly VITE_MOCK_VIEWER_PASSWORD?: string;
+  readonly VITE_MOCK_GUEST_PASSWORD?: string;
 }
 
 interface ImportMeta {

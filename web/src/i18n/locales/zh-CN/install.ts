@@ -34,10 +34,7 @@ export default {
     confirmPasswordPlaceholder: '请再输入一次密码',
     required: '这一项必填',
     mismatch: '两次输入的密码不一样',
-    passwordMin: '至少 {{count}} 个字符',
-    passwordMixedCase: '要同时包含大写和小写字母',
-    passwordDigit: '至少包含一个数字',
-    passwordSymbol: '至少包含一个符号（比如 !@#）',
+    passwordRule: '密码至少 10 位，要同时有字母和数字',
   },
 
   site: {

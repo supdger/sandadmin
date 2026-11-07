@@ -79,7 +79,7 @@ describe('AppShell', () => {
   });
 
   it('renders the menu, current page and copyright footer', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     mockMe();
 
     const { nav } = renderShell('/');
@@ -97,7 +97,7 @@ describe('AppShell', () => {
   });
 
   it('toggles the theme attribute and persists the choice', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     mockMe();
 
     const { nav } = renderShell('/');
@@ -112,7 +112,7 @@ describe('AppShell', () => {
   });
 
   it('keeps the page usable and offers a retry when the menu request fails', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     mockMe();
     let calls = 0;
     server.use(
@@ -140,8 +140,39 @@ describe('AppShell', () => {
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
   });
 
+  it('shows the unified system notice when the menu request hits HTTP 5xx', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+    let calls = 0;
+    server.use(
+      http.get(`${base}/me/menus`, () => {
+        calls += 1;
+        if (calls === 1) {
+          return HttpResponse.json({ code: 5000, message: 'boom', data: null }, { status: 500 });
+        }
+        return HttpResponse.json({
+          code: 200,
+          message: 'ok',
+          data: [{ id: 'workbench', parentId: null, title: '工作台', path: '/', order: 1 }],
+        });
+      }),
+    );
+
+    const { nav } = renderShell('/');
+
+    // The content area still renders — no white screen.
+    expect(await screen.findByText('首页内容')).toBeInTheDocument();
+    expect(await screen.findByText('系统出了点问题，请稍后再试')).toBeInTheDocument();
+    expect(screen.queryByText('菜单加载失败了')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制问题信息' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '重试' }));
+    await waitFor(() => expect(nav()).toBeTruthy());
+    expect(within(nav()).getByText('工作台')).toBeInTheDocument();
+  });
+
   it('logs out via the user dropdown and lands on /login', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     mockMe();
 
     const { router, nav } = renderShell('/');

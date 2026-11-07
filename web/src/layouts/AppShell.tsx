@@ -30,6 +30,7 @@ import { logout } from '@/api/auth';
 import { getMyMenus, type MenuItem } from '@/api/menus';
 import { putPreferences } from '@/api/preferences';
 import { env } from '@/config/env';
+import { SystemErrorNotice } from '@/components/SystemErrorNotice';
 import { useMe } from '@/hooks/useMe';
 import { buildMenuTree, findMenuChain } from './menuTree';
 import { useThemeMode } from './themeMode';
@@ -172,14 +173,28 @@ export function AppShell() {
           </div>
         ) : menus.isError ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3">
-            {collapsed ? null : (
-              <Typography.Text type="danger" size="small">
-                {t('menu.loadFailed')}
-              </Typography.Text>
+            {collapsed ? (
+              // The collapsed rail is too narrow for the notice row; the
+              // retry button alone keeps the failure recoverable.
+              <Button size="small" onClick={() => void menus.refetch()}>
+                {t('common:actions.retry')}
+              </Button>
+            ) : (
+              <SystemErrorNotice
+                error={menus.error}
+                onRetry={() => void menus.refetch()}
+                fallback={
+                  <>
+                    <Typography.Text type="danger" size="small">
+                      {t('menu.loadFailed')}
+                    </Typography.Text>
+                    <Button size="small" onClick={() => void menus.refetch()}>
+                      {t('common:actions.retry')}
+                    </Button>
+                  </>
+                }
+              />
             )}
-            <Button size="small" onClick={() => void menus.refetch()}>
-              {t('common:actions.retry')}
-            </Button>
           </div>
         ) : (
           <Nav

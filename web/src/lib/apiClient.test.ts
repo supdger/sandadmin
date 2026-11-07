@@ -44,6 +44,12 @@ describe('apiClient', () => {
     expect(apiErr.message).toBe('用户名或密码不正确');
     expect(apiErr.fields).toEqual({ username: ['不能为空'] });
     expect(apiErr.requestId).toBe('req-42');
+    // Business envelope errors are not system failures but still carry
+    // request diagnostics.
+    expect(apiErr.system).toBe(false);
+    expect(apiErr.method).toBe('GET');
+    expect(apiErr.url).toBe(`${base}/test/fail`);
+    expect(apiErr.status).toBe(200);
   });
 
   it('validates the payload through a zod schema when given one', async () => {
@@ -78,5 +84,55 @@ describe('apiClient', () => {
     const err = await apiGet('/test/broken').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).message).not.toContain('oops');
+    expect((err as ApiError).system).toBe(true);
+  });
+
+  it('marks network failures as system errors with request diagnostics', async () => {
+    server.use(http.get(`${base}/test/netfail`, () => HttpResponse.error()));
+
+    const err = await apiGet('/test/netfail').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    const apiErr = err as ApiError;
+    expect(apiErr.system).toBe(true);
+    expect(apiErr.code).toBe(-1);
+    expect(apiErr.method).toBe('GET');
+    expect(apiErr.url).toBe(`${base}/test/netfail`);
+    expect(apiErr.message).toBe('系统出了点问题，请稍后再试');
+  });
+
+  it('marks HTTP 5xx as system errors even with an envelope body', async () => {
+    server.use(
+      http.get(`${base}/test/http500`, () =>
+        envelope(
+          { code: 5000, message: 'boom', data: null, request_id: 'r-500' },
+          { status: 500 },
+        ),
+      ),
+    );
+
+    const err = await apiGet('/test/http500').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    const apiErr = err as ApiError;
+    expect(apiErr.system).toBe(true);
+    expect(apiErr.status).toBe(500);
+    expect(apiErr.requestId).toBe('r-500');
+    expect(apiErr.method).toBe('GET');
+    expect(apiErr.url).toBe(`${base}/test/http500`);
+  });
+
+  it('marks payload schema mismatches as system errors', async () => {
+    server.use(
+      http.get(`${base}/test/schema-bad`, () =>
+        envelope({ code: 200, message: 'ok', data: { count: 'NaN' } }),
+      ),
+    );
+
+    const err = await apiGet('/test/schema-bad', z.object({ count: z.number() })).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ApiError);
+    const apiErr = err as ApiError;
+    expect(apiErr.system).toBe(true);
+    expect(apiErr.code).toBe(-1);
   });
 });

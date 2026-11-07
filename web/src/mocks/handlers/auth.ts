@@ -18,6 +18,14 @@ interface MockUser {
   username: string;
   nickname: string;
   mustChangePassword: boolean;
+  /** Permission strings reported by /me; `['*']` is the admin wildcard. */
+  permissions: string[];
+  /**
+   * Expected password. `undefined` means the account exists but cannot log
+   * in — used for demo accounts whose password comes from an env var that
+   * may not be configured.
+   */
+  password?: string;
 }
 
 interface CaptchaEntry {
@@ -26,9 +34,40 @@ interface CaptchaEntry {
   verified: boolean;
 }
 
+// Demo accounts beyond admin/newbie get their password from env vars so no
+// real credential ever lands in the repo. When the var is unset the account
+// simply fails login like a wrong password.
 const USERS: Record<string, MockUser> = {
-  admin: { username: 'admin', nickname: '管理员', mustChangePassword: false },
-  newbie: { username: 'newbie', nickname: '新同事', mustChangePassword: true },
+  admin: {
+    username: 'admin',
+    nickname: '管理员',
+    mustChangePassword: false,
+    permissions: ['*'],
+    password: MOCK_PASSWORD,
+  },
+  newbie: {
+    username: 'newbie',
+    nickname: '新同事',
+    mustChangePassword: true,
+    permissions: ['*'],
+    password: MOCK_PASSWORD,
+  },
+  // Read-only demo: menus and pages are visible, every write is denied.
+  viewer: {
+    username: 'viewer',
+    nickname: '只读用户',
+    mustChangePassword: false,
+    permissions: ['workbench:view', 'preferences:view'],
+    password: env.mockViewerPassword ?? undefined,
+  },
+  // No-permission demo: /me/menus is empty and every protected route 403s.
+  guest: {
+    username: 'guest',
+    nickname: '访客',
+    mustChangePassword: false,
+    permissions: [],
+    password: env.mockGuestPassword ?? undefined,
+  },
 };
 
 const failures = new Map<string, number>();
@@ -37,6 +76,8 @@ const captchas = new Map<string, CaptchaEntry>();
 const tokenToUser = new Map<string, MockUser>([
   ['mock-admin-token', USERS.admin],
   ['mock-newbie-token', USERS.newbie],
+  ['mock-viewer-token', USERS.viewer],
+  ['mock-guest-token', USERS.guest],
 ]);
 
 let captchaSeq = 0;
@@ -162,7 +203,7 @@ export default [
     }
 
     const user = USERS[username];
-    if (user && body.password === MOCK_PASSWORD) {
+    if (user && user.password !== undefined && body.password === user.password) {
       failures.delete(username);
       const token = `mock-${username}-token`;
       tokenToUser.set(token, user);
@@ -244,10 +285,15 @@ export default [
       username: user.username,
       nickname: user.nickname,
       mustChangePassword: user.mustChangePassword,
-      permissions: ['*'],
+      permissions: [...user.permissions],
     });
   }),
 ] satisfies HttpHandler[];
+
+/** Resolve a bearer token to its mock user; shared by sibling handlers. */
+export function mockUserForToken(token: string): MockUser | undefined {
+  return tokenToUser.get(token);
+}
 
 /** Test hooks: deterministic access to the mock's internal state. */
 export const __authMock = {

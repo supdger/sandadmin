@@ -51,7 +51,7 @@ describe('PreferencesPage', () => {
   });
 
   it('saves the theme through PUT /me/preferences and applies it at once', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     let putBody: Record<string, unknown> | null = null;
     server.use(
       http.put(`${base}/me/preferences`, async ({ request }) => {
@@ -77,7 +77,7 @@ describe('PreferencesPage', () => {
   });
 
   it('saves the notification switch through the same endpoint', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     let putBody: Record<string, unknown> | null = null;
     server.use(
       http.put(`${base}/me/preferences`, async ({ request }) => {
@@ -97,7 +97,7 @@ describe('PreferencesPage', () => {
   });
 
   it('shows an error state with retry when preferences fail to load', async () => {
-    setToken('t-1');
+    setToken('mock-admin-token');
     server.use(
       http.get(`${base}/me/preferences`, () =>
         HttpResponse.json({ code: 5000, message: '服务开了小差', data: null }),
@@ -108,5 +108,48 @@ describe('PreferencesPage', () => {
 
     expect(await screen.findByText('出了点问题')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '复制问题信息' })).not.toBeInTheDocument();
+  });
+
+  it('shows the unified system notice with a copy action on HTTP 5xx', async () => {
+    setToken('mock-admin-token');
+    server.use(
+      http.get(`${base}/me/preferences`, () =>
+        HttpResponse.json({ code: 5000, message: 'boom', data: null }, { status: 500 }),
+      ),
+    );
+
+    renderPage();
+
+    // Kind title stays; the description switches to the unified system copy.
+    expect(await screen.findByText('出了点问题')).toBeInTheDocument();
+    expect(screen.getByText('系统出了点问题，请稍后再试')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制问题信息' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
+  });
+
+  it('disables every control and explains why for a read-only account', async () => {
+    // mock-viewer-token resolves to the viewer demo user: view permissions
+    // only, no preferences:write.
+    setToken('mock-viewer-token');
+    let putCalls = 0;
+    server.use(
+      http.put(`${base}/me/preferences`, () => {
+        putCalls += 1;
+        return HttpResponse.json({ code: 200, message: 'ok', data: null });
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('主题模式')).toBeInTheDocument();
+    expect(screen.getByText('当前账号为只读权限，暂时无法修改设置')).toBeInTheDocument();
+    expect(screen.getByLabelText('深色')).toBeDisabled();
+    expect(screen.getByLabelText('邮件通知')).toBeDisabled();
+
+    // Disabled controls must not fire the save mutation at all.
+    await userEvent.click(screen.getByLabelText('深色'));
+    await userEvent.click(screen.getByLabelText('邮件通知'));
+    expect(putCalls).toBe(0);
   });
 });

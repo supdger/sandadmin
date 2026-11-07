@@ -12,12 +12,22 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { isSystemApiError } from '@/lib/apiClient';
+import { CopyProblemInfoButton } from './SystemErrorNotice';
+
 export type ErrorKind = '403' | '404' | '500' | 'error';
 
 export interface ErrorStateProps {
   kind?: ErrorKind;
   title?: ReactNode;
   description?: ReactNode;
+  /**
+   * Caught API error. When it is an infrastructural failure (network, HTTP
+   * 5xx, unreadable response) the description switches to the unified system
+   * message and a "copy problem info" action is offered; business errors keep
+   * the kind-based copy.
+   */
+  error?: unknown;
   /** Show a retry button that calls this handler. */
   onRetry?: () => void;
   /** Show a "back to home" button (default true). */
@@ -49,12 +59,14 @@ export function ErrorState({
   kind = 'error',
   title,
   description,
+  error,
   onRetry,
   showHome = true,
 }: ErrorStateProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const illustration = ILLUSTRATIONS[kind];
+  const systemError = isSystemApiError(error) ? error : null;
 
   return (
     <div className="flex items-center justify-center py-16">
@@ -62,9 +74,12 @@ export function ErrorState({
         image={illustration.light}
         darkModeImage={illustration.dark}
         title={title ?? t(TITLE_KEYS[kind])}
-        description={description ?? t(DESC_KEYS[kind])}
+        description={
+          description ?? (systemError ? t('errors.system.message') : t(DESC_KEYS[kind]))
+        }
       >
         <div className="flex items-center justify-center gap-2">
+          {systemError ? <CopyProblemInfoButton error={systemError} /> : null}
           {onRetry ? (
             <Button theme="solid" onClick={onRetry}>
               {t('actions.retry')}

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { getCaptcha, verifyCaptcha } from '@/api/auth';
+import { SystemErrorNotice } from '@/components/SystemErrorNotice';
 
 const CHAR_COUNT = 3;
 
@@ -90,7 +91,15 @@ export function ClickCaptcha({ onVerified }: ClickCaptchaProps) {
         className="relative self-start"
         style={{ cursor: ready ? 'pointer' : 'default' }}
       >
-        {captcha ? (
+        {captchaQuery.isError ? (
+          <div className="flex items-center justify-center" style={{ width: 300, height: 160 }}>
+            <SystemErrorNotice
+              error={captchaQuery.error}
+              onRetry={() => void captchaQuery.refetch()}
+              fallback={<Spin />}
+            />
+          </div>
+        ) : captcha ? (
           <img
             data-testid="captcha-image"
             data-captcha-id={captcha.captchaId}

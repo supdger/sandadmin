@@ -19,9 +19,9 @@ import { z } from 'zod';
 
 import { getInstallStatus, startInstall } from '@/api/install';
 import { getJob, type JobRun } from '@/api/jobs';
-import { getPasswordPolicy } from '@/api/auth';
 import { Loading } from '@/components/Loading';
 import { ResultPage } from '@/components/ResultPage';
+import { SystemErrorNotice } from '@/components/SystemErrorNotice';
 import { env } from '@/config/env';
 import { apiGet, ApiError } from '@/lib/apiClient';
 
@@ -36,6 +36,8 @@ interface InstallDraft {
   adminUsername: string;
   adminNickname: string;
   adminPassword: string;
+  /** Kept only so stepping back restores the confirm field; never sent to the API. */
+  adminConfirmPassword: string;
   siteName: string;
 }
 
@@ -43,6 +45,20 @@ const STEP_ENV = 0;
 const STEP_ADMIN = 1;
 const STEP_SITE = 2;
 const STEP_CONFIRM = 3;
+
+// Fixed install-time admin password rule: at least 10 chars including one
+// letter and one digit. No mixed-case or symbol requirement.
+const ADMIN_PASSWORD_MIN_LENGTH = 10;
+const PASSWORD_LETTER_RE = /[A-Za-z]/;
+const PASSWORD_DIGIT_RE = /\d/;
+
+function isCompliantAdminPassword(value: string): boolean {
+  return (
+    value.length >= ADMIN_PASSWORD_MIN_LENGTH &&
+    PASSWORD_LETTER_RE.test(value) &&
+    PASSWORD_DIGIT_RE.test(value)
+  );
+}
 
 // Mirrors the mock handler's key so a reload can resume the progress view.
 const JOB_STORAGE_KEY = 'mock.installJobId';
@@ -82,21 +98,19 @@ export default function InstallPage() {
     adminUsername: '',
     adminNickname: '',
     adminPassword: '',
+    adminConfirmPassword: '',
     siteName: env.appName,
   });
   const [jobId, setJobId] = useState<string | null>(() => readStoredJobId());
-  const [startError, setStartError] = useState<string | null>(null);
+  const [startError, setStartError] = useState<unknown>(null);
+  // Live copy of the admin-step form values, used to gate the next button.
+  const [adminValues, setAdminValues] = useState<Record<string, unknown>>({});
 
   const envQuery = useQuery({
     queryKey: ['install', 'environment'],
     queryFn: () => apiGet<EnvCheckItem[]>('/install/environment'),
     enabled: current === STEP_ENV,
     retry: false,
-  });
-
-  const policyQuery = useQuery({
-    queryKey: ['passwordPolicy'],
-    queryFn: getPasswordPolicy,
   });
 
   const jobQuery = useQuery({
@@ -125,32 +139,24 @@ export default function InstallPage() {
     }
   }, [job?.status, navigate, t]);
 
-  const adminSchema = useMemo(() => {
-    const policy = policyQuery.data;
-    if (!policy) return null;
-    return z
-      .object({
-        adminUsername: z.string().trim().min(1, t('admin.required')),
-        adminNickname: z.string().trim().min(1, t('admin.required')),
-        adminPassword: z
-          .string()
-          .min(policy.minLength, t('admin.passwordMin', { count: policy.minLength }))
-          .refine(
-            (v) => !policy.requireMixedCase || (/[a-z]/.test(v) && /[A-Z]/.test(v)),
-            t('admin.passwordMixedCase'),
-          )
-          .refine((v) => !policy.requireDigit || /\d/.test(v), t('admin.passwordDigit'))
-          .refine(
-            (v) => !policy.requireSymbol || /[^A-Za-z0-9]/.test(v),
-            t('admin.passwordSymbol'),
-          ),
-        confirmPassword: z.string().min(1, t('admin.required')),
-      })
-      .refine((d) => d.adminPassword === d.confirmPassword, {
-        path: ['confirmPassword'],
-        message: t('admin.mismatch'),
-      });
-  }, [policyQuery.data, t]);
+  const adminSchema = useMemo(
+    () =>
+      z
+        .object({
+          adminUsername: z.string().trim().min(1, t('admin.required')),
+          adminNickname: z.string().trim().min(1, t('admin.required')),
+          adminPassword: z
+            .string()
+            .min(1, t('admin.required'))
+            .refine(isCompliantAdminPassword, t('admin.passwordRule')),
+          confirmPassword: z.string().min(1, t('admin.required')),
+        })
+        .refine((d) => d.adminPassword === d.confirmPassword, {
+          path: ['confirmPassword'],
+          message: t('admin.mismatch'),
+        }),
+    [t],
+  );
 
   const adminFormApi = useRef<FormApi<Record<string, unknown>> | null>(null);
   const siteFormApi = useRef<FormApi<Record<string, unknown>> | null>(null);
@@ -167,8 +173,22 @@ export default function InstallPage() {
       storeJobId(nextJobId);
       setJobId(nextJobId);
     } catch (e) {
-      setStartError(e instanceof ApiError ? e.message : t('failed.title'));
+      setStartError(e);
     }
+  };
+
+  // The admin form remounts with initValues from the draft on every visit;
+  // re-sync the tracked values so the disabled state matches what is shown.
+  const goToStep = (step: number) => {
+    if (step === STEP_ADMIN) {
+      setAdminValues({
+        adminUsername: draft.adminUsername,
+        adminNickname: draft.adminNickname,
+        adminPassword: draft.adminPassword,
+        confirmPassword: draft.adminConfirmPassword,
+      });
+    }
+    setCurrent(step);
   };
 
   if (statusQuery.isPending) {
@@ -264,6 +284,17 @@ export default function InstallPage() {
   const envItems = envQuery.data ?? [];
   const envAllOk = envItems.length > 0 && envItems.every((item) => item.ok);
 
+  const adminPasswordValue = String(adminValues.adminPassword ?? '');
+  const adminConfirmValue = String(adminValues.confirmPassword ?? '');
+  const adminPasswordInvalid =
+    adminPasswordValue !== '' && !isCompliantAdminPassword(adminPasswordValue);
+  const adminPasswordsMismatch =
+    adminPasswordValue !== '' &&
+    adminConfirmValue !== '' &&
+    adminPasswordValue !== adminConfirmValue;
+  const adminPasswordReady =
+    isCompliantAdminPassword(adminPasswordValue) && adminPasswordValue === adminConfirmValue;
+
   return pageShell(
     <div className="flex flex-col gap-6">
       <Steps current={current} type="basic" size="small">
@@ -297,11 +328,16 @@ export default function InstallPage() {
             </ul>
           )}
           {envQuery.isError ? (
-            <Banner
-              type="danger"
-              fullMode={false}
-              description={t('env.failed')}
-              closeIcon={null}
+            <SystemErrorNotice
+              error={envQuery.error}
+              fallback={
+                <Banner
+                  type="danger"
+                  fullMode={false}
+                  description={t('env.failed')}
+                  closeIcon={null}
+                />
+              }
             />
           ) : null}
           {envAllOk ? (
@@ -315,7 +351,7 @@ export default function InstallPage() {
               theme="solid"
               type="primary"
               disabled={!envAllOk}
-              onClick={() => setCurrent(STEP_ADMIN)}
+              onClick={() => goToStep(STEP_ADMIN)}
             >
               {t('actions.next')}
             </Button>
@@ -333,15 +369,21 @@ export default function InstallPage() {
               adminUsername: draft.adminUsername,
               adminNickname: draft.adminNickname,
               adminPassword: draft.adminPassword,
+              confirmPassword: draft.adminConfirmPassword,
+            }}
+            onValueChange={(values) => {
+              // Semi mutates formState.values in place — copy so React sees a
+              // new reference and re-renders the disabled state.
+              setAdminValues({ ...(values as Record<string, unknown>) });
             }}
             getFormApi={(api) => {
               adminFormApi.current = api as unknown as FormApi<Record<string, unknown>>;
             }}
             onSubmit={(values) => {
-              const parsed = adminSchema?.safeParse(values as Record<string, unknown>);
-              if (!parsed?.success) {
+              const parsed = adminSchema.safeParse(values as Record<string, unknown>);
+              if (!parsed.success) {
                 const shown = new Set<string>();
-                for (const issue of parsed?.error.issues ?? []) {
+                for (const issue of parsed.error.issues) {
                   const field = String(issue.path[0]);
                   if (!shown.has(field)) {
                     shown.add(field);
@@ -355,6 +397,7 @@ export default function InstallPage() {
                 adminUsername: parsed.data.adminUsername,
                 adminNickname: parsed.data.adminNickname,
                 adminPassword: parsed.data.adminPassword,
+                adminConfirmPassword: parsed.data.confirmPassword,
               }));
               setCurrent(STEP_SITE);
             }}
@@ -376,6 +419,15 @@ export default function InstallPage() {
               type="password"
               label={t('admin.password')}
               placeholder={t('admin.passwordPlaceholder')}
+              extraText={
+                adminPasswordInvalid ? (
+                  <Typography.Text type="danger" size="small">
+                    {t('admin.passwordRule')}
+                  </Typography.Text>
+                ) : (
+                  t('admin.passwordRule')
+                )
+              }
               rules={[{ required: true, message: t('admin.required') }]}
             />
             <Form.Input
@@ -383,11 +435,23 @@ export default function InstallPage() {
               type="password"
               label={t('admin.confirmPassword')}
               placeholder={t('admin.confirmPasswordPlaceholder')}
+              extraText={
+                adminPasswordsMismatch ? (
+                  <Typography.Text type="danger" size="small">
+                    {t('admin.mismatch')}
+                  </Typography.Text>
+                ) : undefined
+              }
               rules={[{ required: true, message: t('admin.required') }]}
             />
             <div className="flex justify-between pt-2">
               <Button onClick={() => setCurrent(STEP_ENV)}>{t('actions.prev')}</Button>
-              <Button htmlType="submit" theme="solid" type="primary">
+              <Button
+                htmlType="submit"
+                theme="solid"
+                type="primary"
+                disabled={!adminPasswordReady}
+              >
                 {t('actions.next')}
               </Button>
             </div>
@@ -419,7 +483,7 @@ export default function InstallPage() {
               placeholder={t('site.siteNamePlaceholder')}
             />
             <div className="flex justify-between pt-2">
-              <Button onClick={() => setCurrent(STEP_ADMIN)}>{t('actions.prev')}</Button>
+              <Button onClick={() => goToStep(STEP_ADMIN)}>{t('actions.prev')}</Button>
               <Button htmlType="submit" theme="solid" type="primary">
                 {t('actions.next')}
               </Button>
@@ -444,11 +508,18 @@ export default function InstallPage() {
             ]}
           />
           {startError ? (
-            <Banner
-              type="danger"
-              fullMode={false}
-              description={startError}
-              closeIcon={null}
+            <SystemErrorNotice
+              error={startError}
+              fallback={
+                <Banner
+                  type="danger"
+                  fullMode={false}
+                  description={
+                    startError instanceof ApiError ? startError.message : t('failed.title')
+                  }
+                  closeIcon={null}
+                />
+              }
             />
           ) : null}
           <div className="flex justify-between">

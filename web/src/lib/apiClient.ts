@@ -9,13 +9,32 @@ export interface ApiErrorShape {
   message: string;
   fields?: Record<string, string[]>;
   requestId?: string;
+  /** HTTP method used for the request (e.g. 'GET'). */
+  method?: string;
+  /** Fully joined request URL (api base + path). */
+  url?: string;
+  /** HTTP status when a response was received. */
+  status?: number;
+  /**
+   * True for infrastructural failures (network, HTTP 5xx, unreadable or
+   * schema-mismatched payloads); false/omitted for business envelope errors.
+   */
+  system?: boolean;
 }
 
-/** Business-level failure. `code` is the envelope code, not an HTTP status. */
+/**
+ * Request failure. `code` is the envelope code for business errors and -1 for
+ * infrastructural ones — it is never an HTTP status and must not be shown to
+ * users as such.
+ */
 export class ApiError extends Error {
   code: number;
   fields?: Record<string, string[]>;
   requestId?: string;
+  method?: string;
+  url?: string;
+  status?: number;
+  system: boolean;
 
   constructor(shape: ApiErrorShape) {
     super(shape.message);
@@ -23,7 +42,16 @@ export class ApiError extends Error {
     this.code = shape.code;
     this.fields = shape.fields;
     this.requestId = shape.requestId;
+    this.method = shape.method;
+    this.url = shape.url;
+    this.status = shape.status;
+    this.system = shape.system ?? false;
   }
+}
+
+/** True when the failure is infrastructural rather than a business error. */
+export function isSystemApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.system;
 }
 
 interface Envelope {
@@ -38,6 +66,20 @@ function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/+$/, '');
   const p = path.startsWith('/') ? path : `/${path}`;
   return `${b}${p}`;
+}
+
+function systemError(init: {
+  requestId?: string;
+  method: string;
+  url: string;
+  status?: number;
+}): ApiError {
+  return new ApiError({
+    code: -1,
+    message: i18n.t('errors.system.message'),
+    system: true,
+    ...init,
+  });
 }
 
 async function request<T>(
@@ -55,21 +97,29 @@ async function request<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const url = joinUrl(env.apiBaseUrl, path);
+
   let res: Response;
   try {
-    res = await fetch(joinUrl(env.apiBaseUrl, path), {
+    res = await fetch(url, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError({ code: -1, message: i18n.t('errors.network') });
+    throw systemError({ method, url });
   }
 
   const headerRequestId = res.headers.get('x-request-id') ?? undefined;
+  const status = res.status;
 
   let payload: Envelope | null = null;
-  const text = await res.text();
+  let text = '';
+  try {
+    text = await res.text();
+  } catch {
+    throw systemError({ requestId: headerRequestId, method, url, status });
+  }
   if (text) {
     try {
       payload = JSON.parse(text) as Envelope;
@@ -78,27 +128,35 @@ async function request<T>(
     }
   }
 
+  const requestId = payload?.request_id ?? headerRequestId;
+
   if (!payload || typeof payload !== 'object' || typeof payload.code !== 'number') {
-    throw new ApiError({
-      code: -1,
-      message: i18n.t('errors.server'),
-      requestId: headerRequestId,
-    });
+    throw systemError({ requestId, method, url, status });
   }
 
-  const requestId = payload.request_id ?? headerRequestId;
+  // HTTP 5xx is infrastructural even when a body slipped through.
+  if (status >= 500) {
+    throw systemError({ requestId, method, url, status });
+  }
 
   if (payload.code !== 200) {
     throw new ApiError({
       code: payload.code,
-      message: payload.message || i18n.t('errors.server'),
+      message: payload.message || i18n.t('errors.system.message'),
       fields: payload.fields,
       requestId,
+      method,
+      url,
+      status,
     });
   }
 
   const data = payload.data as T;
-  return schema ? schema.parse(data) : data;
+  try {
+    return schema ? schema.parse(data) : data;
+  } catch {
+    throw systemError({ requestId, method, url, status });
+  }
 }
 
 export function apiGet<T>(path: string, schema?: ZodType<T>): Promise<T> {

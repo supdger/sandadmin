@@ -39,6 +39,8 @@ pnpm dev        # 开发服务器，默认启用 MSW mock
 | `VITE_APP_COPYRIGHT` | 页脚版权文案 | `© 2026 青岛沙盒创意网络科技有限公司` |
 | `VITE_DEFAULT_LOCALE` | 界面语言，1.0 仅提供 `zh-CN` | `zh-CN` |
 | `VITE_ENABLE_MOCKS` | 是否启动 MSW mock（`true`/`false`） | 开发 `true`，构建 `false` |
+| `VITE_MOCK_VIEWER_PASSWORD` | MSW 演示账号 `viewer`（只读权限）的登录口令；留空则该账号无法登录 | （空） |
+| `VITE_MOCK_GUEST_PASSWORD` | MSW 演示账号 `guest`（无任何权限）的登录口令；留空则该账号无法登录 | （空） |
 
 注意：`.env`、`.env.local` 等真实环境文件不会入库，仓库只保留 `.env.example`。
 
@@ -47,6 +49,9 @@ pnpm dev        # 开发服务器，默认启用 MSW mock
 `src/mocks/` 提供各域最小可用的请求桩，`pnpm dev` 时自动启动浏览器 Service Worker，无需真实后端：
 
 - 登录：`admin` / `Admin@123456`；`newbie` / `Admin@123456` 返回「必须修改密码」；同一账号连续失败 3 次后要求验证码（点选验证码为占位实现，校验宽松）。
+- 演示账号（口令不入库，在 `.env.local` 里配 `VITE_MOCK_*` 变量，未配置时登录直接失败）：
+  - `viewer`：只读账号。能登录、菜单和页面照常可见，但 `/me` 只返回 `workbench:view`、`preferences:view`——偏好设置等写操作控件全部禁用并提示只读，调 `PUT /me/preferences` 等写接口返回权限不足（业务码 4030）。
+  - `guest`：无权限账号。`/me/menus` 返回空、`permissions` 为空，访问任何受保护路由都落到 `/403` 无权限页。
 - 安装：默认返回未安装；在 `/install/status` 请求上加 `?mocks=installed`，或设置 localStorage `mock.installed=1`，可切到「已安装」状态。
 - 任务进度：`GET /api/jobs/{id}` 每次轮询推进 25%，直至成功。
 

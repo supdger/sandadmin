@@ -10,6 +10,13 @@ export interface AppEnv {
   copyright: string;
   defaultLocale: string;
   enableMocks: boolean;
+  /**
+   * Passwords for the extra MSW demo accounts (`viewer` = read-only,
+   * `guest` = no permissions). `null` disables that account's login —
+   * keep them in .env.local, never commit real values.
+   */
+  mockViewerPassword: string | null;
+  mockGuestPassword: string | null;
 }
 
 function readString(value: string | undefined, fallback: string): string {
@@ -35,4 +42,6 @@ export const env: AppEnv = {
   defaultLocale: readString(import.meta.env.VITE_DEFAULT_LOCALE, 'zh-CN'),
   // Mocks default on in dev, off in production builds.
   enableMocks: readBool(import.meta.env.VITE_ENABLE_MOCKS, import.meta.env.DEV),
+  mockViewerPassword: readString(import.meta.env.VITE_MOCK_VIEWER_PASSWORD, '') || null,
+  mockGuestPassword: readString(import.meta.env.VITE_MOCK_GUEST_PASSWORD, '') || null,
 };
