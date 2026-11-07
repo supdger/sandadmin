@@ -74,7 +74,13 @@
         "psr-4": {
             "app\\": "./app",
             "App\\": "./app",
-            "app\\View\\Components\\": "./app/view/components"
+            "app\\View\\Components\\": "./app/view/components",
+            "Sandadmin\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Sandadmin\\Tests\\": "tests/"
         }
     },
     "scripts": {
