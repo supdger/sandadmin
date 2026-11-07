@@ -1,0 +1,14 @@
+/*
+ * Layer order: Tailwind resets live in `base`, Semi component styles in `semi`
+ * (emitted by @douyinfe/semi-vite-plugin with cssLayer), layout utilities last
+ * so they always win over component defaults.
+ */
+@layer theme, base, semi, components, utilities;
+
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+}
