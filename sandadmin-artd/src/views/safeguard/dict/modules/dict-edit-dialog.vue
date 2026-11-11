@@ -174,7 +174,10 @@
     try {
       await formRef.value.validate()
       if (props.dialogType === 'add') {
-        await api.dataSave(formData)
+        // 新建不传 id；编辑请求才带 id。
+        const payload: Record<string, unknown> = { ...formData }
+        delete payload.id
+        await api.dataSave(payload)
         ElMessage.success('新增成功')
       } else {
         await api.dataUpdate(formData)
