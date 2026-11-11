@@ -13,6 +13,7 @@
  */
 
 use app\controller\FileController;
+use Sandadmin\Http\TaskController;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
@@ -27,3 +28,9 @@ Route::get('/api/admin/v1/files/{file_id}', [FileController::class, 'show']);
 Route::delete('/api/admin/v1/files/{file_id}', [FileController::class, 'destroy']);
 Route::get('/api/admin/v1/files/{file_id}/download', [FileController::class, 'download']);
 Route::post('/api/admin/v1/files/cleanup', [FileController::class, 'cleanup']);
+
+// 这里不做 class_exists 条件挂载；任务可见性在控制器内按发起人与
+// system:task:index 等效权限判定。
+Route::get('/api/admin/v1/tasks', [TaskController::class, 'index']);
+Route::get('/api/admin/v1/tasks/{task_id}', [TaskController::class, 'show']);
+Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'download']);
