@@ -20,6 +20,16 @@ export interface CurrentUser {
   avatar?: string;
   mustChangePassword: boolean;
   permissions: string[];
+  // Optional fields mirror the OpenAPI User schema; older responses may omit them.
+  avatar_file_id?: string | null;
+  phone?: string;
+  email?: string | null;
+  dept_id?: string | null;
+  dept_name?: string | null;
+  post_id?: string | null;
+  role_ids?: string[];
+  is_admin?: boolean;
+  is_super?: boolean;
 }
 
 export interface PasswordPolicy {
