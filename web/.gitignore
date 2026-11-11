@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Test / coverage output
+coverage/
+*.lcov
+
+# Local env files — never commit real secrets; only .env.example is tracked
+.env
+.env.*
+!.env.example
+
+# Local tooling / editor artifacts
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
