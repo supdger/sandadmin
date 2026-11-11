@@ -518,24 +518,25 @@ export function UsersPage() {
       title: t('users.table.roles'),
       width: 180,
       render: (_: unknown, record: User) => {
-        const names = record.role_ids
-          .map((id) => roleNameMap.get(id))
-          .filter((n): n is string => Boolean(n));
-        if (names.length === 0) {
+        // key 用角色 id：同名角色并存时按名字做 key 会重复。
+        const roles = record.role_ids
+          .map((id) => ({ id, name: roleNameMap.get(id) }))
+          .filter((r): r is { id: string; name: string } => Boolean(r.name));
+        if (roles.length === 0) {
           return <Typography.Text type="secondary">—</Typography.Text>;
         }
-        const shown = names.slice(0, 2);
+        const shown = roles.slice(0, 2);
         const overflow = record.role_ids.length - shown.length;
         const tooltip =
-          names.join('、') +
-          (record.role_ids.length > names.length
+          roles.map((r) => r.name).join('、') +
+          (record.role_ids.length > roles.length
             ? `，${t('users.table.otherRoles', { count: record.role_ids.length })}`
             : '');
         return (
           <Space spacing={4} wrap>
-            {shown.map((name) => (
-              <Tag key={name} size="small">
-                {name}
+            {shown.map((r) => (
+              <Tag key={r.id} size="small">
+                {r.name}
               </Tag>
             ))}
             {overflow > 0 ? (
