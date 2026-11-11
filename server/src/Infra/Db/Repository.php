@@ -17,13 +17,10 @@ use Sandadmin\Infra\Db\Query\Page;
 /**
  * DBAL 仓储基类（无 ORM / EntityManager / Active Record）。
  *
- * 约定：
- * - 子类 per-table，`final`；公有方法只返回 VO / Page / ?VO / int / bool，不返回裸数组。
- * - 查询列由 columns() 显式列出，禁止 SELECT *；hydrate() 用 Row 逐列取类型化值。
- * - 排序/筛选字段白名单由 fieldMap() 给出（白名单键 => 列名）；筛选运算符由服务端固定，
- *   页面具名参数在各模块列表查询对象中声明，仓储用 where* 助手按白名单键落条件。
- * - 模糊匹配只允许 likeFields() 声明的字段（须有索引支撑），且只做前缀匹配。
- * - 无可变状态：仅持有构造注入的 Connection；每次调用新建 QueryBuilder。
+ * 约定：子类 per-table 且 final；公有方法只返回 VO/Page/?VO/int/bool；查询列由
+ * columns() 显式列出（禁 SELECT *），hydrate() 用 Row 取类型化值；排序/筛选字段
+ * 走 fieldMap() 白名单，筛选运算符由服务端固定，具名参数由各模块查询对象声明；
+ * 模糊匹配仅 likeFields() 声明的列且只做前缀；无可变状态，仅持有构造注入的 Connection。
  *
  * @template T of object
  */
@@ -79,7 +76,7 @@ abstract class Repository
         return [$this->primaryKey() => 'DESC'];
     }
 
-    protected function qb(): QueryBuilder
+    protected function queryBuilder(): QueryBuilder
     {
         return $this->connection->createQueryBuilder();
     }
@@ -87,8 +84,8 @@ abstract class Repository
     /** @return T|null */
     protected function findOneBy(string $column, int|string $value): ?object
     {
-        $qb = $this->qb()->select(...$this->columns())->from($this->table());
-        $row = $qb->where($qb->expr()->eq($this->connection->quoteSingleIdentifier($column), ':v'))
+        $queryBuilder = $this->queryBuilder()->select(...$this->columns())->from($this->table());
+        $row = $queryBuilder->where($queryBuilder->expr()->eq($this->connection->quoteSingleIdentifier($column), ':v'))
             ->setParameter('v', $value)->setMaxResults(1)
             ->executeQuery()->fetchAssociative();
 
@@ -104,7 +101,7 @@ abstract class Repository
     /** @return Page<T> */
     protected function paginate(ListQuery $query, ?QueryBuilder $base = null): Page
     {
-        $base ??= $this->qb()->from($this->table());
+        $base ??= $this->queryBuilder()->from($this->table());
 
         $count = (clone $base)->select('COUNT(*)')->executeQuery()->fetchOne();
         $total = is_numeric($count) ? (int) $count : 0;
@@ -144,45 +141,45 @@ abstract class Repository
      *
      * @param scalar|\DateTimeInterface|null $value
      */
-    protected function whereEq(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereEq(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'eq', $value);
+        $this->compare($queryBuilder, $field, $param, 'eq', $value);
     }
 
     /** @param scalar|\DateTimeInterface|null $value */
-    protected function whereNeq(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereNeq(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'neq', $value);
+        $this->compare($queryBuilder, $field, $param, 'neq', $value);
     }
 
     /** @param scalar|\DateTimeInterface|null $value */
-    protected function whereGt(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereGt(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'gt', $value);
+        $this->compare($queryBuilder, $field, $param, 'gt', $value);
     }
 
     /** @param scalar|\DateTimeInterface|null $value */
-    protected function whereGte(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereGte(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'gte', $value);
+        $this->compare($queryBuilder, $field, $param, 'gte', $value);
     }
 
     /** @param scalar|\DateTimeInterface|null $value */
-    protected function whereLt(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereLt(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'lt', $value);
+        $this->compare($queryBuilder, $field, $param, 'lt', $value);
     }
 
     /** @param scalar|\DateTimeInterface|null $value */
-    protected function whereLte(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    protected function whereLte(QueryBuilder $queryBuilder, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
     {
-        $this->compare($qb, $field, $param, 'lte', $value);
+        $this->compare($queryBuilder, $field, $param, 'lte', $value);
     }
 
     /**
      * 前缀模糊筛选（LIKE '值%'，可走索引）。仅 likeFields() 声明的字段可用，值里的 % _ \ 会被转义。
      */
-    protected function whereLikePrefix(QueryBuilder $qb, string $field, ?string $value, string $param): void
+    protected function whereLikePrefix(QueryBuilder $queryBuilder, string $field, ?string $value, string $param): void
     {
         if ($value === null || $value === '') {
             return;
@@ -190,8 +187,8 @@ abstract class Repository
         if (!in_array($field, $this->likeFields(), true)) {
             throw new InvalidQueryException("字段不支持模糊查询：{$field}", [$field => 'like_not_allowed']);
         }
-        $qb->setParameter($param, addcslashes($value, '%_\\') . '%');
-        $qb->andWhere($qb->expr()->like($this->column($field, '筛选'), ':' . $param, "'\\'"));
+        $queryBuilder->setParameter($param, addcslashes($value, '%_\\') . '%');
+        $queryBuilder->andWhere($queryBuilder->expr()->like($this->column($field, '筛选'), ':' . $param, "'\\'"));
     }
 
     /**
@@ -199,13 +196,13 @@ abstract class Repository
      *
      * @param list<scalar>|null $values
      */
-    protected function whereIn(QueryBuilder $qb, string $field, ?array $values, string $param): void
+    protected function whereIn(QueryBuilder $queryBuilder, string $field, ?array $values, string $param): void
     {
         if ($values === null || $values === []) {
             return;
         }
-        $qb->andWhere($qb->expr()->in($this->column($field, '筛选'), ':' . $param));
-        $qb->setParameter($param, $values, ArrayParameterType::STRING);
+        $queryBuilder->andWhere($queryBuilder->expr()->in($this->column($field, '筛选'), ':' . $param));
+        $queryBuilder->setParameter($param, $values, ArrayParameterType::STRING);
     }
 
     /**
@@ -213,22 +210,22 @@ abstract class Repository
      *
      * @param scalar|\DateTimeInterface|null $value
      */
-    private function compare(QueryBuilder $qb, string $field, string $param, string $op, string|int|float|bool|\DateTimeInterface|null $value): void
+    private function compare(QueryBuilder $queryBuilder, string $field, string $param, string $op, string|int|float|bool|\DateTimeInterface|null $value): void
     {
         if ($value === null) {
             return;
         }
-        $expr = $qb->expr();
+        $expr = $queryBuilder->expr();
         $col = $this->column($field, '筛选');
-        $p = ':' . $param;
-        $qb->setParameter($param, $this->bindValue($value));
-        $qb->andWhere(match ($op) {
-            'eq' => $expr->eq($col, $p),
-            'neq' => $expr->neq($col, $p),
-            'gt' => $expr->gt($col, $p),
-            'gte' => $expr->gte($col, $p),
-            'lt' => $expr->lt($col, $p),
-            'lte' => $expr->lte($col, $p),
+        $placeholder = ':' . $param;
+        $queryBuilder->setParameter($param, $this->bindValue($value));
+        $queryBuilder->andWhere(match ($op) {
+            'eq' => $expr->eq($col, $placeholder),
+            'neq' => $expr->neq($col, $placeholder),
+            'gt' => $expr->gt($col, $placeholder),
+            'gte' => $expr->gte($col, $placeholder),
+            'lt' => $expr->lt($col, $placeholder),
+            'lte' => $expr->lte($col, $placeholder),
             default => throw new \LogicException("未知筛选运算：{$op}"),
         });
     }
@@ -268,17 +265,17 @@ abstract class Repository
         return $this->connection->quoteSingleIdentifier($map[$field]);
     }
 
-    private function applySort(QueryBuilder $qb, ListQuery $query): void
+    private function applySort(QueryBuilder $queryBuilder, ListQuery $query): void
     {
         if ($query->sort === []) {
             foreach ($this->defaultOrder() as $col => $dir) {
-                $qb->addOrderBy($this->connection->quoteSingleIdentifier($col), $dir);
+                $queryBuilder->addOrderBy($this->connection->quoteSingleIdentifier($col), $dir);
             }
 
             return;
         }
         foreach ($query->sort as $sort) {
-            $qb->addOrderBy($this->column($sort->field, '排序'), $sort->direction->value);
+            $queryBuilder->addOrderBy($this->column($sort->field, '排序'), $sort->direction->value);
         }
     }
 }

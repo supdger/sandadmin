@@ -10,31 +10,31 @@ namespace Sandadmin\Tests\Unit\Module\DemoNote;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
 use Sandadmin\Infra\Db\Query\SortDirection;
-use Sandadmin\Module\DemoNote\DemoNoteListQuery;
+use Sandadmin\Module\DemoNote\DemoNoteQuery;
 
-final class DemoNoteListQueryTest extends TestCase
+final class DemoNoteQueryTest extends TestCase
 {
     public function testParsesNamedParams(): void
     {
-        $q = DemoNoteListQuery::fromArray([
+        $query = DemoNoteQuery::fromArray([
             'page' => '2', 'page_size' => '5', 'sort' => 'id', 'order' => 'desc',
             'keyword' => '  abc  ', 'status' => '2',
             'create_time_from' => '2026-01-01T00:00:00+08:00',
             'create_time_to' => '2026-01-31T23:59:59+08:00',
         ]);
-        self::assertSame([2, 5, 5], [$q->page, $q->pageSize, $q->offset()]);
-        self::assertSame(SortDirection::Desc, $q->sort[0]->direction);
-        self::assertSame('abc', $q->keyword);
-        self::assertSame(2, $q->status);
-        self::assertSame('2026-01-01', $q->createTimeFrom?->format('Y-m-d'));
-        self::assertSame('2026-01-31', $q->createTimeTo?->format('Y-m-d'));
+        self::assertSame([2, 5, 5], [$query->page, $query->pageSize, $query->offset()]);
+        self::assertSame(SortDirection::Desc, $query->sort[0]->direction);
+        self::assertSame('abc', $query->keyword);
+        self::assertSame(2, $query->status);
+        self::assertSame('2026-01-01', $query->createTimeFrom?->format('Y-m-d'));
+        self::assertSame('2026-01-31', $query->createTimeTo?->format('Y-m-d'));
     }
 
     public function testBlankParamsBecomeNull(): void
     {
-        $q = DemoNoteListQuery::fromArray(['keyword' => '   ', 'status' => '']);
-        self::assertNull($q->keyword);
-        self::assertNull($q->status);
+        $query = DemoNoteQuery::fromArray(['keyword' => '   ', 'status' => '']);
+        self::assertNull($query->keyword);
+        self::assertNull($query->status);
     }
 
     /** @return iterable<string, array{array<mixed>, string}> */
@@ -52,7 +52,7 @@ final class DemoNoteListQueryTest extends TestCase
     public function testRejectsInvalid(array $input, string $field): void
     {
         try {
-            DemoNoteListQuery::fromArray($input);
+            DemoNoteQuery::fromArray($input);
             self::fail('应抛出 InvalidQueryException');
         } catch (InvalidQueryException $e) {
             self::assertArrayHasKey($field, $e->fields);

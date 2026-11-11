@@ -91,13 +91,13 @@ readonly class ListQuery
         };
     }
 
-    private static function toInt(mixed $v, string $name): int
+    private static function toInt(mixed $value, string $name): int
     {
-        if (is_int($v)) {
-            return $v;
+        if (is_int($value)) {
+            return $value;
         }
-        if (is_string($v) && preg_match('/^\d{1,9}$/', $v) === 1) {
-            return (int) $v;
+        if (is_string($value) && preg_match('/^\d{1,9}$/', $value) === 1) {
+            return (int) $value;
         }
         throw new InvalidQueryException("$name 必须为整数", [$name => 'integer']);
     }

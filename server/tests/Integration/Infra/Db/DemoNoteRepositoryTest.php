@@ -13,7 +13,7 @@ use Doctrine\DBAL\Tools\DsnParser;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
 use Sandadmin\Module\DemoNote\DemoNote;
-use Sandadmin\Module\DemoNote\DemoNoteListQuery;
+use Sandadmin\Module\DemoNote\DemoNoteQuery;
 use Sandadmin\Module\DemoNote\DemoNoteRepository;
 
 /**
@@ -64,52 +64,52 @@ final class DemoNoteRepositoryTest extends TestCase
 
     public function testCrud(): void
     {
-        $n = $this->repo->create('new', 1, new \DateTimeImmutable('2026-02-01 00:00:00', new \DateTimeZone('UTC')));
-        self::assertInstanceOf(DemoNote::class, $this->repo->find($n->id));
-        self::assertTrue($this->repo->rename($n->id, 'renamed'));
-        self::assertSame('renamed', $this->repo->find($n->id)?->title);
-        self::assertTrue($this->repo->delete($n->id));
-        self::assertNull($this->repo->find($n->id));
-        self::assertFalse($this->repo->delete($n->id));
+        $note = $this->repo->create('new', 1, new \DateTimeImmutable('2026-02-01 00:00:00', new \DateTimeZone('UTC')));
+        self::assertInstanceOf(DemoNote::class, $this->repo->find($note->id));
+        self::assertTrue($this->repo->rename($note->id, 'renamed'));
+        self::assertSame('renamed', $this->repo->find($note->id)?->title);
+        self::assertTrue($this->repo->delete($note->id));
+        self::assertNull($this->repo->find($note->id));
+        self::assertFalse($this->repo->delete($note->id));
     }
 
     public function testPaginateDefaultOrder(): void
     {
-        $p = $this->repo->list(new DemoNoteListQuery(2, 2));
-        self::assertSame(5, $p->total);
-        self::assertSame(3, $p->pageCount());
-        self::assertSame(['gamma', 'beta'], array_map(static fn (DemoNote $n): string => $n->title, $p->items));
+        $page = $this->repo->list(new DemoNoteQuery(2, 2));
+        self::assertSame(5, $page->total);
+        self::assertSame(3, $page->pageCount());
+        self::assertSame(['gamma', 'beta'], array_map(static fn (DemoNote $note): string => $note->title, $page->items));
     }
 
     public function testNamedFiltersAndSort(): void
     {
-        $p = $this->repo->list(DemoNoteListQuery::fromArray(['status' => '1', 'sort' => 'title', 'order' => 'asc']));
-        self::assertSame(['alpha', 'delta', 'gamma'], array_map(static fn (DemoNote $n): string => $n->title, $p->items));
+        $page = $this->repo->list(DemoNoteQuery::fromArray(['status' => '1', 'sort' => 'title', 'order' => 'asc']));
+        self::assertSame(['alpha', 'delta', 'gamma'], array_map(static fn (DemoNote $note): string => $note->title, $page->items));
 
-        $p = $this->repo->list(DemoNoteListQuery::fromArray([
+        $page = $this->repo->list(DemoNoteQuery::fromArray([
             'create_time_from' => '2026-01-03T00:00:00Z',
             'create_time_to' => '2026-01-04T23:59:59Z',
         ]));
-        self::assertSame(2, $p->total);
+        self::assertSame(2, $page->total);
     }
 
     public function testLikePrefixEscapesWildcards(): void
     {
-        self::assertSame(1, $this->repo->list(DemoNoteListQuery::fromArray(['keyword' => 'a']))->total);
-        self::assertSame(1, $this->repo->list(DemoNoteListQuery::fromArray(['keyword' => '100%']))->total);
-        self::assertSame(0, $this->repo->list(DemoNoteListQuery::fromArray(['keyword' => '%']))->total);
-        self::assertSame(0, $this->repo->list(DemoNoteListQuery::fromArray(['keyword' => 'ta']))->total);
+        self::assertSame(1, $this->repo->list(DemoNoteQuery::fromArray(['keyword' => 'a']))->total);
+        self::assertSame(1, $this->repo->list(DemoNoteQuery::fromArray(['keyword' => '100%']))->total);
+        self::assertSame(0, $this->repo->list(DemoNoteQuery::fromArray(['keyword' => '%']))->total);
+        self::assertSame(0, $this->repo->list(DemoNoteQuery::fromArray(['keyword' => 'ta']))->total);
     }
 
     public function testRejectsUnknownSortField(): void
     {
         $this->expectException(InvalidQueryException::class);
-        $this->repo->list(DemoNoteListQuery::fromArray(['sort' => 'title;drop table x']));
+        $this->repo->list(DemoNoteQuery::fromArray(['sort' => 'title;drop table x']));
     }
 
     public function testRejectsNonWhitelistSortField(): void
     {
         $this->expectException(InvalidQueryException::class);
-        $this->repo->list(DemoNoteListQuery::fromArray(['sort' => 'password_hash']));
+        $this->repo->list(DemoNoteQuery::fromArray(['sort' => 'password_hash']));
     }
 }

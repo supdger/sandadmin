@@ -58,15 +58,15 @@ final class DemoNoteRepository extends Repository
     }
 
     /** @return Page<DemoNote> */
-    public function list(DemoNoteListQuery $query): Page
+    public function list(DemoNoteQuery $query): Page
     {
-        $qb = $this->qb()->from($this->table());
-        $this->whereLikePrefix($qb, 'title', $query->keyword, 'keyword');
-        $this->whereEq($qb, 'status', $query->status, 'status');
-        $this->whereGte($qb, 'create_time', $query->createTimeFrom, 'create_time_from');
-        $this->whereLte($qb, 'create_time', $query->createTimeTo, 'create_time_to');
+        $queryBuilder = $this->queryBuilder()->from($this->table());
+        $this->whereLikePrefix($queryBuilder, 'title', $query->keyword, 'keyword');
+        $this->whereEq($queryBuilder, 'status', $query->status, 'status');
+        $this->whereGte($queryBuilder, 'create_time', $query->createTimeFrom, 'create_time_from');
+        $this->whereLte($queryBuilder, 'create_time', $query->createTimeTo, 'create_time_to');
 
-        return $this->paginate($query, $qb);
+        return $this->paginate($query, $queryBuilder);
     }
 
     public function create(string $title, int $status, \DateTimeImmutable $now): DemoNote

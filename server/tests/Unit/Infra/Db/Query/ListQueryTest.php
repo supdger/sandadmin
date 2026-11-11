@@ -17,26 +17,26 @@ final class ListQueryTest extends TestCase
 {
     public function testDefaults(): void
     {
-        $q = ListQuery::fromArray([]);
-        self::assertSame([1, 20, 0, []], [$q->page, $q->pageSize, $q->offset(), $q->sort]);
+        $query = ListQuery::fromArray([]);
+        self::assertSame([1, 20, 0, []], [$query->page, $query->pageSize, $query->offset(), $query->sort]);
     }
 
     public function testParsesPageSortOrder(): void
     {
-        $q = ListQuery::fromArray([
+        $query = ListQuery::fromArray([
             'page' => '3', 'page_size' => '10', 'sort' => 'create_time', 'order' => 'desc',
             'keyword' => 'abc', 'status' => '1',
         ]);
-        self::assertSame(20, $q->offset());
-        self::assertCount(1, $q->sort);
-        self::assertSame('create_time', $q->sort[0]->field);
-        self::assertSame(SortDirection::Desc, $q->sort[0]->direction);
+        self::assertSame(20, $query->offset());
+        self::assertCount(1, $query->sort);
+        self::assertSame('create_time', $query->sort[0]->field);
+        self::assertSame(SortDirection::Desc, $query->sort[0]->direction);
     }
 
     public function testSortDefaultsAscAndBlankSortIgnored(): void
     {
-        $q = ListQuery::fromArray(['sort' => 'title']);
-        self::assertSame(SortDirection::Asc, $q->sort[0]->direction);
+        $query = ListQuery::fromArray(['sort' => 'title']);
+        self::assertSame(SortDirection::Asc, $query->sort[0]->direction);
         self::assertSame([], ListQuery::fromArray(['sort' => ''])->sort);
         self::assertSame([], ListQuery::fromArray(['sort' => '   '])->sort);
     }
@@ -71,9 +71,9 @@ final class ListQueryTest extends TestCase
 
     public function testPageJsonShape(): void
     {
-        $p = new Page([], 41, 2, 20);
-        self::assertSame(3, $p->pageCount());
-        self::assertSame(['items' => [], 'total' => 41, 'page' => 2, 'page_size' => 20], $p->jsonSerialize());
+        $page = new Page([], 41, 2, 20);
+        self::assertSame(3, $page->pageCount());
+        self::assertSame(['items' => [], 'total' => 41, 'page' => 2, 'page_size' => 20], $page->jsonSerialize());
         self::assertSame(0, (new Page([], 0, 1, 20))->pageCount());
     }
 }

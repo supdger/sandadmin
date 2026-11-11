@@ -16,7 +16,7 @@ use Sandadmin\Infra\Db\Query\ListQuery;
  * 对应接口参数：keyword（title 前缀模糊）、status（等值）、
  * create_time_from / create_time_to（时间范围，含端点）。
  */
-final readonly class DemoNoteListQuery extends ListQuery
+final readonly class DemoNoteQuery extends ListQuery
 {
     /**
      * @param list<\Sandadmin\Infra\Db\Query\Sort> $sort
