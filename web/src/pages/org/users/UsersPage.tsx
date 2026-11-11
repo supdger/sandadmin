@@ -204,14 +204,6 @@ export function UsersPage() {
   const meQuery = useOrgMe();
   const selfId = meQuery.data?.id;
 
-  const roleNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const role of rolesQuery.data?.items ?? []) {
-      map.set(role.id, role.name);
-    }
-    return map;
-  }, [rolesQuery.data]);
-
   const [panelOpen, setPanelOpen] = useState(() => viewportWidth >= 1600);
   const [deptKeyword, setDeptKeyword] = useState('');
   // 手动展开记录；搜索时全部可见节点展开，不写回。
@@ -489,11 +481,13 @@ export function UsersPage() {
                 {record.nickname}
               </Typography.Text>
             )}
-            <div>
-              <Typography.Text type="secondary" size="small">
-                {record.username ?? t('users.table.usernameFallback')}
-              </Typography.Text>
-            </div>
+            {record.username ? (
+              <div>
+                <Typography.Text type="secondary" size="small">
+                  {record.username}
+                </Typography.Text>
+              </div>
+            ) : null}
           </div>
         </div>
       ),
@@ -515,28 +509,33 @@ export function UsersPage() {
       ),
     },
     {
+      title: t('users.table.post'),
+      width: 140,
+      render: (_: unknown, record: User) => (
+        <Typography.Text ellipsis={{ showTooltip: true }}>
+          {record.post_name ?? t('common.unset')}
+        </Typography.Text>
+      ),
+    },
+    {
       title: t('users.table.roles'),
       width: 180,
       render: (_: unknown, record: User) => {
-        // key 用角色 id：同名角色并存时按名字做 key 会重复。
-        const roles = record.role_ids
-          .map((id) => ({ id, name: roleNameMap.get(id) }))
-          .filter((r): r is { id: string; name: string } => Boolean(r.name));
-        if (roles.length === 0) {
+        if (record.role_names.length === 0) {
           return <Typography.Text type="secondary">—</Typography.Text>;
         }
-        const shown = roles.slice(0, 2);
-        const overflow = record.role_ids.length - shown.length;
+        const shown = record.role_names.slice(0, 2);
+        const overflow = record.role_names.length - shown.length;
         const tooltip =
-          roles.map((r) => r.name).join('、') +
-          (record.role_ids.length > roles.length
+          record.role_names.join('、') +
+          (record.role_ids.length > record.role_names.length
             ? `，${t('users.table.otherRoles', { count: record.role_ids.length })}`
             : '');
         return (
           <Space spacing={4} wrap>
-            {shown.map((r) => (
-              <Tag key={r.id} size="small">
-                {r.name}
+            {shown.map((name, index) => (
+              <Tag key={record.role_ids[index] ?? name} size="small">
+                {name}
               </Tag>
             ))}
             {overflow > 0 ? (

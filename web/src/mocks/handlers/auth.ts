@@ -115,11 +115,11 @@ function mulberry32(seed: number): () => number {
 }
 
 function hashId(id: string): number {
-  let h = 0;
+  let hash = 0;
   for (let i = 0; i < id.length; i += 1) {
-    h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
+    hash = (Math.imul(hash, 31) + id.charCodeAt(i)) >>> 0;
   }
-  return h;
+  return hash;
 }
 
 function createCaptcha(): { captchaId: string; imageDataUrl: string } {

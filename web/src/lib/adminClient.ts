@@ -5,11 +5,8 @@ import i18n from '@/i18n/i18n';
 import { getToken } from './authToken';
 
 /**
- * 1.x admin 契约（`/api/admin/v1`）的客户端。与 `apiClient.ts`
- * （旧信封 `{code:number}` + camelCase）不同，本客户端遵循
- * api-conventions.md：成功是 HTTP 200 上的 `{data, request_id}`，
- * 失败带真实 HTTP 状态和 `{code: UPPER_SNAKE, message, fields,
- * request_id}`。所有载荷保持 snake_case——不做大小写转换层。
+ * 1.x admin 契约（`/api/admin/v1`）的客户端：信封、错误码与
+ * snake_case 约定见 api-conventions.md，本文件不重复。
  */
 
 const ADMIN_V1_PATH = '/admin/v1';

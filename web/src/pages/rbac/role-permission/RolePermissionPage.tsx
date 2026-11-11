@@ -24,7 +24,7 @@ import {
   getRolePermissions,
   saveRolePermissions,
 } from '@/api/v1/roles';
-import type { DataScope, Id } from '@/api/v1/types';
+import type { PermScope, Id } from '@/api/v1/types';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
@@ -39,7 +39,7 @@ import {
 } from '@/pages/rbac/lib/permissionMatrix';
 import { PermissionMatrix } from './PermissionMatrix';
 
-const SCOPE_ORDER: DataScope[] = [
+const SCOPE_ORDER: PermScope[] = [
   'all',
   'dept_and_child',
   'dept',
@@ -114,7 +114,7 @@ export function RolePermissionPage() {
     staleTime: 60_000,
   });
 
-  const [dataScope, setDataScope] = useState<DataScope>('self');
+  const [permScope, setPermScope] = useState<PermScope>('self');
   const [deptIds, setDeptIds] = useState<Id[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [baseVersion, setBaseVersion] = useState(1);
@@ -129,7 +129,7 @@ export function RolePermissionPage() {
     : '';
   if (permissions.data && wantStamp !== seedStamp) {
     setSeedStamp(wantStamp);
-    setDataScope(permissions.data.data_scope);
+    setPermScope(permissions.data.data_scope);
     setDeptIds(permissions.data.dept_ids);
     setSelected(new Set(permissions.data.permission_codes));
     setBaseVersion(permissions.data.base_version);
@@ -139,11 +139,11 @@ export function RolePermissionPage() {
     const data = permissions.data;
     if (!data) return false;
     return (
-      dataScope !== data.data_scope ||
+      permScope !== data.data_scope ||
       !sameIds(deptIds, data.dept_ids) ||
       !sameSet(selected, data.permission_codes)
     );
-  }, [permissions.data, dataScope, deptIds, selected]);
+  }, [permissions.data, permScope, deptIds, selected]);
 
   // 有未保存改动时离开页面前提醒。
   useEffect(() => {
@@ -168,8 +168,8 @@ export function RolePermissionPage() {
   const save = useMutation({
     mutationFn: () =>
       saveRolePermissions(roleId, {
-        data_scope: dataScope,
-        dept_ids: dataScope === 'custom' ? deptIds : [],
+        data_scope: permScope,
+        dept_ids: permScope === 'custom' ? deptIds : [],
         permission_codes: Array.from(selected),
         base_version: baseVersion,
       }),
@@ -217,7 +217,7 @@ export function RolePermissionPage() {
     [depts.data],
   );
 
-  const customInvalid = dataScope === 'custom' && deptIds.length === 0;
+  const customInvalid = permScope === 'custom' && deptIds.length === 0;
 
   if (role.isError || permissions.isError) {
     const failed = role.isError ? role : permissions;
@@ -273,19 +273,19 @@ export function RolePermissionPage() {
             title={
               <div className="flex flex-col">
                 <Typography.Text strong>
-                  {t('permission.dataScopeCard')}
+                  {t('permission.scopeCard')}
                 </Typography.Text>
                 <Typography.Text type="secondary" size="small">
-                  {t('permission.dataScopeHint')}
+                  {t('permission.scopeHint')}
                 </Typography.Text>
               </div>
             }
           >
             <Radio.Group
               type="button"
-              value={dataScope}
+              value={permScope}
               disabled={readonly}
-              onChange={(e) => setDataScope(e.target.value as DataScope)}
+              onChange={(e) => setPermScope(e.target.value as PermScope)}
             >
               {SCOPE_ORDER.map((scope) => (
                 <Radio key={scope} value={scope}>
@@ -300,7 +300,7 @@ export function RolePermissionPage() {
                 </Radio>
               ))}
             </Radio.Group>
-            {dataScope === 'custom' ? (
+            {permScope === 'custom' ? (
               <div className="mt-3 max-w-md">
                 <Typography.Text strong size="small">
                   {t('permission.deptSelect')}

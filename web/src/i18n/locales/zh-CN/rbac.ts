@@ -9,7 +9,7 @@ export default {
     statusDisabled: '已停用',
     colRole: '角色',
     colUsers: '人数',
-    colDataScope: '能看的数据',
+    colScope: '能看的数据',
     colStatus: '状态',
     colUpdated: '最近修改',
     colActions: '操作',
@@ -68,7 +68,7 @@ export default {
       deleted: '已删除“{{name}}”',
       deletedMoved: '已删除“{{name}}”，其中 {{count}} 人已转到默认角色',
     },
-    dataScope: {
+    scope: {
       all: '全公司',
       dept_and_child: '本部门及下级部门',
       dept: '本部门',
@@ -81,8 +81,8 @@ export default {
     breadcrumbRole: '角色与权限',
     breadcrumbSet: '设置权限',
     subtitleWithUsers: '有 {{count}} 人是这个角色，保存后他们马上按新权限使用',
-    dataScopeCard: '能看哪些数据',
-    dataScopeHint: '这个角色能看到哪些人的数据',
+    scopeCard: '能看哪些数据',
+    scopeHint: '这个角色能看到哪些人的数据',
     scopeOptions: {
       all: { label: '全公司', desc: '能看所有人的数据' },
       dept_and_child: { label: '本部门及下级部门', desc: '能看自己部门和下级部门的数据' },

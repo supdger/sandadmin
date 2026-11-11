@@ -108,6 +108,20 @@ export const mockDepts: Dept[] = [
         user_count: 1,
         children: [],
       },
+      {
+        id: 'dept-service',
+        parent_id: 'dept-root',
+        name: '客服部',
+        leader_id: 'u-012',
+        leader_name: '李芳',
+        leader_avatar: null,
+        leader_status: 'disabled',
+        phone: null,
+        sort: 4,
+        status: 'enabled',
+        user_count: 2,
+        children: [],
+      },
     ],
   },
 ];
@@ -127,6 +141,7 @@ export const mockRoles: Role[] = [
   { id: 'role-tech-lead', name: '技术负责人', remark: null, is_system: false, is_super: false, status: 'enabled', data_scope: 'dept_and_child', user_count: 3, update_time: T0 },
   { id: 'role-ops', name: '运营专员', remark: null, is_system: false, is_super: false, status: 'enabled', data_scope: 'dept', user_count: 4, update_time: T0 },
   { id: 'role-viewer', name: '只读访客', remark: '仅查看', is_system: false, is_super: false, status: 'disabled', data_scope: 'self', user_count: 0, update_time: T0 },
+  { id: 'role-brand', name: '品牌推广', remark: '只看指定部门的数据', is_system: false, is_super: false, status: 'enabled', data_scope: 'custom', user_count: 1, update_time: T0 },
 ];
 
 function makeUser(i: number, overrides: Partial<User> = {}): User {
@@ -135,6 +150,16 @@ function makeUser(i: number, overrides: Partial<User> = {}): User {
   const given = ['伟', '芳', '娜', '敏', '静', '磊', '洋', '艳', '勇', '军'];
   const deptId = deptCycle[i % deptCycle.length];
   const disabled = i % 11 === 0;
+  const postId =
+    overrides.post_id !== undefined
+      ? overrides.post_id
+      : i % 3 === 0
+        ? 'post-1'
+        : i % 3 === 1
+          ? 'post-2'
+          : 'post-3';
+  const roleIds =
+    overrides.role_ids ?? (i % 4 === 0 ? ['role-admin'] : i % 4 === 1 ? ['role-tech-lead'] : ['role-ops']);
   return {
     id: `u-${String(i + 1).padStart(3, '0')}`,
     username: `user${String(i + 1).padStart(3, '0')}`,
@@ -150,8 +175,10 @@ function makeUser(i: number, overrides: Partial<User> = {}): User {
     permissions: i === 0 ? ['*'] : [],
     dept_id: deptId,
     dept_name: { 'dept-tech': '技术部', 'dept-product': '产品部', 'dept-ops': '运营部', 'dept-root': '沙盒网络' }[deptId] ?? null,
-    post_id: i % 3 === 0 ? 'post-1' : i % 3 === 1 ? 'post-2' : 'post-3',
-    role_ids: i % 4 === 0 ? ['role-admin'] : i % 4 === 1 ? ['role-tech-lead'] : ['role-ops'],
+    post_id: postId,
+    post_name: mockPosts.find((post) => post.id === postId)?.name ?? null,
+    role_ids: roleIds,
+    role_names: roleIds.map((roleId) => mockRoles.find((role) => role.id === roleId)?.name ?? roleId),
     last_login_time: i === 0 ? '2026-06-10T08:12:00+08:00' : `2026-06-${String(1 + (i % 9)).padStart(2, '0')}T1${i % 10}:0${i % 6}:00+08:00`,
     create_time: `2026-0${1 + (i % 5)}-${String(3 + (i % 25)).padStart(2, '0')}T10:00:00+08:00`,
     ...overrides,
@@ -207,6 +234,16 @@ export const mockUsers: User[] = [
     dept_name: '产品部',
     post_id: 'post-3',
     role_ids: ['role-ops'],
+  }),
+  // 没有登录账号的用户：只留手机号登录，列表不显示第二行灰字。
+  makeUser(30, {
+    id: 'u-phoneonly',
+    username: null,
+    nickname: '无账号',
+    dept_id: 'dept-ops',
+    dept_name: '运营部',
+    post_id: null,
+    role_ids: ['role-brand'],
   }),
   ...Array.from({ length: 22 }, (_, i) => makeUser(i + 5)),
 ];
@@ -352,7 +389,20 @@ export interface RolePermissionsState {
   base_version: number;
 }
 
-export const mockRolePermissions = new Map<string, RolePermissionsState>();
+// 「品牌推广」的指定部门只有前端组：删前端组时 delete-check 会把它列进 affected_roles。
+const seededRolePermissions: [string, RolePermissionsState][] = [
+  [
+    'role-brand',
+    {
+      data_scope: 'custom',
+      dept_ids: ['dept-frontend'],
+      permission_codes: ['system:user:index'],
+      base_version: 1,
+    },
+  ],
+];
+
+export const mockRolePermissions = new Map<string, RolePermissionsState>(seededRolePermissions);
 
 export interface MockTask extends Task {
   /** 内部字段：任务到达最终状态前还要被 GET 轮询的次数。 */
@@ -453,6 +503,9 @@ export function resetV1Mock(): void {
   authzVersionCounter = 1;
   mockMenuTree = buildMenuTree();
   mockRolePermissions.clear();
+  for (const [roleId, state] of seededRolePermissions) {
+    mockRolePermissions.set(roleId, structuredClone(state));
+  }
   mockUsers.splice(0, mockUsers.length, ...structuredClone(initialUsers));
   mockPosts.splice(0, mockPosts.length, ...structuredClone(initialPosts));
   mockRoles.splice(0, mockRoles.length, ...structuredClone(initialRoles));

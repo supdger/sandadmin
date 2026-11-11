@@ -17,7 +17,9 @@ export interface User {
   dept_id: Id;
   dept_name: string | null;
   post_id: Id | null;
+  post_name: string | null;
   role_ids: Id[];
+  role_names: string[];
   last_login_time: string | null;
   create_time: string;
 }
@@ -39,6 +41,9 @@ export interface UserWrite {
   role_ids: Id[];
   status?: UserStatus;
 }
+
+/** 更新用户入参：字段同 UserWrite 但不含 password，改密码走 reset-password。 */
+export type UserUpdate = Omit<UserWrite, 'password'>;
 
 export interface DisableCheckItem {
   source: string;
@@ -81,7 +86,7 @@ export function getUser(userId: Id): Promise<UserDetail> {
   return adminGet<UserDetail>(userPath(userId));
 }
 
-export function updateUser(userId: Id, body: UserWrite): Promise<User> {
+export function updateUser(userId: Id, body: UserUpdate): Promise<User> {
   return adminPut<User>(userPath(userId), body);
 }
 

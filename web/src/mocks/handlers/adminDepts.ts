@@ -2,8 +2,9 @@ import type { HttpHandler } from 'msw';
 import { http } from 'msw';
 
 import type { Dept, DeptWrite } from '@/api/v1/depts';
+import type { Role } from '@/api/v1/roles';
 import { failV1, okV1, queryParam, requirePermission, v1Base } from './_v1';
-import { flattenDepts, mockDepts, mockUsers } from './_v1data';
+import { flattenDepts, mockDepts, mockRolePermissions, mockRoles, mockUsers } from './_v1data';
 
 const DEPT_PERMS = {
   index: 'system:dept:index',
@@ -62,13 +63,37 @@ function insertDept(depts: Dept[], dept: Dept): void {
 
 /** 负责人冗余字段：列表直接展示，不用再联查用户。 */
 function leaderFields(leaderId: string | null) {
-  const user = leaderId ? mockUsers.find((u) => u.id === leaderId) : undefined;
+  const leader = leaderId ? mockUsers.find((user) => user.id === leaderId) : undefined;
   return {
     leader_id: leaderId,
-    leader_name: user?.nickname ?? null,
-    leader_avatar: user?.avatar ?? null,
-    leader_status: user?.status ?? null,
+    leader_name: leader?.nickname ?? null,
+    leader_avatar: leader?.avatar ?? null,
+    leader_status: leader?.status ?? null,
   };
+}
+
+/** 「指定部门」只剩这一个部门的角色：删完后它们的数据范围会降级成「只看自己的」。 */
+function rolesOnlyOnDept(deptId: string): Role[] {
+  return mockRoles.filter((role) => {
+    const stored = mockRolePermissions.get(role.id);
+    const scope = stored?.data_scope ?? role.data_scope;
+    const deptIds = stored?.dept_ids ?? [];
+    return scope === 'custom' && deptIds.length === 1 && deptIds[0] === deptId;
+  });
+}
+
+/** 删除成功时同步降级受影响角色（契约：与删除同事务改成「只看自己的」）。 */
+function downgradeAffectedRoles(deptId: string): void {
+  for (const role of rolesOnlyOnDept(deptId)) {
+    const stored = mockRolePermissions.get(role.id);
+    role.data_scope = 'self';
+    mockRolePermissions.set(role.id, {
+      data_scope: 'self',
+      dept_ids: [],
+      permission_codes: stored?.permission_codes ?? [],
+      base_version: (stored?.base_version ?? 1) + 1,
+    });
+  }
 }
 
 export default [
@@ -83,14 +108,14 @@ export default [
     }
     const filter = (nodes: Dept[]): Dept[] =>
       nodes
-        .filter((d) => (status ? d.status === status : true))
-        .map((d) => {
-          const children = filter(d.children);
-          const selfMatch = !keyword || d.name.includes(keyword);
+        .filter((dept) => (status ? dept.status === status : true))
+        .map((dept) => {
+          const children = filter(dept.children);
+          const selfMatch = !keyword || dept.name.includes(keyword);
           if (keyword && !selfMatch && children.length === 0) return null;
-          return { ...d, children };
+          return { ...dept, children };
         })
-        .filter((d): d is Dept => d !== null);
+        .filter((dept): dept is Dept => dept !== null);
     return okV1({ items: filter(mockDepts) });
   }),
 
@@ -185,6 +210,20 @@ export default [
     return okV1(dept);
   }),
 
+  http.get(`${v1Base}/depts/:deptId/delete-check`, ({ request, params }) => {
+    const auth = requirePermission(request, DEPT_PERMS.remove);
+    if ('response' in auth) return auth.response;
+    const dept = findDept(String(params.deptId));
+    if (!dept) {
+      return failV1(404, 'DEPT_NOT_FOUND', '要操作的部门不存在或已被删除');
+    }
+    return okV1({
+      user_count: dept.user_count,
+      child_count: dept.children.length,
+      affected_roles: rolesOnlyOnDept(dept.id).map((role) => ({ id: role.id, name: role.name })),
+    });
+  }),
+
   http.delete(`${v1Base}/depts/:deptId`, ({ request, params }) => {
     const auth = requirePermission(request, DEPT_PERMS.remove);
     if ('response' in auth) return auth.response;
@@ -195,6 +234,7 @@ export default [
     if (dept.children.length > 0 || dept.user_count > 0) {
       return failV1(409, 'DEPT_NOT_EMPTY', '部门下还有子部门或成员，不能删除');
     }
+    downgradeAffectedRoles(dept.id);
     removeFromTree(mockDepts, dept.id);
     return okV1({});
   }),

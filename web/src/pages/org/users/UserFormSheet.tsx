@@ -15,7 +15,14 @@ import {
 } from '@douyinfe/semi-ui';
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
-import { createUser, getUser, updateUser, type User, type UserWrite } from '@/api/v1/users';
+import {
+  createUser,
+  getUser,
+  updateUser,
+  type User,
+  type UserUpdate,
+  type UserWrite,
+} from '@/api/v1/users';
 import { isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
@@ -65,9 +72,6 @@ const FORM_KEYS = [
 function snapshotOf(values: FormValues): string {
   return FORM_KEYS.map((key) => JSON.stringify(values[key] ?? null)).join('|');
 }
-
-/** 编辑提交不带 password（契约 UserWrite 标了必填，见报告里的契约缺口）。 */
-type UserUpdateBody = Omit<UserWrite, 'password'> & { password?: string };
 
 export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onSaved }: UserFormSheetProps) {
   const { t } = useTranslation('org');
@@ -242,8 +246,8 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         status: values.status ? ('enabled' as const) : ('disabled' as const),
       };
       if (isEdit && user) {
-        const body: UserUpdateBody = { ...payload };
-        await updateUser(user.id, body as UserWrite);
+        const body: UserUpdate = { ...payload };
+        await updateUser(user.id, body);
         Toast.success(t('users.form.saved'));
       } else {
         const body: UserWrite = { ...payload, password: values.password ?? '' };

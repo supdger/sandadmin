@@ -1,7 +1,7 @@
 import type { HttpHandler } from 'msw';
 import { http } from 'msw';
 
-import type { User, UserDetail, UserWrite } from '@/api/v1/users';
+import type { User, UserDetail, UserUpdate, UserWrite } from '@/api/v1/users';
 import { failV1, okV1, queryPage, queryParam, requirePermission, v1Base } from './_v1';
 import {
   createExportTask,
@@ -27,12 +27,22 @@ function findUser(id: string): User | undefined {
   return mockUsers.find((u) => u.id === id);
 }
 
+/** 列表冗余的角色名/岗位名：与 post_id、role_ids 保持一致。 */
+function nameFields(postId: string | null, roleIds: string[]) {
+  return {
+    post_name: mockPosts.find((post) => post.id === postId)?.name ?? null,
+    role_names: roleIds.map(
+      (roleId) => mockRoles.find((role) => role.id === roleId)?.name ?? roleId,
+    ),
+  };
+}
+
 function toDetail(user: User): UserDetail {
-  const post = mockPosts.find((p) => p.id === user.post_id) ?? null;
+  const post = mockPosts.find((item) => item.id === user.post_id) ?? null;
   const roles = user.role_ids
-    .map((rid) => mockRoles.find((r) => r.id === rid))
-    .filter((r): r is NonNullable<typeof r> => Boolean(r))
-    .map((r) => ({ id: r.id, name: r.name }));
+    .map((roleId) => mockRoles.find((role) => role.id === roleId))
+    .filter((role): role is NonNullable<typeof role> => Boolean(role))
+    .map((role) => ({ id: role.id, name: role.name }));
   return {
     ...user,
     dept_path: user.dept_name ? `沙盒网络 / ${user.dept_name}` : null,
@@ -120,9 +130,11 @@ export default [
       must_change_password: true,
       permissions: [],
       dept_id: body.dept_id!,
-      dept_name: flattenDepts(mockDepts).find((d) => d.id === body.dept_id)?.name ?? null,
+      dept_name:
+        flattenDepts(mockDepts).find((dept) => dept.id === body.dept_id)?.name ?? null,
       post_id: body.post_id ?? null,
       role_ids: body.role_ids ?? [],
+      ...nameFields(body.post_id ?? null, body.role_ids ?? []),
       last_login_time: null,
       create_time: new Date().toISOString(),
     };
@@ -147,7 +159,7 @@ export default [
     if (!user) {
       return failV1(404, 'USER_NOT_FOUND', '要操作的用户不存在或已被删除');
     }
-    const body = (await request.json()) as Partial<UserWrite>;
+    const body = (await request.json()) as Partial<UserUpdate>;
     const invalid = validateWrite(body);
     if (invalid) {
       return failV1(400, 'VALIDATION_FAILED', '提交的内容有误，请检查后重试', {
@@ -159,15 +171,18 @@ export default [
         username: ['这个登录名已经有人用了，请换一个'],
       });
     }
+    const postId = 'post_id' in body ? (body.post_id ?? null) : user.post_id;
+    const roleIds = body.role_ids ?? user.role_ids;
     Object.assign(user, {
-      username: body.username ?? user.username,
+      username: 'username' in body ? (body.username ?? null) : user.username,
       nickname: body.nickname?.trim() ?? user.nickname,
       phone: body.phone ?? user.phone,
-      email: body.email ?? user.email,
+      email: 'email' in body ? (body.email ?? null) : user.email,
       dept_id: body.dept_id ?? user.dept_id,
-      post_id: body.post_id ?? user.post_id,
-      role_ids: body.role_ids ?? user.role_ids,
+      post_id: postId,
+      role_ids: roleIds,
       status: body.status ?? user.status,
+      ...nameFields(postId, roleIds),
     });
     return okV1(user);
   }),

@@ -14,8 +14,6 @@ import { collectDescendantIds, deptTreeToOptions } from '../shared/deptTree';
 import { UserOptionSelect } from '../shared/UserOptionSelect';
 import type { DeptTreeOption } from '../shared/deptTree';
 
-const TOP_LEVEL_VALUE = '__top__';
-
 const FormLeaderSelect = withField(UserOptionSelect, {
   valueKey: 'value',
   onKeyChangeFnName: 'onChange',
@@ -50,7 +48,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
   const isEdit = mode === 'edit' && Boolean(dept);
   const isChild = mode === 'child' && Boolean(dept);
 
-  // 上级部门选项：编辑时剔除自身与下级，避免成环
+  // 上级部门选项：编辑时剔除自身与下级，避免成环；不选即顶层。
   const parentOptions = useMemo<DeptTreeOption[]>(() => {
     let source = tree;
     if (isEdit && dept) {
@@ -58,15 +56,12 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
       excluded.add(dept.id);
       const prune = (nodes: Dept[]): Dept[] =>
         nodes
-          .filter((n) => !excluded.has(n.id))
-          .map((n) => ({ ...n, children: prune(n.children) }));
+          .filter((node) => !excluded.has(node.id))
+          .map((node) => ({ ...node, children: prune(node.children) }));
       source = prune(tree);
     }
-    return [
-      { value: TOP_LEVEL_VALUE, label: t('depts.form.parentTop'), children: [] },
-      ...deptTreeToOptions(source),
-    ];
-  }, [tree, isEdit, dept, t]);
+    return deptTreeToOptions(source);
+  }, [tree, isEdit, dept]);
 
   useEffect(() => {
     if (!visible) {
@@ -82,7 +77,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     if (isEdit && dept) {
       api.setValues({
         name: dept.name,
-        parent_id: dept.parent_id ?? TOP_LEVEL_VALUE,
+        parent_id: dept.parent_id ?? undefined,
         leader_id: dept.leader_id ?? undefined,
         phone: dept.phone ?? undefined,
         status: dept.status === 'enabled',
@@ -90,7 +85,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     } else {
       api.setValues({
         name: '',
-        parent_id: isChild ? dept?.id : TOP_LEVEL_VALUE,
+        parent_id: isChild ? dept?.id : undefined,
         leader_id: undefined,
         phone: '',
         status: true,
@@ -105,8 +100,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     setSaving(true);
     setSystemError(null);
     setSubmitError('');
-    const parentId =
-      values.parent_id && values.parent_id !== TOP_LEVEL_VALUE ? values.parent_id : null;
+    const parentId = values.parent_id || null;
     const body: DeptWrite = {
       parent_id: parentId,
       name: (values.name ?? '').trim(),
@@ -204,6 +198,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
           label={t('depts.form.parent')}
           treeData={parentOptions}
           filterTreeNode
+          showClear
           placeholder={t('depts.form.parentPlaceholder')}
         />
         <FormLeaderSelect

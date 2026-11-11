@@ -11,7 +11,8 @@ export interface Page<T> {
 
 export type UserStatus = 'enabled' | 'disabled';
 
-export type DataScope = 'all' | 'dept_and_child' | 'dept' | 'self' | 'custom';
+/** 角色「能看的数据」范围（契约字段 data_scope 的取值）。 */
+export type PermScope = 'all' | 'dept_and_child' | 'dept' | 'self' | 'custom';
 
 export type TaskState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
 

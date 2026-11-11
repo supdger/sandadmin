@@ -30,6 +30,13 @@ export interface DeptTreeQuery extends AdminQuery {
   status?: UserStatus;
 }
 
+/** 删除部门预检查结果：affected_roles 里的角色删除后会降级成「只看自己的」。 */
+export interface DeptDeleteCheck {
+  user_count: number;
+  child_count: number;
+  affected_roles: { id: Id; name: string }[];
+}
+
 function deptPath(deptId: Id): string {
   return `/depts/${encodeURIComponent(deptId)}`;
 }
@@ -44,6 +51,10 @@ export function createDept(body: DeptWrite): Promise<Dept> {
 
 export function updateDept(deptId: Id, body: DeptWrite): Promise<Dept> {
   return adminPut<Dept>(deptPath(deptId), body);
+}
+
+export function deptDeleteCheck(deptId: Id): Promise<DeptDeleteCheck> {
+  return adminGet<DeptDeleteCheck>(`${deptPath(deptId)}/delete-check`);
 }
 
 export function deleteDept(deptId: Id): Promise<EmptyResult> {

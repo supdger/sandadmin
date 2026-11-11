@@ -27,7 +27,9 @@ function principalToUser(principal: { username: string; nickname: string; permis
     dept_id: 'dept-root',
     dept_name: '沙盒网络',
     post_id: null,
+    post_name: null,
     role_ids: [],
+    role_names: [],
     last_login_time: null,
     create_time: '2026-01-01T00:00:00+08:00',
   };

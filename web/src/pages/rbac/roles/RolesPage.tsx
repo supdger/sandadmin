@@ -29,7 +29,7 @@ import {
   updateRoleStatus,
   type Role,
 } from '@/api/v1/roles';
-import type { DataScope, UserStatus } from '@/api/v1/types';
+import type { PermScope, UserStatus } from '@/api/v1/types';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { ListPage } from '@/components/ListPage';
@@ -50,12 +50,12 @@ const QUERY_FIELDS: UrlQueryFields = {
   page_size: { kind: 'number', defaultValue: 20 },
 };
 
-const SCOPE_KEYS: Record<DataScope, string> = {
-  all: 'roles.dataScope.all',
-  dept_and_child: 'roles.dataScope.dept_and_child',
-  dept: 'roles.dataScope.dept',
-  self: 'roles.dataScope.self',
-  custom: 'roles.dataScope.custom',
+const SCOPE_KEYS: Record<PermScope, string> = {
+  all: 'roles.scope.all',
+  dept_and_child: 'roles.scope.dept_and_child',
+  dept: 'roles.scope.dept',
+  self: 'roles.scope.self',
+  custom: 'roles.scope.custom',
 };
 
 const STATUS_OPTIONS: { value: UserStatus; labelKey: string }[] = [
@@ -268,10 +268,10 @@ export function RolesPage() {
           ),
       },
       {
-        title: t('roles.colDataScope'),
+        title: t('roles.colScope'),
         dataIndex: 'data_scope',
         width: 150,
-        render: (scope: DataScope) => t(SCOPE_KEYS[scope]),
+        render: (scope: PermScope) => t(SCOPE_KEYS[scope]),
       },
       {
         title: t('roles.colStatus'),

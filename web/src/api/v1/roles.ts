@@ -1,5 +1,5 @@
 import { adminDelete, adminGet, adminPost, adminPut, type AdminQuery } from '@/lib/adminClient';
-import type { DataScope, EmptyResult, Id, Page, UserStatus } from './types';
+import type { PermScope, EmptyResult, Id, Page, UserStatus } from './types';
 
 export interface Role {
   id: Id;
@@ -8,7 +8,7 @@ export interface Role {
   is_system: boolean;
   is_super: boolean;
   status: UserStatus;
-  data_scope: DataScope;
+  data_scope: PermScope;
   user_count: number;
   update_time: string;
 }
@@ -27,7 +27,7 @@ export interface RoleListQuery extends AdminQuery {
 }
 
 export interface RolePermissions {
-  data_scope: DataScope;
+  data_scope: PermScope;
   dept_ids: Id[];
   permission_codes: string[];
   user_count: number;
@@ -36,7 +36,7 @@ export interface RolePermissions {
 }
 
 export interface RolePermissionsWrite {
-  data_scope: DataScope;
+  data_scope: PermScope;
   dept_ids: Id[];
   permission_codes: string[];
   base_version: number;

@@ -24,9 +24,11 @@ import { useCan } from '@/hooks/useCan';
 import { useUrlQuery, type UrlQueryFields } from '@/hooks/useUrlQuery';
 import {
   deleteDept,
+  deptDeleteCheck,
   getDeptTree,
   updateDept,
   type Dept,
+  type DeptDeleteCheck,
 } from '@/api/v1/depts';
 import { isAdminApiError } from '@/lib/adminClient';
 import { StatusTag } from '../shared/StatusTag';
@@ -261,10 +263,29 @@ export function DeptsPage() {
     });
   };
 
-  const removeDept = (dept: Dept) => {
+  const removeDept = async (dept: Dept) => {
+    let check: DeptDeleteCheck;
+    try {
+      check = await deptDeleteCheck(dept.id);
+    } catch (error) {
+      toastAdminError(error, t('common:errors.system.message'));
+      return;
+    }
+    const roleNames = check.affected_roles.map((role) => role.name).join('、');
     Modal.confirm({
       title: t('depts.danger.deleteTitle', { name: dept.name }),
-      content: t('depts.danger.deleteContent'),
+      content: (
+        <div>
+          <div>{t('depts.danger.deleteContent')}</div>
+          {check.affected_roles.length > 0 ? (
+            <div>
+              {t('depts.danger.affectedRoleNames', { names: roleNames })}
+              <br />
+              {t('depts.danger.affectedRoles', { count: check.affected_roles.length })}
+            </div>
+          ) : null}
+        </div>
+      ),
       okText: t('depts.danger.deleteOk'),
       cancelText: t('common.thinkAgain'),
       okType: 'danger',
@@ -358,9 +379,7 @@ export function DeptsPage() {
       title: t('depts.table.leader'),
       width: 160,
       render: (_: unknown, record: Dept) => {
-        if (!record.leader_id) {
-          return <Typography.Text type="tertiary">{t('common.noLeader')}</Typography.Text>;
-        }
+        // leader_status 为 null 表示未设置或负责人已删除，统一按「未设置」显示。
         if (record.leader_status === 'disabled') {
           return (
             <Space spacing={4}>
@@ -371,10 +390,13 @@ export function DeptsPage() {
             </Space>
           );
         }
+        if (!record.leader_name) {
+          return <Typography.Text type="tertiary">{t('common.noLeader')}</Typography.Text>;
+        }
         return (
           <Space spacing={4}>
             <Avatar size="extra-small" src={record.leader_avatar ?? undefined}>
-              {(record.leader_name ?? '').slice(0, 1)}
+              {record.leader_name.slice(0, 1)}
             </Avatar>
             <Typography.Text ellipsis={{ showTooltip: true }}>{record.leader_name}</Typography.Text>
           </Space>
@@ -413,7 +435,7 @@ export function DeptsPage() {
               }
             : null,
           canDelete
-            ? { key: 'delete', name: t('common.delete'), onClick: () => removeDept(record) }
+            ? { key: 'delete', name: t('common.delete'), onClick: () => void removeDept(record) }
             : null,
         ].filter((i): i is { key: string; name: string; onClick: () => void } => i !== null);
         return (
