@@ -28,5 +28,34 @@ export function fail(code: number, message: string, fields?: Record<string, stri
   });
 }
 
+/** OpenAPI success envelope: `{ data, request_id }` with no code/message. */
+export function okOpenapi<T>(data: T) {
+  return HttpResponse.json({
+    data,
+    request_id: newRequestId(),
+  });
+}
+
+/**
+ * OpenAPI failure envelope — the string `code` marks a business error and
+ * the HTTP status carries the failure category.
+ */
+export function failOpenapi(
+  status: number,
+  code: string,
+  message: string,
+  fields?: Record<string, string[]>,
+) {
+  return HttpResponse.json(
+    {
+      code,
+      message,
+      fields: fields ?? {},
+      request_id: newRequestId(),
+    },
+    { status },
+  );
+}
+
 // Aggregator flattens every sibling's default export — contribute nothing here.
 export default [] satisfies HttpHandler[];
