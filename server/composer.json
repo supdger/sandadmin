@@ -65,7 +65,8 @@
         "workerman/crontab": "^1.0",
         "zoujingli/ip2region": "^2.0",
         "aliyuncs/oss-sdk-php": "^2.7",
-        "smalot/pdfparser": "^2.12"
+        "smalot/pdfparser": "^2.12",
+        "doctrine/dbal": "^4.2"
     },
     "suggest": {
         "ext-event": "For better performance. "

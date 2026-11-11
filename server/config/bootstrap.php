@@ -13,6 +13,8 @@
  */
 
 return [
+    // 必须最先执行：生产环境开启 debug 时拒绝启动（安全 P0-F4）。
+    app\bootstrap\ProductionDebugGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];
