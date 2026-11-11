@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import { getDashboardCharts, type ChartRange, type DashboardChart } from '@/api/v1/dashboard';
+import { listOrEmpty } from './listOrEmpty';
 
 const RANGE_KEYS: ChartRange[] = ['7d', '30d', '90d'];
 const CHARTS_QUERY_KEY = ['dashboard', 'charts'] as const;
@@ -22,10 +23,11 @@ function LineChart({ chart }: { chart: DashboardChart }) {
   const width = 560;
   const height = 160;
   const padding = 8;
-  const values = chart.points.map((p) => p.value);
+  const points = listOrEmpty(chart.points);
+  const values = points.map((p) => p.value);
   const max = Math.max(...values, 1);
-  const stepX = chart.points.length > 1 ? (width - padding * 2) / (chart.points.length - 1) : 0;
-  const coords = chart.points.map((p, i) => {
+  const stepX = points.length > 1 ? (width - padding * 2) / (points.length - 1) : 0;
+  const coords = points.map((p, i) => {
     const x = padding + i * stepX;
     const y = height - padding - (p.value / max) * (height - padding * 2);
     return `${x},${y}`;
@@ -43,7 +45,7 @@ function LineChart({ chart }: { chart: DashboardChart }) {
         stroke="var(--semi-color-primary)"
         strokeWidth="2"
       />
-      {chart.points.map((p, i) => {
+      {points.map((p, i) => {
         const [x, y] = coords[i].split(',').map(Number);
         return <circle key={p.day} cx={x} cy={y} r="3" fill="var(--semi-color-primary)" />;
       })}
@@ -77,7 +79,7 @@ export function TrendCharts() {
     );
   };
 
-  const list = charts.data?.charts ?? [];
+  const list = listOrEmpty(charts.data?.charts);
 
   return (
     <Card

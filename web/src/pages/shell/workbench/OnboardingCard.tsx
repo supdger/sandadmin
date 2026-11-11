@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { getOnboarding } from '@/api/v1/dashboard';
+import { listOrEmpty } from './listOrEmpty';
 
 const ONBOARDING_QUERY_KEY = ['dashboard', 'onboarding'] as const;
 
@@ -25,14 +26,15 @@ export function OnboardingCard() {
     return null;
   }
   const state = onboarding.data;
-  if (state.done || state.steps.length === 0) {
+  const steps = listOrEmpty(state.steps);
+  if (state.done || steps.length === 0) {
     return null;
   }
 
   return (
     <Card title={t('onboarding.title')}>
       <div className="flex flex-col gap-2">
-        {state.steps.map((step) => {
+        {steps.map((step) => {
           const done = step.done;
           const link = STEP_LINKS[step.key];
           return (

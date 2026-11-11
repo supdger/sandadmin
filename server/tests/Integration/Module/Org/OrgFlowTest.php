@@ -518,6 +518,64 @@ final class OrgFlowTest extends TestCase
         }
     }
 
+    public function testReinstallKeepsPluginExtension(): void
+    {
+        $this->withPackageEnv('development', '0', '1', function (): void {
+            self::$conn->executeStatement("DELETE FROM sand_system_lifecycle_request WHERE target_code = 'flow'");
+            self::$conn->executeStatement("DELETE FROM sand_system_plugin_extension WHERE plugin_code = 'flow'");
+            self::$conn->executeStatement("DELETE FROM sand_system_plugin WHERE code = 'flow'");
+            $owner = $this->ownerActor('13700009071', 'pkgkeep', '甲测重装人');
+            $ops = new PackageOps(self::$conn);
+            $accepted = $ops->install('flow', $owner, 'req-pkg-keep');
+            $this->assertSame(200, $accepted['status']);
+            $data = $accepted['body']['data'] ?? null;
+            $this->assertIsArray($data);
+            $requestId = $data['request_id'] ?? '';
+            $this->assertIsString($requestId);
+            $this->finishPackageRequest($ops, $requestId);
+            $pluginId = self::$conn->fetchOne("SELECT id FROM sand_system_plugin WHERE code = 'flow' AND state = 'installed'");
+            $this->assertNotFalse($pluginId);
+            self::$conn->executeStatement(
+                "INSERT INTO sand_system_plugin_extension (plugin_code, kind, extension_key, enabled, sort)"
+                . " VALUES ('flow', 'workbench_card', 'flow.pending', false, 3)",
+            );
+            $removed = $ops->uninstall('flow', false, $owner, 'req-pkg-off');
+            $this->assertSame(200, $removed['status']);
+            $off = $removed['body']['data'] ?? null;
+            $this->assertIsArray($off);
+            $offId = $off['request_id'] ?? '';
+            $this->assertIsString($offId);
+            $this->finishPackageRequest($ops, $offId);
+            $this->assertSame('uninstalled', self::$conn->fetchOne("SELECT state FROM sand_system_plugin WHERE id = ?", [$pluginId]));
+            $again = $ops->install('flow', $owner, 'req-pkg-back');
+            $this->assertSame(200, $again['status']);
+            $back = $again['body']['data'] ?? null;
+            $this->assertIsArray($back);
+            $backId = $back['request_id'] ?? '';
+            $this->assertIsString($backId);
+            $this->finishPackageRequest($ops, $backId);
+            $this->assertSame($pluginId, self::$conn->fetchOne("SELECT id FROM sand_system_plugin WHERE code = 'flow' AND state = 'installed'"));
+            $this->assertSame(1, $this->rowsMatching(
+                "SELECT COUNT(*) FROM sand_system_plugin_extension WHERE plugin_code = 'flow' AND extension_key = 'flow.pending' AND enabled = false AND sort = 3",
+            ));
+        });
+    }
+
+    private function finishPackageRequest(PackageOps $ops, string $requestId): void
+    {
+        for ($step = 0; $step < 6; $step++) {
+            $ops->advance($requestId);
+            $state = self::$conn->fetchOne(
+                'SELECT state FROM sand_system_lifecycle_request WHERE public_id = ?',
+                [$requestId],
+            );
+            if ($state === 'succeeded') {
+                return;
+            }
+        }
+        $this->fail('生命周期没有完成');
+    }
+
     private function ownerActor(string $phone, string $username, string $nickname): OrgActor
     {
         $dept = self::$kernel->depts->create(['name' => '甲测' . $username], $this->actor, 'req-' . $username . '-d', '127.0.0.1', null);

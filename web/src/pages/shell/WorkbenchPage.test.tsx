@@ -2,11 +2,13 @@ import '@douyinfe/semi-ui/react19-adapter';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
+import { server } from '@/mocks/server';
 import { WorkbenchPage } from './WorkbenchPage';
 
 // jsdom has no ResizeObserver; Semi's observer component needs a no-op stub.
@@ -82,5 +84,36 @@ describe('WorkbenchPage', () => {
     renderPage();
     // Admin mock has todos; assert the section exists rather than empty copy.
     expect(await screen.findByText('待我处理')).toBeInTheDocument();
+  });
+
+  it('renders empty states when dashboard lists are missing', async () => {
+    server.use(
+      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/todos', () =>
+        HttpResponse.json({ data: { items: null, total: 0 }, request_id: 'empty' }),
+      ),
+      http.get('/api/admin/v1/dashboard/charts', () =>
+        HttpResponse.json({ data: { charts: null }, request_id: 'empty' }),
+      ),
+      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/notices', () =>
+        HttpResponse.json({ data: { items: null }, request_id: 'empty' }),
+      ),
+      http.get('/api/admin/v1/dashboard/shortcuts', () =>
+        HttpResponse.json({ data: { mode: 'auto', items: null }, request_id: 'empty' }),
+      ),
+      http.get('/api/admin/v1/dashboard/onboarding', () =>
+        HttpResponse.json({ data: { done: false, steps: null }, request_id: 'empty' }),
+      ),
+    );
+    setToken('mock-admin-token');
+    renderPage();
+
+    expect(await screen.findByText(/好，管理员/)).toBeInTheDocument();
+    expect(await screen.findByText('都处理完了，没有要你处理的事')).toBeInTheDocument();
+    expect(screen.getByText('数据会在明天出现')).toBeInTheDocument();
+    expect(screen.getByText('还没有动态，有人操作后会显示在这里')).toBeInTheDocument();
+    expect(screen.getByText('还没有快捷入口')).toBeInTheDocument();
+    expect(screen.queryByText('这张卡没能加载出来')).not.toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@
 use app\controller\DevLoginController;
 use app\controller\FileController;
 use Sandadmin\Http\AnnouncementController;
+use Sandadmin\Http\DashboardController;
 use Sandadmin\Http\DictController;
 use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
@@ -72,6 +73,16 @@ Route::get('/api/admin/v1/lifecycle-requests/{request_id}', [LifecycleController
 // 当前登录人与侧栏。开发本机登录的令牌在 MeController 内解析。
 Route::get('/api/admin/v1/me', [MeController::class, 'me']);
 Route::get('/api/admin/v1/me/menus', [MeController::class, 'menus']);
+
+// 工作台：没有待办、动态、提示时返回空列表，页面画空状态而不是报错。
+Route::get('/api/admin/v1/dashboard/onboarding', [DashboardController::class, 'onboarding']);
+Route::get('/api/admin/v1/dashboard/summary', [DashboardController::class, 'summary']);
+Route::get('/api/admin/v1/dashboard/todos/all', [DashboardController::class, 'allTodos']);
+Route::get('/api/admin/v1/dashboard/todos', [DashboardController::class, 'todos']);
+Route::get('/api/admin/v1/dashboard/charts', [DashboardController::class, 'charts']);
+Route::get('/api/admin/v1/dashboard/activities', [DashboardController::class, 'activities']);
+Route::get('/api/admin/v1/dashboard/notices', [DashboardController::class, 'notices']);
+Route::get('/api/admin/v1/dashboard/shortcuts', [DashboardController::class, 'shortcuts']);
 
 // 用户、部门、角色、岗位。静态路径先于带编号的路径。
 Route::get('/api/admin/v1/users', [OrgController::class, 'usersIndex']);

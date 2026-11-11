@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router';
 
 import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/v1/dashboard';
 import { adminErrorMessage } from '@/lib/adminError';
+import { listOrEmpty } from './listOrEmpty';
 
 const NOTICES_QUERY_KEY = ['dashboard', 'notices'] as const;
 
@@ -60,7 +61,7 @@ export function NoticeBanner() {
   if (notices.isPending || notices.isError || !notices.data) {
     return null;
   }
-  const visible = notices.data.items.filter((n) => n.notice_key !== dismissedKey);
+  const visible = listOrEmpty(notices.data.items).filter((n) => n.notice_key !== dismissedKey);
   if (visible.length === 0) {
     return null;
   }

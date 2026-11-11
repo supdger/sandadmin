@@ -447,8 +447,10 @@ final class PackageOps
         }
         $version = is_string($row['to_version'] ?? null) ? $row['to_version'] : $entry['version'];
         $sha = hash('sha256', $code . '-' . $version);
-        $existing = $this->installedVersion($code);
-        if ($existing === null && $kind === 'plugin_install') {
+        // 不删数据的卸载只把 state 改成 uninstalled，行还在。再装必须更新这行，
+        // 否则唯一约束会挡住插入，扩展位覆盖也会被级联删掉。
+        $kept = $this->connection->fetchOne('SELECT id FROM sand_system_plugin WHERE code = ?', [$code]);
+        if ($kept === false && $kind === 'plugin_install') {
             $this->connection->executeStatement(
                 'INSERT INTO sand_system_plugin (code, name, version, host_constraint, manifest_sha256, state)'
                 . ' VALUES (:code, :name, :version, :host, :sha, \'installed\')',

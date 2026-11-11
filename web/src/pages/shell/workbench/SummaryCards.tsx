@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { getSummaryCards, type DashboardCard } from '@/api/v1/dashboard';
+import { listOrEmpty } from './listOrEmpty';
 
 const CARD_TITLES: Record<string, string> = {
   users: 'cards.users.title',
@@ -96,7 +97,7 @@ export function SummaryCards() {
   if (summary.isError || !summary.data) {
     return null;
   }
-  const cards = summary.data.cards.filter((c) => CARD_TITLES[c.key]);
+  const cards = listOrEmpty(summary.data.cards).filter((c) => CARD_TITLES[c.key]);
   if (cards.length === 0) {
     return null;
   }
