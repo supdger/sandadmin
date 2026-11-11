@@ -17,6 +17,11 @@ export interface LoginResult {
   mustChangePassword: boolean;
 }
 
+export interface DevLoginAvailability {
+  available: boolean;
+  username?: string;
+}
+
 export interface PasswordPolicy {
   minLength: number;
   requireMixedCase: boolean;
@@ -27,6 +32,22 @@ export interface PasswordPolicy {
 
 export async function login(p: LoginParams): Promise<LoginResult> {
   const data = await apiPost<LoginResult>('/auth/login', p);
+  setToken(data.token);
+  return data;
+}
+
+// 查询失败一律按不可用处理：开发体验是附加能力，不能让登录页因为它打不开。
+export async function getDevLoginAvailable(): Promise<DevLoginAvailability> {
+  try {
+    return await apiGet<DevLoginAvailability>('/auth/dev-login/available');
+  } catch {
+    return { available: false };
+  }
+}
+
+// 成功响应与 login() 同构，复用同一解析与写令牌路径；不可用时后端回 HTTP 404。
+export async function devLogin(): Promise<LoginResult> {
+  const data = await apiPost<LoginResult>('/auth/dev-login');
   setToken(data.token);
   return data;
 }
