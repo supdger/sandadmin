@@ -192,6 +192,7 @@ export const mockUsers: User[] = [
     nickname: '管理员',
     is_admin: true,
     is_super: true,
+    status: 'enabled',
     dept_id: 'dept-root',
     dept_name: '沙盒网络',
     post_id: null,

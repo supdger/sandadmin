@@ -71,6 +71,9 @@ const URL_FIELDS: UrlQueryFields = {
 const EXPORT_POLL_MS = 1500;
 const EXPORT_MAX_POLLS = 60;
 
+// 操作列用紧凑文字按钮：默认 padding 会让三个按钮超出 170px 列宽。
+const ACTION_BUTTON_STYLE = { padding: '0 4px' } as const;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -464,33 +467,37 @@ export function UsersPage() {
     {
       title: t('users.table.user'),
       width: 220,
-      render: (_: unknown, record: User) => (
-        <div className="flex items-center gap-2">
-          <Avatar size="small" src={record.avatar ?? undefined}>
-            {record.nickname.slice(0, 1)}
-          </Avatar>
-          <div className="min-w-0">
-            {canUpdate ? (
-              <Button type="tertiary" size="small" theme="borderless" onClick={() => openEdit(record)}>
+      render: (_: unknown, record: User) => {
+        // 1280 宽没有岗位列的位置，岗位并进姓名下的灰字行。
+        const subline = [record.username, record.post_name].filter(Boolean).join(' · ');
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar size="small" src={record.avatar ?? undefined}>
+              {record.nickname.slice(0, 1)}
+            </Avatar>
+            <div className="min-w-0">
+              {canUpdate ? (
+                <Button type="tertiary" size="small" theme="borderless" onClick={() => openEdit(record)}>
+                  <Typography.Text strong ellipsis={{ showTooltip: true }}>
+                    {record.nickname}
+                  </Typography.Text>
+                </Button>
+              ) : (
                 <Typography.Text strong ellipsis={{ showTooltip: true }}>
                   {record.nickname}
                 </Typography.Text>
-              </Button>
-            ) : (
-              <Typography.Text strong ellipsis={{ showTooltip: true }}>
-                {record.nickname}
-              </Typography.Text>
-            )}
-            {record.username ? (
-              <div>
-                <Typography.Text type="secondary" size="small">
-                  {record.username}
-                </Typography.Text>
-              </div>
-            ) : null}
+              )}
+              {subline ? (
+                <div>
+                  <Typography.Text type="secondary" size="small" ellipsis={{ showTooltip: true }}>
+                    {subline}
+                  </Typography.Text>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: t('users.table.phone'),
@@ -509,17 +516,8 @@ export function UsersPage() {
       ),
     },
     {
-      title: t('users.table.post'),
-      width: 140,
-      render: (_: unknown, record: User) => (
-        <Typography.Text ellipsis={{ showTooltip: true }}>
-          {record.post_name ?? t('common.unset')}
-        </Typography.Text>
-      ),
-    },
-    {
       title: t('users.table.roles'),
-      width: 180,
+      width: 170,
       render: (_: unknown, record: User) => {
         if (record.role_names.length === 0) {
           return <Typography.Text type="secondary">—</Typography.Text>;
@@ -571,7 +569,7 @@ export function UsersPage() {
       : []),
     {
       title: t('users.table.actions'),
-      width: 180,
+      width: 170,
       fixed: 'right',
       render: (_: unknown, record: User) => {
         const isSelf = record.id === selfId;
@@ -592,17 +590,25 @@ export function UsersPage() {
             : null,
         ].filter((item): item is { key: string; name: string; onClick: () => void } => item !== null);
         return (
-          <Space spacing={4}>
+          <Space spacing={0}>
             {canUpdate ? (
-              <Button type="tertiary" size="small" onClick={() => openEdit(record)}>
+              <Button
+                type="primary"
+                size="small"
+                theme="borderless"
+                style={ACTION_BUTTON_STYLE}
+                onClick={() => openEdit(record)}
+              >
                 {t('users.table.edit')}
               </Button>
             ) : null}
             {canUpdate && !isSelf ? (
               record.status === 'enabled' ? (
                 <Button
-                  type="tertiary"
+                  type="primary"
                   size="small"
+                  theme="borderless"
+                  style={ACTION_BUTTON_STYLE}
                   loading={pendingRowId === record.id}
                   onClick={() => void requestDanger(record, 'disable')}
                 >
@@ -610,8 +616,10 @@ export function UsersPage() {
                 </Button>
               ) : (
                 <Button
-                  type="tertiary"
+                  type="primary"
                   size="small"
+                  theme="borderless"
+                  style={ACTION_BUTTON_STYLE}
                   loading={pendingRowId === record.id}
                   onClick={() => void onEnable(record)}
                 >
@@ -633,7 +641,7 @@ export function UsersPage() {
                   </Dropdown.Menu>
                 }
               >
-                <Button type="tertiary" size="small">
+                <Button type="primary" size="small" theme="borderless" style={ACTION_BUTTON_STYLE}>
                   {t('users.table.more')}
                 </Button>
               </Dropdown>
