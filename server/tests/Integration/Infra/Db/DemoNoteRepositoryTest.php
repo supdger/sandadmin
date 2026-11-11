@@ -43,8 +43,11 @@ final class DemoNoteRepositoryTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->conn->executeStatement('DROP TABLE IF EXISTS sand_demo_note');
-        $this->conn->close();
+        // setUp 因缺 SAND_TEST_DB_URL skip 时 conn 未初始化，tearDown 仍会执行
+        if (isset($this->conn)) {
+            $this->conn->executeStatement('DROP TABLE IF EXISTS sand_demo_note');
+            $this->conn->close();
+        }
     }
 
     private function createTable(): void
