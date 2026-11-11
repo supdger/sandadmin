@@ -383,23 +383,6 @@ export function MenusPage() {
   const columns = useMemo<ColumnProps<MenuNode>[]>(
     () => [
       {
-        title: '',
-        width: 44,
-        render: (_v, node) =>
-          canUpdate && !node.locked?.move ? (
-            <Tooltip content={t('menus.dragTooltip')}>
-              <span
-                draggable
-                onDragStart={onDragStart(node.key)}
-                onDragEnd={endDrag}
-                className="inline-flex cursor-grab items-center text-[var(--semi-color-text-2)] hover:text-[var(--semi-color-text-0)]"
-              >
-                <IconHandle />
-              </span>
-            </Tooltip>
-          ) : null,
-      },
-      {
         title: t('menus.colMenu'),
         dataIndex: 'title',
         width: 280,
@@ -410,7 +393,20 @@ export function MenusPage() {
           );
           const titleHit = kw && node.title.toLowerCase().includes(kw);
           return (
-            <div className="flex items-center gap-2">
+            // 必须 inline：块级元素会把树形展开箭头挤到上一行。
+            <div className="inline-flex items-center gap-2">
+              {canUpdate && !node.locked?.move ? (
+                <Tooltip content={t('menus.dragTooltip')}>
+                  <span
+                    draggable
+                    onDragStart={onDragStart(node.key)}
+                    onDragEnd={endDrag}
+                    className="inline-flex cursor-grab items-center text-[var(--semi-color-text-2)] hover:text-[var(--semi-color-text-0)]"
+                  >
+                    <IconHandle />
+                  </span>
+                </Tooltip>
+              ) : null}
               <span className="text-[var(--semi-color-text-2)]">
                 {menuIconNode(node.icon)}
               </span>
@@ -671,6 +667,7 @@ export function MenusPage() {
           loading={tree.isPending || tree.isFetching}
           pagination={false}
           childrenRecordName="children"
+          indentSize={24}
           expandedRowKeys={expandedKeys}
           onExpand={(expanded, record) => {
             const key = recordKeyOf(record);
