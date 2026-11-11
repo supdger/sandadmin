@@ -18,9 +18,9 @@ final class MapAuthenticator implements Authenticator
     {
     }
 
-    public function authenticate(string $credential): AuthenticatedUser
+    public function authenticate(string $token): AuthenticatedUser
     {
-        $user = $this->users[$credential] ?? null;
+        $user = $this->users[$token] ?? null;
         if (!$user instanceof AuthenticatedUser) {
             throw new UnauthenticatedException();
         }

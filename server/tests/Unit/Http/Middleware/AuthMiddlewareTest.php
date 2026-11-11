@@ -9,6 +9,7 @@ namespace Sandadmin\Tests\Unit\Http\Middleware;
 
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Domain\Auth\AuthenticatedUser;
+use Sandadmin\Domain\Auth\SessionCookie;
 use Sandadmin\Http\RequestContextStore;
 use Sandadmin\Tests\Support\HttpStack;
 use Sandadmin\Tests\Support\MapAuthenticator;
@@ -19,37 +20,33 @@ final class AuthMiddlewareTest extends TestCase
 {
     public function testPopulatesRequestContextFromTheCurrentRequestOnly(): void
     {
-        $user = new AuthenticatedUser('user-7', 4, 'Asia/Shanghai');
+        $user = new AuthenticatedUser('user-7', 4);
         $stack = HttpStack::create(new MapAuthenticator(['good-token' => $user]));
-        $request = self::request("Authorization: Bearer good-token\r\nX-Request-Id: req-12345678\r\n");
+        $request = self::request("Cookie: sandadmin_session=good-token\r\nX-Request-Id: req-12345678\r\n");
 
         $response = $stack->auth->process($request, static function (Request $current) use ($stack): Response {
             $context = $stack->contexts->get($current);
             self::assertNotNull($context);
             self::assertSame('user-7', $context->user?->id);
-            self::assertSame(4, $context->permissionVersion);
+            self::assertSame(4, $context->authzVersion());
             self::assertSame('req-12345678', $context->requestId);
-            self::assertSame('Asia/Shanghai', $context->timezone->getName());
 
             return new Response(204);
         });
 
         self::assertSame(204, $response->getStatusCode());
+        self::assertSame('4', $response->getHeader('X-Authz-Version'));
         $stored = $request->context[RequestContextStore::ATTRIBUTE] ?? null;
         self::assertSame($stack->contexts->get($request), $stored);
     }
 
-    public function testHeaderTimezoneOverridesTheUserTimezone(): void
+    public function testIgnoresAuthorizationHeaderAndReadsOnlySessionCookie(): void
     {
-        $stack = HttpStack::create(new MapAuthenticator([
-            'good-token' => new AuthenticatedUser('user-7', 1, 'Asia/Shanghai'),
-        ]));
-        $request = self::request("Authorization: Bearer good-token\r\nX-Timezone: Europe/Berlin\r\n");
-        $stack->auth->process($request, static function (Request $current) use ($stack): Response {
-            self::assertSame('Europe/Berlin', $stack->contexts->get($current)?->timezone->getName());
+        $stack = HttpStack::create(new MapAuthenticator(['good-token' => new AuthenticatedUser('user-7', 1)]));
+        $request = self::request("Authorization: Bearer good-token\r\n");
 
-            return new Response(204);
-        });
+        $this->expectException(\Sandadmin\Domain\Exception\UnauthenticatedException::class);
+        $stack->auth->process($request, static fn (Request $request): Response => new Response(204));
     }
 
     public function testMissingAndInvalidCredentialsThrowBeforeTheHandler(): void
@@ -62,21 +59,34 @@ final class AuthMiddlewareTest extends TestCase
             return new Response(204);
         };
 
-        foreach (['', "Authorization: Basic aaa\r\n", "Authorization: Bearer \r\n", "Authorization: Bearer bad token\r\n"] as $headers) {
+        $cases = [
+            '',
+            'Cookie: other=1\r\n',
+            'Cookie: sandadmin_session=\r\n',
+            'Cookie: sandadmin_session=%20%20\r\n',
+        ];
+        foreach ($cases as $headers) {
             try {
                 $stack->auth->process(self::request($headers), $handler);
                 self::fail('应当拒绝未认证请求');
             } catch (\Sandadmin\Domain\Exception\UnauthenticatedException $e) {
-                self::assertSame('未登录', $e->getMessage());
+                self::assertSame('请先登录', $e->getMessage());
             }
         }
         self::assertFalse($called);
+    }
+
+    public function testSessionCookieNameMatchesTheContract(): void
+    {
+        self::assertSame('sandadmin_session', SessionCookie::NAME);
+        self::assertSame('/', SessionCookie::PATH);
+        self::assertSame('Lax', SessionCookie::SAME_SITE);
     }
 
     private static function request(string $headers): Request
     {
         $block = $headers === '' ? '' : rtrim($headers, "\r\n") . "\r\n";
 
-        return new Request("GET /api/notes HTTP/1.1\r\nHost: example.test\r\n{$block}\r\n");
+        return new Request("GET /api/admin/v1/me HTTP/1.1\r\nHost: example.test\r\n{$block}\r\n");
     }
 }

@@ -34,5 +34,6 @@ final class PsrErrorLoggerTest extends TestCase
         self::assertSame($error, $context['exception'] ?? null);
         self::assertArrayNotHasKey('authorization', $context);
         self::assertArrayNotHasKey('credential', $context);
+        self::assertArrayNotHasKey('cookie', $context);
     }
 }

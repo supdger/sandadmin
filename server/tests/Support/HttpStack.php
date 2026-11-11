@@ -15,7 +15,6 @@ use Sandadmin\Http\Middleware\ErrorMiddleware;
 use Sandadmin\Http\RequestContextStore;
 use Sandadmin\Http\RequestHeaders;
 use Sandadmin\Http\RequestIds;
-use Sandadmin\Http\Timezones;
 
 /** 测试用的中间件组装。实例可跨请求复用，以暴露进程级状态泄漏。 */
 final class HttpStack
@@ -37,7 +36,7 @@ final class HttpStack
 
         return new self(
             new ErrorMiddleware(new ErrorResponder($logger), new JsonErrorResponse(), $contexts, $requestIds, $headers),
-            new AuthMiddleware($authenticator, $contexts, $requestIds, new Timezones(), $headers),
+            new AuthMiddleware($authenticator, $contexts, $requestIds, $headers),
             $contexts,
             $logger,
         );

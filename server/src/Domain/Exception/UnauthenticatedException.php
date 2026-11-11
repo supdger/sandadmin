@@ -9,8 +9,8 @@ namespace Sandadmin\Domain\Exception;
 
 final class UnauthenticatedException extends DomainException
 {
-    public function __construct(string $message = '未登录', ?\Throwable $previous = null)
+    public function __construct(string $message = '请先登录', ?\Throwable $previous = null)
     {
-        parent::__construct($message, 'unauthenticated', [], 401, $previous);
+        parent::__construct($message, 'UNAUTHENTICATED', [], 401, $previous);
     }
 }

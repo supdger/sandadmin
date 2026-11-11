@@ -13,40 +13,39 @@ use Sandadmin\Domain\Auth\RequestContext;
 
 final class RequestContextTest extends TestCase
 {
-    public function testKeepsUserPermissionVersionRequestIdAndTimezone(): void
+    public function testKeepsUserRequestIdAndAuthzVersion(): void
     {
-        $user = new AuthenticatedUser('user-1', 3, 'Asia/Shanghai');
-        $context = new RequestContext($user, 3, 'req-12345678', new \DateTimeZone('Asia/Shanghai'));
+        $user = new AuthenticatedUser('user-1', 3);
+        $context = new RequestContext($user, 'req-12345678');
 
         self::assertSame($user, $context->user);
-        self::assertSame(3, $context->permissionVersion);
+        self::assertSame(3, $context->authzVersion());
         self::assertSame('req-12345678', $context->requestId);
-        self::assertSame('Asia/Shanghai', $context->timezone->getName());
     }
 
-    public function testAnonymousContextAllowsVersionZero(): void
+    public function testAnonymousContextHasAuthzVersionZero(): void
     {
-        $context = new RequestContext(null, 0, 'req-abcdef12', new \DateTimeZone('UTC'));
+        $context = new RequestContext(null, 'req-abcdef12');
 
         self::assertNull($context->user);
-        self::assertSame(0, $context->permissionVersion);
+        self::assertSame(0, $context->authzVersion());
     }
 
     public function testRejectsEmptyRequestId(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        new RequestContext(null, 0, '', new \DateTimeZone('UTC'));
+        new RequestContext(null, '');
     }
 
-    public function testRejectsPermissionVersionThatDiffersFromUser(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        new RequestContext(new AuthenticatedUser('user-1', 2), 9, 'req-abcdef12', new \DateTimeZone('UTC'));
-    }
-
-    public function testRejectsEmptyUserIdAndNegativePermissionVersion(): void
+    public function testRejectsEmptyUserId(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         new AuthenticatedUser('', 1);
+    }
+
+    public function testRejectsZeroAuthzVersionOnUser(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new AuthenticatedUser('user-1', 0);
     }
 }

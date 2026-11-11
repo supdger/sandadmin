@@ -13,7 +13,6 @@ use Sandadmin\Http\JsonErrorResponse;
 use Sandadmin\Http\RequestContextStore;
 use Sandadmin\Http\RequestHeaders;
 use Sandadmin\Http\RequestIds;
-use Sandadmin\Http\Timezones;
 use Webman\Http\Request;
 use Webman\Http\Response;
 use Webman\MiddlewareInterface;
@@ -60,10 +59,7 @@ final class ErrorMiddleware implements MiddlewareInterface
             return $existing->requestId;
         }
         $requestId = $this->requestIds->resolve($this->headers->optional($request, 'x-request-id'));
-        $this->contexts->set(
-            $request,
-            new RequestContext(null, 0, $requestId, new \DateTimeZone(Timezones::DEFAULT)),
-        );
+        $this->contexts->set($request, new RequestContext(null, $requestId));
 
         return $requestId;
     }

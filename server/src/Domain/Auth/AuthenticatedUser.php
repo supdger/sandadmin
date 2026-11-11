@@ -12,19 +12,14 @@ final readonly class AuthenticatedUser
 {
     public function __construct(
         public string $id,
-        public int $permissionVersion,
-        public string $timezone = 'UTC',
+        public int $authzVersion,
     ) {
         if ($this->id === '') {
             throw new \InvalidArgumentException('用户标识不能为空');
         }
-        if ($this->permissionVersion < 0) {
-            throw new \InvalidArgumentException('permission version 必须 ≥ 0');
-        }
-        try {
-            new \DateTimeZone($this->timezone);
-        } catch (\Exception $e) {
-            throw new \InvalidArgumentException('用户时区无效', 0, $e);
+        // sand_system_user.authz_version 默认 1 并随权限变更自增，从 1 起
+        if ($this->authzVersion < 1) {
+            throw new \InvalidArgumentException('authz version 必须 ≥ 1');
         }
     }
 }
