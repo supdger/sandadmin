@@ -126,7 +126,7 @@ function sessionsFor(user: MockUser): SessionEntry[] {
       {
         device_label: 'MacBook Pro · Chrome',
         location: '上海 · 内部网络',
-        ip: '10.8.0.21',
+        ip: '192.0.2.21',
         user_agent: 'Mozilla/5.0 (Macintosh) Chrome/130',
         create_time: iso(12),
         last_active_time: iso(0, 9, 12),
@@ -135,7 +135,7 @@ function sessionsFor(user: MockUser): SessionEntry[] {
       {
         device_label: 'iPhone · Safari',
         location: '上海 · 内部网络',
-        ip: '10.8.0.35',
+        ip: '192.0.2.35',
         user_agent: 'Mozilla/5.0 (iPhone) Safari/17',
         create_time: iso(5),
         last_active_time: iso(0, 8, 40),
@@ -144,7 +144,7 @@ function sessionsFor(user: MockUser): SessionEntry[] {
       {
         device_label: 'Windows 台式机 · Edge',
         location: '北京 · 内部网络',
-        ip: '10.4.1.8',
+        ip: '198.51.100.8',
         user_agent: 'Mozilla/5.0 (Windows) Edge/130',
         create_time: iso(20),
         last_active_time: iso(1, 18, 5),
