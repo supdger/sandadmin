@@ -15,6 +15,7 @@ import {
   Table,
   Tag,
   Toast,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
@@ -489,14 +490,27 @@ export function FilesPage() {
       fixed: 'right',
       render: (_text, record) => (
         <div className="flex items-center gap-1">
+          {/* 操作列宽度有限：预览/下载用纯图标加悬停提示，避免「更多」被挤出单元格。 */}
           {(record.kind === 'image' || isPdfPreview({ fileId: record.id, name: record.original_name, mediaType: record.media_type, kind: record.kind })) ? (
-            <Button theme="borderless" size="small" icon={<IconEyeOpened />} onClick={() => void onPreview(record)}>
-              {t('table.preview')}
-            </Button>
+            <Tooltip content={t('table.preview')}>
+              <Button
+                theme="borderless"
+                size="small"
+                icon={<IconEyeOpened />}
+                aria-label={t('table.preview')}
+                onClick={() => void onPreview(record)}
+              />
+            </Tooltip>
           ) : null}
-          <Button theme="borderless" size="small" icon={<IconDownload />} onClick={() => void onDownload(record)}>
-            {t('table.download')}
-          </Button>
+          <Tooltip content={t('table.download')}>
+            <Button
+              theme="borderless"
+              size="small"
+              icon={<IconDownload />}
+              aria-label={t('table.download')}
+              onClick={() => void onDownload(record)}
+            />
+          </Tooltip>
           {canDelete ? (
             <Dropdown
               trigger="click"

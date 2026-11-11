@@ -93,6 +93,7 @@ describe('ProfilePage', () => {
     renderPage('/profile?tab=security');
 
     expect(await screen.findByText('登录密码')).toBeInTheDocument();
+    expect(screen.getByText('忘了密码请联系管理员重置')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '修改密码' }));
     expect(await screen.findByText('新密码需要满足：')).toBeInTheDocument();
   });

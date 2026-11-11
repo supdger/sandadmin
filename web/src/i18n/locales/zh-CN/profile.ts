@@ -48,6 +48,7 @@ export default {
     passwordLabel: '登录密码',
     passwordValue: '上次修改 {{time}}',
     changePassword: '修改密码',
+    contactAdmin: '忘了密码请联系管理员重置',
   },
 
   devices: {

@@ -49,7 +49,7 @@ export function ProfileSecurityTab() {
         </Button>
       </div>
       <Typography.Text type="tertiary" size="small">
-        {t('basic.contactAdmin')}
+        {t('security.contactAdmin')}
       </Typography.Text>
       <PasswordChangeModal visible={modalOpen} onClose={() => setModalOpen(false)} />
     </Card>
