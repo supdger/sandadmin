@@ -79,7 +79,7 @@ export function ProfileSessionsTab() {
       {items.length === 0 ? (
         <Empty description={t('devices.empty')} />
       ) : (
-        <div className="flex flex-col divide-y" style={{ borderColor: 'var(--semi-color-border)' }}>
+        <div className="flex flex-col divide-y divide-[var(--semi-color-border)]">
           {items.map((session) => (
             <SessionRow
               key={session.id}

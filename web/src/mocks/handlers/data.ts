@@ -1,7 +1,7 @@
 import { http, HttpResponse, type HttpHandler } from 'msw';
 
 import { mockUserForToken, type MockUser } from './auth';
-import { mockTasks } from './_v1data';
+import { findDept, mockDepts, mockTasks } from './_v1data';
 import { failV1, okV1, v1Base } from './_v1';
 
 const base = v1Base;
@@ -190,7 +190,7 @@ const USAGE_LABELS = [
   '用户头像',
   '公告《系统维护通知》',
   '流程：请假申请',
-  '部门：销售部共享资料',
+  '部门：技术部共享资料',
   '操作记录附件',
 ];
 
@@ -333,26 +333,13 @@ let taskSeq = 0;
 
 /* 公告 mock */
 
-interface DeptRecord {
-  id: string;
-  parent_id: string | null;
-  name: string;
-  sort: number;
+// 部门数据与组织域共用 _v1data 的「沙盒网络」部门树，避免两套演示数据对不上。
+function deptName(id: string): string {
+  return findDept(mockDepts, id)?.name ?? id;
 }
 
-const DEPTS: DeptRecord[] = [
-  { id: 'dept-1', parent_id: null, name: '总经办', sort: 1 },
-  { id: 'dept-2', parent_id: null, name: '销售部', sort: 2 },
-  { id: 'dept-3', parent_id: 'dept-2', name: '华东组', sort: 3 },
-  { id: 'dept-4', parent_id: 'dept-2', name: '华南组', sort: 4 },
-  { id: 'dept-5', parent_id: null, name: '市场部', sort: 5 },
-  { id: 'dept-6', parent_id: null, name: '财务部', sort: 6 },
-  { id: 'dept-7', parent_id: null, name: '行政部', sort: 7 },
-  { id: 'dept-8', parent_id: 'dept-7', name: '前台组', sort: 8 },
-];
-
-function deptName(id: string): string {
-  return DEPTS.find((d) => d.id === id)?.name ?? id;
+function deptExists(id: string): boolean {
+  return findDept(mockDepts, id) !== undefined;
 }
 
 interface AnnouncementRecord {
@@ -395,14 +382,14 @@ const announcements: AnnouncementRecord[] = [
   {
     id: 'ann-002', title: '新版选项管理上线', scope: 'all', dept_ids: [], level: 'important', pinned: true,
     state: 'published', image_file_ids: [],
-    content: '<p>大家好：</p><p>新版「选项管理」已上线，管理各个下拉框里能选的内容，改完立即生效。系统自带的选项组可以加选项，但不能删除。</p><p>有问题请联系行政部。</p>',
+    content: '<p>大家好：</p><p>新版「选项管理」已上线，管理各个下拉框里能选的内容，改完立即生效。系统自带的选项组可以加选项，但不能删除。</p><p>有问题请联系客服部。</p>',
     published_time: isoDaysAgo(2, 10), expire_time: isoDaysAhead(30), created_by_name: '李娜',
     create_time: isoDaysAgo(3, 16), update_time: isoDaysAgo(2, 10),
   },
   {
-    id: 'ann-003', title: '市场部季度培训', scope: 'dept', dept_ids: ['dept-5', 'dept-2'], level: 'normal', pinned: false,
+    id: 'ann-003', title: '产品部季度培训', scope: 'dept', dept_ids: ['dept-product', 'dept-tech'], level: 'normal', pinned: false,
     state: 'published', image_file_ids: [],
-    content: '<p>市场部与销售部的同事请注意：</p><p>本季度培训定于下周三下午 14:00 在三楼会议室举行，请提前 10 分钟到场。</p>',
+    content: '<p>产品部与技术部的同事请注意：</p><p>本季度培训定于下周三下午 14:00 在三楼会议室举行，请提前 10 分钟到场。</p>',
     published_time: isoDaysAgo(4, 11), expire_time: null, created_by_name: '王芳',
     create_time: isoDaysAgo(5, 9), update_time: isoDaysAgo(4, 11),
   },
@@ -435,9 +422,9 @@ const announcements: AnnouncementRecord[] = [
     create_time: isoDaysAgo(2, 11), update_time: isoDaysAgo(2, 11),
   },
   {
-    id: 'ann-008', title: '年底审计材料提交通知', scope: 'dept', dept_ids: ['dept-6'], level: 'important', pinned: false,
+    id: 'ann-008', title: '年底审计材料提交通知', scope: 'dept', dept_ids: ['dept-ops'], level: 'important', pinned: false,
     state: 'published', image_file_ids: [],
-    content: '<p>财务部同事请于 11 月 30 日前提交全年审计所需材料清单。</p>',
+    content: '<p>运营部同事请于 11 月 30 日前提交全年审计所需材料清单。</p>',
     published_time: isoDaysAgo(1, 9), expire_time: isoDaysAhead(20), created_by_name: '王芳',
     create_time: isoDaysAgo(2, 9), update_time: isoDaysAgo(1, 9),
   },
@@ -980,7 +967,7 @@ export default [
     if (body.scope === 'dept' && deptIds.length === 0) {
       return failV1(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
     }
-    if (deptIds.some((id) => !DEPTS.some((d) => d.id === id))) {
+    if (deptIds.some((id) => !deptExists(id))) {
       return failV1(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
     }
     announcementSeq += 1;
@@ -1048,7 +1035,7 @@ export default [
     if (body.scope === 'dept' && deptIds.length === 0) {
       return failV1(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
     }
-    if (deptIds.some((id) => !DEPTS.some((d) => d.id === id))) {
+    if (deptIds.some((id) => !deptExists(id))) {
       return failV1(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
     }
     ann.title = title;

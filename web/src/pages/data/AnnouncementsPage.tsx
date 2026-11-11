@@ -231,7 +231,7 @@ export function AnnouncementsPage() {
     },
     {
       title: t('table.publishedTime'),
-      width: 150,
+      width: 180,
       render: (_text, record) =>
         record.published_time ? formatDateTime(record.published_time) : t('table.unpublished'),
     },
