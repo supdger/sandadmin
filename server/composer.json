@@ -67,6 +67,7 @@
         "aliyuncs/oss-sdk-php": "^2.7",
         "smalot/pdfparser": "^2.12",
         "league/flysystem": "^3.29",
+        "doctrine/dbal": "^4.2",
         "ext-fileinfo": "*",
         "ext-mbstring": "*",
         "ext-pdo": "*"
