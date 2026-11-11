@@ -37,6 +37,9 @@ final class AuditModuleOptionsTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!isset($this->conn)) {
+            return;
+        }
         $this->conn->close();
     }
 

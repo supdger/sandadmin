@@ -39,6 +39,9 @@ final class PluginDictRepositoryTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!isset($this->conn)) {
+            return;
+        }
         $this->conn->close();
     }
 
