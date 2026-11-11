@@ -845,7 +845,8 @@ export function UsersPage() {
       </div>
 
       <UserFormSheet
-        key={sheetOpen ? `${sheetMode}-${editingUser?.id ?? 'new'}` : 'closed'}
+        // 关闭态 key 需与同页其它弹窗区分，避免兄弟节点 key 重复告警。
+        key={sheetOpen ? `${sheetMode}-${editingUser?.id ?? 'new'}` : 'user-sheet-closed'}
         visible={sheetOpen}
         mode={sheetMode}
         user={editingUser}
@@ -854,12 +855,12 @@ export function UsersPage() {
         onSaved={invalidateUsers}
       />
       <ResetPasswordModal
-        key={resetTarget?.id ?? 'closed'}
+        key={resetTarget?.id ?? 'reset-password-closed'}
         user={resetTarget}
         onClose={() => setResetTarget(null)}
       />
       <TransferConfirmModal
-        key={transferDialog ? `${transferDialog.kind}-${transferDialog.user.id}` : 'closed'}
+        key={transferDialog ? `${transferDialog.kind}-${transferDialog.user.id}` : 'transfer-confirm-closed'}
         state={transferDialog}
         onClose={() => setTransferDialog(null)}
         onConfirm={onTransferConfirm}
