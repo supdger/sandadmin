@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Unit\Infra\Plugin;
 
 use PHPUnit\Framework\TestCase;
+use Sandadmin\Domain\Audit\AuditModuleOption;
 use Sandadmin\Domain\Plugin\CronTask;
 use Sandadmin\Domain\Plugin\DisableCheckItem;
 use Sandadmin\Domain\Plugin\EffectiveExtension;
@@ -29,13 +30,17 @@ use Sandadmin\Domain\Plugin\PersonalSettingsCategory;
 use Sandadmin\Domain\Plugin\PluginExtensions;
 use Sandadmin\Domain\Plugin\ScheduleDefinition;
 use Sandadmin\Domain\Plugin\ScheduleFreq;
+use Sandadmin\Domain\Plugin\ScheduleNextRun;
+use Sandadmin\Domain\Plugin\ScheduleOverride;
 use Sandadmin\Domain\Plugin\SearchSource;
 use Sandadmin\Domain\Plugin\SettingsCategory;
 use Sandadmin\Domain\Plugin\UserDisableCheck;
 use Sandadmin\Domain\Plugin\UserTransfer;
 use Sandadmin\Domain\Plugin\WorkbenchCard;
+use Sandadmin\Infra\Audit\AuditModuleOptions;
 use Sandadmin\Infra\Plugin\ExtensionCallbacks;
 use Sandadmin\Infra\Plugin\ExtensionRegistry;
+use Sandadmin\Infra\Plugin\PluginDictRepository;
 use Sandadmin\Infra\Plugin\PluginExtensionRepository;
 
 final class RegistrySourceConstraintsTest extends TestCase
@@ -86,7 +91,7 @@ final class RegistrySourceConstraintsTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        self::assertCount(29, $files);
+        self::assertCount(32, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
@@ -123,12 +128,17 @@ final class RegistrySourceConstraintsTest extends TestCase
             OptionGroup::class,
             OptionItem::class,
             ScheduleDefinition::class,
+            ScheduleOverride::class,
+            ScheduleNextRun::class,
             InvalidExtensionException::class,
             ExtensionKind::class,
             ScheduleFreq::class,
             ExtensionRegistry::class,
             PluginExtensionRepository::class,
+            PluginDictRepository::class,
             ExtensionCallbacks::class,
+            AuditModuleOption::class,
+            AuditModuleOptions::class,
         ] as $class) {
             $ref = new \ReflectionClass($class);
             self::assertTrue($ref->isFinal(), $class);
@@ -157,8 +167,12 @@ final class RegistrySourceConstraintsTest extends TestCase
             OptionGroup::class,
             OptionItem::class,
             ScheduleDefinition::class,
+            ScheduleOverride::class,
             ExtensionRegistry::class,
             PluginExtensionRepository::class,
+            PluginDictRepository::class,
+            AuditModuleOption::class,
+            AuditModuleOptions::class,
         ] as $class) {
             $ref = new \ReflectionClass($class);
             foreach ($ref->getProperties() as $property) {
