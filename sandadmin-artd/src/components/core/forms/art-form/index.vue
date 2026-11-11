@@ -235,7 +235,8 @@
 
   const emit = defineEmits<FormEmits>()
 
-  const modelValue = defineModel<Record<string, any>>({ default: {} })
+  // Vue 3.5 的 defineModel 类型要求 default 为工厂函数，直接传字面量对象会导致重载解析失败。
+  const modelValue = defineModel<Record<string, any>>({ default: () => ({}) })
   const initialModelValue = ref<Record<string, any>>({})
 
   // 保存组件初始化时的表单快照，用于 reset 时恢复默认值。
