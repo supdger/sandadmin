@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Application\File;
 
-use Sandadmin\Storage\Exception\StorageException;
+use Sandadmin\Domain\File\FileException;
 
 final class PendingStream
 {
@@ -19,10 +19,10 @@ final class PendingStream
     /**
      * @param resource $stream
      */
-    public function __construct(mixed $stream, public readonly int $size)
+    public function __construct(mixed $stream, public readonly int $size, public readonly string $sha256)
     {
         if (!is_resource($stream)) {
-            throw new StorageException('invalid_upload', '上传内容不是可读流', ['file' => '上传内容不是可读流']);
+            throw FileException::internal('上传内容不是可读流');
         }
         $this->stream = $stream;
     }
@@ -33,7 +33,7 @@ final class PendingStream
     public function stream(): mixed
     {
         if (!$this->open || !is_resource($this->stream)) {
-            throw new StorageException('storage_unavailable', '上传内容已关闭');
+            throw FileException::internal('上传内容已关闭');
         }
 
         return $this->stream;

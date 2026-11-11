@@ -20,5 +20,5 @@ return [
     'stdout_file' => runtime_path() . '/logs/stdout.log',
     'log_file' => runtime_path() . '/logs/workerman.log',
     // B6 local uploads default to 100MiB. The extra mebibyte covers multipart framing.
-    'max_package_size' => \Sandadmin\Storage\StorageConfig::DEFAULT_MAX_BYTES + (1024 * 1024)
+    'max_package_size' => \Sandadmin\Application\File\StorageConfig::DEFAULT_MAX_BYTES + (1024 * 1024)
 ];

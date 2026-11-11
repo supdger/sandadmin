@@ -7,205 +7,284 @@ declare(strict_types=1);
 
 namespace app\controller;
 
-use Sandadmin\Application\File\UploadRequest;
-use Sandadmin\Http\File\FileStackFactory;
-use Sandadmin\Http\File\FileUsageHandle;
-use Sandadmin\Http\File\HttpErrorMapper;
-use Sandadmin\Http\File\HttpResult;
-use Sandadmin\Http\File\RequestId;
-use Sandadmin\Http\File\UploadHttp;
-use Sandadmin\Storage\Exception\StorageException;
-use Sandadmin\Storage\StorageConfig;
+use Sandadmin\Application\File\FileHttp;
+use Sandadmin\Application\File\FileRuntime;
+use Sandadmin\Application\File\StorageConfig;
+use Sandadmin\Domain\File\FileException;
 use support\Request;
 use support\Response;
 use Webman\Http\UploadFile;
 
+/**
+ * /api/admin/v1/files 契约端点。鉴权由路由默认中间件收口（B2 合入后）；
+ * 身份解析走 FileActorProvider 接缝，底座未合入前默认拒绝（401）。
+ * request_id 暂由控制器生成，B2 统一请求上下文合入后改从上下文取。
+ */
 final class FileController
 {
+    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9_-]{8,128}$/';
+
     public function store(Request $request): Response
     {
         $requestId = $this->requestId($request);
-        $upload = $request->file('file');
-        if (is_array($upload)) {
-            return $this->respond(HttpResult::error(422, 'invalid_upload', '一次只能上传一个文件', ['file' => '一次只能上传一个文件'], $requestId));
-        }
-        if (!$upload instanceof UploadFile) {
-            return $this->respond(HttpResult::error(422, 'invalid_upload', '请使用 file 字段上传文件', ['file' => '缺少上传文件'], $requestId));
-        }
-        if (!$upload->isValid()) {
-            return $this->respond(HttpResult::error(422, 'invalid_upload', '上传失败', ['file' => '上传未完成'], $requestId));
-        }
-        $stream = fopen($upload->getPathname(), 'rb');
-        if ($stream === false) {
-            return $this->respond(HttpResult::error(422, 'invalid_upload', '无法读取上传文件', ['file' => '无法读取上传文件'], $requestId));
-        }
         try {
-            $http = new UploadHttp(FileStackFactory::uploadService($this->storageConfig()), new HttpErrorMapper());
-            $size = $upload->getSize();
-            $name = $upload->getUploadName();
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            }
+            $upload = $request->file('file');
+            if (is_array($upload)) {
+                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['一次只能上传一个文件']], $requestId);
+            }
+            if (!$upload instanceof UploadFile) {
+                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['请使用 file 字段上传文件']], $requestId);
+            }
+            if (!$upload->isValid()) {
+                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['上传未完成']], $requestId);
+            }
+            $stream = fopen($upload->getPathname(), 'rb');
+            if ($stream === false) {
+                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['无法读取上传文件']], $requestId);
+            }
+            try {
+                $size = $upload->getSize();
+                $name = $upload->getUploadName();
+                $outcome = FileHttp::upload(
+                    $runtime->uploads,
+                    $runtime->actors->actor($request),
+                    $stream,
+                    is_int($size) ? $size : null,
+                    is_string($name) && $name !== '' ? $name : 'file',
+                    $request->post('visibility'),
+                    $request->post('usage'),
+                    $this->idempotencyKey($request),
+                    $requestId,
+                );
 
-            return $this->respond($http->upload(new UploadRequest(
-                $stream,
-                is_int($size) ? $size : null,
-                is_string($name) && $name !== '' ? $name : 'file',
-            ), $requestId));
-        } catch (StorageException $error) {
-            return $this->respond((new HttpErrorMapper())->map($error, $requestId));
-        } catch (\Throwable) {
-            return $this->respond(HttpResult::error(500, 'internal_error', '处理请求时发生错误', [], $requestId));
-        } finally {
-            if (is_resource($stream)) {
+                return $this->respond($outcome, $requestId);
+            } finally {
                 fclose($stream);
             }
+        } catch (FileException $error) {
+            return $this->failure($error->status, $error->errorCode, $error->getMessage(), $error->fields, $requestId);
+        } catch (\Throwable $error) {
+            return $this->unexpected($error, $requestId);
         }
     }
 
-    public function registerUsage(Request $request, string $id): Response
-    {
-        return $this->usage($request, $id, 'register');
-    }
-
-    public function unregisterUsage(Request $request, string $id): Response
-    {
-        return $this->usage($request, $id, 'unregister');
-    }
-
-    public function destroy(Request $request, string $id): Response
-    {
-        return $this->usage($request, $id, 'delete');
-    }
-
-    private function usage(Request $request, string $id, string $operation): Response
+    public function index(Request $request): Response
     {
         $requestId = $this->requestId($request);
-        $payload = null;
-        if ($operation !== 'delete') {
-            $payload = $this->payload($request);
-            if ($payload === null) {
-                return $this->respond(HttpResult::error(
-                    422,
-                    'invalid_usage',
-                    '请求体必须是 JSON 对象',
-                    ['body' => '请求体必须是 JSON 对象'],
-                    $requestId,
-                ));
+        try {
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
             }
-        }
-        try {
-            $handle = $this->openUsage();
-        } catch (StorageException $error) {
-            return $this->respond((new HttpErrorMapper())->map($error, $requestId));
-        } catch (\Throwable) {
-            return $this->respond(HttpResult::error(500, 'internal_error', '处理请求时发生错误', [], $requestId));
-        }
-        try {
-            if ($operation === 'delete') {
-                $result = $handle->http->delete($id, $requestId);
-            } elseif ($payload === null) {
-                $result = HttpResult::error(422, 'invalid_usage', '请求体必须是 JSON 对象', ['body' => '请求体必须是 JSON 对象'], $requestId);
-            } elseif ($operation === 'register') {
-                $result = $handle->http->register($id, $payload, $requestId);
-            } else {
-                $result = $handle->http->unregister($id, $payload, $requestId);
-            }
+            $query = $request->get();
 
-            return $this->respond($result);
-        } finally {
-            $handle->close();
-        }
-    }
-
-    private function openUsage(): FileUsageHandle
-    {
-        $connection = FileStackFactory::connectionFromDatabaseConfig($this->databaseConfig());
-        try {
-            return FileStackFactory::usageHandle($this->storageConfig(), $connection);
+            return $this->respondJson(
+                FileHttp::index($runtime->files, $runtime->actors->actor($request), is_array($query) ? $query : [], $requestId),
+                $requestId,
+            );
         } catch (\Throwable $error) {
-            $connection->close();
-            throw $error;
+            return $this->unexpected($error, $requestId);
         }
     }
 
-    private function storageConfig(): StorageConfig
+    public function show(Request $request, string $file_id): Response
     {
-        return StorageConfig::fromArray($this->namedConfig(config('file'), '存储配置无效'));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function databaseConfig(): array
-    {
-        $value = config('database.connections.pgsql');
-        if (!is_array($value)) {
-            return [];
-        }
-
-        return $this->stringKeyed($value, '数据库尚未配置');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function namedConfig(mixed $value, string $message): array
-    {
-        if (!is_array($value)) {
-            throw new StorageException('invalid_config', $message);
-        }
-
-        return $this->stringKeyed($value, $message);
-    }
-
-    /**
-     * @param array<mixed> $value
-     *
-     * @return array<string, mixed>
-     */
-    private function stringKeyed(array $value, string $message): array
-    {
-        $result = [];
-        foreach ($value as $key => $item) {
-            if (!is_string($key)) {
-                throw new StorageException('invalid_config', $message);
+        $requestId = $this->requestId($request);
+        try {
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
             }
-            $result[$key] = $item;
-        }
 
-        return $result;
+            return $this->respondJson(
+                FileHttp::show($runtime->files, $runtime->actors->actor($request), $file_id, $requestId),
+                $requestId,
+            );
+        } catch (\Throwable $error) {
+            return $this->unexpected($error, $requestId);
+        }
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function payload(Request $request): ?array
+    public function destroy(Request $request, string $file_id): Response
     {
-        $decoded = json_decode($request->rawBody(), true);
-        if (!is_array($decoded) || array_is_list($decoded)) {
+        $requestId = $this->requestId($request);
+        try {
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            }
+
+            return $this->respondJson(
+                FileHttp::destroy($runtime->files, $runtime->actors->actor($request), $file_id, $this->idempotencyKey($request), $requestId),
+                $requestId,
+            );
+        } catch (\Throwable $error) {
+            return $this->unexpected($error, $requestId);
+        }
+    }
+
+    public function download(Request $request, string $file_id): Response
+    {
+        $requestId = $this->requestId($request);
+        try {
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            }
+            $outcome = FileHttp::download(
+                $runtime->files,
+                $runtime->usageAccess,
+                $runtime->actors->actor($request),
+                $file_id,
+                $requestId,
+            );
+            $file = $outcome['file'] ?? null;
+            if (is_array($file)) {
+                return $this->respondFile($file, $requestId);
+            }
+
+            return $this->respondJson($outcome, $requestId);
+        } catch (\Throwable $error) {
+            return $this->unexpected($error, $requestId);
+        }
+    }
+
+    public function cleanup(Request $request): Response
+    {
+        $requestId = $this->requestId($request);
+        try {
+            $runtime = $this->runtime();
+            if ($runtime === null) {
+                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            }
+            $key = $this->idempotencyKey($request);
+
+            return $this->respondJson(
+                FileHttp::cleanup(
+                    $runtime->files,
+                    $runtime->actors->actor($request),
+                    $key,
+                    $requestId,
+                ),
+                $requestId,
+            );
+        } catch (\Throwable $error) {
+            return $this->unexpected($error, $requestId);
+        }
+    }
+
+    private function idempotencyKey(Request $request): ?string
+    {
+        $key = $request->header('idempotency-key');
+
+        return is_string($key) && $key !== '' ? $key : null;
+    }
+
+    private function runtime(): ?FileRuntime
+    {
+        try {
+            return FileRuntime::fromWebman();
+        } catch (\Throwable $error) {
+            error_log('file 运行时初始化失败 ' . $error::class . ': ' . $error->getMessage());
+
             return null;
         }
-        $result = [];
-        foreach ($decoded as $key => $item) {
-            if (!is_string($key)) {
-                return null;
-            }
-            $result[$key] = $item;
-        }
-
-        return $result;
     }
 
+    /**
+     * X-Request-Id：沿用合法请求头，否则生成；与错误/成功信封内
+     * request_id 保持一致，B2 合入后由统一中间件接管。
+     */
     private function requestId(Request $request): string
     {
-        $header = $request->header('x-request-id');
+        $incoming = $request->header('x-request-id');
+        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
+            return $incoming;
+        }
 
-        return RequestId::fromHeader(is_string($header) ? $header : null);
+        return bin2hex(random_bytes(16));
     }
 
-    private function respond(HttpResult $result): Response
+    /**
+     * @param array{status: int, body?: array<string, mixed>, file?: array{path: string, name: string, media_type: string}} $outcome
+     */
+    private function respondJson(array $outcome, string $requestId): Response
     {
-        return new Response($result->status, [
-            'Content-Type' => 'application/json; charset=utf-8',
-            'X-Request-Id' => $result->requestId,
-        ], $result->json());
+        $body = $outcome['body'] ?? null;
+        if (!is_array($body)) {
+            return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+        }
+
+        return new Response(
+            $outcome['status'],
+            ['Content-Type' => 'application/json; charset=utf-8', 'X-Request-Id' => $requestId],
+            (string) json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        );
+    }
+
+    /**
+     * @param array{status: int, body?: array<string, mixed>, file?: array{path: string, name: string, media_type: string}} $outcome
+     */
+    private function respond(array $outcome, string $requestId): Response
+    {
+        $file = $outcome['file'] ?? null;
+        if (is_array($file)) {
+            return $this->respondFile($file, $requestId);
+        }
+
+        return $this->respondJson($outcome, $requestId);
+    }
+
+    /**
+     * @param array{path: string, name: string, media_type: string} $file
+     */
+    private function respondFile(array $file, string $requestId): Response
+    {
+        $name = $file['name'];
+        $mediaType = preg_match(StorageConfig::MIME_PATTERN, $file['media_type']) === 1
+            ? $file['media_type']
+            : 'application/octet-stream';
+        $response = new Response(200, [
+            'Content-Type' => $mediaType,
+            'Content-Disposition' => 'attachment; filename="' . $this->asciiName($name) . '"; filename*=UTF-8\'\'' . rawurlencode($name),
+            'X-Request-Id' => $requestId,
+        ], '');
+
+        return $response->withFile($file['path']);
+    }
+
+    private function asciiName(string $name): string
+    {
+        $ascii = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name);
+        $ascii = is_string($ascii) && $ascii !== '' ? $ascii : 'file';
+
+        return substr($ascii, 0, 100);
+    }
+
+    /**
+     * @param array<string, list<string>> $fields
+     */
+    private function failure(int $status, string $code, string $message, array $fields, string $requestId): Response
+    {
+        return $this->respondJson([
+            'status' => $status,
+            'body' => [
+                'code' => $code,
+                'message' => $message,
+                'fields' => $fields === [] ? new \stdClass() : $fields,
+                'request_id' => $requestId,
+            ],
+        ], $requestId);
+    }
+
+    private function unexpected(\Throwable $error, string $requestId): Response
+    {
+        error_log('FileController 异常 ' . $error::class . ': ' . $error->getMessage());
+
+        return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
     }
 }
