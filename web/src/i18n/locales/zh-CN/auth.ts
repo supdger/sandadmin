@@ -16,6 +16,11 @@ export default {
     captchaVerifying: '正在核对…',
     captchaOk: '验证通过，请继续登录',
     captchaFailed: '点的位置不对，已换一张，请重新点选',
+    devBanner: '开发模式：仅本机可用，正式环境会自动关闭',
+    devEnter: '一键进入',
+    devEntering: '正在进入…',
+    devEnterFailed: '进入失败，请重试',
+    devOtherAccount: '用其他账号登录',
   },
 
   forceChange: {

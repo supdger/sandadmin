@@ -20,7 +20,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /** "Copy problem info" button shared by every system-error surface. */
-export function CopyProblemInfoButton({ error }: { error: ApiError }) {
+export function CopyErrorButton({ error }: { error: ApiError }) {
   const { t } = useTranslation();
 
   const onCopy = () => {
@@ -62,7 +62,7 @@ export function SystemErrorNotice({ error, onRetry, fallback }: SystemErrorNotic
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Typography.Text type="danger">{t('errors.system.message')}</Typography.Text>
-      <CopyProblemInfoButton error={error} />
+      <CopyErrorButton error={error} />
       {onRetry ? (
         <Button size="small" onClick={onRetry}>
           {t('actions.retry')}

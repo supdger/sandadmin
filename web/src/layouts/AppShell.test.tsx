@@ -5,7 +5,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { env } from '@/config/env';
@@ -29,21 +29,37 @@ if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
     ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }) as DOMRect;
 }
 
+// v1 接口在 /admin/v1 下；auth/preferences 仍是 legacy 路径。
 const base = env.apiBaseUrl;
+const v1 = `${env.apiBaseUrl}/admin/v1`;
 
 function mockMe() {
   server.use(
-    http.get(`${base}/me`, () =>
+    http.get(`${v1}/me`, () =>
       HttpResponse.json({
-        code: 200,
-        message: 'ok',
         data: {
           id: 'u-1',
           username: 'admin',
           nickname: '管理员',
-          mustChangePassword: false,
+          avatar: null,
+          avatar_file_id: null,
+          phone: '',
+          email: null,
+          status: 'enabled',
+          is_admin: false,
+          is_super: false,
+          must_change_password: false,
           permissions: [],
+          dept_id: null,
+          dept_name: null,
+          post_id: null,
+          post_name: null,
+          role_ids: [],
+          role_names: [],
+          last_login_time: null,
+          create_time: '2026-01-01T00:00:00Z',
         },
+        request_id: 't',
       }),
     ),
   );
@@ -56,6 +72,8 @@ function renderShell(entry = '/') {
   const children: RouteObject[] = [
     { path: '/', element: <div>首页内容</div> },
     { path: '/preferences', element: <div>偏好页内容</div> },
+    { path: '/profile', element: <div>个人设置页</div> },
+    { path: '/notifications', element: <div>消息页</div> },
   ];
   const router = createMemoryRouter(
     [
@@ -73,6 +91,16 @@ function renderShell(entry = '/') {
 }
 
 describe('AppShell', () => {
+  beforeEach(() => {
+    // The important-announcement popup would cover the header in every test;
+    // individual tests re-enable it with their own server.use override.
+    server.use(
+      http.get(`${v1}/me/announcements/popup`, () =>
+        HttpResponse.json({ data: { items: [] }, request_id: 'test' }),
+      ),
+    );
+  });
+
   afterEach(() => {
     clearToken();
     localStorage.removeItem('sandadmin.theme');
@@ -88,9 +116,14 @@ describe('AppShell', () => {
     await waitFor(() => expect(nav()).toBeTruthy());
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
 
-    // The nested item lives inside the collapsed "系统设置" group — open it.
+    // The nested items live inside collapsed groups — open both.
     await userEvent.click(within(nav()).getByText('系统设置'));
     expect(await within(nav()).findByText('偏好设置')).toBeInTheDocument();
+    // Data-domain pages are real routes now, so the mock advertises them too.
+    await userEvent.click(within(nav()).getByText('数据管理'));
+    expect(await within(nav()).findByText('选项管理')).toBeInTheDocument();
+    expect(within(nav()).getByText('文件管理')).toBeInTheDocument();
+    expect(within(nav()).getByText('公告管理')).toBeInTheDocument();
 
     expect(screen.getByText('首页内容')).toBeInTheDocument();
     expect(screen.getByText(env.copyright)).toBeInTheDocument();
@@ -126,15 +159,22 @@ describe('AppShell', () => {
     mockMe();
     let calls = 0;
     server.use(
-      http.get(`${base}/me/menus`, () => {
+      http.get(`${v1}/me/menus`, () => {
         calls += 1;
         if (calls === 1) {
-          return HttpResponse.json({ code: 5000, message: '服务开了小差', data: null });
+          return HttpResponse.json(
+            { code: 'MENU_UNAVAILABLE', message: '服务开了小差', request_id: 't' },
+            { status: 422 },
+          );
         }
         return HttpResponse.json({
-          code: 200,
-          message: 'ok',
-          data: [{ id: 'workbench', parentId: null, title: '工作台', path: '/', order: 1 }],
+          data: {
+            menu_version: 1,
+            items: [
+              { key: 'home', type: 'page', title: '工作台', icon: 'home', path: '/', url: null },
+            ],
+          },
+          request_id: 't',
         });
       }),
     );
@@ -155,15 +195,22 @@ describe('AppShell', () => {
     mockMe();
     let calls = 0;
     server.use(
-      http.get(`${base}/me/menus`, () => {
+      http.get(`${v1}/me/menus`, () => {
         calls += 1;
         if (calls === 1) {
-          return HttpResponse.json({ code: 5000, message: 'boom', data: null }, { status: 500 });
+          return HttpResponse.json(
+            { code: 'SYS_BOOM', message: 'boom', request_id: 't' },
+            { status: 500 },
+          );
         }
         return HttpResponse.json({
-          code: 200,
-          message: 'ok',
-          data: [{ id: 'workbench', parentId: null, title: '工作台', path: '/', order: 1 }],
+          data: {
+            menu_version: 1,
+            items: [
+              { key: 'home', type: 'page', title: '工作台', icon: 'home', path: '/', url: null },
+            ],
+          },
+          request_id: 't',
         });
       }),
     );
@@ -224,5 +271,78 @@ describe('AppShell', () => {
       expect(router.state.location.pathname).toBe('/login');
     });
     expect(getToken()).toBeNull();
+  });
+
+  it('shows the notification bell and personal entries in the avatar menu', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    const { router, nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    // Bell with unread badge (mock returns 20 notifications + 3 announcements).
+    expect(await screen.findByRole('button', { name: '消息' })).toBeInTheDocument();
+    expect(await screen.findByText('25')).toBeInTheDocument();
+
+    // Open the bell panel: latest items + mark-all + view-all actions.
+    await userEvent.click(screen.getByRole('button', { name: '消息' }));
+    expect(await screen.findByText('全部标为已读')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('查看全部'));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/notifications');
+    });
+  });
+
+  it('links 个人设置 and 修改密码 from the avatar menu', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    const { router, nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    await userEvent.click(await screen.findByText('管理员'));
+    await userEvent.click(await screen.findByText('个人设置'));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/profile');
+    });
+  });
+
+  it('pops an important unread announcement and marks it read on 知道了', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+    let readCalls = 0;
+    server.use(
+      http.get(`${v1}/me/announcements/popup`, () =>
+        HttpResponse.json({
+          data: {
+            items: [
+              {
+                id: 'ann-002',
+                title: '新版选项管理上线',
+                content: '<p>选项管理模块已全面升级</p>',
+                level: 'important',
+                published_time: '2026-11-01T10:00:00Z',
+                expire_time: null,
+              },
+            ],
+          },
+          request_id: 'test',
+        }),
+      ),
+      http.post(`${v1}/announcements/ann-002/read`, () => {
+        readCalls += 1;
+        return HttpResponse.json({ data: { read: true }, request_id: 'test' });
+      }),
+    );
+
+    const { nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    expect(await screen.findByText('新版选项管理上线')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '知道了' }));
+    await waitFor(() => expect(readCalls).toBe(1));
+    await waitFor(() => {
+      expect(screen.queryByText('新版选项管理上线')).not.toBeInTheDocument();
+    });
   });
 });

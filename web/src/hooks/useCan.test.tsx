@@ -8,21 +8,35 @@ import { env } from '@/config/env';
 import { server } from '@/mocks/server';
 import { hasPermission, useCan } from './useCan';
 
-const base = env.apiBaseUrl;
+const base = `${env.apiBaseUrl}/admin/v1`;
 
 function mockPermissions(permissions: string[]) {
   server.use(
     http.get(`${base}/me`, () =>
       HttpResponse.json({
-        code: 200,
-        message: 'ok',
         data: {
           id: 'u-1',
           username: 'u',
           nickname: 'U',
-          mustChangePassword: false,
+          avatar: null,
+          avatar_file_id: null,
+          phone: '',
+          email: null,
+          status: 'enabled',
+          is_admin: false,
+          is_super: false,
+          must_change_password: false,
           permissions,
+          dept_id: null,
+          dept_name: null,
+          post_id: null,
+          post_name: null,
+          role_ids: [],
+          role_names: [],
+          last_login_time: null,
+          create_time: '2026-01-01T00:00:00Z',
         },
+        request_id: 't',
       }),
     ),
   );

@@ -74,8 +74,8 @@ interface Envelope {
 
 function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/+$/, '');
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return `${b}${p}`;
+  const pathname = path.startsWith('/') ? path : `/${path}`;
+  return `${b}${pathname}`;
 }
 
 function systemError(init: {

@@ -4,3 +4,4 @@ minimumReleaseAge: 10080
 allowBuilds:
   "@parcel/watcher": true
   msw: true
+  "es5-ext": false
