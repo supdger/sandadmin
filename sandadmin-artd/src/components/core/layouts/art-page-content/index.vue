@@ -15,8 +15,8 @@
     </div>
 
     <RouterView v-if="isRefresh" v-slot="{ Component, route }" :style="contentStyle">
-      <!-- 缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
+      <!-- 缓存路由动画（不加 appear：异步组件首次挂载的入场过渡可能永久挂起导致整页空白） -->
+      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in">
         <KeepAlive :max="10" :exclude="keepAliveExclude">
           <component
             class="art-page-view"
@@ -27,8 +27,8 @@
         </KeepAlive>
       </Transition>
 
-      <!-- 非缓存路由动画 -->
-      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in" appear>
+      <!-- 非缓存路由动画（同上，不加 appear） -->
+      <Transition :name="showTransitionMask ? '' : actualTransition" mode="out-in">
         <component
           class="art-page-view"
           :is="Component"

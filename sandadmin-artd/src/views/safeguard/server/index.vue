@@ -1,6 +1,10 @@
 <template>
   <div class="page-content mb-5">
-    <el-row :gutter="20">
+    <div v-if="platformSupported === false" class="monitor-empty">
+      <h2>这台服务器看不了监控</h2>
+      <p>服务监控目前只支持 Linux 服务器，这台是 {{ osName }}，所以没有监控数据。其他功能不受影响。</p>
+    </div>
+    <el-row v-else-if="platformSupported" :gutter="20">
       <!-- 内存 信息 -->
       <el-col :span="24" class="mb-4">
         <el-card class="art-table-card" shadow="never">
@@ -81,11 +85,7 @@
                 label-class-name="php-label"
                 content-class-name="php-content"
               >
-                {{
-                  serverInfo.phpEnv?.max_execution_time === '0'
-                    ? '无限制'
-                    : `${serverInfo.phpEnv?.max_execution_time}秒`
-                }}
+                {{ executionTimeLabel }}
               </el-descriptions-item>
               <el-descriptions-item
                 label="错误报告"
@@ -167,9 +167,17 @@
 
 <script setup lang="ts">
   import api from '@/api/safeguard/server'
-  import { onMounted } from 'vue'
+  import { computed, onMounted, ref } from 'vue'
 
   const loading = ref(false)
+  const platformSupported = ref<boolean | null>(null)
+  const osName = ref('')
+  const executionTimeLabel = computed(() => {
+    const value = serverInfo.phpEnv?.max_execution_time
+    if (value === '0') return '无限制'
+    if (value === undefined || value === null || value === '') return '—'
+    return `${value}秒`
+  })
 
   const serverInfo = reactive({
     memory: {
@@ -190,9 +198,13 @@
     loading.value = true
     try {
       const data = await api.monitor({})
-      serverInfo.memory = data.memory
-      serverInfo.phpEnv = data.phpEnv
-      serverInfo.disk = data.disk
+      platformSupported.value = data.supported !== false
+      osName.value = typeof data.os_name === 'string' && data.os_name !== '' ? data.os_name : '当前系统'
+      if (platformSupported.value) {
+        serverInfo.memory = data.memory
+        serverInfo.phpEnv = data.phpEnv
+        serverInfo.disk = data.disk
+      }
     } finally {
       loading.value = false
     }
@@ -204,6 +216,25 @@
 </script>
 
 <style lang="scss" scoped>
+  .monitor-empty {
+    padding: 72px 24px;
+    text-align: center;
+    color: var(--el-text-color-regular);
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+    }
+
+    p {
+      margin: 0 auto;
+      max-width: 520px;
+      line-height: 1.6;
+    }
+  }
+
   :deep(.el-descriptions__label) {
     width: 200px;
   }
