@@ -53,11 +53,22 @@ const USERS: Record<string, MockUser> = {
     password: MOCK_PASSWORD,
   },
   // Read-only demo: menus and pages are visible, every write is denied.
+  // The `system:*:index` codes let the v1 `/api/admin/v1` mocks serve list
+  // pages while every mutating endpoint still returns PERMISSION_DENIED.
   viewer: {
     username: 'viewer',
     nickname: '只读用户',
     mustChangePassword: false,
-    permissions: ['workbench:view', 'preferences:view'],
+    permissions: [
+      'workbench:view',
+      'preferences:view',
+      'system:user:index',
+      'system:dept:index',
+      'system:post:index',
+      'system:role:index',
+      'system:role:permission:index',
+      'system:menu:index',
+    ],
     password: env.mockViewerPassword ?? undefined,
   },
   // No-permission demo: /me/menus is empty and every protected route 403s.
