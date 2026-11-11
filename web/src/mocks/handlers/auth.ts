@@ -76,6 +76,8 @@ const USERS: Record<string, MockUser> = {
     is_super: false,
   },
   // Read-only demo: menus and pages are visible, every write is denied.
+  // The `system:*:index` codes let the v1 `/api/admin/v1` mocks serve list
+  // pages while every mutating endpoint still returns PERMISSION_DENIED.
   viewer: {
     username: 'viewer',
     nickname: '只读用户',
@@ -83,6 +85,12 @@ const USERS: Record<string, MockUser> = {
     permissions: [
       'workbench:view',
       'preferences:view',
+      'system:user:index',
+      'system:dept:index',
+      'system:post:index',
+      'system:role:index',
+      'system:role:permission:index',
+      'system:menu:index',
       'system:dict:index',
       'system:file:index',
       'system:announcement:index',
@@ -147,11 +155,11 @@ function mulberry32(seed: number): () => number {
 }
 
 function hashId(id: string): number {
-  let h = 0;
+  let hash = 0;
   for (let i = 0; i < id.length; i += 1) {
-    h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
+    hash = (Math.imul(hash, 31) + id.charCodeAt(i)) >>> 0;
   }
-  return h;
+  return hash;
 }
 
 function createCaptcha(): { captchaId: string; imageDataUrl: string } {

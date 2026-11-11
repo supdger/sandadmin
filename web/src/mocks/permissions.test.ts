@@ -26,6 +26,12 @@ describe('mock demo account permissions', () => {
       permissions: [
         'workbench:view',
         'preferences:view',
+        'system:user:index',
+        'system:dept:index',
+        'system:post:index',
+        'system:role:index',
+        'system:role:permission:index',
+        'system:menu:index',
         'system:dict:index',
         'system:file:index',
         'system:announcement:index',
