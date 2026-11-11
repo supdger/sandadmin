@@ -69,7 +69,15 @@
         "zoujingli/ip2region": "^2.0",
         "aliyuncs/oss-sdk-php": "^2.7",
         "smalot/pdfparser": "^2.12",
-        "doctrine/dbal": "^4.2"
+        "league/flysystem": "^3.29",
+        "doctrine/dbal": "^4.2",
+        "ext-fileinfo": "*",
+        "ext-mbstring": "*",
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5",
+        "phpstan/phpstan": "^2.1"
     },
     "suggest": {
         "ext-event": "For better performance. "
@@ -80,6 +88,11 @@
             "App\\": "./app",
             "app\\View\\Components\\": "./app/view/components",
             "Sandadmin\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Sandadmin\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -110,15 +123,6 @@
     "extra": {
         "sandadmin": {
             "frontend-path": "../sandadmin-artd"
-        }
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^11.5",
-        "phpstan/phpstan": "^2.1"
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Sandadmin\\Tests\\": "tests/"
         }
     }
 }
