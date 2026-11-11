@@ -107,7 +107,8 @@
 
   const emit = defineEmits<SearchBarEmits>()
 
-  const modelValue = defineModel<Record<string, any>>({ default: {} })
+  // Vue 3.5 的 defineModel 类型要求 default 为工厂函数，直接传字面量对象会导致重载解析失败。
+  const modelValue = defineModel<Record<string, any>>({ default: () => ({}) })
 
   /**
    * 是否展开状态

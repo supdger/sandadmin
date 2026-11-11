@@ -43,6 +43,9 @@ final class DemoNoteRepositoryTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!isset($this->conn)) {
+            return;
+        }
         $this->conn->executeStatement('DROP TABLE IF EXISTS sand_demo_note');
         $this->conn->close();
     }
