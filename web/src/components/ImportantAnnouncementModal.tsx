@@ -4,47 +4,15 @@ import { Button, Modal, Toast, Typography } from '@douyinfe/semi-ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { markAnnouncementRead, type AnnouncementPopupItem } from '@/api/notifications';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { markAnnouncementRead, type AnnouncementPopupItem } from '@/api/v1/notifications';
+import { adminErrorMessage } from '@/lib/adminError';
+import { sanitizeAnnouncementHtml } from '@/lib/announcementHtml';
 
 export interface ImportantAnnouncementModalProps {
   /** Queue of important announcements; shown one at a time, in order. */
   items: AnnouncementPopupItem[];
   /** Called after the last item is acknowledged. */
   onCloseAll: () => void;
-}
-
-const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'base']);
-
-/**
- * Announcement bodies are rich text already whitelist-cleaned server-side;
- * strip active content again before rendering so a compromised payload can
- * never execute script in the admin shell.
- */
-function sanitizeAnnouncementHtml(html: string): string {
-  if (typeof DOMParser === 'undefined') {
-    return '';
-  }
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  doc.querySelectorAll('*').forEach((el) => {
-    const tag = el.tagName.toLowerCase();
-    if (BLOCKED_TAGS.has(tag)) {
-      el.remove();
-      return;
-    }
-    for (const attr of Array.from(el.attributes)) {
-      const name = attr.name.toLowerCase();
-      const value = attr.value.trim().toLowerCase();
-      if (
-        name.startsWith('on') ||
-        ((name === 'href' || name === 'src' || name === 'xlink:href') &&
-          (value.startsWith('javascript:') || value.startsWith('vbscript:')))
-      ) {
-        el.removeAttribute(attr.name);
-      }
-    }
-  });
-  return doc.body.innerHTML;
 }
 
 /**
@@ -75,7 +43,7 @@ export function ImportantAnnouncementModal({ items, onCloseAll }: ImportantAnnou
         setIndex(index + 1);
       }
     } catch (e) {
-      Toast.error(apiErrorMessage(e, t('announcement.readFailed')));
+      Toast.error(adminErrorMessage(e, t('announcement.readFailed')));
     } finally {
       setMarking(false);
     }

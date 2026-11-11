@@ -27,12 +27,12 @@ import {
   updateDictItemStatus,
   type DictItem,
   type DictType,
-} from '@/api/dict';
+} from '@/api/v1/dict';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { DictItemModal } from './DictItemModal';
 import { DictTypeModal } from './DictTypeModal';
 import { useDebouncedValue } from './useDebouncedValue';
@@ -74,7 +74,7 @@ export function DictPage() {
 
   const types = useQuery({
     queryKey: [...DICT_QUERY_KEY, 'types', debouncedKeyword],
-    queryFn: () => listDictTypes(debouncedKeyword || undefined),
+    queryFn: () => listDictTypes({ keyword: debouncedKeyword || undefined }),
   });
 
   const detail = useQuery({
@@ -126,7 +126,7 @@ export function DictPage() {
           context.previous,
         );
       }
-      Toast.error(apiErrorMessage(error, t('itemModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('itemModal.saveFailed')));
       void invalidateAll();
     },
   });
@@ -143,7 +143,7 @@ export function DictPage() {
       await invalidateAll();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('itemModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('itemModal.saveFailed')));
       void invalidateAll();
     },
   });
@@ -155,7 +155,7 @@ export function DictPage() {
       await invalidateAll();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('itemModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('itemModal.saveFailed')));
       void invalidateAll();
     },
   });
@@ -172,7 +172,7 @@ export function DictPage() {
       await invalidateAll();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('typeModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('typeModal.saveFailed')));
       void invalidateAll();
     },
   });

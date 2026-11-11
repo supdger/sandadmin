@@ -20,7 +20,7 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   } as unknown as typeof ResizeObserver;
 }
 
-const base = env.apiBaseUrl;
+const base = `${env.apiBaseUrl}/admin/v1`;
 
 const ITEMS = [
   {

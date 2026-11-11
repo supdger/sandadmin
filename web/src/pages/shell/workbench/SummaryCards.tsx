@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { getSummaryCards, type DashboardCard } from '@/api/dashboard';
+import { getSummaryCards, type DashboardCard } from '@/api/v1/dashboard';
 
 const CARD_TITLES: Record<string, string> = {
   users: 'cards.users.title',

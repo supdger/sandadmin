@@ -6,8 +6,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
-import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/dashboard';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/v1/dashboard';
+import { adminErrorMessage } from '@/lib/adminError';
 
 const NOTICES_QUERY_KEY = ['dashboard', 'notices'] as const;
 
@@ -54,7 +54,7 @@ export function NoticeBanner() {
       setDismissedKey(noticeKey);
       void queryClient.invalidateQueries({ queryKey: NOTICES_QUERY_KEY });
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('notices.dismissFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('notices.dismissFailed'))),
   });
 
   if (notices.isPending || notices.isError || !notices.data) {

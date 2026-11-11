@@ -1,10 +1,10 @@
 import { http, type HttpHandler } from 'msw';
 
-import { env } from '@/config/env';
 import { mockUserForToken, type MockUser } from './auth';
-import { failOpenapi, okOpenapi } from './_shared';
+import { announcementMarkRead, announcementReadTime, inboxAnnouncements } from './data';
+import { failV1, okV1, v1Base } from './_v1';
 
-const base = env.apiBaseUrl;
+const base = v1Base;
 
 // Shared helpers
 
@@ -19,7 +19,7 @@ function requireUser(request: Request): { token: string; user: MockUser } | null
 }
 
 function unauthorized() {
-  return failOpenapi(401, 'UNAUTHORIZED', '登录已过期，请重新登录');
+  return failV1(401, 'UNAUTHORIZED', '登录已过期，请重新登录');
 }
 
 function hasPermission(user: MockUser, code: string): boolean {
@@ -97,6 +97,10 @@ function profilePayload(user: MockUser, state: ProfileState) {
     avatar_file_id: state.avatar_file_id,
     phone: state.phone,
     email: state.email,
+    // 只读的组织上下文：部门/岗位/角色名；不含 auth/identity/wallet 字段。
+    dept_name: user.dept_name ?? null,
+    post_name: user.post_name ?? null,
+    role_names: user.role_names ?? [],
     password_changed_time: state.password_changed_time,
   };
 }
@@ -214,113 +218,13 @@ const NOTIFICATION_SEEDS: NotificationSeed[] = [
   { kind: 'notification', source_code: 'system', text: '「周报模板」已更新到最新版本', title: null, announcement_id: null, link: null, create_time: iso(30, 10, 25) },
 ];
 
-interface AnnouncementSeed {
-  id: string;
-  title: string;
-  level: 'important' | 'normal';
-  pinned: boolean;
-  status: 'published' | 'draft' | 'withdrawn';
-  scope: 'all' | 'dept';
-  dept_name: string | null;
-  published_time: string;
-  expire_time: string | null;
-  content: string;
-}
-
-const ANNOUNCEMENT_SEEDS: AnnouncementSeed[] = [
-  {
-    id: 'ann-001',
-    title: '系统维护通知',
-    level: 'normal',
-    pinned: false,
-    status: 'published',
-    scope: 'all',
-    dept_name: null,
-    published_time: iso(2, 9, 0),
-    expire_time: null,
-    content: '<p>本周日凌晨 2:00-4:00 系统维护，期间部分功能暂不可用。</p>',
-  },
-  {
-    id: 'ann-002',
-    title: '新版选项管理上线',
-    level: 'important',
-    pinned: true,
-    status: 'published',
-    scope: 'all',
-    dept_name: null,
-    published_time: iso(1, 10, 0),
-    expire_time: iso(-60, 0, 0),
-    content: '<p>选项管理模块已全面升级，支持批量导入导出与回收站。</p>',
-  },
-  {
-    id: 'ann-003',
-    title: '市场部季度培训',
-    level: 'normal',
-    pinned: false,
-    status: 'published',
-    scope: 'dept',
-    dept_name: '行政部',
-    published_time: iso(3, 14, 0),
-    expire_time: null,
-    content: '<p>本季度培训安排已发布，请相关同事查收。</p>',
-  },
-  {
-    id: 'ann-004',
-    title: '国庆值班安排',
-    level: 'normal',
-    pinned: false,
-    status: 'draft',
-    scope: 'all',
-    dept_name: null,
-    published_time: iso(0, 0, 0),
-    expire_time: null,
-    content: '<p>草稿：国庆假期值班表。</p>',
-  },
-  {
-    id: 'ann-005',
-    title: '秋季团建报名',
-    level: 'normal',
-    pinned: false,
-    status: 'withdrawn',
-    scope: 'all',
-    dept_name: null,
-    published_time: iso(5, 9, 0),
-    expire_time: null,
-    content: '<p>报名已截止，活动取消。</p>',
-  },
-  {
-    id: 'ann-006',
-    title: '旧版公告（已过期）',
-    level: 'normal',
-    pinned: false,
-    status: 'published',
-    scope: 'all',
-    dept_name: null,
-    published_time: iso(90, 9, 0),
-    expire_time: iso(30, 0, 0),
-    content: '<p>这是一条已过期的公告。</p>',
-  },
-];
-
 interface InboxItem extends NotificationSeed {
   id: string;
   kind: 'notification' | 'announcement';
   announcement_id: string | null;
   read_time: string | null;
-}
-
-function announcementVisible(user: MockUser, ann: AnnouncementSeed): boolean {
-  if (ann.status !== 'published') {
-    return false;
-  }
-  if (ann.expire_time && new Date(ann.expire_time).getTime() < Date.now()) {
-    return false;
-  }
-  if (ann.scope === 'all') {
-    return true;
-  }
-  // 超管可见全部部门公告；普通用户按部门匹配。
-  return user.is_super === true || ann.dept_name === user.dept_name;
+  /** 公告置顶标记；通知条目无此值。 */
+  pinned?: boolean;
 }
 
 function inboxFor(user: MockUser): InboxItem[] {
@@ -335,10 +239,7 @@ function inboxFor(user: MockUser): InboxItem[] {
     create_time: seed.create_time,
     read_time: null,
   }));
-  for (const ann of ANNOUNCEMENT_SEEDS) {
-    if (!announcementVisible(user, ann)) {
-      continue;
-    }
+  for (const ann of inboxAnnouncements(user)) {
     items.push({
       id: ann.id,
       kind: 'announcement',
@@ -349,14 +250,13 @@ function inboxFor(user: MockUser): InboxItem[] {
       link: null,
       create_time: ann.published_time,
       read_time: null,
+      pinned: ann.pinned,
     });
   }
   // Pinned announcements float to the top, then newest first.
   items.sort((a, b) => {
-    const aAnn = ANNOUNCEMENT_SEEDS.find((x) => x.id === a.id);
-    const bAnn = ANNOUNCEMENT_SEEDS.find((x) => x.id === b.id);
-    if (aAnn?.pinned !== bAnn?.pinned) {
-      return aAnn?.pinned ? -1 : 1;
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+      return a.pinned ? -1 : 1;
     }
     return b.create_time.localeCompare(a.create_time);
   });
@@ -364,7 +264,6 @@ function inboxFor(user: MockUser): InboxItem[] {
 }
 
 const readNotifications = new Map<string, Set<string>>();
-const readAnnouncements = new Map<string, Set<string>>();
 
 function readSet(map: Map<string, Set<string>>, key: string): Set<string> {
   let set = map.get(key);
@@ -487,7 +386,7 @@ export default [
   http.get(`${base}/me/profile`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
-    return okOpenapi(profilePayload(auth.user, profileFor(auth.user)));
+    return okV1(profilePayload(auth.user, profileFor(auth.user)));
   }),
 
   http.put(`${base}/me/profile`, async ({ request }) => {
@@ -524,7 +423,7 @@ export default [
       fields.email = ['邮箱格式不对，例如 name@company.com'];
     }
     if (Object.keys(fields).length > 0) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '提交的内容没有通过检查', fields);
+      return failV1(422, 'VALIDATION_FAILED', '提交的内容没有通过检查', fields);
     }
     const state = profileFor(auth.user);
     state.nickname = nickname;
@@ -533,36 +432,17 @@ export default [
     if (body.avatar_file_id !== undefined) {
       state.avatar_file_id = body.avatar_file_id;
     }
-    return okOpenapi(profilePayload(auth.user, state));
+    return okV1(profilePayload(auth.user, state));
   }),
 
-  http.post(`${base}/files`, async ({ request }) => {
-    const auth = requireUser(request);
-    if (!auth) return unauthorized();
-    const form = await request.formData();
-    const file = form.get('file');
-    if (!(file instanceof File)) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '缺少文件', { file: ['请选择要上传的文件'] });
-    }
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '只支持 jpg 和 png 图片', {
-        file: ['只支持 jpg 和 png 图片'],
-      });
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '图片太大了，请换一张 2MB 以内的', {
-        file: ['图片太大了，请换一张 2MB 以内的'],
-      });
-    }
-    return okOpenapi({ id: `file-${Date.now().toString(36)}` });
-  }),
+  // 上传走统一 `/files`（data.ts 文件域 handler），头像校验在前端做。
 
   // 密码
   http.get(`${base}/auth/password-policy`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     const isAdminTier = auth.user.is_super === true || auth.user.is_admin === true;
-    return okOpenapi({
+    return okV1({
       tier: isAdminTier ? 'admin' : 'normal',
       min_length: isAdminTier ? 10 : 8,
       require_letter: true,
@@ -578,7 +458,7 @@ export default [
     if (!auth) return unauthorized();
     const body = (await request.json()) as { old_password?: string; new_password?: string };
     if (body.old_password !== auth.user.password) {
-      return failOpenapi(400, 'OLD_PASSWORD_INCORRECT', '当前密码不对，请再输一遍', {
+      return failV1(400, 'OLD_PASSWORD_INCORRECT', '当前密码不对，请再输一遍', {
         old_password: ['当前密码不对，请再输一遍'],
       });
     }
@@ -588,7 +468,7 @@ export default [
     })();
     const next = body.new_password ?? '';
     if (next.length < policy.min) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '密码太短了', {
+      return failV1(422, 'VALIDATION_FAILED', '密码太短了', {
         new_password: [`密码太短了，至少要 ${policy.min} 位`],
       });
     }
@@ -596,7 +476,7 @@ export default [
     sessionsByUser.set(auth.user.username, sessionsFor(auth.user).filter((s) => s.current));
     const state = profileFor(auth.user);
     state.password_changed_time = new Date().toISOString().slice(0, 10);
-    return okOpenapi({ changed: true });
+    return okV1({ changed: true });
   }),
 
   // 登录设备
@@ -606,7 +486,7 @@ export default [
     const list = sessionsFor(auth.user).filter(
       (s) => !s.expire_time || new Date(s.expire_time).getTime() > Date.now(),
     );
-    return okOpenapi({ items: list });
+    return okV1({ items: list });
   }),
 
   http.delete(`${base}/me/sessions`, ({ request }) => {
@@ -616,7 +496,7 @@ export default [
     const kept = list.filter((s) => s.current);
     const removed = list.length - kept.length;
     sessionsByUser.set(auth.user.username, kept);
-    return okOpenapi({ removed });
+    return okV1({ removed });
   }),
 
   http.delete(`${base}/me/sessions/:sessionId`, ({ request, params }) => {
@@ -624,17 +504,17 @@ export default [
     if (!auth) return unauthorized();
     const session = sessionsFor(auth.user).find((s) => s.id === String(params.sessionId));
     if (!session) {
-      return failOpenapi(404, 'NOT_FOUND', '这台设备已经不在登录列表里了');
+      return failV1(404, 'NOT_FOUND', '这台设备已经不在登录列表里了');
     }
     if (session.current) {
-      return failOpenapi(400, 'SESSION_CURRENT', '不能退出当前登录的设备');
+      return failV1(400, 'SESSION_CURRENT', '不能退出当前登录的设备');
     }
     const sessionId = String(params.sessionId);
     sessionsByUser.set(
       auth.user.username,
       sessionsFor(auth.user).filter((s) => s.id !== sessionId),
     );
-    return okOpenapi({ removed: true });
+    return okV1({ removed: true });
   }),
 
   // 工作台
@@ -643,9 +523,9 @@ export default [
     if (!auth) return unauthorized();
     const isAdmin = auth.user.is_super === true || auth.user.is_admin === true;
     if (!isAdmin) {
-      return okOpenapi({ done: true, steps: [] });
+      return okV1({ done: true, steps: [] });
     }
-    return okOpenapi({
+    return okV1({
       done: false,
       steps: [
         { key: 'add_user', done: true },
@@ -658,7 +538,7 @@ export default [
   http.get(`${base}/dashboard/summary`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
-    return okOpenapi(dashboardSummary(auth.user));
+    return okV1(dashboardSummary(auth.user));
   }),
 
   http.get(`${base}/dashboard/todos`, ({ request }) => {
@@ -667,7 +547,7 @@ export default [
     const url = new URL(request.url);
     const limit = Math.min(Number(url.searchParams.get('limit')) || 5, 50);
     const all = dashboardTodos(auth.user);
-    return okOpenapi({ items: all.items.slice(0, limit), total: all.total });
+    return okV1({ items: all.items.slice(0, limit), total: all.total });
   }),
 
   http.get(`${base}/dashboard/todos/all`, ({ request }) => {
@@ -678,7 +558,7 @@ export default [
     const pageSize = Math.min(Number(url.searchParams.get('page_size')) || 20, 100);
     const all = dashboardTodos(auth.user);
     const start = (page - 1) * pageSize;
-    return okOpenapi({
+    return okV1({
       items: all.items.slice(start, start + pageSize),
       total: all.total,
       page,
@@ -691,16 +571,16 @@ export default [
     if (!auth) return unauthorized();
     const url = new URL(request.url);
     const range = url.searchParams.get('range') ?? '7d';
-    return okOpenapi(dashboardCharts(range, auth.user));
+    return okV1(dashboardCharts(range, auth.user));
   }),
 
   http.get(`${base}/dashboard/activities`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     if (!hasPermission(auth.user, 'system:audit-log:index')) {
-      return okOpenapi({ items: [] });
+      return okV1({ items: [] });
     }
-    return okOpenapi({
+    return okV1({
       items: [
         { actor_name: '管理员', action_text: '修改了「选项管理」配置', target_label: '选项管理', create_time: iso(0, 9, 40) },
         { actor_name: '系统', action_text: '完成了每晚数据备份', target_label: null, create_time: iso(0, 3, 0) },
@@ -733,10 +613,10 @@ export default [
         action: { label_key: 'goConnect', link: '/plugin/sand-ai/provider' },
       });
     }
-    return okOpenapi({ items });
+    return okV1({ items });
   }),
 
-  http.post(`${base}/dashboard/notices/:noticeKey/dismiss`, () => okOpenapi({ dismissed: true })),
+  http.post(`${base}/dashboard/notices/:noticeKey/dismiss`, () => okV1({ dismissed: true })),
 
   http.get(`${base}/dashboard/shortcuts`, ({ request }) => {
     const auth = requireUser(request);
@@ -746,9 +626,9 @@ export default [
       const items = override
         .map((key) => AUTO_SHORTCUTS.find((s) => s.menu_key === key))
         .filter((s): s is NonNullable<typeof s> => Boolean(s));
-      return okOpenapi({ mode: 'manual', items });
+      return okV1({ mode: 'manual', items });
     }
-    return okOpenapi({ mode: 'auto', items: AUTO_SHORTCUTS });
+    return okV1({ mode: 'auto', items: AUTO_SHORTCUTS });
   }),
 
   http.put(`${base}/dashboard/shortcuts`, async ({ request }) => {
@@ -760,17 +640,17 @@ export default [
     const items = keys
       .map((key) => AUTO_SHORTCUTS.find((s) => s.menu_key === key))
       .filter((s): s is NonNullable<typeof s> => Boolean(s));
-    return okOpenapi({ mode: 'manual', items });
+    return okV1({ mode: 'manual', items });
   }),
 
   http.delete(`${base}/dashboard/shortcuts`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     shortcutOverrides.delete(auth.user.username);
-    return okOpenapi({ mode: 'auto', items: AUTO_SHORTCUTS });
+    return okV1({ mode: 'auto', items: AUTO_SHORTCUTS });
   }),
 
-  http.post(`${base}/dashboard/visits`, () => okOpenapi({ recorded: true })),
+  http.post(`${base}/dashboard/visits`, () => okV1({ recorded: true })),
 
   // 通知中心
   http.get(`${base}/notifications`, ({ request }) => {
@@ -782,23 +662,19 @@ export default [
     const pageSize = Math.min(Number(url.searchParams.get('page_size')) || 20, 100);
 
     const ntfRead = readSet(readNotifications, auth.user.username);
-    const annRead = readSet(readAnnouncements, auth.user.username);
     const items = inboxFor(auth.user)
-      .filter((item) => {
-        if (!unreadOnly) return true;
-        const read =
-          item.kind === 'announcement'
-            ? annRead.has(item.id)
-            : ntfRead.has(item.id);
-        return !read;
-      })
       .map((item) => {
-        const read =
-          item.kind === 'announcement' ? annRead.has(item.id) : ntfRead.has(item.id);
-        return { ...item, read_time: read ? iso(0, 12, 0) : null };
-      });
+        const readTime =
+          item.kind === 'announcement'
+            ? announcementReadTime(item.id, auth.user.username)
+            : ntfRead.has(item.id)
+              ? iso(0, 12, 0)
+              : null;
+        return { ...item, read_time: readTime };
+      })
+      .filter((item) => !unreadOnly || item.read_time === null);
     const start = (page - 1) * pageSize;
-    return okOpenapi({
+    return okV1({
       items: items.slice(start, start + pageSize),
       total: items.length,
       page,
@@ -810,62 +686,33 @@ export default [
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     const ntfRead = readSet(readNotifications, auth.user.username);
-    const annRead = readSet(readAnnouncements, auth.user.username);
-    const count = inboxFor(auth.user).filter((item) => {
-      const read =
-        item.kind === 'announcement' ? annRead.has(item.id) : ntfRead.has(item.id);
-      return !read;
-    }).length;
-    return okOpenapi({ count });
+    const count = inboxFor(auth.user).filter((item) =>
+      item.kind === 'announcement'
+        ? announcementReadTime(item.id, auth.user.username) === null
+        : !ntfRead.has(item.id),
+    ).length;
+    return okV1({ count });
   }),
 
   http.post(`${base}/notifications/:notificationId/read`, ({ request, params }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     readSet(readNotifications, auth.user.username).add(String(params.notificationId));
-    return okOpenapi({ read: true });
+    return okV1({ read: true });
   }),
 
   http.post(`${base}/notifications/read-all`, ({ request }) => {
     const auth = requireUser(request);
     if (!auth) return unauthorized();
     const ntfRead = readSet(readNotifications, auth.user.username);
-    const annRead = readSet(readAnnouncements, auth.user.username);
     for (const item of inboxFor(auth.user)) {
       if (item.kind === 'announcement') {
-        annRead.add(item.id);
+        announcementMarkRead(item.id, auth.user.username);
       } else {
         ntfRead.add(item.id);
       }
     }
-    return okOpenapi({ read: true });
+    return okV1({ read: true });
   }),
 
-  // 重要公告弹窗
-  http.get(`${base}/me/announcements/popup`, ({ request }) => {
-    const auth = requireUser(request);
-    if (!auth) return unauthorized();
-    const annRead = readSet(readAnnouncements, auth.user.username);
-    const items = ANNOUNCEMENT_SEEDS.filter(
-      (ann) =>
-        ann.level === 'important' &&
-        announcementVisible(auth.user, ann) &&
-        !annRead.has(ann.id),
-    ).map((ann) => ({
-      id: ann.id,
-      title: ann.title,
-      content: ann.content,
-      level: 'important',
-      published_time: ann.published_time,
-      expire_time: ann.expire_time,
-    }));
-    return okOpenapi({ items });
-  }),
-
-  http.post(`${base}/announcements/:announcementId/read`, ({ request, params }) => {
-    const auth = requireUser(request);
-    if (!auth) return unauthorized();
-    readSet(readAnnouncements, auth.user.username).add(String(params.announcementId));
-    return okOpenapi({ read: true });
-  }),
 ] satisfies HttpHandler[];

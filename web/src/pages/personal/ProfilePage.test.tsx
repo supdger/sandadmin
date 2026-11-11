@@ -25,7 +25,7 @@ if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
     ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }) as DOMRect;
 }
 
-const base = env.apiBaseUrl;
+const base = `${env.apiBaseUrl}/admin/v1`;
 
 function renderPage(entry = '/profile') {
   const queryClient = new QueryClient({
@@ -81,6 +81,11 @@ describe('ProfilePage', () => {
     expect(screen.getAllByText('当前设备').length).toBe(1);
     // Non-current devices offer a revoke action; the current one does not.
     expect(screen.getAllByRole('button', { name: '退出这台设备' }).length).toBeGreaterThan(0);
+    // 接口照收 ip/user_agent，但页面一律不显示（G5）。
+    expect(screen.queryByText(/192\.0\.2\./)).toBeNull();
+    expect(screen.queryByText(/Mozilla\//)).toBeNull();
+    expect(document.body.innerHTML).not.toContain('192.0.2.21');
+    expect(document.body.innerHTML).not.toContain('Mozilla/5.0');
   });
 
   it('security tab opens the change-password modal', async () => {

@@ -9,8 +9,8 @@ import {
   updateDictItem,
   type DictItem,
   type DictItemWrite,
-} from '@/api/dict';
-import { apiErrorMessage } from '@/lib/apiClient';
+} from '@/api/v1/dict';
+import { adminErrorMessage } from '@/lib/adminError';
 
 /** 8 个预设色；null 表示「默认」色。 */
 const DICT_COLORS = [
@@ -93,7 +93,7 @@ export function DictItemModal({
       onClose();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('itemModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('itemModal.saveFailed')));
     },
   });
 

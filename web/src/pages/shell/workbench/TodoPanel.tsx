@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
-import { getWorkbenchTodos, type TodoItem } from '@/api/dashboard';
+import { getWorkbenchTodos, type TodoItem } from '@/api/v1/dashboard';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
 
 const TODOS_QUERY_KEY = ['dashboard', 'todos'] as const;

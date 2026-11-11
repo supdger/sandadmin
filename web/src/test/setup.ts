@@ -75,7 +75,7 @@ const zeroRect = {
   toJSON: () => ({}),
 } as DOMRect;
 
-const emptyRectList = {
+const emptyRects = {
   length: 0,
   item: () => null,
   [Symbol.iterator]: function* () {},
@@ -86,7 +86,7 @@ if (typeof Range !== 'undefined') {
     Range.prototype.getBoundingClientRect = () => zeroRect;
   }
   if (typeof Range.prototype.getClientRects !== 'function') {
-    Range.prototype.getClientRects = () => emptyRectList;
+    Range.prototype.getClientRects = () => emptyRects;
   }
 }
 

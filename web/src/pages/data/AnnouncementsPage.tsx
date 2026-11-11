@@ -15,23 +15,23 @@ import {
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
 import { IconMore, IconPlus, IconSearch } from '@douyinfe/semi-icons';
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import {
   deleteAnnouncement,
-  getAnnouncementReadStats,
   listAnnouncements,
   publishAnnouncement,
   revokeAnnouncement,
   type Announcement,
-} from '@/api/announcements';
+  type AnnouncementStateFilter,
+} from '@/api/v1/announcements';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { AnnouncementEditor } from './AnnouncementEditor';
 import { formatDateTime } from './format';
 import { ReadStatsDrawer } from './ReadStatsDrawer';
@@ -39,7 +39,8 @@ import { useDebouncedValue } from './useDebouncedValue';
 
 const ANNOUNCEMENTS_QUERY_KEY = ['announcements'] as const;
 const PAGE_SIZE = 20;
-const STATE_OPTIONS = ['draft', 'published', 'withdrawn'] as const;
+// expired 是派生筛选（expire_time 已过即算），Announcement.state 本身没有这个值。
+const STATE_OPTIONS = ['draft', 'published', 'withdrawn', 'expired'] as const;
 
 function statusTag(a: Announcement, t: (key: string) => string) {
   if (a.state === 'draft') return <Tag color="grey" size="small">{t('filters.draft')}</Tag>;
@@ -94,7 +95,7 @@ export function AnnouncementsPage() {
   const apiParams = useMemo(
     () => ({
       keyword: debouncedKeyword || undefined,
-      state: state || undefined,
+      state: (state || undefined) as AnnouncementStateFilter | undefined,
       page,
       page_size: pageSize,
     }),
@@ -108,21 +109,6 @@ export function AnnouncementsPage() {
 
   const items = list.data?.items ?? [];
 
-  // 「已读」列需要每条公告的统计；草稿不查（恒为 0/0）。
-  const statsQueries = useQueries({
-    queries: items.map((a) => ({
-      queryKey: [...ANNOUNCEMENTS_QUERY_KEY, 'read-stats', a.id],
-      queryFn: () => getAnnouncementReadStats(a.id),
-      enabled: a.state !== 'draft',
-      staleTime: 30_000,
-    })),
-  });
-  const statsOf = (id: string) => {
-    const idx = items.findIndex((a) => a.id === id);
-    const stats = idx >= 0 ? statsQueries[idx] : undefined;
-    return stats?.data;
-  };
-
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
 
@@ -132,7 +118,7 @@ export function AnnouncementsPage() {
       Toast.success(t('confirm.published'));
       await invalidate();
     },
-    onError: (error) => Toast.error(apiErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
   });
 
   const revoke = useMutation({
@@ -141,7 +127,7 @@ export function AnnouncementsPage() {
       Toast.success(t('confirm.revoked'));
       await invalidate();
     },
-    onError: (error) => Toast.error(apiErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
   });
 
   const remove = useMutation({
@@ -150,7 +136,7 @@ export function AnnouncementsPage() {
       Toast.success(t('confirm.deleted'));
       await invalidate();
     },
-    onError: (error) => Toast.error(apiErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
   });
 
   const requestPublish = (a: Announcement) => {
@@ -231,15 +217,14 @@ export function AnnouncementsPage() {
       width: 100,
       render: (_text, record) => {
         if (record.state === 'draft') return <Typography.Text type="tertiary">—</Typography.Text>;
-        const stats = statsOf(record.id);
-        if (!stats) return <Skeleton placeholder={<Skeleton.Title style={{ width: 48 }} />} loading />;
+        // 已读数来自列表行自带字段；read-stats 接口只留给明细抽屉。
         return (
           <button
             type="button"
             className="text-[var(--semi-color-primary)] hover:underline"
             onClick={() => setStatsTarget(record)}
           >
-            {stats.read_count} / {stats.read_count + stats.unread_count}
+            {record.read_count} / {record.recipient_count}
           </button>
         );
       },

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
-import { getDashboardCharts, type ChartRange, type DashboardChart } from '@/api/dashboard';
+import { getDashboardCharts, type ChartRange, type DashboardChart } from '@/api/v1/dashboard';
 
 const RANGE_KEYS: ChartRange[] = ['7d', '30d', '90d'];
 const CHARTS_QUERY_KEY = ['dashboard', 'charts'] as const;

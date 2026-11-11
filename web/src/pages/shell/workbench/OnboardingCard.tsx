@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-import { getOnboarding } from '@/api/dashboard';
+import { getOnboarding } from '@/api/v1/dashboard';
 
 const ONBOARDING_QUERY_KEY = ['dashboard', 'onboarding'] as const;
 

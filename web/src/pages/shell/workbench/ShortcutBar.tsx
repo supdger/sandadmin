@@ -11,10 +11,9 @@ import {
   resetShortcuts,
   saveShortcuts,
   type ShortcutItem,
-} from '@/api/dashboard';
-import { getMyMenus, type MenuItem } from '@/api/menus';
-import { apiErrorMessage } from '@/lib/apiClient';
-import { buildMenuTree } from '@/layouts/menuTree';
+} from '@/api/v1/dashboard';
+import { getMyMenus, type MyMenuNode } from '@/api/v1/me';
+import { adminErrorMessage } from '@/lib/adminError';
 
 const SHORTCUTS_QUERY_KEY = ['dashboard', 'shortcuts'] as const;
 const MENUS_QUERY_KEY = ['me', 'menus'] as const;
@@ -26,12 +25,12 @@ interface LeafMenu {
   path: string;
 }
 
-function flattenLeaves(items: MenuItem[], out: LeafMenu[] = []): LeafMenu[] {
+function flattenLeaves(items: MyMenuNode[], out: LeafMenu[] = []): LeafMenu[] {
   for (const item of items) {
     if (item.children && item.children.length > 0) {
       flattenLeaves(item.children, out);
-    } else if (item.path) {
-      out.push({ key: item.id, title: item.title, path: item.path });
+    } else if (item.type === 'page' && item.path) {
+      out.push({ key: item.key, title: item.title, path: item.path });
     }
   }
   return out;
@@ -54,10 +53,7 @@ export function ShortcutBar() {
   const shortcuts = useQuery({ queryKey: SHORTCUTS_QUERY_KEY, queryFn: getShortcuts });
   const menus = useQuery({ queryKey: MENUS_QUERY_KEY, queryFn: getMyMenus, staleTime: 60_000 });
 
-  const leafMenus = useMemo(() => {
-    const tree = buildMenuTree(menus.data ?? []);
-    return flattenLeaves(tree);
-  }, [menus.data]);
+  const leafMenus = useMemo(() => flattenLeaves(menus.data?.items ?? []), [menus.data]);
 
   const save = useMutation({
     mutationFn: (menuKeys: string[]) => saveShortcuts(menuKeys),
@@ -66,7 +62,7 @@ export function ShortcutBar() {
       Toast.success(t('shortcuts.saved'));
       setModalOpen(false);
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('shortcuts.saveFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('shortcuts.saveFailed'))),
   });
 
   const restore = useMutation({
@@ -76,7 +72,7 @@ export function ShortcutBar() {
       Toast.success(t('shortcuts.restored'));
       setModalOpen(false);
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('shortcuts.saveFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('shortcuts.saveFailed'))),
   });
 
   const openModal = () => {

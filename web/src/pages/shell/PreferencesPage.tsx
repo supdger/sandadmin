@@ -34,7 +34,7 @@ export function PreferencesPage() {
   // is exempt: it never leaves the device.
   const canWrite = useCan('preferences:write');
 
-  const prefs = useQuery({
+  const preference = useQuery({
     queryKey: PREFERENCES_QUERY_KEY,
     queryFn: getPreferences,
     staleTime: 60_000,
@@ -53,7 +53,7 @@ export function PreferencesPage() {
     },
   });
 
-  if (prefs.isPending) {
+  if (preference.isPending) {
     return (
       <div className="flex items-center justify-center py-16">
         <Spin size="large" />
@@ -61,13 +61,13 @@ export function PreferencesPage() {
     );
   }
 
-  if (prefs.isError) {
+  if (preference.isError) {
     return (
-      <ErrorState kind="error" error={prefs.error} onRetry={() => void prefs.refetch()} />
+      <ErrorState kind="error" error={preference.error} onRetry={() => void preference.refetch()} />
     );
   }
 
-  const current = prefs.data;
+  const current = preference.data;
   const emailNotify = current.emailNotify === true;
 
   const onThemeChange = (e: RadioChangeEvent) => {

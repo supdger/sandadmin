@@ -37,12 +37,12 @@ import {
   listFiles,
   uploadFile,
   type FileObject,
-} from '@/api/files';
+} from '@/api/v1/files';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { FileThumb } from './FileThumb';
 import { blobObjectUrl, isPdfPreview, openBlobTab, saveBlob } from './fileActions';
 import { formatBytes as formatSize, formatDateTime as formatTime, toDateKey } from './format';
@@ -136,8 +136,8 @@ export function FilesPage() {
     const toIso = dateTo ? new Date(`${dateTo}T23:59:59.999`).toISOString() : undefined;
     return {
       keyword: debouncedKeyword || undefined,
-      kind: kind || undefined,
-      usage_state: usage || undefined,
+      kind: (kind || undefined) as FileObject['kind'] | undefined,
+      usage_state: (usage || undefined) as FileObject['usage_state'] | undefined,
       create_time_from: fromIso,
       create_time_to: toIso,
       page,
@@ -214,7 +214,7 @@ export function FilesPage() {
             setUploads((prev) =>
               prev.map((u) =>
                 u.key === items[i].key
-                  ? { ...u, status: 'failed' as const, error: apiErrorMessage(error, t('downloadFailed')) }
+                  ? { ...u, status: 'failed' as const, error: adminErrorMessage(error, t('downloadFailed')) }
                   : u,
               ),
             );
@@ -240,10 +240,10 @@ export function FilesPage() {
 
   const onDownload = async (file: FileObject) => {
     try {
-      const blob = await downloadFile(file.id);
+      const blob = (await downloadFile(file.id)).blob;
       saveBlob(blob, file.original_name);
     } catch (error) {
-      Toast.error(apiErrorMessage(error, t('downloadFailed')));
+      Toast.error(adminErrorMessage(error, t('downloadFailed')));
     }
   };
 
@@ -257,7 +257,7 @@ export function FilesPage() {
 
   const onPreview = async (file: FileObject) => {
     try {
-      const blob = await downloadFile(file.id);
+      const blob = (await downloadFile(file.id)).blob;
       if (isPdfPreview({ fileId: file.id, name: file.original_name, mediaType: file.media_type, kind: file.kind })) {
         openBlobTab(blob);
         return;
@@ -268,7 +268,7 @@ export function FilesPage() {
       }
       saveBlob(blob, file.original_name);
     } catch (error) {
-      Toast.error(apiErrorMessage(error, t('downloadFailed')));
+      Toast.error(adminErrorMessage(error, t('downloadFailed')));
     }
   };
 
@@ -284,7 +284,7 @@ export function FilesPage() {
       invalidateFiles();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('downloadFailed')));
+      Toast.error(adminErrorMessage(error, t('downloadFailed')));
       invalidateFiles();
     },
   });

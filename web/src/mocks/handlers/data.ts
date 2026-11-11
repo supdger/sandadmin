@@ -1,16 +1,10 @@
 import { http, HttpResponse, type HttpHandler } from 'msw';
 
-import { env } from '@/config/env';
-import { mockUserForToken } from './auth';
-import { failOpenapi, okOpenapi } from './_shared';
+import { mockUserForToken, type MockUser } from './auth';
+import { mockTasks } from './_v1data';
+import { failV1, okV1, v1Base } from './_v1';
 
-const base = env.apiBaseUrl;
-
-interface MockUser {
-  username: string;
-  nickname: string;
-  permissions: string[];
-}
+const base = v1Base;
 
 function bearerToken(request: Request): string {
   return (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
@@ -24,13 +18,13 @@ function can(user: MockUser, permission: string): boolean {
 function requireUser(
   request: Request,
   permission?: string,
-): { user: MockUser } | { denied: ReturnType<typeof failOpenapi> } {
+): { user: MockUser } | { denied: ReturnType<typeof failV1> } {
   const user = mockUserForToken(bearerToken(request));
   if (!user) {
-    return { denied: failOpenapi(401, 'UNAUTHENTICATED', '请先登录') };
+    return { denied: failV1(401, 'UNAUTHENTICATED', '请先登录') };
   }
   if (permission && !can(user, permission)) {
-    return { denied: failOpenapi(403, 'PERMISSION_DENIED', '你没有权限做这个操作') };
+    return { denied: failV1(403, 'PERMISSION_DENIED', '你没有权限做这个操作') };
   }
   return { user };
 }
@@ -333,26 +327,9 @@ function usageLabelOf(usage: string | null): string | null {
   return '业务登记';
 }
 
-/* 后台任务 mock */
+/* 后台任务 mock：清理任务直接进 _v1data.mockTasks，由 adminTasks 统一供查询 */
 
-interface TaskRecord {
-  id: string;
-  type: string;
-  state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
-  progress: number | null;
-  stage: string | null;
-  result: Record<string, unknown> | null;
-  error: { code: string; message: string } | null;
-  create_time: string;
-  finish_time: string | null;
-}
-
-const tasks = new Map<string, TaskRecord>();
 let taskSeq = 0;
-
-function taskView(task: TaskRecord) {
-  return { ...task };
-}
 
 /* 公告 mock */
 
@@ -396,10 +373,14 @@ interface AnnouncementRecord {
 }
 
 function announcementView(a: AnnouncementRecord) {
+  // 列表行自带已读统计：与 read-stats 同一口径，避免逐行再请求。
+  const stats = readStatsOf(a);
   return {
     ...a,
     dept_names: a.dept_ids.map(deptName),
     expired: isExpired(a),
+    read_count: stats.read_count,
+    recipient_count: stats.read_count + stats.unread_count,
   };
 }
 
@@ -498,9 +479,15 @@ function isExpired(a: AnnouncementRecord): boolean {
   return a.state === 'published' && time(a.expire_time) > 0 && time(a.expire_time) < Date.now();
 }
 
-/** 公告对收件人是否可见：全员可见；指定部门的，mock 用户没有部门归属，一律不可见。 */
-function visibleToUser(a: AnnouncementRecord): boolean {
-  return a.scope === 'all';
+/** 公告对收件人是否可见：全员公告人人可见；指定部门的按 dept_name 匹配（超管除外）。 */
+function visibleToUser(a: AnnouncementRecord, user?: MockUser): boolean {
+  if (a.scope === 'all') {
+    return true;
+  }
+  if (user?.is_super) {
+    return true;
+  }
+  return a.dept_ids.some((id) => deptName(id) === user?.dept_name);
 }
 
 /** 已读统计：基础名单按公告 id 取稳定伪随机，叠加真实已读记录。 */
@@ -539,6 +526,48 @@ function readStatsOf(a: AnnouncementRecord) {
   return { read_count: readCount, unread_count: total - readCount, items };
 }
 
+/* 给 personal.ts 消息中心复用的公告存储：收件箱合并、已读状态走同一张表。 */
+export interface InboxAnnouncement {
+  id: string;
+  title: string;
+  level: 'normal' | 'important';
+  pinned: boolean;
+  published_time: string;
+  expire_time: string | null;
+}
+
+/** 当前用户收件箱里应出现的已发布且未过期公告。 */
+export function inboxAnnouncements(user: MockUser): InboxAnnouncement[] {
+  return announcements
+    .filter((a) => a.state === 'published' && !isExpired(a) && visibleToUser(a, user))
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      level: a.level,
+      pinned: a.pinned,
+      published_time: a.published_time ?? a.create_time,
+      expire_time: a.expire_time,
+    }));
+}
+
+/** 该用户读这条公告的时间；没读过为 null。 */
+export function announcementReadTime(annId: string, username: string): string | null {
+  return announcementReads.get(annId)?.get(`user-${username}`) ?? null;
+}
+
+/** 记录该用户已读（幂等）；与 /announcements/:id/read 走同一张表。 */
+export function announcementMarkRead(annId: string, username: string): void {
+  const userId = `user-${username}`;
+  let reads = announcementReads.get(annId);
+  if (!reads) {
+    reads = new Map<string, string>();
+    announcementReads.set(annId, reads);
+  }
+  if (!reads.has(userId)) {
+    reads.set(userId, new Date().toISOString());
+  }
+}
+
 /* handlers */
 
 export default [
@@ -550,7 +579,7 @@ export default [
     const items = dictTypes
       .filter((t) => !keyword || t.name.includes(keyword))
       .map(dictTypeView);
-    return okOpenapi({ items });
+    return okV1({ items });
   }),
 
   http.post(`${base}/dicts`, async ({ request }) => {
@@ -559,12 +588,12 @@ export default [
     const body = (await request.json()) as { name?: string; remark?: string | null };
     const name = body.name?.trim() ?? '';
     if (!name || name.length > 20) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写组名称，且不超过 20 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写组名称，且不超过 20 个字', {
         name: ['请填写组名称'],
       });
     }
     if (dictTypes.some((t) => t.name === name)) {
-      return failOpenapi(409, 'DICT_TYPE_TAKEN', `已经有叫“${name}”的选项组了，换个名字`);
+      return failV1(409, 'DICT_TYPE_TAKEN', `已经有叫“${name}”的选项组了，换个名字`);
     }
     dictTypeSeq += 1;
     const created: DictTypeRecord = {
@@ -575,7 +604,7 @@ export default [
       is_system: false,
     };
     dictTypes.push(created);
-    return okOpenapi(dictTypeView(created));
+    return okV1(dictTypeView(created));
   }),
 
   http.get(`${base}/dicts/:typeId`, ({ request, params }) => {
@@ -583,13 +612,13 @@ export default [
     if ('denied' in auth) return auth.denied;
     const type = findDictType(String(params.typeId));
     if (!type) {
-      return failOpenapi(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
+      return failV1(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
     }
     const items = dictItems
       .filter((i) => i.type_id === type.id)
       .sort((a, b) => a.sort - b.sort)
       .map((i) => ({ ...i }));
-    return okOpenapi({ ...dictTypeView(type), items });
+    return okV1({ ...dictTypeView(type), items });
   }),
 
   http.put(`${base}/dicts/:typeId`, async ({ request, params }) => {
@@ -597,21 +626,21 @@ export default [
     if ('denied' in auth) return auth.denied;
     const type = findDictType(String(params.typeId));
     if (!type) {
-      return failOpenapi(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
+      return failV1(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
     }
     const body = (await request.json()) as { name?: string; remark?: string | null };
     const name = body.name?.trim() ?? '';
     if (!name || name.length > 20) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写组名称，且不超过 20 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写组名称，且不超过 20 个字', {
         name: ['请填写组名称'],
       });
     }
     if (dictTypes.some((t) => t.id !== type.id && t.name === name)) {
-      return failOpenapi(409, 'DICT_TYPE_TAKEN', `已经有叫“${name}”的选项组了，换个名字`);
+      return failV1(409, 'DICT_TYPE_TAKEN', `已经有叫“${name}”的选项组了，换个名字`);
     }
     type.name = name;
     type.remark = body.remark?.trim() || null;
-    return okOpenapi(dictTypeView(type));
+    return okV1(dictTypeView(type));
   }),
 
   http.delete(`${base}/dicts/:typeId`, ({ request, params }) => {
@@ -620,17 +649,17 @@ export default [
     const typeId = String(params.typeId);
     const type = findDictType(typeId);
     if (!type) {
-      return failOpenapi(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
+      return failV1(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
     }
     if (type.is_system) {
-      return failOpenapi(409, 'DICT_TYPE_SYSTEM', '系统自带的选项组不能删除');
+      return failV1(409, 'DICT_TYPE_SYSTEM', '系统自带的选项组不能删除');
     }
     const index = dictTypes.indexOf(type);
     dictTypes.splice(index, 1);
     for (let i = dictItems.length - 1; i >= 0; i -= 1) {
       if (dictItems[i].type_id === typeId) dictItems.splice(i, 1);
     }
-    return okOpenapi({});
+    return okV1({});
   }),
 
   /* 选项 */
@@ -639,7 +668,7 @@ export default [
     if ('denied' in auth) return auth.denied;
     const type = findDictType(String(params.typeId));
     if (!type) {
-      return failOpenapi(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
+      return failV1(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
     }
     const body = (await request.json()) as {
       label?: string;
@@ -649,12 +678,12 @@ export default [
     };
     const label = body.label?.trim() ?? '';
     if (!label || label.length > 20) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写选项名称，且不超过 20 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写选项名称，且不超过 20 个字', {
         label: ['请填写选项名称'],
       });
     }
     if (dictLabelTaken(type.id, label)) {
-      return failOpenapi(409, 'DICT_ITEM_TAKEN', `这个组里已经有叫“${label}”的选项了，换个名字`);
+      return failV1(409, 'DICT_ITEM_TAKEN', `这个组里已经有叫“${label}”的选项了，换个名字`);
     }
     dictItemSeq += 1;
     const maxSort = Math.max(0, ...dictItems.filter((i) => i.type_id === type.id).map((i) => i.sort));
@@ -673,7 +702,7 @@ export default [
     };
     if (created.is_default) clearGroupDefaults(type.id, created.id);
     dictItems.push(created);
-    return okOpenapi({ ...created });
+    return okV1({ ...created });
   }),
 
   http.put(`${base}/dicts/items/sort`, async ({ request }) => {
@@ -682,20 +711,20 @@ export default [
     const body = (await request.json()) as { type_id?: string; item_ids?: string[] };
     const type = findDictType(body.type_id ?? '');
     if (!type) {
-      return failOpenapi(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
+      return failV1(404, 'DICT_TYPE_NOT_FOUND', '这个选项组不存在或已被删除');
     }
     const ids = body.item_ids ?? [];
     const groupItems = dictItems.filter((i) => i.type_id === type.id);
     const belongs = ids.every((id) => groupItems.some((i) => i.id === id));
     const complete = ids.length === groupItems.length;
     if (!belongs || !complete) {
-      return failOpenapi(422, 'DICT_ITEM_SORT_INVALID', '排序的选项和这个组对不上，请刷新后重试');
+      return failV1(422, 'DICT_ITEM_SORT_INVALID', '排序的选项和这个组对不上，请刷新后重试');
     }
     ids.forEach((id, index) => {
       const item = findDictItem(id);
       if (item) item.sort = index + 1;
     });
-    return okOpenapi({});
+    return okV1({});
   }),
 
   http.put(`${base}/dicts/items/:itemId/status`, async ({ request, params }) => {
@@ -703,14 +732,14 @@ export default [
     if ('denied' in auth) return auth.denied;
     const item = findDictItem(String(params.itemId));
     if (!item) {
-      return failOpenapi(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
+      return failV1(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
     }
     const body = (await request.json()) as { status?: string };
     if (body.status !== 'enabled' && body.status !== 'disabled') {
-      return failOpenapi(422, 'VALIDATION_FAILED', '状态只能是启用或停用');
+      return failV1(422, 'VALIDATION_FAILED', '状态只能是启用或停用');
     }
     item.status = body.status;
-    return okOpenapi({});
+    return okV1({});
   }),
 
   http.put(`${base}/dicts/items/:itemId`, async ({ request, params }) => {
@@ -718,7 +747,7 @@ export default [
     if ('denied' in auth) return auth.denied;
     const item = findDictItem(String(params.itemId));
     if (!item) {
-      return failOpenapi(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
+      return failV1(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
     }
     const body = (await request.json()) as {
       label?: string;
@@ -728,19 +757,19 @@ export default [
     };
     const label = body.label?.trim() ?? '';
     if (!label || label.length > 20) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写选项名称，且不超过 20 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写选项名称，且不超过 20 个字', {
         label: ['请填写选项名称'],
       });
     }
     if (dictLabelTaken(item.type_id, label, item.id)) {
-      return failOpenapi(409, 'DICT_ITEM_TAKEN', `这个组里已经有叫“${label}”的选项了，换个名字`);
+      return failV1(409, 'DICT_ITEM_TAKEN', `这个组里已经有叫“${label}”的选项了，换个名字`);
     }
     item.label = label;
     item.color = body.color ?? null;
     item.status = body.status === 'disabled' ? 'disabled' : 'enabled';
     item.is_default = body.is_default === true;
     if (item.is_default) clearGroupDefaults(item.type_id, item.id);
-    return okOpenapi({ ...item });
+    return okV1({ ...item });
   }),
 
   http.delete(`${base}/dicts/items/:itemId`, ({ request, params }) => {
@@ -749,13 +778,13 @@ export default [
     const itemId = String(params.itemId);
     const item = findDictItem(itemId);
     if (!item) {
-      return failOpenapi(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
+      return failV1(404, 'DICT_ITEM_NOT_FOUND', '这个选项不存在或已被删除');
     }
     if (item.is_system) {
-      return failOpenapi(409, 'DICT_ITEM_SYSTEM', '系统自带的选项不能删除');
+      return failV1(409, 'DICT_ITEM_SYSTEM', '系统自带的选项不能删除');
     }
     dictItems.splice(dictItems.indexOf(item), 1);
-    return okOpenapi({});
+    return okV1({});
   }),
 
   /* 文件 */
@@ -780,7 +809,7 @@ export default [
       .sort((a, b) => time(b.create_time) - time(a.create_time));
 
     const start = (page - 1) * pageSize;
-    return okOpenapi({
+    return okV1({
       items: filtered.slice(start, start + pageSize).map((f) => ({ ...f })),
       total: filtered.length,
       page,
@@ -794,7 +823,7 @@ export default [
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File)) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请选择要上传的文件', { file: ['请选择要上传的文件'] });
+      return failV1(422, 'VALIDATION_FAILED', '请选择要上传的文件', { file: ['请选择要上传的文件'] });
     }
     fileSeq += 1;
     const usage = form.get('usage');
@@ -814,7 +843,7 @@ export default [
       create_time: new Date().toISOString(),
     };
     files.unshift(created);
-    return okOpenapi({ ...created });
+    return okV1({ ...created });
   }),
 
   http.get(`${base}/files/:fileId`, ({ request, params }) => {
@@ -822,9 +851,9 @@ export default [
     if ('denied' in auth) return auth.denied;
     const file = files.find((f) => f.id === String(params.fileId));
     if (!file) {
-      return failOpenapi(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
+      return failV1(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
     }
-    return okOpenapi({ ...file });
+    return okV1({ ...file });
   }),
 
   http.delete(`${base}/files/:fileId`, ({ request, params }) => {
@@ -832,10 +861,10 @@ export default [
     if ('denied' in auth) return auth.denied;
     const index = files.findIndex((f) => f.id === String(params.fileId));
     if (index < 0) {
-      return failOpenapi(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
+      return failV1(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
     }
     files.splice(index, 1);
-    return okOpenapi({});
+    return okV1({});
   }),
 
   http.get(`${base}/files/:fileId/download`, ({ request, params }) => {
@@ -843,7 +872,7 @@ export default [
     if ('denied' in auth) return auth.denied;
     const file = files.find((f) => f.id === String(params.fileId));
     if (!file) {
-      return failOpenapi(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
+      return failV1(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
     }
     // mock 不校验附件用途与可见性；真实后端按 visibility 与用途登记鉴权。
     // 图片统一回 PNG 字节并标 image/png，保证 <img> 与 blob 缩略图可解码。
@@ -873,7 +902,7 @@ export default [
     }
     taskSeq += 1;
     const taskId = `task-cleanup-${taskSeq}`;
-    tasks.set(taskId, {
+    mockTasks.push({
       id: taskId,
       type: 'cleanup.files',
       state: 'succeeded',
@@ -882,32 +911,13 @@ export default [
       result: { deleted_count: deletedCount, freed_bytes: freedBytes },
       error: null,
       create_time: new Date().toISOString(),
+      start_time: null,
       finish_time: new Date().toISOString(),
+      pollsUntilDone: 0,
     });
-    return okOpenapi({ task_id: taskId, state: 'queued' });
+    return okV1({ task_id: taskId, state: 'queued' });
   }),
 
-  /* 后台任务查询（清理轮询用） */
-  http.get(`${base}/tasks/:taskId`, ({ request, params }) => {
-    const auth = requireUser(request);
-    if ('denied' in auth) return auth.denied;
-    const task = tasks.get(String(params.taskId));
-    if (!task) {
-      return failOpenapi(404, 'NOT_FOUND', '任务不存在或无权查看');
-    }
-    return okOpenapi(taskView(task));
-  }),
-
-  /* 部门精简清单 */
-  http.get(`${base}/org/dept-options`, ({ request }) => {
-    const auth = requireUser(request);
-    if ('denied' in auth) return auth.denied;
-    return okOpenapi({
-      items: [...DEPTS]
-        .sort((a, b) => a.sort - b.sort)
-        .map((d) => ({ id: d.id, parent_id: d.parent_id, name: d.name, sort: d.sort })),
-    });
-  }),
 
   /* 公告 */
   http.get(`${base}/announcements`, ({ request }) => {
@@ -921,14 +931,19 @@ export default [
 
     const filtered = announcements
       .filter((a) => !keyword || a.title.toLowerCase().includes(keyword))
-      .filter((a) => !state || a.state === state)
+      .filter((a) => {
+        if (!state) return true;
+        // expired 是派生筛选：expire_time 已过即算，a.state 本身没有这个值。
+        if (state === 'expired') return isExpired(a);
+        return a.state === state;
+      })
       .sort((a, b) => {
         if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
         return time(b.create_time) - time(a.create_time);
       });
 
     const start = (page - 1) * pageSize;
-    return okOpenapi({
+    return okV1({
       items: filtered.slice(start, start + pageSize).map(announcementView),
       total: filtered.length,
       page,
@@ -951,22 +966,22 @@ export default [
     };
     const title = body.title?.trim() ?? '';
     if (!title || title.length > 50) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写标题，且不超过 50 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写标题，且不超过 50 个字', {
         title: ['请填写标题'],
       });
     }
     if (!body.content?.trim()) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写正文', { content: ['请填写正文'] });
+      return failV1(422, 'VALIDATION_FAILED', '请填写正文', { content: ['请填写正文'] });
     }
     if (body.scope !== 'all' && body.scope !== 'dept') {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请选择发给谁', { scope: ['请选择发给谁'] });
+      return failV1(422, 'VALIDATION_FAILED', '请选择发给谁', { scope: ['请选择发给谁'] });
     }
     const deptIds = body.scope === 'dept' ? (body.dept_ids ?? []) : [];
     if (body.scope === 'dept' && deptIds.length === 0) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
+      return failV1(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
     }
     if (deptIds.some((id) => !DEPTS.some((d) => d.id === id))) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
+      return failV1(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
     }
     announcementSeq += 1;
     const now = new Date().toISOString();
@@ -987,7 +1002,7 @@ export default [
       update_time: now,
     };
     announcements.unshift(created);
-    return okOpenapi(announcementView(created));
+    return okV1(announcementView(created));
   }),
 
   http.get(`${base}/announcements/:announcementId`, ({ request, params }) => {
@@ -995,9 +1010,9 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     if (!ann) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
-    return okOpenapi(announcementView(ann));
+    return okV1(announcementView(ann));
   }),
 
   http.put(`${base}/announcements/:announcementId`, async ({ request, params }) => {
@@ -1005,7 +1020,7 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     if (!ann) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
     const body = (await request.json()) as {
       title?: string;
@@ -1019,22 +1034,22 @@ export default [
     };
     const title = body.title?.trim() ?? '';
     if (!title || title.length > 50) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写标题，且不超过 50 个字', {
+      return failV1(422, 'VALIDATION_FAILED', '请填写标题，且不超过 50 个字', {
         title: ['请填写标题'],
       });
     }
     if (!body.content?.trim()) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请填写正文', { content: ['请填写正文'] });
+      return failV1(422, 'VALIDATION_FAILED', '请填写正文', { content: ['请填写正文'] });
     }
     if (body.scope !== 'all' && body.scope !== 'dept') {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请选择发给谁', { scope: ['请选择发给谁'] });
+      return failV1(422, 'VALIDATION_FAILED', '请选择发给谁', { scope: ['请选择发给谁'] });
     }
     const deptIds = body.scope === 'dept' ? (body.dept_ids ?? []) : [];
     if (body.scope === 'dept' && deptIds.length === 0) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
+      return failV1(422, 'VALIDATION_FAILED', '请选择至少一个部门', { dept_ids: ['请选择至少一个部门'] });
     }
     if (deptIds.some((id) => !DEPTS.some((d) => d.id === id))) {
-      return failOpenapi(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
+      return failV1(422, 'VALIDATION_FAILED', '所选部门不存在，请刷新后重试', { dept_ids: ['部门不存在'] });
     }
     ann.title = title;
     ann.content = body.content;
@@ -1045,7 +1060,7 @@ export default [
     ann.image_file_ids = body.image_file_ids ?? [];
     ann.expire_time = body.expire_time ?? null;
     ann.update_time = new Date().toISOString();
-    return okOpenapi(announcementView(ann));
+    return okV1(announcementView(ann));
   }),
 
   http.delete(`${base}/announcements/:announcementId`, ({ request, params }) => {
@@ -1053,12 +1068,12 @@ export default [
     if ('denied' in auth) return auth.denied;
     const index = announcements.findIndex((a) => a.id === String(params.announcementId));
     if (index < 0) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
     // 删除连同已读记录一起删；收回（withdrawn）才保留已读记录。
     announcementReads.delete(String(params.announcementId));
     announcements.splice(index, 1);
-    return okOpenapi({});
+    return okV1({});
   }),
 
   http.post(`${base}/announcements/:announcementId/publish`, ({ request, params }) => {
@@ -1066,15 +1081,15 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     if (!ann) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
     if (ann.state === 'published') {
-      return failOpenapi(409, 'ANNOUNCEMENT_STATE', '这条公告已经发布了');
+      return failV1(409, 'ANNOUNCEMENT_STATE', '这条公告已经发布了');
     }
     ann.state = 'published';
     ann.published_time = new Date().toISOString();
     ann.update_time = ann.published_time;
-    return okOpenapi(announcementView(ann));
+    return okV1(announcementView(ann));
   }),
 
   http.post(`${base}/announcements/:announcementId/revoke`, ({ request, params }) => {
@@ -1082,14 +1097,14 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     if (!ann) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
     if (ann.state !== 'published') {
-      return failOpenapi(409, 'ANNOUNCEMENT_STATE', '只有已发布的公告才能收回');
+      return failV1(409, 'ANNOUNCEMENT_STATE', '只有已发布的公告才能收回');
     }
     ann.state = 'withdrawn';
     ann.update_time = new Date().toISOString();
-    return okOpenapi(announcementView(ann));
+    return okV1(announcementView(ann));
   }),
 
   /* 收件人侧：重要公告弹窗候选与已读标记（与消息列表打开公告同一张已读表） */
@@ -1103,7 +1118,7 @@ export default [
           a.state === 'published' &&
           !isExpired(a) &&
           a.level === 'important' &&
-          visibleToUser(a) &&
+          visibleToUser(a, auth.user) &&
           !(announcementReads.get(a.id)?.has(userId) ?? false),
       )
       .sort((a, b) => time(b.published_time) - time(a.published_time))
@@ -1115,7 +1130,7 @@ export default [
         published_time: a.published_time,
         expire_time: a.expire_time,
       }));
-    return okOpenapi({ items });
+    return okV1({ items });
   }),
 
   http.post(`${base}/announcements/:announcementId/read`, ({ request, params }) => {
@@ -1123,8 +1138,8 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     // 不可见（未发布/已收回/已过期/不在发送范围）一律按不存在处理。
-    if (!ann || ann.state !== 'published' || isExpired(ann) || !visibleToUser(ann)) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+    if (!ann || ann.state !== 'published' || isExpired(ann) || !visibleToUser(ann, auth.user)) {
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
     const userId = `user-${auth.user.username}`;
     let reads = announcementReads.get(ann.id);
@@ -1136,7 +1151,7 @@ export default [
     if (!reads.has(userId)) {
       reads.set(userId, new Date().toISOString());
     }
-    return okOpenapi({});
+    return okV1({});
   }),
 
   http.get(`${base}/announcements/:announcementId/read-stats`, ({ request, params }) => {
@@ -1144,8 +1159,8 @@ export default [
     if ('denied' in auth) return auth.denied;
     const ann = announcements.find((a) => a.id === String(params.announcementId));
     if (!ann) {
-      return failOpenapi(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
+      return failV1(404, 'ANNOUNCEMENT_NOT_FOUND', '公告不存在或已被删除');
     }
-    return okOpenapi(readStatsOf(ann));
+    return okV1(readStatsOf(ann));
   }),
 ] satisfies HttpHandler[];

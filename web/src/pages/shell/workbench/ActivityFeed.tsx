@@ -2,7 +2,7 @@ import { Avatar, Card, Empty, Skeleton, Typography } from '@douyinfe/semi-ui';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { getRecentActivities } from '@/api/dashboard';
+import { getRecentActivities } from '@/api/v1/dashboard';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
 
 const ACTIVITIES_QUERY_KEY = ['dashboard', 'activities'] as const;

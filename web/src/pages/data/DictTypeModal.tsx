@@ -9,8 +9,8 @@ import {
   updateDictType,
   type DictType,
   type DictTypeWrite,
-} from '@/api/dict';
-import { apiErrorMessage } from '@/lib/apiClient';
+} from '@/api/v1/dict';
+import { adminErrorMessage } from '@/lib/adminError';
 
 export interface DictTypeModalProps {
   visible: boolean;
@@ -42,7 +42,7 @@ export function DictTypeModal({ visible, type, onClose, onSaved }: DictTypeModal
       onClose();
     },
     onError: (error) => {
-      Toast.error(apiErrorMessage(error, t('typeModal.saveFailed')));
+      Toast.error(adminErrorMessage(error, t('typeModal.saveFailed')));
     },
   });
 

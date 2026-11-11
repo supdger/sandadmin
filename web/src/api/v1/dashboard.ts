@@ -1,4 +1,5 @@
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/apiClient';
+import { adminDelete, adminGet, adminPost, adminPut } from '@/lib/adminClient';
+import type { Page } from './types';
 
 export type ChartRange = '7d' | '30d' | '90d';
 
@@ -47,12 +48,7 @@ export interface TodoList {
   total: number;
 }
 
-export interface PageTodo {
-  items: TodoItem[];
-  total: number;
-  page: number;
-  page_size: number;
-}
+export type PageTodo = Page<TodoItem>;
 
 export interface DashboardChart {
   key: string;
@@ -101,49 +97,51 @@ export interface ShortcutList {
 }
 
 export function getOnboarding(): Promise<OnboardingState> {
-  return apiGet<OnboardingState>('/dashboard/onboarding');
+  return adminGet<OnboardingState>('/dashboard/onboarding');
 }
 
 export function getSummaryCards(): Promise<DashboardCardList> {
-  return apiGet<DashboardCardList>('/dashboard/summary');
+  return adminGet<DashboardCardList>('/dashboard/summary');
 }
 
 export function getWorkbenchTodos(limit = 5): Promise<TodoList> {
-  return apiGet<TodoList>(`/dashboard/todos?limit=${limit}`);
+  return adminGet<TodoList>('/dashboard/todos', { query: { limit } });
 }
 
 export function getAllTodos(page: number, pageSize: number): Promise<PageTodo> {
-  return apiGet<PageTodo>(`/dashboard/todos/all?page=${page}&page_size=${pageSize}`);
+  return adminGet<PageTodo>('/dashboard/todos/all', {
+    query: { page, page_size: pageSize },
+  });
 }
 
 export function getDashboardCharts(range: ChartRange): Promise<ChartList> {
-  return apiGet<ChartList>(`/dashboard/charts?range=${range}`);
+  return adminGet<ChartList>('/dashboard/charts', { query: { range } });
 }
 
 export function getRecentActivities(limit = 10): Promise<ActivityList> {
-  return apiGet<ActivityList>(`/dashboard/activities?limit=${limit}`);
+  return adminGet<ActivityList>('/dashboard/activities', { query: { limit } });
 }
 
 export function getWorkbenchNotices(): Promise<NoticeList> {
-  return apiGet<NoticeList>('/dashboard/notices');
+  return adminGet<NoticeList>('/dashboard/notices');
 }
 
 export function dismissNotice(noticeKey: string): Promise<unknown> {
-  return apiPost(`/dashboard/notices/${encodeURIComponent(noticeKey)}/dismiss`);
+  return adminPost(`/dashboard/notices/${encodeURIComponent(noticeKey)}/dismiss`);
 }
 
 export function getShortcuts(): Promise<ShortcutList> {
-  return apiGet<ShortcutList>('/dashboard/shortcuts');
+  return adminGet<ShortcutList>('/dashboard/shortcuts');
 }
 
 export function saveShortcuts(menuKeys: string[]): Promise<ShortcutList> {
-  return apiPut<ShortcutList>('/dashboard/shortcuts', { menu_keys: menuKeys });
+  return adminPut<ShortcutList>('/dashboard/shortcuts', { menu_keys: menuKeys });
 }
 
 export function resetShortcuts(): Promise<ShortcutList> {
-  return apiDelete<ShortcutList>('/dashboard/shortcuts');
+  return adminDelete<ShortcutList>('/dashboard/shortcuts');
 }
 
 export function reportVisits(menuKeys: string[]): Promise<unknown> {
-  return apiPost('/dashboard/visits', { menu_keys: menuKeys });
+  return adminPost('/dashboard/visits', { menu_keys: menuKeys });
 }

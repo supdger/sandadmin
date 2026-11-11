@@ -1,4 +1,4 @@
-import { downloadFile } from '@/api/files';
+import { downloadFile } from '@/api/v1/files';
 
 /** 把 Blob 存成文件下载。 */
 export function saveBlob(blob: Blob, filename: string): void {
@@ -40,5 +40,6 @@ export function isPdfPreview(target: PreviewTarget): boolean {
 
 /** 拉取文件内容并决定打开方式：图片走组件内预览，PDF 开新页，其余下载。 */
 export async function fetchFileBlob(fileId: string): Promise<Blob> {
-  return downloadFile(fileId);
+  const file = await downloadFile(fileId);
+  return file.blob;
 }

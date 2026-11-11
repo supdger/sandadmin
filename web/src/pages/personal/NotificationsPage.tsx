@@ -10,10 +10,10 @@ import {
   markAllNotificationsRead,
   markInboxItemRead,
   type NotificationItem,
-} from '@/api/notifications';
+} from '@/api/v1/notifications';
 import { PageHeader } from '@/components/PageHeader';
 import { ErrorState } from '@/components/ErrorState';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { formatRelativeTime } from './relativeTime';
 
 const PAGE_SIZE = 20;
@@ -35,7 +35,7 @@ export function NotificationsPage() {
 
   const listQuery = useQuery({
     queryKey: [...LIST_QUERY_KEY, unreadOnly, page],
-    queryFn: () => getNotifications({ unreadOnly, page, pageSize: PAGE_SIZE }),
+    queryFn: () => getNotifications({ unread_only: unreadOnly || undefined, page, page_size: PAGE_SIZE }),
   });
 
   const markAll = useMutation({
@@ -44,7 +44,7 @@ export function NotificationsPage() {
       Toast.success(t('page.markedAll'));
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('page.markAllFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('page.markAllFailed'))),
   });
 
   const setParam = (key: string, value: string | null) => {

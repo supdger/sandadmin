@@ -1,14 +1,18 @@
-import { apiDelete, apiGet, apiPost, apiPut, apiUpload } from '@/lib/apiClient';
+import { adminDelete, adminGet, adminPost, adminPut } from '@/lib/adminClient';
+import type { Id } from './types';
 
-/** GET /me/profile — editable profile fields plus read-only context. */
+/** GET /me/profile — editable fields plus the read-only org context rows. */
 export interface UserProfile {
-  id: string;
+  id: Id;
   username: string | null;
   nickname: string;
   avatar: string | null;
-  avatar_file_id: string | null;
+  avatar_file_id: Id | null;
   phone: string;
   email: string | null;
+  dept_name: string | null;
+  post_name: string | null;
+  role_names: string[];
   password_changed_time: string;
 }
 
@@ -17,7 +21,7 @@ export interface UserProfileWrite {
   nickname: string;
   phone: string;
   email?: string | null;
-  avatar_file_id?: string | null;
+  avatar_file_id?: Id | null;
 }
 
 /** GET /auth/password-policy — server-side hint only, real checks are server-side. */
@@ -31,9 +35,9 @@ export interface PasswordRule {
   forbid_same_as_previous: number;
 }
 
-/** GET /me/sessions item — one signed-in device. */
+/** GET /me/sessions item — one signed-in device. ip/user_agent 接口照收，页面一律不显示。 */
 export interface Session {
-  id: string;
+  id: Id;
   device_label: string | null;
   location: string | null;
   ip: string | null;
@@ -49,39 +53,32 @@ export interface SessionList {
 }
 
 export function getMyProfile(): Promise<UserProfile> {
-  return apiGet<UserProfile>('/me/profile');
+  return adminGet<UserProfile>('/me/profile');
 }
 
 export function putMyProfile(body: UserProfileWrite): Promise<UserProfile> {
-  return apiPut<UserProfile>('/me/profile', body);
-}
-
-/** POST /files multipart — returns the stored file id used as avatar_file_id. */
-export function uploadFile(file: File): Promise<{ id: string }> {
-  const form = new FormData();
-  form.append('file', file);
-  return apiUpload<{ id: string }>('/files', form);
+  return adminPut<UserProfile>('/me/profile', body);
 }
 
 export function getPasswordRule(): Promise<PasswordRule> {
-  return apiGet<PasswordRule>('/auth/password-policy');
+  return adminGet<PasswordRule>('/auth/password-policy');
 }
 
 export function changePassword(body: {
   old_password: string;
   new_password: string;
 }): Promise<unknown> {
-  return apiPost('/auth/password/change', body);
+  return adminPost('/auth/password/change', body);
 }
 
 export function getMySessions(): Promise<SessionList> {
-  return apiGet<SessionList>('/me/sessions');
+  return adminGet<SessionList>('/me/sessions');
 }
 
-export function deleteMySession(sessionId: string): Promise<unknown> {
-  return apiDelete(`/me/sessions/${encodeURIComponent(sessionId)}`);
+export function deleteMySession(sessionId: Id): Promise<unknown> {
+  return adminDelete(`/me/sessions/${encodeURIComponent(sessionId)}`);
 }
 
 export function deleteOtherSessions(): Promise<unknown> {
-  return apiDelete('/me/sessions');
+  return adminDelete('/me/sessions');
 }

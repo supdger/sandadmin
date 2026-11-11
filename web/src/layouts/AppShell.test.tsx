@@ -29,21 +29,37 @@ if (typeof Range !== 'undefined' && !Range.prototype.getBoundingClientRect) {
     ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }) as DOMRect;
 }
 
+// v1 接口在 /admin/v1 下；auth/preferences 仍是 legacy 路径。
 const base = env.apiBaseUrl;
+const v1 = `${env.apiBaseUrl}/admin/v1`;
 
 function mockMe() {
   server.use(
-    http.get(`${base}/me`, () =>
+    http.get(`${v1}/me`, () =>
       HttpResponse.json({
-        code: 200,
-        message: 'ok',
         data: {
           id: 'u-1',
           username: 'admin',
           nickname: '管理员',
-          mustChangePassword: false,
+          avatar: null,
+          avatar_file_id: null,
+          phone: '',
+          email: null,
+          status: 'enabled',
+          is_admin: false,
+          is_super: false,
+          must_change_password: false,
           permissions: [],
+          dept_id: null,
+          dept_name: null,
+          post_id: null,
+          post_name: null,
+          role_ids: [],
+          role_names: [],
+          last_login_time: null,
+          create_time: '2026-01-01T00:00:00Z',
         },
+        request_id: 't',
       }),
     ),
   );
@@ -79,7 +95,7 @@ describe('AppShell', () => {
     // The important-announcement popup would cover the header in every test;
     // individual tests re-enable it with their own server.use override.
     server.use(
-      http.get(`${base}/me/announcements/popup`, () =>
+      http.get(`${v1}/me/announcements/popup`, () =>
         HttpResponse.json({ data: { items: [] }, request_id: 'test' }),
       ),
     );
@@ -100,11 +116,12 @@ describe('AppShell', () => {
     await waitFor(() => expect(nav()).toBeTruthy());
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
 
-    // The nested items live inside the collapsed "系统设置" group — open it.
+    // The nested items live inside collapsed groups — open both.
     await userEvent.click(within(nav()).getByText('系统设置'));
     expect(await within(nav()).findByText('偏好设置')).toBeInTheDocument();
     // Data-domain pages are real routes now, so the mock advertises them too.
-    expect(within(nav()).getByText('选项管理')).toBeInTheDocument();
+    await userEvent.click(within(nav()).getByText('数据管理'));
+    expect(await within(nav()).findByText('选项管理')).toBeInTheDocument();
     expect(within(nav()).getByText('文件管理')).toBeInTheDocument();
     expect(within(nav()).getByText('公告管理')).toBeInTheDocument();
 
@@ -142,15 +159,22 @@ describe('AppShell', () => {
     mockMe();
     let calls = 0;
     server.use(
-      http.get(`${base}/me/menus`, () => {
+      http.get(`${v1}/me/menus`, () => {
         calls += 1;
         if (calls === 1) {
-          return HttpResponse.json({ code: 5000, message: '服务开了小差', data: null });
+          return HttpResponse.json(
+            { code: 'MENU_UNAVAILABLE', message: '服务开了小差', request_id: 't' },
+            { status: 422 },
+          );
         }
         return HttpResponse.json({
-          code: 200,
-          message: 'ok',
-          data: [{ id: 'workbench', parentId: null, title: '工作台', path: '/', order: 1 }],
+          data: {
+            menu_version: 1,
+            items: [
+              { key: 'home', type: 'page', title: '工作台', icon: 'home', path: '/', url: null },
+            ],
+          },
+          request_id: 't',
         });
       }),
     );
@@ -171,15 +195,22 @@ describe('AppShell', () => {
     mockMe();
     let calls = 0;
     server.use(
-      http.get(`${base}/me/menus`, () => {
+      http.get(`${v1}/me/menus`, () => {
         calls += 1;
         if (calls === 1) {
-          return HttpResponse.json({ code: 5000, message: 'boom', data: null }, { status: 500 });
+          return HttpResponse.json(
+            { code: 'SYS_BOOM', message: 'boom', request_id: 't' },
+            { status: 500 },
+          );
         }
         return HttpResponse.json({
-          code: 200,
-          message: 'ok',
-          data: [{ id: 'workbench', parentId: null, title: '工作台', path: '/', order: 1 }],
+          data: {
+            menu_version: 1,
+            items: [
+              { key: 'home', type: 'page', title: '工作台', icon: 'home', path: '/', url: null },
+            ],
+          },
+          request_id: 't',
         });
       }),
     );
@@ -251,7 +282,7 @@ describe('AppShell', () => {
 
     // Bell with unread badge (mock returns 20 notifications + 3 announcements).
     expect(await screen.findByRole('button', { name: '消息' })).toBeInTheDocument();
-    expect(await screen.findByText('23')).toBeInTheDocument();
+    expect(await screen.findByText('25')).toBeInTheDocument();
 
     // Open the bell panel: latest items + mark-all + view-all actions.
     await userEvent.click(screen.getByRole('button', { name: '消息' }));
@@ -281,7 +312,7 @@ describe('AppShell', () => {
     mockMe();
     let readCalls = 0;
     server.use(
-      http.get(`${base}/me/announcements/popup`, () =>
+      http.get(`${v1}/me/announcements/popup`, () =>
         HttpResponse.json({
           data: {
             items: [
@@ -298,7 +329,7 @@ describe('AppShell', () => {
           request_id: 'test',
         }),
       ),
-      http.post(`${base}/announcements/ann-002/read`, () => {
+      http.post(`${v1}/announcements/ann-002/read`, () => {
         readCalls += 1;
         return HttpResponse.json({ data: { read: true }, request_id: 'test' });
       }),

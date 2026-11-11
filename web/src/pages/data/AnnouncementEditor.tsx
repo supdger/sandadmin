@@ -22,9 +22,9 @@ import {
   updateAnnouncement,
   type Announcement,
   type AnnouncementWrite,
-} from '@/api/announcements';
-import { getDeptOptions, type DeptOption } from '@/api/org';
-import { apiErrorMessage } from '@/lib/apiClient';
+} from '@/api/v1/announcements';
+import { getDeptOptions, type DeptOption } from '@/api/v1/org';
+import { adminErrorMessage } from '@/lib/adminError';
 import { useMediaQuery } from './useMediaQuery';
 import { toDateKey } from './format';
 import { RichTextEditor } from './RichTextEditor';
@@ -189,7 +189,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
       await invalidate();
       onClose();
     },
-    onError: (error) => Toast.error(apiErrorMessage(error, t('editor.saveFailed'))),
+    onError: (error) => Toast.error(adminErrorMessage(error, t('editor.saveFailed'))),
   });
 
   // 草稿自动保存：只更新不关抽屉，成功后把当前表单记为新基线。
@@ -218,13 +218,14 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
       await invalidate();
       onClose();
     },
-    onError: (error) => Toast.error(apiErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
   });
 
-  const validate = (): boolean => {
+  // 存草稿只要求标题（和定向范围）；发布才额外要求正文非空。
+  const validate = (forPublish: boolean): boolean => {
     const next: typeof errors = {};
     if (!form.title.trim()) next.title = t('editor.titleRequired');
-    if (isBlankHtml(form.content)) next.content = t('editor.contentRequired');
+    if (forPublish && isBlankHtml(form.content)) next.content = t('editor.contentRequired');
     if (form.scope === 'dept' && form.deptIds.length === 0) next.dept = t('editor.deptRequired');
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -239,10 +240,11 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   };
 
   // 草稿每 30 秒自动保存一次；只对已有草稿自动写，避免新公告被悄悄建出来。
+  // 标题为空时连草稿名都没有，跳过这一轮自动保存。
   useEffect(() => {
     if (!visible || !editing || announcement.state !== 'draft' || !dirty) return;
     const timer = setInterval(() => {
-      if (!dirtyRef.current || autoSave.isPending) return;
+      if (!dirtyRef.current || autoSave.isPending || !formRef.current.title.trim()) return;
       autoSave.mutate(toWriteOf(formRef.current));
     }, 30_000);
     return () => clearInterval(timer);
@@ -250,7 +252,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   }, [visible, editing, announcement?.state, dirty]);
 
   const publish = () => {
-    if (!validate() || !canPublish) return;
+    if (!validate(true) || !canPublish) return;
     Modal.confirm({
       title: t('editor.publishConfirmTitle'),
       content:
@@ -271,7 +273,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
         {savedAt ? t('editor.autoSaved', { time: savedAt }) : ''}
       </Typography.Text>
       <div className="flex gap-2">
-        <Button onClick={() => saveDraft.mutate(toWrite())} loading={saveDraft.isPending} disabled={!dirty && editing}>
+        <Button onClick={() => { if (validate(false)) saveDraft.mutate(toWrite()); }} loading={saveDraft.isPending} disabled={!dirty && editing}>
           {editing && announcement.state === 'published' ? t('editor.saveChanges') : t('editor.saveDraft')}
         </Button>
         {canPublish && (!editing || announcement.state !== 'published') ? (

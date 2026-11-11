@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { IconFile, IconImage } from '@douyinfe/semi-icons';
 import { useQuery } from '@tanstack/react-query';
 
-import { downloadFile, type FileObject } from '@/api/files';
+import { downloadFile, type FileObject } from '@/api/v1/files';
 import { blobObjectUrl } from './fileActions';
 
 const KIND_ICON: Record<FileObject['kind'], typeof IconFile> = {
@@ -39,7 +39,7 @@ export function FileThumb({ file, size = 32 }: FileThumbProps) {
   const objectUrl = useMemo(() => {
     if (!isImage || !imageBlob.data) return null;
     try {
-      return blobObjectUrl(imageBlob.data);
+      return blobObjectUrl(imageBlob.data.blob);
     } catch {
       return null;
     }

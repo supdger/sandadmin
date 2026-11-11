@@ -5,8 +5,7 @@ import i18n from '@/i18n/i18n';
 import { getToken } from './authToken';
 
 export interface ApiErrorShape {
-  /** Envelope code: a number on the legacy envelope, a string on the OpenAPI one. */
-  code: number | string;
+  code: number;
   message: string;
   fields?: Record<string, string[]>;
   requestId?: string;
@@ -29,7 +28,7 @@ export interface ApiErrorShape {
  * users as such.
  */
 export class ApiError extends Error {
-  code: number | string;
+  code: number;
   fields?: Record<string, string[]>;
   requestId?: string;
   method?: string;
@@ -65,30 +64,18 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
 }
 
-/**
- * Both response envelopes are accepted side by side: the legacy one carries a
- * numeric `code` (200 = success), the OpenAPI one omits `code` on success and
- * carries a string error code on failure.
- */
 interface Envelope {
-  code?: number | string;
+  code?: number;
   message?: string;
   data?: unknown;
   fields?: Record<string, string[]>;
   request_id?: string;
 }
 
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-interface RequestContext {
-  method: string;
-  url: string;
-}
-
 function joinUrl(base: string, path: string): string {
   const b = base.replace(/\/+$/, '');
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return `${b}${p}`;
+  const pathname = path.startsWith('/') ? path : `/${path}`;
+  return `${b}${pathname}`;
 }
 
 function systemError(init: {
@@ -105,13 +92,14 @@ function systemError(init: {
   });
 }
 
-async function fetchRaw(
-  method: HttpMethod,
+async function request<T>(
+  method: 'GET' | 'POST' | 'PUT',
   path: string,
-  init: { json?: unknown; form?: FormData; accept?: string },
-): Promise<{ res: Response } & RequestContext> {
-  const headers: Record<string, string> = { Accept: init.accept ?? 'application/json' };
-  if (init.json !== undefined) {
+  body?: unknown,
+  schema?: ZodType<T>,
+): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
   const token = getToken();
@@ -126,24 +114,14 @@ async function fetchRaw(
     res = await fetch(url, {
       method,
       headers,
-      // FormData goes out without a manual Content-Type so the browser can
-      // attach the multipart boundary itself.
-      body: init.json !== undefined ? JSON.stringify(init.json) : init.form,
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw systemError({ method, url });
   }
-  return { res, method, url };
-}
 
-async function unwrapJson<T>(
-  res: Response,
-  ctx: RequestContext,
-  schema?: ZodType<T>,
-): Promise<T> {
-  const { method, url } = ctx;
-  const status = res.status;
   const headerRequestId = res.headers.get('x-request-id') ?? undefined;
+  const status = res.status;
 
   let payload: Envelope | null = null;
   let text = '';
@@ -162,7 +140,7 @@ async function unwrapJson<T>(
 
   const requestId = payload?.request_id ?? headerRequestId;
 
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== 'object' || typeof payload.code !== 'number') {
     throw systemError({ requestId, method, url, status });
   }
 
@@ -171,33 +149,7 @@ async function unwrapJson<T>(
     throw systemError({ requestId, method, url, status });
   }
 
-  const parsePayload = (): T => {
-    try {
-      const data: unknown = payload?.data;
-      return schema ? schema.parse(data) : (data as T);
-    } catch {
-      throw systemError({ requestId, method, url, status });
-    }
-  };
-
-  // Legacy envelope: a numeric code, 200 means success.
-  if (typeof payload.code === 'number') {
-    if (payload.code !== 200) {
-      throw new ApiError({
-        code: payload.code,
-        message: payload.message || i18n.t('errors.system.message'),
-        fields: payload.fields,
-        requestId,
-        method,
-        url,
-        status,
-      });
-    }
-    return parsePayload();
-  }
-
-  // OpenAPI envelope: a string code marks a business failure.
-  if (typeof payload.code === 'string') {
+  if (payload.code !== 200) {
     throw new ApiError({
       code: payload.code,
       message: payload.message || i18n.t('errors.system.message'),
@@ -209,68 +161,22 @@ async function unwrapJson<T>(
     });
   }
 
-  // OpenAPI success envelope: `data` without `code`/`message`.
-  if (!('code' in payload) && 'data' in payload) {
-    return parsePayload();
+  const data = payload.data as T;
+  try {
+    return schema ? schema.parse(data) : data;
+  } catch {
+    throw systemError({ requestId, method, url, status });
   }
-
-  throw systemError({ requestId, method, url, status });
-}
-
-async function request<T>(
-  method: HttpMethod,
-  path: string,
-  init: { json?: unknown; form?: FormData },
-  schema?: ZodType<T>,
-): Promise<T> {
-  const { res, ...ctx } = await fetchRaw(method, path, init);
-  return unwrapJson(res, ctx, schema);
 }
 
 export function apiGet<T>(path: string, schema?: ZodType<T>): Promise<T> {
-  return request('GET', path, {}, schema);
+  return request('GET', path, undefined, schema);
 }
 
 export function apiPost<T>(path: string, body?: unknown, schema?: ZodType<T>): Promise<T> {
-  return request('POST', path, { json: body }, schema);
+  return request('POST', path, body, schema);
 }
 
 export function apiPut<T>(path: string, body?: unknown, schema?: ZodType<T>): Promise<T> {
-  return request('PUT', path, { json: body }, schema);
-}
-
-export function apiDelete<T>(path: string, schema?: ZodType<T>): Promise<T> {
-  return request('DELETE', path, {}, schema);
-}
-
-export function apiUpload<T>(path: string, form: FormData, schema?: ZodType<T>): Promise<T> {
-  return request('POST', path, { form }, schema);
-}
-
-export async function apiDownload(path: string): Promise<Blob> {
-  const { res, method, url } = await fetchRaw('GET', path, { accept: '*/*' });
-  const status = res.status;
-
-  // Errors still arrive as the JSON envelope even on binary endpoints.
-  if ((res.headers.get('content-type') ?? '').includes('application/json')) {
-    await unwrapJson<unknown>(res, { method, url });
-    // A JSON success body carries no blob to hand back.
-    throw systemError({
-      requestId: res.headers.get('x-request-id') ?? undefined,
-      method,
-      url,
-      status,
-    });
-  }
-
-  try {
-    return await res.blob();
-  } catch {
-    throw systemError({
-      requestId: res.headers.get('x-request-id') ?? undefined,
-      method,
-      url,
-      status,
-    });
-  }
+  return request('PUT', path, body, schema);
 }

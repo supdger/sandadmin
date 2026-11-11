@@ -7,9 +7,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
-import { changePassword, getPasswordRule, type PasswordRule } from '@/api/profile';
+import { changePassword, getPasswordRule, type PasswordRule } from '@/api/v1/profile';
 import { useMe } from '@/hooks/useMe';
-import { apiErrorMessage, ApiError } from '@/lib/apiClient';
+import { AdminApiError } from '@/lib/adminClient';
+import { adminErrorMessage } from '@/lib/adminError';
 
 export interface PasswordChangeModalProps {
   visible: boolean;
@@ -120,13 +121,13 @@ export function PasswordChangeModal({ visible, onClose }: PasswordChangeModalPro
       formApi.current?.reset();
       onClose();
     } catch (e) {
-      if (e instanceof ApiError && e.fields) {
+      if (e instanceof AdminApiError && e.fields) {
         for (const [field, messages] of Object.entries(e.fields)) {
           formApi.current?.setError(field, messages[0] ?? '');
         }
       }
-      if (!(e instanceof ApiError && e.fields && Object.keys(e.fields).length > 0)) {
-        Toast.error(apiErrorMessage(e, t('common:errors.system.message')));
+      if (!(e instanceof AdminApiError && e.fields && Object.keys(e.fields).length > 0)) {
+        Toast.error(adminErrorMessage(e, t('common:errors.system.message')));
       }
     } finally {
       setSubmitting(false);

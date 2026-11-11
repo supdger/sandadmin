@@ -32,7 +32,9 @@ export interface MockUser {
   dept_id?: string | null;
   dept_name?: string | null;
   post_id?: string | null;
+  post_name?: string | null;
   role_ids?: string[];
+  role_names?: string[];
   is_admin?: boolean;
   is_super?: boolean;
 }
@@ -57,7 +59,9 @@ const USERS: Record<string, MockUser> = {
     email: 'admin@example.com',
     dept_id: 'dept-1',
     dept_name: '总经办',
+    post_name: '总经理',
     role_ids: ['role-super'],
+    role_names: ['超级管理员'],
     is_admin: true,
     is_super: true,
   },
@@ -71,7 +75,9 @@ const USERS: Record<string, MockUser> = {
     email: 'newbie@example.com',
     dept_id: 'dept-1',
     dept_name: '总经办',
+    post_name: '前端工程师',
     role_ids: ['role-admin'],
+    role_names: ['系统管理员'],
     is_admin: true,
     is_super: false,
   },
@@ -100,7 +106,9 @@ const USERS: Record<string, MockUser> = {
     email: 'viewer@example.com',
     dept_id: 'dept-2',
     dept_name: '行政部',
+    post_name: '行政专员',
     role_ids: [],
+    role_names: [],
     is_admin: false,
     is_super: false,
   },
@@ -115,7 +123,9 @@ const USERS: Record<string, MockUser> = {
     email: null,
     dept_id: 'dept-3',
     dept_name: '市场部',
+    post_name: null,
     role_ids: [],
+    role_names: [],
     is_admin: false,
     is_super: false,
   },
@@ -187,8 +197,8 @@ function createCaptcha(): { captchaId: string; imageDataUrl: string } {
   const noise = Array.from({ length: 14 }, () => {
     const cx = Math.round(rand() * CAPTCHA_WIDTH);
     const cy = Math.round(rand() * CAPTCHA_HEIGHT);
-    const r = Math.round(2 + rand() * 4);
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgb(200,205,215)"/>`;
+    const radius = Math.round(2 + rand() * 4);
+    return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="rgb(200,205,215)"/>`;
   }).join('');
 
   const glyphs = chars
@@ -342,7 +352,9 @@ export default [
       dept_id: user.dept_id ?? null,
       dept_name: user.dept_name ?? null,
       post_id: user.post_id ?? null,
+      post_name: user.post_name ?? null,
       role_ids: user.role_ids ?? [],
+      role_names: user.role_names ?? [],
       is_admin: user.is_admin ?? false,
       is_super: user.is_super ?? false,
     });

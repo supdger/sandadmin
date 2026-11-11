@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
-import { getAllTodos, type TodoItem } from '@/api/dashboard';
+import { getAllTodos, type TodoItem } from '@/api/v1/dashboard';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';

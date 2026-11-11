@@ -330,7 +330,7 @@ export function buildMenuTree(): MenuTree {
         source: { kind: 'system' },
         visible: true,
         locked: { move: true, hide: true },
-        url: '/dashboard',
+        url: '/',
       },
       {
         key: 'org',
@@ -346,6 +346,20 @@ export function buildMenuTree(): MenuTree {
           { key: 'system:post', type: 'page', title: '岗位管理', icon: 'idcard', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/post' },
           { key: 'system:role', type: 'page', title: '角色权限', icon: 'safe', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/role' },
           { key: 'system:menu', type: 'page', title: '菜单管理', icon: 'menu', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/menu' },
+        ],
+      },
+      {
+        key: 'data',
+        type: 'group',
+        title: '数据管理',
+        icon: 'list',
+        source: { kind: 'system' },
+        visible: true,
+        locked: { move: false, hide: false },
+        children: [
+          { key: 'system:dict', type: 'page', title: '选项管理', icon: 'list', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/data/dict' },
+          { key: 'system:file', type: 'page', title: '文件管理', icon: 'folder', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/data/file' },
+          { key: 'system:announcement', type: 'page', title: '公告管理', icon: 'bell', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/data/notice' },
         ],
       },
       {

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { PasswordChangeModal } from '@/components/PasswordChangeModal';
-import { getMyProfile } from '@/api/profile';
+import { getMyProfile } from '@/api/v1/profile';
 import { ErrorState } from '@/components/ErrorState';
 import { formatDate } from './relativeTime';
 

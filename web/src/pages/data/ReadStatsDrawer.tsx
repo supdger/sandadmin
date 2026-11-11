@@ -4,7 +4,7 @@ import { SideSheet, Skeleton, Tabs, Typography } from '@douyinfe/semi-ui';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { getAnnouncementReadStats, type Announcement } from '@/api/announcements';
+import { getAnnouncementReadStats, type Announcement } from '@/api/v1/announcements';
 import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { formatDateTime } from './format';

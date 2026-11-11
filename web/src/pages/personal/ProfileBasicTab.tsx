@@ -6,9 +6,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 
-import { getMyProfile, putMyProfile, uploadFile, type UserProfile } from '@/api/profile';
+import { getMyProfile, putMyProfile, type UserProfile } from '@/api/v1/profile';
+import { uploadFile } from '@/api/v1/files';
 import { useMe } from '@/hooks/useMe';
-import { apiErrorMessage, ApiError } from '@/lib/apiClient';
+import { AdminApiError } from '@/lib/adminClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { ErrorState } from '@/components/ErrorState';
 
 const PROFILE_QUERY_KEY = ['me', 'profile'] as const;
@@ -62,10 +64,14 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
   const readOnlyRows = [
     {
       key: t('basic.username'),
-      value: me.data?.username || t('basic.usernameEmpty'),
+      value: data?.username || me.data?.username || t('basic.usernameEmpty'),
     },
-    { key: t('basic.dept'), value: me.data?.dept_name || t('basic.deptEmpty') },
-    { key: t('basic.role'), value: roleLabel },
+    { key: t('basic.dept'), value: data?.dept_name || t('basic.deptEmpty') },
+    { key: t('basic.post'), value: data?.post_name || t('basic.postEmpty') },
+    {
+      key: t('basic.role'),
+      value: data?.role_names?.length ? data.role_names.join('、') : roleLabel,
+    },
   ];
 
   const handleAvatarPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,7 +97,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
         setAvatarPreview(URL.createObjectURL(file));
       }
     } catch (e) {
-      setAvatarError(apiErrorMessage(e, t('basic.saveFailed')));
+      setAvatarError(adminErrorMessage(e, t('basic.saveFailed')));
     }
   };
 
@@ -123,7 +129,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
       setAvatarPreview(null);
       setPickedAvatarId(null);
     } catch (e) {
-      const fields = e instanceof ApiError ? e.fields : undefined;
+      const fields = e instanceof AdminApiError ? e.fields : undefined;
       if (fields && Object.keys(fields).length > 0) {
         for (const [field, messages] of Object.entries(fields)) {
           if (field === 'avatar_file_id') {
@@ -133,7 +139,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           }
         }
       } else {
-        Toast.error(apiErrorMessage(e, t('basic.saveFailed')));
+        Toast.error(adminErrorMessage(e, t('basic.saveFailed')));
       }
     } finally {
       setSaving(false);

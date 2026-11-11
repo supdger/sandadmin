@@ -7,9 +7,9 @@ import {
   deleteOtherSessions,
   getMySessions,
   type Session,
-} from '@/api/profile';
+} from '@/api/v1/profile';
 import { ErrorState } from '@/components/ErrorState';
-import { apiErrorMessage } from '@/lib/apiClient';
+import { adminErrorMessage } from '@/lib/adminError';
 import { formatRelativeTime } from './relativeTime';
 
 const SESSIONS_QUERY_KEY = ['me', 'sessions'] as const;
@@ -28,7 +28,7 @@ export function ProfileSessionsTab() {
       Toast.success(t('devices.loggedOut'));
       invalidate();
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('devices.logoutFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('devices.logoutFailed'))),
   });
 
   const revokeOthers = useMutation({
@@ -38,7 +38,7 @@ export function ProfileSessionsTab() {
       Toast.success(t('devices.loggedOutOthers', { count: removed }));
       invalidate();
     },
-    onError: (e) => Toast.error(apiErrorMessage(e, t('devices.logoutFailed'))),
+    onError: (e) => Toast.error(adminErrorMessage(e, t('devices.logoutFailed'))),
   });
 
   if (sessions.isPending) {

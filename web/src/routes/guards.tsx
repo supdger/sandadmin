@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, Outlet, useLocation, useMatches } from 'react-router';
 
-import { getMe } from '@/api/auth';
+import { getMe } from '@/api/v1/me';
 import { Loading } from '@/components/Loading';
 import { hasPermission } from '@/hooks/useCan';
 import { ME_QUERY_KEY, useMe } from '@/hooks/useMe';
@@ -16,7 +16,7 @@ function loginUrl(redirect: string): string {
 /**
  * Route guard for everything behind the shell:
  * - no token              → /login (with ?redirect= back to here)
- * - mustChangePassword    → /force-change-password
+ * - must_change_password  → /force-change-password
  * - profile still loading → full-page spinner
  * - profile failed        → token dropped, back to /login
  */
@@ -47,7 +47,7 @@ export function RequireAuth() {
     return <Loading fullPage />;
   }
 
-  if (me.data?.mustChangePassword && location.pathname !== '/force-change-password') {
+  if (me.data?.must_change_password && location.pathname !== '/force-change-password') {
     return <Navigate to="/force-change-password" replace />;
   }
 
