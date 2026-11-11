@@ -9,30 +9,30 @@ namespace Sandadmin\Domain\Plugin;
 
 final readonly class PersonalSettingsCategory implements \JsonSerializable
 {
-    public string $pluginId;
+    public string $pluginCode;
     public string $key;
     public string $title;
     public string $description;
-    public int $sortOrder;
+    public int $sort;
 
-    public function __construct(string $pluginId, string $key, string $title, string $description, int $sortOrder)
+    public function __construct(string $pluginCode, string $key, string $title, string $description, int $sort)
     {
-        $this->pluginId = ExtensionRules::pluginId($pluginId);
+        $this->pluginCode = ExtensionRules::pluginCode($pluginCode);
         $this->key = ExtensionRules::key($key);
         $this->title = ExtensionRules::title($title);
         $this->description = ExtensionRules::description($description);
-        $this->sortOrder = ExtensionRules::sortOrder($sortOrder);
+        $this->sort = ExtensionRules::sort($sort);
     }
 
-    /** @return array{plugin_id: string, key: string, title: string, description: string, sort_order: int} */
+    /** @return array{plugin_code: string, key: string, title: string, description: string, sort: int} */
     public function jsonSerialize(): array
     {
         return [
-            'plugin_id' => $this->pluginId,
+            'plugin_code' => $this->pluginCode,
             'key' => $this->key,
             'title' => $this->title,
             'description' => $this->description,
-            'sort_order' => $this->sortOrder,
+            'sort' => $this->sort,
         ];
     }
 }

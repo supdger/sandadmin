@@ -7,326 +7,157 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Plugin;
 
-/** 扩展声明与 plugin_extension.payload 之间的编解码。不访问数据库或文件系统。 */
+/** 把生效扩展（清单声明 + 覆盖后的 sort）物化成对外领域对象。不访问数据库或文件系统。 */
 final class ExtensionCodec
 {
     private function __construct()
     {
     }
 
-    /** @return array<string, mixed> */
-    public static function payload(ExtensionDraft $draft): array
+    public static function settingsCategory(string $pluginCode, ExtensionDraft $draft, int $sort): SettingsCategory
     {
-        return match ($draft->kind) {
-            ExtensionKind::SettingsCategory => [
-                'description' => $draft->description,
-                'icon' => $draft->icon,
-            ],
-            ExtensionKind::PersonalSettingsCategory => [
-                'description' => $draft->description,
-            ],
-            ExtensionKind::SearchSource => [
-                'handler' => self::required($draft->handler, 'handler'),
-                'placeholder' => $draft->placeholder,
-            ],
-            ExtensionKind::NotificationSource => [
-                'channel' => self::required($draft->channel, 'channel'),
-            ],
-            ExtensionKind::CronJob => [
-                'expression' => self::required($draft->expression, 'expression'),
-                'handler' => self::required($draft->handler, 'handler'),
-                'timezone' => $draft->timezone,
-            ],
-            ExtensionKind::FileUsage => [
-                'owner_type' => self::required($draft->ownerType, 'owner_type'),
-                'multiple' => $draft->multiple,
-            ],
-            ExtensionKind::WorkbenchCard => [
-                'component' => self::required($draft->component, 'component'),
-                'width' => $draft->width,
-                'height' => $draft->height,
-            ],
-            ExtensionKind::OptionGroup => [
-                'options' => self::optionPayload($draft->options),
-            ],
-        };
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function settingsCategory(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): SettingsCategory {
-        self::keys($payload, ['description', 'icon']);
+        self::kind($draft, ExtensionKind::SettingsCategory);
 
         return new SettingsCategory(
-            $pluginId,
-            $key,
-            $title,
-            self::string($payload, 'description'),
-            self::nullableString($payload, 'icon'),
-            $sortOrder,
+            $pluginCode,
+            $draft->key,
+            $draft->title,
+            $draft->description,
+            $draft->icon,
+            $sort,
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function personalSettingsCategory(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): PersonalSettingsCategory {
-        self::keys($payload, ['description']);
+    public static function personalSettingsCategory(string $pluginCode, ExtensionDraft $draft, int $sort): PersonalSettingsCategory
+    {
+        self::kind($draft, ExtensionKind::PersonalSettingsCategory);
 
-        return new PersonalSettingsCategory($pluginId, $key, $title, self::string($payload, 'description'), $sortOrder);
+        return new PersonalSettingsCategory($pluginCode, $draft->key, $draft->title, $draft->description, $sort);
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function searchSource(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): SearchSource {
-        self::keys($payload, ['handler', 'placeholder']);
+    public static function searchSource(string $pluginCode, ExtensionDraft $draft, int $sort): SearchSource
+    {
+        self::kind($draft, ExtensionKind::SearchSource);
 
         return new SearchSource(
-            $pluginId,
-            $key,
-            $title,
-            self::string($payload, 'handler'),
-            self::nullableString($payload, 'placeholder'),
-            $sortOrder,
+            $pluginCode,
+            $draft->key,
+            $draft->title,
+            self::handler($draft),
+            $draft->placeholder,
+            $sort,
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function notificationSource(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): NotificationSource {
-        self::keys($payload, ['channel']);
+    public static function notificationSource(string $pluginCode, ExtensionDraft $draft, int $sort): NotificationSource
+    {
+        self::kind($draft, ExtensionKind::NotificationSource);
 
-        return new NotificationSource($pluginId, $key, $title, self::string($payload, 'channel'), $sortOrder);
+        return new NotificationSource($pluginCode, $draft->key, $draft->title, self::channel($draft), $sort);
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function cronJob(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): CronJob {
-        self::keys($payload, ['expression', 'handler', 'timezone']);
+    public static function cronTask(string $pluginCode, ExtensionDraft $draft, int $sort): CronTask
+    {
+        self::kind($draft, ExtensionKind::CronTask);
 
-        return new CronJob(
-            $pluginId,
-            $key,
-            $title,
-            self::string($payload, 'expression'),
-            self::string($payload, 'handler'),
-            self::string($payload, 'timezone'),
-            $sortOrder,
+        return new CronTask(
+            $pluginCode,
+            $draft->key,
+            $draft->title,
+            self::handler($draft),
+            self::schedule($draft),
+            $draft->description === '' ? null : $draft->description,
+            $draft->scheduleLocked,
+            $draft->isCritical,
+            $sort,
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function fileUsage(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): FileUsageRegistration {
-        self::keys($payload, ['owner_type', 'multiple']);
+    public static function fileUsage(string $pluginCode, ExtensionDraft $draft, int $sort): FileUsageRegistration
+    {
+        self::kind($draft, ExtensionKind::FileUsage);
 
         return new FileUsageRegistration(
-            $pluginId,
-            $key,
-            $title,
-            self::string($payload, 'owner_type'),
-            self::bool($payload, 'multiple'),
-            $sortOrder,
+            $pluginCode,
+            $draft->key,
+            $draft->title,
+            self::ownerType($draft),
+            $draft->multiple,
+            $sort,
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function workbenchCard(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): WorkbenchCard {
-        self::keys($payload, ['component', 'width', 'height']);
+    public static function workbenchCard(string $pluginCode, ExtensionDraft $draft, int $sort): WorkbenchCard
+    {
+        self::kind($draft, ExtensionKind::WorkbenchCard);
 
         return new WorkbenchCard(
-            $pluginId,
-            $key,
-            $title,
-            self::string($payload, 'component'),
-            self::int($payload, 'width'),
-            self::int($payload, 'height'),
-            $sortOrder,
+            $pluginCode,
+            $draft->key,
+            $draft->title,
+            self::component($draft),
+            $draft->width,
+            $draft->height,
+            $sort,
         );
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     */
-    public static function optionGroup(
-        string $pluginId,
-        string $key,
-        string $title,
-        int $sortOrder,
-        array $payload,
-    ): OptionGroup {
-        self::keys($payload, ['options']);
+    public static function optionGroup(string $pluginCode, ExtensionDraft $draft, int $sort): OptionGroup
+    {
+        self::kind($draft, ExtensionKind::OptionGroup);
 
-        return new OptionGroup($pluginId, $key, $title, self::options($payload), $sortOrder);
+        return new OptionGroup($pluginCode, $draft->key, $draft->title, $draft->options, $sort);
     }
 
-    private static function required(?string $value, string $field): string
+    private static function kind(ExtensionDraft $draft, ExtensionKind $expected): void
     {
-        if ($value === null || $value === '') {
-            throw new InvalidExtensionException('扩展声明缺少字段', [$field => 'required']);
-        }
-
-        return $value;
-    }
-
-    /**
-     * @param list<OptionItem> $options
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    private static function optionPayload(array $options): array
-    {
-        $payload = [];
-        foreach ($options as $option) {
-            $payload[] = ['value' => $option->value, 'label' => $option->label];
-        }
-
-        return $payload;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     * @param list<string> $expected
-     */
-    private static function keys(array $payload, array $expected): void
-    {
-        $allowed = [];
-        foreach ($expected as $key) {
-            $allowed[$key] = true;
-        }
-        foreach ($payload as $key => $_) {
-            if (!isset($allowed[$key])) {
-                throw new InvalidExtensionException('扩展载荷含未知字段', ['payload.' . $key => 'unknown']);
-            }
-        }
-        foreach ($expected as $key) {
-            if (!array_key_exists($key, $payload)) {
-                throw new InvalidExtensionException('扩展载荷字段缺失', ['payload.' . $key => 'required']);
-            }
+        if ($draft->kind !== $expected) {
+            throw new InvalidExtensionException('扩展声明类别不匹配', ['kind' => 'enum']);
         }
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function string(array $payload, string $key): string
+    private static function handler(ExtensionDraft $draft): string
     {
-        $value = $payload[$key];
-        if (!is_string($value)) {
-            throw new InvalidExtensionException('扩展载荷字段类型错误', ['payload.' . $key => 'string']);
+        if ($draft->handler === null || $draft->handler === '') {
+            throw new InvalidExtensionException('扩展声明缺少处理类', ['handler' => 'required']);
         }
 
-        return $value;
+        return $draft->handler;
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function nullableString(array $payload, string $key): ?string
+    private static function channel(ExtensionDraft $draft): string
     {
-        $value = $payload[$key];
-        if ($value === null) {
-            return null;
-        }
-        if (!is_string($value)) {
-            throw new InvalidExtensionException('扩展载荷字段类型错误', ['payload.' . $key => 'string']);
+        if ($draft->channel === null || $draft->channel === '') {
+            throw new InvalidExtensionException('扩展声明缺少频道', ['channel' => 'required']);
         }
 
-        return $value;
+        return $draft->channel;
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function bool(array $payload, string $key): bool
+    private static function schedule(ExtensionDraft $draft): ScheduleDefinition
     {
-        $value = $payload[$key];
-        if (!is_bool($value)) {
-            throw new InvalidExtensionException('扩展载荷字段类型错误', ['payload.' . $key => 'bool']);
+        if ($draft->schedule === null) {
+            throw new InvalidExtensionException('扩展声明缺少时间结构', ['schedule' => 'required']);
         }
 
-        return $value;
+        return $draft->schedule;
     }
 
-    /** @param array<string, mixed> $payload */
-    private static function int(array $payload, string $key): int
+    private static function ownerType(ExtensionDraft $draft): string
     {
-        $value = $payload[$key];
-        if (!is_int($value)) {
-            throw new InvalidExtensionException('扩展载荷字段类型错误', ['payload.' . $key => 'int']);
+        if ($draft->ownerType === null || $draft->ownerType === '') {
+            throw new InvalidExtensionException('扩展声明缺少 owner_type', ['owner_type' => 'required']);
         }
 
-        return $value;
+        return $draft->ownerType;
     }
 
-    /**
-     * @param array<string, mixed> $payload
-     *
-     * @return list<OptionItem>
-     */
-    private static function options(array $payload): array
+    private static function component(ExtensionDraft $draft): string
     {
-        $raw = $payload['options'];
-        if (!is_array($raw) || !array_is_list($raw)) {
-            throw new InvalidExtensionException('扩展载荷字段类型错误', ['payload.options' => 'list']);
-        }
-        $options = [];
-        foreach ($raw as $index => $item) {
-            $path = 'payload.options.' . $index;
-            if (!is_array($item) || array_is_list($item)) {
-                throw new InvalidExtensionException('选项必须为对象', [$path => 'object']);
-            }
-            $value = $item['value'] ?? null;
-            $label = $item['label'] ?? null;
-            if (!is_string($value) || !is_string($label) || count($item) !== 2) {
-                throw new InvalidExtensionException('选项字段无效', [$path => 'value,label']);
-            }
-            $options[] = new OptionItem($value, $label);
+        if ($draft->component === null || $draft->component === '') {
+            throw new InvalidExtensionException('扩展声明缺少组件', ['component' => 'required']);
         }
 
-        return $options;
+        return $draft->component;
     }
 }

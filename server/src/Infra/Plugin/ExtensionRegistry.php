@@ -7,10 +7,14 @@ declare(strict_types=1);
 
 namespace Sandadmin\Infra\Plugin;
 
-use Sandadmin\Domain\Plugin\CronJob;
+use Sandadmin\Domain\Plugin\CronTask;
+use Sandadmin\Domain\Plugin\DisableCheckItem;
+use Sandadmin\Domain\Plugin\EffectiveExtension;
+use Sandadmin\Domain\Plugin\ExtensionCatalog;
 use Sandadmin\Domain\Plugin\ExtensionCodec;
-use Sandadmin\Domain\Plugin\ExtensionDraft;
 use Sandadmin\Domain\Plugin\ExtensionKind;
+use Sandadmin\Domain\Plugin\ExtensionOverride;
+use Sandadmin\Domain\Plugin\ExtensionResolver;
 use Sandadmin\Domain\Plugin\ExtensionRules;
 use Sandadmin\Domain\Plugin\FileUsageRegistration;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
@@ -19,61 +23,99 @@ use Sandadmin\Domain\Plugin\OptionGroup;
 use Sandadmin\Domain\Plugin\PersonalSettingsCategory;
 use Sandadmin\Domain\Plugin\SearchSource;
 use Sandadmin\Domain\Plugin\SettingsCategory;
+use Sandadmin\Domain\Plugin\UserDisableCheck;
+use Sandadmin\Domain\Plugin\UserTransfer;
 use Sandadmin\Domain\Plugin\WorkbenchCard;
 
 /**
  * 插件扩展位注册表。
  *
- * 安装流程调用 installPlugin / uninstallPlugin 写入 plugin_extension。
- * 运行时只读该表，不扫描插件目录，不加载清单，不在进程内缓存结果。
+ * 扩展定义来自签名清单编译产物（ExtensionCatalog），sand_system_plugin_extension
+ * 只存管理员的启停与排序覆盖；运行时按「清单声明 + 覆盖行」合并出启用项。
+ * 不扫描插件目录，不在进程内缓存合并结果；用户停用前检查与转交两个回调
+ * 由插件注册，本类只做汇总与编排。
  */
 final readonly class ExtensionRegistry
 {
-    public function __construct(private PluginExtensionRepository $extensions)
-    {
+    private ExtensionCallbacks $callbacks;
+
+    public function __construct(
+        private PluginExtensionRepository $extensions,
+        private ExtensionCatalog $catalog,
+    ) {
+        $this->callbacks = new ExtensionCallbacks();
     }
 
-    public function installPlugin(string $pluginId, ExtensionDraft ...$extensions): void
+    /** 注册「用户停用前检查」回调；同一插件重复注册会被拒绝。 */
+    public function registerDisableCheck(string $pluginCode, UserDisableCheck $check): void
     {
-        $pluginId = ExtensionRules::pluginId($pluginId);
-        $seen = [];
-        foreach ($extensions as $extension) {
-            $identity = $extension->kind->value . "\0" . $extension->key;
-            if (isset($seen[$identity])) {
-                throw new InvalidExtensionException('同一插件内扩展键重复', [
-                    'key' => $extension->kind->value . ':' . $extension->key,
-                ]);
+        $this->callbacks->addDisableCheck($pluginCode, $check);
+    }
+
+    /** 注册「转交」回调；停用/删除用户传 transfer_to_user_id 时由核心逐插件调用。 */
+    public function registerUserTransfer(string $pluginCode, UserTransfer $transfer): void
+    {
+        $this->callbacks->addUserTransfer($pluginCode, $transfer);
+    }
+
+    /**
+     * 汇总各插件「用户停用前检查」结果，形状对应 disable-check 接口的
+     * UserDisableCheckItem 数组；空数组表示无阻碍。
+     *
+     * @return list<DisableCheckItem>
+     */
+    public function disableCheckItems(int $userId): array
+    {
+        $items = [];
+        foreach ($this->callbacks->disableChecks() as $check) {
+            foreach ($check->pendingItems($userId) as $item) {
+                $items[] = $item;
             }
-            $seen[$identity] = true;
         }
 
-        $rows = [];
-        foreach ($extensions as $extension) {
-            $rows[] = new StoredExtension(
-                $pluginId,
-                $extension->kind,
-                $extension->key,
-                $extension->title,
-                $extension->sortOrder,
-                $extension->enabled,
-                ExtensionCodec::payload($extension),
-            );
-        }
-
-        $this->extensions->replacePlugin($pluginId, $rows, new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        return $items;
     }
 
-    public function uninstallPlugin(string $pluginId): void
+    /** 逐插件执行「转交」回调；任一回调抛错即中断并向上传播。 */
+    public function transferUserItems(int $userId, int $toUserId): void
     {
-        $this->extensions->deletePlugin($pluginId);
+        foreach ($this->callbacks->userTransfers() as $transfer) {
+            $transfer->transfer($userId, $toUserId);
+        }
+    }
+
+    /**
+     * 写入管理员对某扩展位的启停与排序覆盖。
+     * 扩展必须已在签名清单中声明，否则拒绝，避免产生悬空覆盖行。
+     */
+    public function saveOverride(string $pluginCode, ExtensionKind $kind, string $extensionKey, bool $enabled, int $sort): void
+    {
+        $pluginCode = ExtensionRules::pluginCode($pluginCode);
+        $extensionKey = ExtensionRules::key($extensionKey);
+        $sort = ExtensionRules::sort($sort);
+        $this->assertDeclared($pluginCode, $kind, $extensionKey);
+        $this->extensions->save(
+            new ExtensionOverride($pluginCode, $kind, $extensionKey, $enabled, $sort),
+            new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+        );
+    }
+
+    /** 删除覆盖行，扩展恢复清单默认；目标不存在时不报错。 */
+    public function resetOverride(string $pluginCode, ExtensionKind $kind, string $extensionKey): void
+    {
+        $this->extensions->delete(
+            ExtensionRules::pluginCode($pluginCode),
+            $kind,
+            ExtensionRules::key($extensionKey),
+        );
     }
 
     /** @return list<SettingsCategory> */
     public function settingsCategories(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::SettingsCategory) as $row) {
-            $out[] = ExtensionCodec::settingsCategory($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::SettingsCategory) as $extension) {
+            $out[] = ExtensionCodec::settingsCategory($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -83,8 +125,8 @@ final readonly class ExtensionRegistry
     public function personalSettingsCategories(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::PersonalSettingsCategory) as $row) {
-            $out[] = ExtensionCodec::personalSettingsCategory($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::PersonalSettingsCategory) as $extension) {
+            $out[] = ExtensionCodec::personalSettingsCategory($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -94,8 +136,8 @@ final readonly class ExtensionRegistry
     public function searchSources(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::SearchSource) as $row) {
-            $out[] = ExtensionCodec::searchSource($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::SearchSource) as $extension) {
+            $out[] = ExtensionCodec::searchSource($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -105,19 +147,19 @@ final readonly class ExtensionRegistry
     public function notificationSources(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::NotificationSource) as $row) {
-            $out[] = ExtensionCodec::notificationSource($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::NotificationSource) as $extension) {
+            $out[] = ExtensionCodec::notificationSource($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
     }
 
-    /** @return list<CronJob> */
-    public function cronJobs(): array
+    /** @return list<CronTask> */
+    public function cronTasks(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::CronJob) as $row) {
-            $out[] = ExtensionCodec::cronJob($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::CronTask) as $extension) {
+            $out[] = ExtensionCodec::cronTask($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -127,8 +169,8 @@ final readonly class ExtensionRegistry
     public function fileUsageRegistrations(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::FileUsage) as $row) {
-            $out[] = ExtensionCodec::fileUsage($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::FileUsage) as $extension) {
+            $out[] = ExtensionCodec::fileUsage($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -138,8 +180,8 @@ final readonly class ExtensionRegistry
     public function workbenchCards(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::WorkbenchCard) as $row) {
-            $out[] = ExtensionCodec::workbenchCard($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::WorkbenchCard) as $extension) {
+            $out[] = ExtensionCodec::workbenchCard($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
@@ -149,10 +191,30 @@ final readonly class ExtensionRegistry
     public function optionGroups(): array
     {
         $out = [];
-        foreach ($this->extensions->listEnabled(ExtensionKind::OptionGroup) as $row) {
-            $out[] = ExtensionCodec::optionGroup($row->pluginId, $row->key, $row->title, $row->sortOrder, $row->payload);
+        foreach ($this->resolve(ExtensionKind::OptionGroup) as $extension) {
+            $out[] = ExtensionCodec::optionGroup($extension->pluginCode, $extension->draft, $extension->sort);
         }
 
         return $out;
+    }
+
+    /** @return list<EffectiveExtension> */
+    private function resolve(ExtensionKind $kind): array
+    {
+        return ExtensionResolver::resolve($kind, $this->catalog->plugins(), $this->extensions->listByKind($kind));
+    }
+
+    private function assertDeclared(string $pluginCode, ExtensionKind $kind, string $extensionKey): void
+    {
+        $plugin = $this->catalog->plugin($pluginCode);
+        if ($plugin === null) {
+            throw new InvalidExtensionException('插件未在清单中声明', ['plugin_code' => 'undeclared']);
+        }
+        foreach ($plugin->extensions as $draft) {
+            if ($draft->kind === $kind && $draft->key === $extensionKey) {
+                return;
+            }
+        }
+        throw new InvalidExtensionException('扩展位未在清单中声明', ['key' => $kind->value . ':' . $extensionKey]);
     }
 }

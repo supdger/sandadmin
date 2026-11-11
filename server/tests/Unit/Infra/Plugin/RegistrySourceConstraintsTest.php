@@ -8,14 +8,34 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Unit\Infra\Plugin;
 
 use PHPUnit\Framework\TestCase;
+use Sandadmin\Domain\Plugin\CronTask;
+use Sandadmin\Domain\Plugin\DisableCheckItem;
+use Sandadmin\Domain\Plugin\EffectiveExtension;
+use Sandadmin\Domain\Plugin\ExtensionCatalog;
 use Sandadmin\Domain\Plugin\ExtensionCodec;
 use Sandadmin\Domain\Plugin\ExtensionDraft;
+use Sandadmin\Domain\Plugin\ExtensionKind;
 use Sandadmin\Domain\Plugin\ExtensionManifest;
+use Sandadmin\Domain\Plugin\ExtensionOverride;
+use Sandadmin\Domain\Plugin\ExtensionResolver;
 use Sandadmin\Domain\Plugin\ExtensionRules;
+use Sandadmin\Domain\Plugin\FileUsageRegistration;
+use Sandadmin\Domain\Plugin\InvalidExtensionException;
+use Sandadmin\Domain\Plugin\NotificationSource;
+use Sandadmin\Domain\Plugin\OptionGroup;
+use Sandadmin\Domain\Plugin\OptionItem;
+use Sandadmin\Domain\Plugin\PersonalSettingsCategory;
+use Sandadmin\Domain\Plugin\PluginExtensions;
+use Sandadmin\Domain\Plugin\ScheduleDefinition;
+use Sandadmin\Domain\Plugin\ScheduleFreq;
+use Sandadmin\Domain\Plugin\SearchSource;
+use Sandadmin\Domain\Plugin\SettingsCategory;
+use Sandadmin\Domain\Plugin\UserDisableCheck;
+use Sandadmin\Domain\Plugin\UserTransfer;
+use Sandadmin\Domain\Plugin\WorkbenchCard;
+use Sandadmin\Infra\Plugin\ExtensionCallbacks;
 use Sandadmin\Infra\Plugin\ExtensionRegistry;
 use Sandadmin\Infra\Plugin\PluginExtensionRepository;
-use Sandadmin\Infra\Plugin\Schema\PluginExtensionSchema;
-use Sandadmin\Infra\Plugin\StoredExtension;
 
 final class RegistrySourceConstraintsTest extends TestCase
 {
@@ -24,7 +44,6 @@ final class RegistrySourceConstraintsTest extends TestCase
         $roots = [
             dirname(__DIR__, 4) . '/src/Domain/Plugin',
             dirname(__DIR__, 4) . '/src/Infra/Plugin',
-            dirname(__DIR__, 4) . '/migrations',
         ];
         $needles = [
             'scandir(',
@@ -66,8 +85,7 @@ final class RegistrySourceConstraintsTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        $files[] = dirname(__DIR__, 4) . '/migrations.php';
-        self::assertCount(21, $files);
+        self::assertCount(28, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
@@ -88,17 +106,72 @@ final class RegistrySourceConstraintsTest extends TestCase
             ExtensionCodec::class,
             ExtensionManifest::class,
             ExtensionDraft::class,
+            ExtensionResolver::class,
+            ExtensionCatalog::class,
+            PluginExtensions::class,
+            EffectiveExtension::class,
+            ExtensionOverride::class,
+            DisableCheckItem::class,
+            SettingsCategory::class,
+            PersonalSettingsCategory::class,
+            SearchSource::class,
+            NotificationSource::class,
+            CronTask::class,
+            FileUsageRegistration::class,
+            WorkbenchCard::class,
+            OptionGroup::class,
+            OptionItem::class,
+            ScheduleDefinition::class,
+            InvalidExtensionException::class,
+            ExtensionKind::class,
+            ScheduleFreq::class,
             ExtensionRegistry::class,
             PluginExtensionRepository::class,
-            PluginExtensionSchema::class,
-            StoredExtension::class,
+            ExtensionCallbacks::class,
         ] as $class) {
             $ref = new \ReflectionClass($class);
             self::assertTrue($ref->isFinal(), $class);
             foreach ($ref->getProperties() as $property) {
                 self::assertFalse($property->isStatic(), $class . '::$' . $property->getName());
+            }
+        }
+    }
+
+    public function testValueObjectsExposeOnlyReadonlyProperties(): void
+    {
+        foreach ([
+            ExtensionDraft::class,
+            ExtensionCatalog::class,
+            PluginExtensions::class,
+            EffectiveExtension::class,
+            ExtensionOverride::class,
+            DisableCheckItem::class,
+            SettingsCategory::class,
+            PersonalSettingsCategory::class,
+            SearchSource::class,
+            NotificationSource::class,
+            CronTask::class,
+            FileUsageRegistration::class,
+            WorkbenchCard::class,
+            OptionGroup::class,
+            OptionItem::class,
+            ScheduleDefinition::class,
+            ExtensionRegistry::class,
+            PluginExtensionRepository::class,
+        ] as $class) {
+            $ref = new \ReflectionClass($class);
+            foreach ($ref->getProperties() as $property) {
+                if ($property->isStatic()) {
+                    continue;
+                }
                 self::assertTrue($property->isReadOnly(), $class . '::$' . $property->getName());
             }
         }
+    }
+
+    public function testCallbackContractsAreInterfaces(): void
+    {
+        self::assertTrue((new \ReflectionClass(UserDisableCheck::class))->isInterface());
+        self::assertTrue((new \ReflectionClass(UserTransfer::class))->isInterface());
     }
 }

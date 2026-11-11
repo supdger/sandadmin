@@ -12,59 +12,99 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\DBAL\Types\Types;
 use Sandadmin\Domain\Plugin\ExtensionKind;
+use Sandadmin\Domain\Plugin\ExtensionOverride;
 use Sandadmin\Domain\Plugin\ExtensionRules;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
-use Sandadmin\Infra\Plugin\Schema\PluginExtensionSchema;
 
 /**
- * plugin_extension 表仓储。每次调用新建 QueryBuilder，不缓存查询结果。
+ * sand_system_plugin_extension 仓储：只存管理员对扩展位的启停与排序覆盖。
+ * 表结构由 1.x 基线迁移定义，本类不建表；每次调用新建 QueryBuilder。
  */
 final readonly class PluginExtensionRepository
 {
+    public const TABLE = 'sand_system_plugin_extension';
+
     public function __construct(private Connection $connection)
     {
     }
 
-    /**
-     * 用本次安装声明整体替换该插件的扩展行。校验失败不得调用本方法。
-     *
-     * @param list<StoredExtension> $rows
-     */
-    public function replacePlugin(string $pluginId, array $rows, \DateTimeImmutable $at): void
+    /** 写入或更新一条覆盖；create_time 只在首次插入时写入。 */
+    public function save(ExtensionOverride $override, \DateTimeImmutable $at): void
     {
-        $pluginId = ExtensionRules::pluginId($pluginId);
-        foreach ($rows as $row) {
-            if ($row->pluginId !== $pluginId) {
-                throw new InvalidExtensionException('plugin_id 不一致', ['plugin_id' => 'mismatch']);
-            }
-        }
         $at = $at->setTimezone(new \DateTimeZone('UTC'));
-        $this->connection->transactional(function () use ($pluginId, $rows, $at): void {
-            $this->deleteRows($pluginId);
-            foreach ($rows as $row) {
-                $this->insert($row, $at);
+        $this->connection->transactional(function () use ($override, $at): void {
+            $affectedRows = $this->queryBuilder()
+                ->update(self::TABLE)
+                ->set('enabled', ':enabled')
+                ->set('sort', ':sort')
+                ->set('update_time', ':update_time')
+                ->where($this->connection->quoteSingleIdentifier('plugin_code') . ' = :plugin_code')
+                ->andWhere($this->connection->quoteSingleIdentifier('kind') . ' = :kind')
+                ->andWhere($this->connection->quoteSingleIdentifier('extension_key') . ' = :extension_key')
+                ->setParameter('plugin_code', $override->pluginCode)
+                ->setParameter('kind', $override->kind->value)
+                ->setParameter('extension_key', $override->extensionKey)
+                ->setParameter('enabled', $override->enabled, Types::BOOLEAN)
+                ->setParameter('sort', $override->sort, ParameterType::INTEGER)
+                ->setParameter('update_time', $at, Types::DATETIME_IMMUTABLE)
+                ->executeStatement();
+            if ($affectedRows > 0) {
+                return;
             }
+            $this->queryBuilder()
+                ->insert(self::TABLE)
+                ->values([
+                    'plugin_code' => ':plugin_code',
+                    'kind' => ':kind',
+                    'extension_key' => ':extension_key',
+                    'enabled' => ':enabled',
+                    'sort' => ':sort',
+                    'create_time' => ':create_time',
+                    'update_time' => ':update_time',
+                ])
+                ->setParameter('plugin_code', $override->pluginCode)
+                ->setParameter('kind', $override->kind->value)
+                ->setParameter('extension_key', $override->extensionKey)
+                ->setParameter('enabled', $override->enabled, Types::BOOLEAN)
+                ->setParameter('sort', $override->sort, ParameterType::INTEGER)
+                ->setParameter('create_time', $at, Types::DATETIME_IMMUTABLE)
+                ->setParameter('update_time', $at, Types::DATETIME_IMMUTABLE)
+                ->executeStatement();
         });
     }
 
-    public function deletePlugin(string $pluginId): void
+    /** 删除一条覆盖；扩展回到清单默认。目标不存在时不报错。 */
+    public function delete(string $pluginCode, ExtensionKind $kind, string $extensionKey): void
     {
-        $this->deleteRows(ExtensionRules::pluginId($pluginId));
+        $this->queryBuilder()
+            ->delete(self::TABLE)
+            ->where($this->connection->quoteSingleIdentifier('plugin_code') . ' = :plugin_code')
+            ->andWhere($this->connection->quoteSingleIdentifier('kind') . ' = :kind')
+            ->andWhere($this->connection->quoteSingleIdentifier('extension_key') . ' = :extension_key')
+            ->setParameter('plugin_code', ExtensionRules::pluginCode($pluginCode))
+            ->setParameter('kind', $kind->value)
+            ->setParameter('extension_key', ExtensionRules::key($extensionKey))
+            ->executeStatement();
     }
 
-    /** @return list<StoredExtension> */
-    public function listEnabled(ExtensionKind $kind): array
+    /** 删除某插件的全部覆盖行；插件行被物理删除时由外键级联，本方法供显式清理。 */
+    public function deleteForPlugin(string $pluginCode): void
     {
-        $rows = $this->qb()
-            ->select('plugin_id', 'kind', 'extension_key', 'title', 'sort_order', 'enabled', 'payload')
-            ->from(PluginExtensionSchema::TABLE)
+        $this->queryBuilder()
+            ->delete(self::TABLE)
+            ->where($this->connection->quoteSingleIdentifier('plugin_code') . ' = :plugin_code')
+            ->setParameter('plugin_code', ExtensionRules::pluginCode($pluginCode))
+            ->executeStatement();
+    }
+
+    /** @return list<ExtensionOverride> */
+    public function listByKind(ExtensionKind $kind): array
+    {
+        $rows = $this->queryBuilder()
+            ->select('plugin_code', 'kind', 'extension_key', 'enabled', 'sort')
+            ->from(self::TABLE)
             ->where($this->connection->quoteSingleIdentifier('kind') . ' = :kind')
-            ->andWhere($this->connection->quoteSingleIdentifier('enabled') . ' = :enabled')
             ->setParameter('kind', $kind->value)
-            ->setParameter('enabled', true, Types::BOOLEAN)
-            ->orderBy('sort_order', 'ASC')
-            ->addOrderBy('plugin_id', 'ASC')
-            ->addOrderBy('extension_key', 'ASC')
             ->executeQuery()
             ->fetchAllAssociative();
 
@@ -76,58 +116,22 @@ final readonly class PluginExtensionRepository
         return $out;
     }
 
-    public function countForPlugin(string $pluginId): int
+    public function countForPlugin(string $pluginCode): int
     {
-        $pluginId = ExtensionRules::pluginId($pluginId);
-        $value = $this->qb()
+        $pluginCode = ExtensionRules::pluginCode($pluginCode);
+        $value = $this->queryBuilder()
             ->select('COUNT(*) AS n')
-            ->from(PluginExtensionSchema::TABLE)
-            ->where($this->connection->quoteSingleIdentifier('plugin_id') . ' = :plugin_id')
-            ->setParameter('plugin_id', $pluginId)
+            ->from(self::TABLE)
+            ->where($this->connection->quoteSingleIdentifier('plugin_code') . ' = :plugin_code')
+            ->setParameter('plugin_code', $pluginCode)
             ->executeQuery()
             ->fetchOne();
 
         return $this->asInt($value, 'n');
     }
 
-    private function deleteRows(string $pluginId): void
-    {
-        $this->qb()
-            ->delete(PluginExtensionSchema::TABLE)
-            ->where($this->connection->quoteSingleIdentifier('plugin_id') . ' = :plugin_id')
-            ->setParameter('plugin_id', $pluginId)
-            ->executeStatement();
-    }
-
-    private function insert(StoredExtension $row, \DateTimeImmutable $at): void
-    {
-        $this->qb()
-            ->insert(PluginExtensionSchema::TABLE)
-            ->values([
-                'plugin_id' => ':plugin_id',
-                'kind' => ':kind',
-                'extension_key' => ':extension_key',
-                'title' => ':title',
-                'payload' => ':payload',
-                'enabled' => ':enabled',
-                'sort_order' => ':sort_order',
-                'created_at' => ':created_at',
-                'updated_at' => ':updated_at',
-            ])
-            ->setParameter('plugin_id', $row->pluginId)
-            ->setParameter('kind', $row->kind->value)
-            ->setParameter('extension_key', $row->key)
-            ->setParameter('title', $row->title)
-            ->setParameter('payload', $row->payload, Types::JSON)
-            ->setParameter('enabled', $row->enabled, Types::BOOLEAN)
-            ->setParameter('sort_order', $row->sortOrder, ParameterType::INTEGER)
-            ->setParameter('created_at', $at, Types::DATETIME_IMMUTABLE)
-            ->setParameter('updated_at', $at, Types::DATETIME_IMMUTABLE)
-            ->executeStatement();
-    }
-
     /** @param array<string, mixed> $row */
-    private function hydrate(array $row): StoredExtension
+    private function hydrate(array $row): ExtensionOverride
     {
         $kindRaw = $this->asString($row['kind'] ?? null, 'kind');
         $kind = ExtensionKind::tryFrom($kindRaw);
@@ -135,39 +139,13 @@ final readonly class PluginExtensionRepository
             throw new InvalidExtensionException('未知扩展类型', ['kind' => 'enum']);
         }
 
-        return new StoredExtension(
-            $this->asString($row['plugin_id'] ?? null, 'plugin_id'),
+        return new ExtensionOverride(
+            $this->asString($row['plugin_code'] ?? null, 'plugin_code'),
             $kind,
             $this->asString($row['extension_key'] ?? null, 'extension_key'),
-            $this->asString($row['title'] ?? null, 'title'),
-            $this->asInt($row['sort_order'] ?? null, 'sort_order'),
             $this->asBool($row['enabled'] ?? null, 'enabled'),
-            $this->payload($row['payload'] ?? null),
+            $this->asInt($row['sort'] ?? null, 'sort'),
         );
-    }
-
-    /** @return array<string, mixed> */
-    private function payload(mixed $raw): array
-    {
-        if (is_string($raw)) {
-            try {
-                $raw = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-            } catch (\JsonException $e) {
-                throw new InvalidExtensionException('扩展载荷不是合法 JSON', ['payload' => 'json'], $e);
-            }
-        }
-        if (!is_array($raw)) {
-            throw new InvalidExtensionException('扩展载荷必须为对象', ['payload' => 'object']);
-        }
-        $payload = [];
-        foreach ($raw as $key => $value) {
-            if (!is_string($key)) {
-                throw new InvalidExtensionException('扩展载荷必须为对象', ['payload' => 'object']);
-            }
-            $payload[$key] = $value;
-        }
-
-        return $payload;
     }
 
     private function asString(mixed $value, string $field): string
@@ -206,7 +184,7 @@ final readonly class PluginExtensionRepository
         throw new InvalidExtensionException('列类型无效', [$field => 'bool']);
     }
 
-    private function qb(): QueryBuilder
+    private function queryBuilder(): QueryBuilder
     {
         return $this->connection->createQueryBuilder();
     }

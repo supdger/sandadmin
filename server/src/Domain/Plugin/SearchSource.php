@@ -9,39 +9,39 @@ namespace Sandadmin\Domain\Plugin;
 
 final readonly class SearchSource implements \JsonSerializable
 {
-    public string $pluginId;
+    public string $pluginCode;
     public string $key;
     public string $title;
     public string $handler;
     public ?string $placeholder;
-    public int $sortOrder;
+    public int $sort;
 
     public function __construct(
-        string $pluginId,
+        string $pluginCode,
         string $key,
         string $title,
         string $handler,
         ?string $placeholder,
-        int $sortOrder,
+        int $sort,
     ) {
-        $this->pluginId = ExtensionRules::pluginId($pluginId);
+        $this->pluginCode = ExtensionRules::pluginCode($pluginCode);
         $this->key = ExtensionRules::key($key);
         $this->title = ExtensionRules::title($title);
         $this->handler = ExtensionRules::className($handler, 'handler');
         $this->placeholder = ExtensionRules::placeholder($placeholder);
-        $this->sortOrder = ExtensionRules::sortOrder($sortOrder);
+        $this->sort = ExtensionRules::sort($sort);
     }
 
-    /** @return array{plugin_id: string, key: string, title: string, handler: string, placeholder: string|null, sort_order: int} */
+    /** @return array{plugin_code: string, key: string, title: string, handler: string, placeholder: string|null, sort: int} */
     public function jsonSerialize(): array
     {
         return [
-            'plugin_id' => $this->pluginId,
+            'plugin_code' => $this->pluginCode,
             'key' => $this->key,
             'title' => $this->title,
             'handler' => $this->handler,
             'placeholder' => $this->placeholder,
-            'sort_order' => $this->sortOrder,
+            'sort' => $this->sort,
         ];
     }
 }

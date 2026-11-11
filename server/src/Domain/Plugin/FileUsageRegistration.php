@@ -7,42 +7,42 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Plugin;
 
-/** 文件使用方登记。只声明 owner_type，不写 file_usage 引用行。 */
+/** 文件使用方登记声明。只声明 owner_type，不写 sand_system_file_usage 引用行。 */
 final readonly class FileUsageRegistration implements \JsonSerializable
 {
-    public string $pluginId;
+    public string $pluginCode;
     public string $key;
     public string $title;
     public string $ownerType;
     public bool $multiple;
-    public int $sortOrder;
+    public int $sort;
 
     public function __construct(
-        string $pluginId,
+        string $pluginCode,
         string $key,
         string $title,
         string $ownerType,
         bool $multiple,
-        int $sortOrder,
+        int $sort,
     ) {
-        $this->pluginId = ExtensionRules::pluginId($pluginId);
+        $this->pluginCode = ExtensionRules::pluginCode($pluginCode);
         $this->key = ExtensionRules::key($key);
         $this->title = ExtensionRules::title($title);
         $this->ownerType = ExtensionRules::ownerType($ownerType);
         $this->multiple = $multiple;
-        $this->sortOrder = ExtensionRules::sortOrder($sortOrder);
+        $this->sort = ExtensionRules::sort($sort);
     }
 
-    /** @return array{plugin_id: string, key: string, title: string, owner_type: string, multiple: bool, sort_order: int} */
+    /** @return array{plugin_code: string, key: string, title: string, owner_type: string, multiple: bool, sort: int} */
     public function jsonSerialize(): array
     {
         return [
-            'plugin_id' => $this->pluginId,
+            'plugin_code' => $this->pluginCode,
             'key' => $this->key,
             'title' => $this->title,
             'owner_type' => $this->ownerType,
             'multiple' => $this->multiple,
-            'sort_order' => $this->sortOrder,
+            'sort' => $this->sort,
         ];
     }
 }

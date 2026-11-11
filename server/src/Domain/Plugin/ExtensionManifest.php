@@ -8,9 +8,10 @@ declare(strict_types=1);
 namespace Sandadmin\Domain\Plugin;
 
 /**
- * 把已经在内存中的静态清单转成扩展声明。
+ * 把已经在内存中的签名清单转成扩展声明。
  *
- * 插件安装器负责载入静态清单；本类不扫描目录，也不加载清单文件。
+ * 插件安装器负责载入清单；本类不扫描目录，也不加载清单文件。
+ * 清单中非扩展位段（菜单、权限等）不属于本注册表，直接跳过。
  */
 final class ExtensionManifest
 {
@@ -19,7 +20,7 @@ final class ExtensionManifest
     }
 
     /**
-     * @param array<mixed> $manifest
+     * @param array<array-key, mixed> $manifest
      *
      * @return list<ExtensionDraft>
      */
@@ -30,7 +31,10 @@ final class ExtensionManifest
             if (!is_string($section)) {
                 throw new InvalidExtensionException('清单段名必须为字符串', ['manifest' => 'object']);
             }
-            $kind = ExtensionKind::fromManifestSection($section);
+            $kind = ExtensionKind::tryFromManifestSection($section);
+            if ($kind === null) {
+                continue;
+            }
             if (!is_array($items) || !array_is_list($items)) {
                 throw new InvalidExtensionException('清单段必须为列表', [$section => 'list']);
             }
@@ -52,7 +56,7 @@ final class ExtensionManifest
         $enabled = self::flag($item, 'enabled', $path, true);
 
         return match ($kind) {
-            ExtensionKind::SettingsCategory => self::with($item, ['key', 'title', 'description', 'icon', 'sort_order', 'enabled'], $path, ExtensionDraft::settingsCategory(
+            ExtensionKind::SettingsCategory => self::with($item, ['key', 'title', 'description', 'icon', 'sort', 'enabled'], $path, ExtensionDraft::settingsCategory(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::optionalString($item, 'description', $path) ?? '',
@@ -60,14 +64,14 @@ final class ExtensionManifest
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::PersonalSettingsCategory => self::with($item, ['key', 'title', 'description', 'sort_order', 'enabled'], $path, ExtensionDraft::personalSettingsCategory(
+            ExtensionKind::PersonalSettingsCategory => self::with($item, ['key', 'title', 'description', 'sort', 'enabled'], $path, ExtensionDraft::personalSettingsCategory(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::optionalString($item, 'description', $path) ?? '',
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::SearchSource => self::with($item, ['key', 'title', 'handler', 'placeholder', 'sort_order', 'enabled'], $path, ExtensionDraft::searchSource(
+            ExtensionKind::SearchSource => self::with($item, ['key', 'title', 'handler', 'placeholder', 'sort', 'enabled'], $path, ExtensionDraft::searchSource(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::requireString($item, 'handler', $path),
@@ -75,23 +79,25 @@ final class ExtensionManifest
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::NotificationSource => self::with($item, ['key', 'title', 'channel', 'sort_order', 'enabled'], $path, ExtensionDraft::notificationSource(
+            ExtensionKind::NotificationSource => self::with($item, ['key', 'title', 'channel', 'sort', 'enabled'], $path, ExtensionDraft::notificationSource(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::requireString($item, 'channel', $path),
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::CronJob => self::with($item, ['key', 'title', 'expression', 'handler', 'timezone', 'sort_order', 'enabled'], $path, ExtensionDraft::cronJob(
+            ExtensionKind::CronTask => self::with($item, ['key', 'title', 'description', 'handler', 'schedule', 'schedule_locked', 'is_critical', 'sort', 'enabled'], $path, ExtensionDraft::cronTask(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
-                self::requireString($item, 'expression', $path),
                 self::requireString($item, 'handler', $path),
-                self::optionalString($item, 'timezone', $path),
+                self::schedule($item, $path),
+                self::optionalString($item, 'description', $path) ?? '',
+                self::flag($item, 'schedule_locked', $path, false),
+                self::flag($item, 'is_critical', $path, false),
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::FileUsage => self::with($item, ['key', 'title', 'owner_type', 'multiple', 'sort_order', 'enabled'], $path, ExtensionDraft::fileUsage(
+            ExtensionKind::FileUsage => self::with($item, ['key', 'title', 'owner_type', 'multiple', 'sort', 'enabled'], $path, ExtensionDraft::fileUsage(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::requireString($item, 'owner_type', $path),
@@ -99,7 +105,7 @@ final class ExtensionManifest
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::WorkbenchCard => self::with($item, ['key', 'title', 'component', 'width', 'height', 'sort_order', 'enabled'], $path, ExtensionDraft::workbenchCard(
+            ExtensionKind::WorkbenchCard => self::with($item, ['key', 'title', 'component', 'width', 'height', 'sort', 'enabled'], $path, ExtensionDraft::workbenchCard(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::requireString($item, 'component', $path),
@@ -108,7 +114,7 @@ final class ExtensionManifest
                 $sort,
                 $enabled,
             )),
-            ExtensionKind::OptionGroup => self::with($item, ['key', 'title', 'options', 'sort_order', 'enabled'], $path, ExtensionDraft::optionGroup(
+            ExtensionKind::OptionGroup => self::with($item, ['key', 'title', 'options', 'sort', 'enabled'], $path, ExtensionDraft::optionGroup(
                 self::requireString($item, 'key', $path),
                 self::requireString($item, 'title', $path),
                 self::options($item, $path),
@@ -204,14 +210,26 @@ final class ExtensionManifest
     /** @param array<string, mixed> $item */
     private static function sort(array $item, string $path): int
     {
-        if (!array_key_exists('sort_order', $item)) {
+        if (!array_key_exists('sort', $item)) {
             return 0;
         }
-        if (!is_int($item['sort_order'])) {
-            throw new InvalidExtensionException('sort_order 必须为整数', [$path . '.sort_order' => 'int']);
+        if (!is_int($item['sort'])) {
+            throw new InvalidExtensionException('sort 必须为整数', [$path . '.sort' => 'int']);
         }
 
-        return $item['sort_order'];
+        return ExtensionRules::sort($item['sort']);
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     */
+    private static function schedule(array $item, string $path): ScheduleDefinition
+    {
+        if (!array_key_exists('schedule', $item) || !is_array($item['schedule'])) {
+            throw new InvalidExtensionException('清单字段必须为对象', [$path . '.schedule' => 'object']);
+        }
+
+        return ScheduleDefinition::fromArray($item['schedule']);
     }
 
     /** @param array<string, mixed> $item */
@@ -224,7 +242,7 @@ final class ExtensionManifest
             throw new InvalidExtensionException($field . ' 必须为整数', [$path . '.' . $field => 'int']);
         }
 
-        return $item[$field];
+        return ExtensionRules::span($item[$field], $field);
     }
 
     /**

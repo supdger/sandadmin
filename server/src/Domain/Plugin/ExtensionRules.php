@@ -7,10 +7,10 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Plugin;
 
-/** 扩展位字段的存储边界。无状态。 */
+/** 扩展位字段的取值边界。无状态；plugin_code 规则与 sand_system_plugin.code 的 CHECK 一致。 */
 final class ExtensionRules
 {
-    public const MAX_PLUGIN_ID = 64;
+    public const MAX_PLUGIN_CODE = 64;
     public const MAX_KEY = 128;
     public const MAX_TITLE = 200;
     public const MAX_DESCRIPTION = 500;
@@ -18,12 +18,12 @@ final class ExtensionRules
     public const MAX_HANDLER = 255;
     public const MAX_PLACEHOLDER = 120;
     public const MAX_CHANNEL = 64;
-    public const MAX_EXPRESSION = 64;
     public const MAX_OWNER_TYPE = 64;
     public const MAX_COMPONENT = 128;
     public const MAX_OPTION_VALUE = 64;
     public const MAX_OPTION_LABEL = 100;
-    public const MAX_SORT_ORDER = 999999;
+    public const MIN_SORT = -32768;
+    public const MAX_SORT = 32767;
     public const MIN_SPAN = 1;
     public const MAX_SPAN = 24;
 
@@ -31,11 +31,11 @@ final class ExtensionRules
     {
     }
 
-    public static function pluginId(string $pluginId): string
+    public static function pluginCode(string $pluginCode): string
     {
-        self::slug($pluginId, self::MAX_PLUGIN_ID, '/^[a-z][a-z0-9_-]*$/', 'plugin_id');
+        self::slug($pluginCode, self::MAX_PLUGIN_CODE, '/^[a-z0-9][a-z0-9_-]{0,63}$/', 'plugin_code');
 
-        return $pluginId;
+        return $pluginCode;
     }
 
     public static function key(string $key): string
@@ -96,39 +96,6 @@ final class ExtensionRules
         return $channel;
     }
 
-    public static function cronExpression(string $expression): string
-    {
-        $expression = trim($expression);
-        if (self::chars($expression) > self::MAX_EXPRESSION) {
-            throw new InvalidExtensionException('cron 表达式过长', ['expression' => 'max:' . self::MAX_EXPRESSION]);
-        }
-        $fields = preg_split('/\s+/', $expression);
-        if ($fields === false) {
-            throw new InvalidExtensionException('cron 表达式格式错误', ['expression' => 'cron']);
-        }
-        $count = count($fields);
-        if ($count !== 5 && $count !== 6) {
-            throw new InvalidExtensionException('cron 表达式须为 5 或 6 段', ['expression' => 'cron']);
-        }
-        foreach ($fields as $field) {
-            if ($field === '' || preg_match('/^[0-9*,\/-]+$/', $field) !== 1) {
-                throw new InvalidExtensionException('cron 表达式格式错误', ['expression' => 'cron']);
-            }
-        }
-
-        return implode(' ', $fields);
-    }
-
-    public static function timezone(?string $timezone): string
-    {
-        $timezone = $timezone === null ? 'UTC' : trim($timezone);
-        if (!in_array($timezone, \DateTimeZone::listIdentifiers(), true)) {
-            throw new InvalidExtensionException('时区无效', ['timezone' => 'timezone']);
-        }
-
-        return $timezone;
-    }
-
     public static function ownerType(string $ownerType): string
     {
         self::slug($ownerType, self::MAX_OWNER_TYPE, '/^[a-z][a-z0-9._-]*$/', 'owner_type');
@@ -155,13 +122,14 @@ final class ExtensionRules
         return $span;
     }
 
-    public static function sortOrder(int $sortOrder): int
+    /** sort 列为 smallint，取值限定在其范围内。 */
+    public static function sort(int $sort): int
     {
-        if ($sortOrder < 0 || $sortOrder > self::MAX_SORT_ORDER) {
-            throw new InvalidExtensionException('sort_order 超出范围', ['sort_order' => 'between:0,' . self::MAX_SORT_ORDER]);
+        if ($sort < self::MIN_SORT || $sort > self::MAX_SORT) {
+            throw new InvalidExtensionException('sort 超出范围', ['sort' => 'between:' . self::MIN_SORT . ',' . self::MAX_SORT]);
         }
 
-        return $sortOrder;
+        return $sort;
     }
 
     public static function optionValue(string $value): string
