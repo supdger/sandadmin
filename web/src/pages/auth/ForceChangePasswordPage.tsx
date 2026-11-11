@@ -12,7 +12,7 @@ import { forceChangePassword, getPasswordPolicy } from '@/api/auth';
 import { Loading } from '@/components/Loading';
 import { env } from '@/config/env';
 import { useMe } from '@/hooks/useMe';
-import { ApiError } from '@/lib/apiClient';
+import { apiErrorMessage, ApiError } from '@/lib/apiClient';
 import { clearToken, getToken } from '@/lib/authToken';
 
 export default function ForceChangePasswordPage() {
@@ -88,7 +88,7 @@ export default function ForceChangePasswordPage() {
       queryClient.clear();
       navigate('/login', { replace: true });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : t('forceChange.required'));
+      setError(apiErrorMessage(e, t('common:errors.system.message')));
       if (e instanceof ApiError && e.fields) {
         for (const [field, messages] of Object.entries(e.fields)) {
           formApi.current?.setError(field, messages[0] ?? '');

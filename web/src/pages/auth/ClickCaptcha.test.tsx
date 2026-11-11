@@ -1,7 +1,7 @@
 import '@douyinfe/semi-ui/react19-adapter';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
@@ -52,5 +52,30 @@ describe('ClickCaptcha', () => {
     await userEvent.click(screen.getByRole('button', { name: '重试' }));
 
     expect(await screen.findByTestId('captcha-image')).toBeInTheDocument();
+  });
+
+  it('shows the backend reason verbatim when verify is rejected', async () => {
+    server.use(
+      http.post(`${base}/auth/captcha/verify`, () =>
+        HttpResponse.json({
+          code: 4004,
+          message: '点选验证暂时不可用，请稍后再试',
+          data: null,
+        }),
+      ),
+    );
+
+    renderCaptcha();
+
+    // Clicks are ignored until the captcha image has loaded.
+    await screen.findByTestId('captcha-image');
+    const box = screen.getByTestId('captcha-box');
+    // Three clicks complete the point set and trigger the verify request.
+    for (let i = 0; i < 3; i += 1) {
+      fireEvent.click(box, { clientX: 40 + i * 30, clientY: 60 });
+    }
+
+    expect(await screen.findByText('点选验证暂时不可用，请稍后再试')).toBeInTheDocument();
+    expect(screen.queryByText('点的位置不对，已换一张，请重新点选')).not.toBeInTheDocument();
   });
 });

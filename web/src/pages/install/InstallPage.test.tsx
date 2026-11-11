@@ -161,6 +161,42 @@ describe('InstallPage', () => {
     await waitFor(() => expect(getNext()).toBeDisabled());
     expect(await screen.findByText('两次输入的密码不一样')).toBeInTheDocument();
   });
+
+  it('marks non-compliant passwords with an error border while typing', async () => {
+    renderInstall();
+    const user = userEvent.setup();
+
+    await screen.findByText('运行环境');
+    await user.click(screen.getByRole('button', { name: '下一步' }));
+    await screen.findByPlaceholderText('比如 admin');
+
+    const password = screen.getByPlaceholderText('请设置登录密码');
+    const confirm = screen.getByPlaceholderText('请再输入一次密码');
+    const passwordWrap = password.closest('.semi-input-wrapper') as HTMLElement;
+    const confirmWrap = confirm.closest('.semi-input-wrapper') as HTMLElement;
+
+    // Too short: the password field turns red, the matching confirm stays normal.
+    await user.type(password, 'short1');
+    await user.type(confirm, 'short1');
+    await waitFor(() =>
+      expect(passwordWrap).toHaveClass('semi-input-wrapper-error'),
+    );
+    expect(confirmWrap).not.toHaveClass('semi-input-wrapper-error');
+
+    // A compliant password clears the border again.
+    await user.clear(password);
+    await user.type(password, 'letmein1234');
+    await waitFor(() =>
+      expect(passwordWrap).not.toHaveClass('semi-input-wrapper-error'),
+    );
+
+    // A mismatched confirmation is marked too.
+    await user.clear(confirm);
+    await user.type(confirm, 'letmein12345');
+    await waitFor(() =>
+      expect(confirmWrap).toHaveClass('semi-input-wrapper-error'),
+    );
+  });
 });
 
 describe('jobs mock progression', () => {

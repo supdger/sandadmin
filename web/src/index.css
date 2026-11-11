@@ -1,7 +1,9 @@
 /*
  * Layer order: Tailwind resets live in `base`, Semi component styles in `semi`
  * (emitted by @douyinfe/semi-vite-plugin with cssLayer), layout utilities last
- * so they always win over component defaults.
+ * so they always win over component defaults. Cascade layers are ordered by
+ * first appearance, so this file must be the first stylesheet the app loads
+ * (main.tsx imports it before any module that pulls in Semi styles).
  */
 @layer theme, base, semi, components, utilities;
 

@@ -63,6 +63,12 @@ describe('ForceChangePasswordPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('至少 8 个字符').length).toBeGreaterThan(1);
     });
+    // The rejected field gets the error border, not just a hint line.
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText('请输入新密码').closest('.semi-input-wrapper'),
+      ).toHaveClass('semi-input-wrapper-error');
+    });
     expect(getToken()).toBe('mock-admin-token');
   });
 

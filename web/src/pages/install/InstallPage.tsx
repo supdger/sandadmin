@@ -419,6 +419,9 @@ export default function InstallPage() {
               type="password"
               label={t('admin.password')}
               placeholder={t('admin.passwordPlaceholder')}
+              // Live rule check runs while typing (submit stays disabled), so
+              // the error border has to come from validateStatus, not form state.
+              validateStatus={adminPasswordInvalid ? 'error' : undefined}
               extraText={
                 adminPasswordInvalid ? (
                   <Typography.Text type="danger" size="small">
@@ -435,6 +438,7 @@ export default function InstallPage() {
               type="password"
               label={t('admin.confirmPassword')}
               placeholder={t('admin.confirmPasswordPlaceholder')}
+              validateStatus={adminPasswordsMismatch ? 'error' : undefined}
               extraText={
                 adminPasswordsMismatch ? (
                   <Typography.Text type="danger" size="small">

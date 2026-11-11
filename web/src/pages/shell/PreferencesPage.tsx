@@ -8,7 +8,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { useThemeMode } from '@/layouts/themeMode';
-import { isSystemApiError } from '@/lib/apiClient';
+import { apiErrorMessage } from '@/lib/apiClient';
 import type { ThemeMode } from '@/lib/theme';
 
 const PREFERENCES_QUERY_KEY = ['me', 'preferences'] as const;
@@ -20,16 +20,18 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; labelKey: string }> = [
 ];
 
 /**
- * Account preferences. Everything is stored server-side via
- * `PUT /me/preferences`; theme changes additionally apply immediately through
- * the shared theme state so the UI reflects the choice before the save lands.
+ * Account preferences. Notification settings are stored server-side via
+ * `PUT /me/preferences`; the theme is a per-device display choice kept in
+ * localStorage, so it applies immediately and stays editable for read-only
+ * accounts.
  */
 export function PreferencesPage() {
   const { t } = useTranslation('shell');
   const queryClient = useQueryClient();
-  const { setMode } = useThemeMode();
-  // Saving preferences is a write — read-only accounts see the page but
-  // every control stays disabled with an explanatory hint.
+  const { mode, setMode } = useThemeMode();
+  // Saving notification settings is a write — read-only accounts see the
+  // page but those controls stay disabled with an explanatory hint. Theme
+  // is exempt: it never leaves the device.
   const canWrite = useCan('preferences:write');
 
   const prefs = useQuery({
@@ -45,9 +47,9 @@ export function PreferencesPage() {
       Toast.success(t('preferences.saved'));
     },
     onError: (error) => {
-      // Infrastructural failures surface the unified system message; business
-      // errors keep the generic save-failed copy.
-      Toast.error(isSystemApiError(error) ? error.message : t('preferences.saveFailed'));
+      // ApiError.message is already user-safe: the backend's plain-language
+      // reason on business errors, the unified copy on system failures.
+      Toast.error(apiErrorMessage(error, t('preferences.saveFailed')));
     },
   });
 
@@ -69,9 +71,7 @@ export function PreferencesPage() {
   const emailNotify = current.emailNotify === true;
 
   const onThemeChange = (e: RadioChangeEvent) => {
-    const theme = e.target.value as ThemeMode;
-    setMode(theme);
-    save.mutate({ ...current, theme });
+    setMode(e.target.value as ThemeMode);
   };
 
   const onEmailNotifyChange = (checked: boolean) => {
@@ -87,12 +87,13 @@ export function PreferencesPage() {
 
       <Card title={t('preferences.appearance.title')}>
         <div className="flex flex-col gap-2">
-          <Typography.Text strong>{t('preferences.appearance.themeLabel')}</Typography.Text>
-          <RadioGroup
-            value={current.theme}
-            onChange={onThemeChange}
-            disabled={save.isPending || !canWrite}
-          >
+          <div className="flex items-baseline gap-2">
+            <Typography.Text strong>{t('preferences.appearance.themeLabel')}</Typography.Text>
+            <Typography.Text type="tertiary" size="small">
+              {t('preferences.appearance.localOnly')}
+            </Typography.Text>
+          </div>
+          <RadioGroup value={mode} onChange={onThemeChange}>
             {THEME_OPTIONS.map((opt) => (
               <Radio key={opt.value} value={opt.value}>
                 {t(opt.labelKey)}

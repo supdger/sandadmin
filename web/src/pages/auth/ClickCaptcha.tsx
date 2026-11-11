@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getCaptcha, verifyCaptcha } from '@/api/auth';
 import { SystemErrorNotice } from '@/components/SystemErrorNotice';
+import { apiErrorMessage } from '@/lib/apiClient';
 
 const CHAR_COUNT = 3;
 
@@ -29,6 +30,9 @@ export function ClickCaptcha({ onVerified }: ClickCaptchaProps) {
   const [verifying, setVerifying] = useState(false);
   const [passed, setPassed] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Backend rejections carry their own plain-language reason; a bare `false`
+  // result has none and falls back to the generic copy.
+  const [failMessage, setFailMessage] = useState<string | null>(null);
 
   const captchaQuery = useQuery({
     queryKey: ['auth', 'captcha', epoch],
@@ -44,6 +48,7 @@ export function ClickCaptcha({ onVerified }: ClickCaptchaProps) {
   const refresh = () => {
     setPoints([]);
     setFailed(false);
+    setFailMessage(null);
     setPassed(false);
     setEpoch((n) => n + 1);
   };
@@ -66,13 +71,15 @@ export function ClickCaptcha({ onVerified }: ClickCaptchaProps) {
             onVerified(captcha.captchaId, next);
           } else {
             setFailed(true);
+            setFailMessage(null);
             setEpoch((n) => n + 1);
             setPoints([]);
           }
         })
-        .catch(() => {
+        .catch((e: unknown) => {
           setVerifying(false);
           setFailed(true);
+          setFailMessage(apiErrorMessage(e, t('login.captchaFailed')));
           setEpoch((n) => n + 1);
           setPoints([]);
         });
@@ -154,7 +161,7 @@ export function ClickCaptcha({ onVerified }: ClickCaptchaProps) {
         ) : null}
         {failed ? (
           <Typography.Text size="small" type="danger">
-            {t('login.captchaFailed')}
+            {failMessage ?? t('login.captchaFailed')}
           </Typography.Text>
         ) : null}
       </div>

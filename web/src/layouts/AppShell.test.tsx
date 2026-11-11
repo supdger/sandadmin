@@ -75,6 +75,7 @@ function renderShell(entry = '/') {
 describe('AppShell', () => {
   afterEach(() => {
     clearToken();
+    localStorage.removeItem('sandadmin.theme');
     document.body.removeAttribute('theme-mode');
   });
 
@@ -96,9 +97,16 @@ describe('AppShell', () => {
     expect(await screen.findByText('管理员')).toBeInTheDocument();
   });
 
-  it('toggles the theme attribute and persists the choice', async () => {
+  it('toggles the theme attribute and persists the choice locally only', async () => {
     setToken('mock-admin-token');
     mockMe();
+    let putCalls = 0;
+    server.use(
+      http.put(`${base}/me/preferences`, () => {
+        putCalls += 1;
+        return HttpResponse.json({ code: 200, message: 'ok', data: null });
+      }),
+    );
 
     const { nav } = renderShell('/');
     await waitFor(() => expect(nav()).toBeTruthy());
@@ -109,6 +117,8 @@ describe('AppShell', () => {
     expect(document.body.getAttribute('theme-mode')).toBe('dark');
     expect(localStorage.getItem('sandadmin.theme')).toBe('dark');
     expect(screen.getByRole('button', { name: '切换到浅色模式' })).toBeInTheDocument();
+    // Theme is a per-device setting — no save request may be sent.
+    expect(putCalls).toBe(0);
   });
 
   it('keeps the page usable and offers a retry when the menu request fails', async () => {
@@ -181,6 +191,35 @@ describe('AppShell', () => {
     await userEvent.click(await screen.findByText('管理员'));
     await userEvent.click(await screen.findByText('退出登录'));
 
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/login');
+    });
+    expect(getToken()).toBeNull();
+  });
+
+  it('shows the backend reason when the logout request is rejected', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+    server.use(
+      http.post(`${base}/auth/logout`, () =>
+        HttpResponse.json({
+          code: 4030,
+          message: '当前账号为只读权限，无法退出登录',
+          data: null,
+        }),
+      ),
+    );
+
+    const { router, nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    await userEvent.click(await screen.findByText('管理员'));
+    await userEvent.click(await screen.findByText('退出登录'));
+
+    // The session still ends locally, but the rejection is not silent.
+    expect(
+      await screen.findByText('当前账号为只读权限，无法退出登录'),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login');
     });

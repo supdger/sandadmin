@@ -47,15 +47,16 @@ function renderPage() {
 describe('PreferencesPage', () => {
   afterEach(() => {
     clearToken();
+    localStorage.removeItem('sandadmin.theme');
     document.body.removeAttribute('theme-mode');
   });
 
-  it('saves the theme through PUT /me/preferences and applies it at once', async () => {
+  it('applies the theme locally without calling the save API', async () => {
     setToken('mock-admin-token');
-    let putBody: Record<string, unknown> | null = null;
+    let putCalls = 0;
     server.use(
-      http.put(`${base}/me/preferences`, async ({ request }) => {
-        putBody = (await request.json()) as Record<string, unknown>;
+      http.put(`${base}/me/preferences`, () => {
+        putCalls += 1;
         return HttpResponse.json({ code: 200, message: 'ok', data: null });
       }),
     );
@@ -65,15 +66,17 @@ describe('PreferencesPage', () => {
     // Wait for the loaded preferences to render the radio group.
     expect(await screen.findByText('主题模式')).toBeInTheDocument();
     expect(screen.getByLabelText('跟随系统')).toBeChecked();
+    // Theme is a per-device setting — the hint says so next to the label.
+    expect(screen.getByText('只在这台电脑上生效')).toBeInTheDocument();
 
     await userEvent.click(screen.getByLabelText('深色'));
 
     await waitFor(() => {
-      expect(putBody).not.toBeNull();
-      expect(putBody).toMatchObject({ theme: 'dark' });
+      expect(screen.getByLabelText('深色')).toBeChecked();
     });
     expect(document.body.getAttribute('theme-mode')).toBe('dark');
-    expect(await screen.findByText('偏好已保存', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(localStorage.getItem('sandadmin.theme')).toBe('dark');
+    expect(putCalls).toBe(0);
   });
 
   it('saves the notification switch through the same endpoint', async () => {
@@ -128,7 +131,30 @@ describe('PreferencesPage', () => {
     expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
   });
 
-  it('disables every control and explains why for a read-only account', async () => {
+  it('shows the backend reason verbatim when saving preferences fails', async () => {
+    setToken('mock-admin-token');
+    server.use(
+      http.put(`${base}/me/preferences`, () =>
+        HttpResponse.json({
+          code: 4030,
+          message: '今天系统维护，请明天下午再试',
+          data: null,
+        }),
+      ),
+    );
+
+    renderPage();
+    await screen.findByText('主题模式');
+
+    await userEvent.click(screen.getByLabelText('邮件通知'));
+
+    // The toast must carry the backend's plain-language message, not a
+    // generic save-failed line.
+    expect(await screen.findByText('今天系统维护，请明天下午再试')).toBeInTheDocument();
+    expect(screen.queryByText('保存失败了，请稍后再试')).not.toBeInTheDocument();
+  });
+
+  it('keeps theme usable but disables writes for a read-only account', async () => {
     // mock-viewer-token resolves to the viewer demo user: view permissions
     // only, no preferences:write.
     setToken('mock-viewer-token');
@@ -143,13 +169,19 @@ describe('PreferencesPage', () => {
     renderPage();
 
     expect(await screen.findByText('主题模式')).toBeInTheDocument();
-    expect(screen.getByText('当前账号为只读权限，暂时无法修改设置')).toBeInTheDocument();
-    expect(screen.getByLabelText('深色')).toBeDisabled();
+    expect(
+      screen.getByText('当前账号为只读权限，通知设置暂时不能改'),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('邮件通知')).toBeDisabled();
 
-    // Disabled controls must not fire the save mutation at all.
-    await userEvent.click(screen.getByLabelText('深色'));
-    await userEvent.click(screen.getByLabelText('邮件通知'));
+    // Theme never leaves the device, so the read-only account can switch it.
+    const dark = screen.getByLabelText('深色');
+    expect(dark).toBeEnabled();
+    await userEvent.click(dark);
+    await waitFor(() => {
+      expect(localStorage.getItem('sandadmin.theme')).toBe('dark');
+    });
+    expect(document.body.getAttribute('theme-mode')).toBe('dark');
     expect(putCalls).toBe(0);
   });
 });

@@ -54,6 +54,16 @@ export function isSystemApiError(error: unknown): error is ApiError {
   return error instanceof ApiError && error.system;
 }
 
+/**
+ * User-facing text for a failed request. `ApiError.message` is already safe
+ * to show: the backend's plain-language reason on business errors and the
+ * unified system copy on infrastructural ones. Anything else gets the
+ * caller's fallback.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
+}
+
 interface Envelope {
   code?: number;
   message?: string;

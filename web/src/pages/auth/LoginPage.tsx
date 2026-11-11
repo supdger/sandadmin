@@ -9,7 +9,7 @@ import { z } from 'zod';
 
 import { login } from '@/api/auth';
 import { env } from '@/config/env';
-import { ApiError } from '@/lib/apiClient';
+import { apiErrorMessage, ApiError } from '@/lib/apiClient';
 import { ClickCaptcha } from './ClickCaptcha';
 
 /** Business code the mock/API uses to demand a captcha before retrying. */
@@ -71,7 +71,7 @@ export default function LoginPage() {
         navigate(redirectTo, { replace: true });
       }
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : t('login.captchaFailed');
+      const message = apiErrorMessage(e, t('login.captchaFailed'));
       setError(message);
       if (e instanceof ApiError && e.code === CODE_NEED_CAPTCHA) {
         setNeedCaptcha(true);

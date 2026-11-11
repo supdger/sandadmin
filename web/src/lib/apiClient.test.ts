@@ -52,6 +52,26 @@ describe('apiClient', () => {
     expect(apiErr.status).toBe(200);
   });
 
+  it('surfaces the backend message verbatim on a write rejection', async () => {
+    server.use(
+      http.post(`${base}/test/write-denied`, () =>
+        envelope({
+          code: 4030,
+          message: '当前账号为只读权限，无法修改偏好',
+          data: null,
+          request_id: 'req-4030',
+        }),
+      ),
+    );
+
+    const err = await apiPost('/test/write-denied', {}).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    const apiErr = err as ApiError;
+    expect(apiErr.code).toBe(4030);
+    expect(apiErr.message).toBe('当前账号为只读权限，无法修改偏好');
+    expect(apiErr.system).toBe(false);
+  });
+
   it('validates the payload through a zod schema when given one', async () => {
     server.use(
       http.get(`${base}/test/schema`, () =>

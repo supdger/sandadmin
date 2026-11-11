@@ -38,6 +38,7 @@ export default {
     appearance: {
       title: '外观',
       themeLabel: '主题模式',
+      localOnly: '只在这台电脑上生效',
       auto: '跟随系统',
       light: '浅色',
       dark: '深色',
@@ -49,7 +50,7 @@ export default {
     },
     saved: '偏好已保存',
     saveFailed: '保存失败了，请稍后再试',
-    readOnlyHint: '当前账号为只读权限，暂时无法修改设置',
+    readOnlyHint: '当前账号为只读权限，通知设置暂时不能改',
   },
 
   result: {

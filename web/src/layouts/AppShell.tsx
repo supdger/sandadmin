@@ -19,6 +19,7 @@ import {
   Layout,
   Nav,
   Spin,
+  Toast,
   Typography,
 } from '@douyinfe/semi-ui';
 import type { NavItems, OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
@@ -28,10 +29,10 @@ import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
 import { logout } from '@/api/auth';
 import { getMyMenus, type MenuItem } from '@/api/menus';
-import { putPreferences } from '@/api/preferences';
 import { env } from '@/config/env';
 import { SystemErrorNotice } from '@/components/SystemErrorNotice';
 import { useMe } from '@/hooks/useMe';
+import { apiErrorMessage } from '@/lib/apiClient';
 import { buildMenuTree, findMenuChain } from './menuTree';
 import { useThemeMode } from './themeMode';
 
@@ -117,15 +118,18 @@ export function AppShell() {
   };
 
   const onToggleTheme = () => {
-    const next = isDark ? 'light' : 'dark';
-    setMode(next);
-    // Best-effort server-side sync; a failure must not bother the user.
-    void putPreferences({ theme: next }).catch(() => undefined);
+    // Theme is a per-device display setting kept in localStorage — switching
+    // it never hits the API, so read-only accounts can use it too.
+    setMode(isDark ? 'light' : 'dark');
   };
 
   const onLogout = async () => {
     try {
       await logout();
+    } catch (e) {
+      // The token is cleared locally either way; still surface the backend's
+      // reason instead of failing silently.
+      Toast.error(apiErrorMessage(e, t('common:errors.system.message')));
     } finally {
       navigate('/login', { replace: true });
     }
