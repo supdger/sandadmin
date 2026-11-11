@@ -464,8 +464,11 @@ export function RolesPage() {
           role={sheetRole === 'create' ? null : sheetRole}
           onClose={() => setSheetRole(null)}
           onSaved={(saved, { goPermission }) => {
+            const creating = sheetRole === 'create';
             setSheetRole(null);
-            Toast.success(t('roles.toast.saved'));
+            Toast.success(
+              t(creating ? 'roles.toast.added' : 'roles.toast.saved', { name: saved.name }),
+            );
             if (goPermission) {
               openPermission(saved);
             }

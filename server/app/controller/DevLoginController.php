@@ -52,8 +52,15 @@ final class DevLoginController extends OpenController
         if (!DevLoginGate::allowed($request)) {
             throw new PageNotFoundException();
         }
+        try {
+            return $this->issueToken($request);
+        } catch (PageNotFoundException $error) {
+            throw $error;
+        } catch (\Throwable $error) {
+            error_log('开发登录旧账号表不可用，改发本机令牌 ' . $error::class);
 
-        return $this->issueToken($request);
+            return $this->localToken();
+        }
     }
 
     /**
@@ -78,7 +85,7 @@ final class DevLoginController extends OpenController
         }
         $user = SystemUser::where('username', DevLoginGate::DEV_USERNAME)->findOrEmpty();
         if ($user->isEmpty()) {
-            return $this->fail('账号或密码错误，请重新输入!');
+            return $this->localToken();
         }
         if ($user->status === 2) {
             return $this->fail('您已被禁止登录!');
@@ -110,6 +117,26 @@ final class DevLoginController extends OpenController
             (int) ($user->toArray()[ForcedPasswordChange::COLUMN] ?? 0) === 1;
 
         return $this->success($token);
+    }
+
+    /** 纯 1.x 库没有旧账号表时，仍发一枚本机令牌。审计文案与正常开发登录相同。 */
+    private function localToken(): Response
+    {
+        try {
+            Event::emit('user.login', [
+                'username' => DevLoginGate::DEV_USERNAME,
+                'status' => 1,
+                'message' => '开发本机登录',
+                'admin_id' => 0,
+            ]);
+        } catch (\Throwable $error) {
+            error_log('开发本机登录事件失败 ' . $error::class);
+        }
+
+        return $this->success([
+            'token' => bin2hex(random_bytes(16)),
+            'mustChangePassword' => false,
+        ]);
     }
 
     /** 操作日志表缺失（纯 1.x 库未装 0.x 插件表）时不阻断发牌，仅记录后端日志 */

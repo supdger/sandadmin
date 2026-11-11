@@ -44,9 +44,19 @@ final class AnnouncementHttpTest extends TestCase
         // 上次中断可能残留夹具，先清再建
         self::$conn->executeStatement("DELETE FROM sand_system_user WHERE phone LIKE '138000000%'");
         self::$conn->executeStatement("DELETE FROM sand_system_dept WHERE name LIKE '公告%部'");
-        // 基线迁移缺陷：level varchar(8) 装不下 'important'（9 字符）。
-        // 生产库需要补一个加宽迁移；测试库先行加宽以验证 important 路径。
-        self::$conn->executeStatement("ALTER TABLE sand_system_announcement ALTER COLUMN level TYPE varchar(16)");
+        // 0004 把 level 加宽到 varchar(16)，important（9 字符）才能写入。不改已发布的 0001。
+        $migration = file_get_contents(dirname(__DIR__, 4) . '/database/migrations/0004_widen_announcement_level.sql');
+        if (!is_string($migration) || $migration === '') {
+            self::fail('缺少 0004 迁移文件');
+        }
+        self::$conn->executeStatement($migration);
+        $width = self::$conn->fetchOne(
+            "SELECT character_maximum_length FROM information_schema.columns"
+            . " WHERE table_schema = 'public' AND table_name = 'sand_system_announcement' AND column_name = 'level'",
+        );
+        if (!is_numeric($width) || (int) $width !== 16) {
+            self::fail('announcement.level 应为 varchar(16)');
+        }
         self::$conn->executeStatement("INSERT INTO sand_system_dept (name, status) VALUES ('公告甲部', 1), ('公告乙部', 1)");
         self::$deptA = self::toInt(self::$conn->fetchOne("SELECT id FROM sand_system_dept WHERE name='公告甲部'"));
         self::$deptB = self::toInt(self::$conn->fetchOne("SELECT id FROM sand_system_dept WHERE name='公告乙部'"));

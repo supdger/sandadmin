@@ -66,13 +66,10 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
       status: (values.status === false ? 'disabled' : 'enabled') as UserStatus,
     };
     try {
-      if (isEdit && post) {
-        await updatePost(post.id, { ...body, sort: post.sort });
-        Toast.success(t('posts.form.saved'));
-      } else {
-        await createPost(body);
-        Toast.success(t('posts.form.added'));
-      }
+      const saved = isEdit && post
+        ? await updatePost(post.id, { ...body, sort: post.sort })
+        : await createPost(body);
+      Toast.success(t(isEdit ? 'posts.form.saved' : 'posts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'posts'] });
       onSaved();
       onClose();

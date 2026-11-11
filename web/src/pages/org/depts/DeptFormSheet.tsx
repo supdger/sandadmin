@@ -109,13 +109,10 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
       status: values.status === false ? 'disabled' : 'enabled',
     };
     try {
-      if (isEdit && dept) {
-        await updateDept(dept.id, { ...body, sort: dept.sort });
-        Toast.success(t('depts.form.saved'));
-      } else {
-        await createDept(body);
-        Toast.success(t('depts.form.added', { name: body.name }));
-      }
+      const saved = isEdit && dept
+        ? await updateDept(dept.id, { ...body, sort: dept.sort })
+        : await createDept(body);
+      Toast.success(t(isEdit ? 'depts.form.saved' : 'depts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
       onSaved();
       onClose();

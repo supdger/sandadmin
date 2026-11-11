@@ -43,7 +43,7 @@ final readonly class AnnouncementRuntime
 
             return new self(
                 new AnnouncementService($repository, new AnnouncementAuditWriter($connection), $idempotency),
-                new UnavailableAnnouncementActorProvider(),
+                new DevAnnouncementActorProvider($connection),
             );
         } catch (\Throwable $exception) {
             error_log('公告运行时初始化失败 ' . $exception::class . ': ' . $exception->getMessage());

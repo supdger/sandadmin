@@ -15,7 +15,11 @@
 use app\controller\DevLoginController;
 use app\controller\FileController;
 use Sandadmin\Http\AnnouncementController;
+use Sandadmin\Http\DictController;
+use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
+use Sandadmin\Http\MeController;
+use Sandadmin\Http\OrgController;
 use Sandadmin\Http\TaskController;
 use Webman\Route;
 
@@ -63,3 +67,60 @@ Route::get('/api/admin/v1/announcements/{announcement_id}/read-stats', [Announce
 
 // 生命周期申请详情：对外编号为 public_id（uuid）；契约无取消端点。
 Route::get('/api/admin/v1/lifecycle-requests/{request_id}', [LifecycleController::class, 'show']);
+
+// 当前登录人与侧栏。开发本机登录的令牌在 MeController 内解析。
+Route::get('/api/admin/v1/me', [MeController::class, 'me']);
+Route::get('/api/admin/v1/me/menus', [MeController::class, 'menus']);
+
+// 用户、部门、角色、岗位。静态路径先于带编号的路径。
+Route::get('/api/admin/v1/users', [OrgController::class, 'usersIndex']);
+Route::post('/api/admin/v1/users', [OrgController::class, 'usersStore']);
+Route::post('/api/admin/v1/users/export', [OrgController::class, 'usersExport']);
+Route::get('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersShow']);
+Route::put('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersUpdate']);
+Route::delete('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersDestroy']);
+Route::put('/api/admin/v1/users/{user_id}/status', [OrgController::class, 'usersStatus']);
+Route::get('/api/admin/v1/users/{user_id}/disable-check', [OrgController::class, 'usersDisableCheck']);
+Route::post('/api/admin/v1/users/{user_id}/reset-password', [OrgController::class, 'usersResetPassword']);
+Route::put('/api/admin/v1/users/{user_id}/roles', [OrgController::class, 'usersRoles']);
+Route::get('/api/admin/v1/org/user-options', [OrgController::class, 'userOptions']);
+Route::get('/api/admin/v1/org/dept-options', [OrgController::class, 'deptOptions']);
+Route::get('/api/admin/v1/depts/tree', [OrgController::class, 'deptsTree']);
+Route::post('/api/admin/v1/depts', [OrgController::class, 'deptsStore']);
+Route::put('/api/admin/v1/depts/{dept_id}', [OrgController::class, 'deptsUpdate']);
+Route::get('/api/admin/v1/depts/{dept_id}/delete-check', [OrgController::class, 'deptsDeleteCheck']);
+Route::delete('/api/admin/v1/depts/{dept_id}', [OrgController::class, 'deptsDestroy']);
+Route::get('/api/admin/v1/roles', [OrgController::class, 'rolesIndex']);
+Route::post('/api/admin/v1/roles', [OrgController::class, 'rolesStore']);
+Route::get('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesShow']);
+Route::put('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesUpdate']);
+Route::delete('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesDestroy']);
+Route::post('/api/admin/v1/roles/{role_id}/copy', [OrgController::class, 'rolesCopy']);
+Route::put('/api/admin/v1/roles/{role_id}/status', [OrgController::class, 'rolesStatus']);
+Route::get('/api/admin/v1/roles/{role_id}/permissions', [OrgController::class, 'rolesPermissions']);
+Route::put('/api/admin/v1/roles/{role_id}/permissions', [OrgController::class, 'rolesSavePermissions']);
+Route::get('/api/admin/v1/permission-tree', [OrgController::class, 'permissionTree']);
+Route::get('/api/admin/v1/posts', [OrgController::class, 'postsIndex']);
+Route::post('/api/admin/v1/posts', [OrgController::class, 'postsStore']);
+Route::put('/api/admin/v1/posts/{post_id}', [OrgController::class, 'postsUpdate']);
+Route::delete('/api/admin/v1/posts/{post_id}', [OrgController::class, 'postsDestroy']);
+
+// 选项组与选项。
+Route::get('/api/admin/v1/dicts', [DictController::class, 'index']);
+Route::post('/api/admin/v1/dicts', [DictController::class, 'store']);
+Route::get('/api/admin/v1/dicts/{type_id}', [DictController::class, 'show']);
+Route::put('/api/admin/v1/dicts/{type_id}', [DictController::class, 'update']);
+Route::delete('/api/admin/v1/dicts/{type_id}', [DictController::class, 'destroy']);
+Route::post('/api/admin/v1/dicts/{type_id}/items', [DictController::class, 'storeItem']);
+Route::put('/api/admin/v1/dicts/items/sort', [DictController::class, 'sortItems']);
+Route::put('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'updateItem']);
+Route::delete('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'destroyItem']);
+Route::put('/api/admin/v1/dicts/items/{item_id}/status', [DictController::class, 'itemStatus']);
+
+// 插件与系统更新只读；定时任务时间不合法时返回 422 TASK_SCHEDULE_INVALID。
+Route::get('/api/admin/v1/plugins/overview', [HostReadController::class, 'pluginsOverview']);
+Route::get('/api/admin/v1/plugins/market', [HostReadController::class, 'pluginsMarket']);
+Route::get('/api/admin/v1/plugins/installed', [HostReadController::class, 'pluginsInstalled']);
+Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'updateStatus']);
+Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
+Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);

@@ -100,6 +100,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
     if (isEdit && user?.dept_id && !findOption(options, user.dept_id)) {
       options.push({
         value: user.dept_id,
+        key: user.dept_id,
         label: user.dept_name ?? user.dept_id,
         children: [],
       });
@@ -247,14 +248,12 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
       };
       if (isEdit && user) {
         const body: UserUpdate = { ...payload };
-        await updateUser(user.id, body);
-        Toast.success(t('users.form.saved'));
+        const saved = await updateUser(user.id, body);
+        Toast.success(t('users.form.saved', { name: saved.nickname }));
       } else {
         const body: UserWrite = { ...payload, password: values.password ?? '' };
-        await createUser(body);
-        Toast.success(
-          t('users.form.added', { name: payload.nickname || user?.nickname || '' }),
-        );
+        const saved = await createUser(body);
+        Toast.success(t('users.form.added', { name: saved.nickname }));
       }
       onSaved();
       onClose();
@@ -351,7 +350,12 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
             helpText={t('users.form.rolesHint')}
             optionList={roleOptions}
             renderOptionItem={(option) => (
-              <div>
+              <div
+                style={option.style}
+                className={option.className}
+                onClick={option.onClick}
+                onMouseEnter={option.onMouseEnter}
+              >
                 <div>{option.label}</div>
                 {option.remark ? (
                   <Typography.Text type="secondary" size="small">

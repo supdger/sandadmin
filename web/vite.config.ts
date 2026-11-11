@@ -1,6 +1,7 @@
 import { rmSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
+import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -25,7 +26,11 @@ function stripMockWorker(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // 只在明确设置 VITE_API_PROXY 时把 /api 转到本机后端。
+  // 去掉转发头，开发登录才能按回环地址放行。
+  const proxyTarget = loadEnv(mode, process.cwd(), '').VITE_API_PROXY?.trim();
+  return {
   plugins: [
     stripMockWorker(),
     react(),
@@ -39,9 +44,27 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: proxyTarget
+    ? {
+        proxy: {
+          '/api': {
+            target: proxyTarget,
+            changeOrigin: false,
+            configure(proxy) {
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.removeHeader('x-forwarded-for');
+                proxyReq.removeHeader('x-real-ip');
+                proxyReq.removeHeader('forwarded');
+              });
+            },
+          },
+        },
+      }
+    : undefined,
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
   },
+};
 });

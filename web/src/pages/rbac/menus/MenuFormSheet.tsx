@@ -211,7 +211,7 @@ export function MenuFormSheet({
           icon: iconKey,
           visible: visibleFlag,
         });
-        Toast.success(t('menus.toast.saved'));
+        Toast.success(t('menus.toast.saved', { name: title.trim() }));
       }
       onSaved();
       onClose();
@@ -247,7 +247,7 @@ export function MenuFormSheet({
         ...(node.original_title ? { title: node.original_title } : {}),
         icon: null,
       });
-      Toast.success(t('menus.toast.saved'));
+      Toast.success(t('menus.toast.saved', { name: node.original_title || node.title }));
       onSaved();
       onClose();
     } catch (error) {

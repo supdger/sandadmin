@@ -86,7 +86,7 @@ describe('DictPage', () => {
     );
     await clickDialogButton('保存');
 
-    expect(await screen.findByText('已添加回访渠道')).toBeInTheDocument();
+    expect(await screen.findByText('已添加「回访渠道」')).toBeInTheDocument();
     // 新建后自动选中该组，右侧先出现空态（说明详情已加载、右侧标题已渲染）。
     expect(await screen.findByText('这个组还没有选项')).toBeInTheDocument();
     // 左栏与右侧标题都会出现组名。

@@ -53,7 +53,7 @@ export default {
     isDefaultHint: '打开后，同组其他选项的默认会自动取消',
     available: '可用',
     save: '保存',
-    saved: '已保存',
+    saved: '已保存「{{name}}」',
     saveFailed: '保存失败了，请稍后再试',
   },
 
@@ -66,7 +66,7 @@ export default {
     remark: '说明',
     remarkPlaceholder: '这个组用在什么地方',
     save: '保存',
-    saved: '已保存',
+    saved: '已保存「{{name}}」',
     saveFailed: '保存失败了，请稍后再试',
   },
 
@@ -92,10 +92,10 @@ export default {
     deleteTypeTitle: '删除选项组“{{name}}”？',
     deleteTypeContent: '组里的 {{count}} 个选项会一起删除，不能撤销。系统自带的组不能删除。',
 
-    added: '已添加{{name}}',
-    deleted: '已删除{{name}}',
-    disabled: '已停用{{name}}',
-    enabled: '已启用{{name}}',
+    added: '已添加「{{name}}」',
+    deleted: '已删除「{{name}}」',
+    disabled: '已停用「{{name}}」',
+    enabled: '已启用「{{name}}」',
     sorted: '已调整顺序',
   },
 } as const;

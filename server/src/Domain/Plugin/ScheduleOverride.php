@@ -11,7 +11,7 @@ namespace Sandadmin\Domain\Plugin;
  * 管理员对定时任务的覆盖写（契约 ScheduledTaskWrite：{schedule, status}）。
  * 与清单声明共用 ScheduleDefinition 的形状校验，但 interval 口径不同：
  * 清单默认允许 ≥1 分钟，管理员覆盖按契约收紧到 5-60，避免编辑入口绕过下限。
- * fields 错误键形如 schedule.interval，供上层映射 422 VALIDATION_FAILED。
+ * fields 错误键形如 schedule.interval，供上层映射 422 TASK_SCHEDULE_INVALID。
  */
 final readonly class ScheduleOverride
 {

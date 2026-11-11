@@ -86,8 +86,10 @@ export function DictItemModal({
       }
       return saved;
     },
-    onSuccess: async () => {
-      Toast.success(t('itemModal.saved'));
+    onSuccess: async (saved) => {
+      Toast.success(
+        t(editing ? 'itemModal.saved' : 'confirm.added', { name: saved.label }),
+      );
       await queryClient.invalidateQueries({ queryKey: ['dict'] });
       onSaved();
       onClose();
