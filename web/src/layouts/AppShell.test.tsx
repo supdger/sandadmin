@@ -100,9 +100,13 @@ describe('AppShell', () => {
     await waitFor(() => expect(nav()).toBeTruthy());
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
 
-    // The nested item lives inside the collapsed "系统设置" group — open it.
+    // The nested items live inside the collapsed "系统设置" group — open it.
     await userEvent.click(within(nav()).getByText('系统设置'));
     expect(await within(nav()).findByText('偏好设置')).toBeInTheDocument();
+    // Data-domain pages are real routes now, so the mock advertises them too.
+    expect(within(nav()).getByText('选项管理')).toBeInTheDocument();
+    expect(within(nav()).getByText('文件管理')).toBeInTheDocument();
+    expect(within(nav()).getByText('公告管理')).toBeInTheDocument();
 
     expect(screen.getByText('首页内容')).toBeInTheDocument();
     expect(screen.getByText(env.copyright)).toBeInTheDocument();

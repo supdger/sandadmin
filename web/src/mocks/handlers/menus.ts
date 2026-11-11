@@ -32,6 +32,27 @@ const FULL_MENUS = [
         path: '/preferences',
         order: 1,
       },
+      {
+        id: 'dict-options',
+        parentId: 'system',
+        title: '选项管理',
+        path: '/data/dict',
+        order: 2,
+      },
+      {
+        id: 'files',
+        parentId: 'system',
+        title: '文件管理',
+        path: '/data/attachment',
+        order: 3,
+      },
+      {
+        id: 'announcements',
+        parentId: 'system',
+        title: '公告管理',
+        path: '/data/notice',
+        order: 4,
+      },
     ],
   },
 ];
