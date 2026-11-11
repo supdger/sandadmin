@@ -1,0 +1,2 @@
+# 命名豁免登记（命名与注释规范 v2）：一行一个名字，# 后写原因
+attachment # 后端契约值：sand_system_file.purpose 的 CHECK 枚举（openapi.yaml 与 0001_baseline 迁移定稿 attachment/export/package/plugin），前端类型与 MSW mock 必须原样使用；同名豁免亦覆盖 HTTP Content-Disposition 协议关键字 attachment;
