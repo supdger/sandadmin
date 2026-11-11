@@ -54,7 +54,9 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 
 - 后端：`cd server && composer install`；`composer run sand:publish`（`post-install-cmd`/`post-update-cmd` 自动执行 `php support/sand-publish.php` 发布核心前端源码）。
 - 前端：`cd sandadmin-artd && pnpm dev` / `pnpm lint` / `pnpm build`（含 `vue-tsc --noEmit`）/ `pnpm lint:prettier` / `pnpm lint:stylelint`；Node ≥20.19、pnpm 固定 11.19.0。
-- `php tests/http-error-data-test.php`（对前端源文件做静态契约断言；本仓无 phpunit、无 vitest）。
+- `php tests/http-error-data-test.php`（对前端源文件做静态契约断言）；
+  `cd server && vendor/bin/phpunit`（B1 起引入 PHPUnit，`tests/Unit` 与 `tests/Integration` 分套件，
+  集成测试需 `SAND_TEST_DB_URL` 指向 PostgreSQL）、`vendor/bin/phpstan analyse`。
 - 无 CI；本地开发用 `pnpm dev`，不做多余构建。
 
 ## 许可证
