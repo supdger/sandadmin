@@ -120,6 +120,9 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   const [errors, setErrors] = useState<{ title?: string; content?: string; dept?: string }>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  // 每次真正载入表单时递增，拼进正文编辑器的 key 让它重挂载：
+  // SideSheet 关闭后 DOM 仍保留，编辑器是非受控的，不换 key 就会带着旧内容重开。
+  const [editorEpoch, setEditorEpoch] = useState(0);
   const formRef = useRef(form);
   const dirtyRef = useRef(false);
   // 只在打开/切换公告时重置表单；列表刷新导致的对象变化不能冲掉正在写的内容。
@@ -132,10 +135,16 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   });
   const deptTree = useMemo(() => buildDeptTree(depts.data?.items ?? []), [depts.data]);
 
-  // 每次打开或切换公告时重置表单。
+  // 每次打开或切换公告时重置表单；列表刷新导致的对象变化不能冲掉正在写的内容。
   useEffect(() => {
     const key = visible ? (announcement?.id ?? 'new') : '';
-    if (!key || key === loadedKey.current) return;
+    if (!key) {
+      // 「写公告」关闭后组件不卸载（页面 key 不变、抽屉 DOM 保留），
+      // 清掉已载入标记才能让下次打开重新初始化，否则会带着上次放弃的内容重开。
+      loadedKey.current = '';
+      return;
+    }
+    if (key === loadedKey.current) return;
     loadedKey.current = key;
     const next = formOf(announcement);
     setForm(next);
@@ -143,12 +152,18 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
     setErrors({});
     setSavedAt(null);
     dirtyRef.current = false;
+    setEditorEpoch((epoch) => epoch + 1);
   }, [visible, announcement]);
 
-  const dirty = useMemo(
-    () => JSON.stringify(form) !== JSON.stringify(initial),
-    [form, initial],
-  );
+  const dirty = useMemo(() => {
+    const { content: formContent, ...formRest } = form;
+    const { content: initialContent, ...initialRest } = initial;
+    if (JSON.stringify(formRest) !== JSON.stringify(initialRest)) return true;
+    if (formContent === initialContent) return false;
+    // 编辑器把空文档序列化成 <p><br></p> 之类的 HTML，初始化触发的 onChange
+    // 会让 content 与 initial 的空串不一致；两边语义都为空不算改动。
+    return !(isBlankHtml(formContent) && isBlankHtml(initialContent));
+  }, [form, initial]);
 
   // 自动保存间隔要读最新表单，不能在渲染期写 ref。
   useEffect(() => {
@@ -299,9 +314,9 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
               {t('editor.contentLabel')}
               <Typography.Text type="danger"> *</Typography.Text>
             </Typography.Text>
-            {/* 正文每次打开按公告重挂载，defaultHtml 才能生效 */}
+            {/* 正文按「公告 + 打开会话」重挂载，defaultHtml 才能在每次打开时生效 */}
             <RichTextEditor
-              key={announcement?.id ?? 'new'}
+              key={`${announcement?.id ?? 'new'}-${editorEpoch}`}
               defaultHtml={form.content || undefined}
               placeholder={t('editor.contentPlaceholder')}
               onChange={(html) => patch({ content: html })}
