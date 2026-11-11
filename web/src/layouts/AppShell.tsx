@@ -1,38 +1,58 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import {
   IconApps,
+  IconBell,
   IconChevronDown,
   IconExit,
   IconHome,
   IconLayers,
+  IconLock,
   IconMoon,
   IconSetting,
   IconSun,
+  IconUser,
 } from '@douyinfe/semi-icons';
 import {
   Avatar,
+  Badge,
   Breadcrumb,
   Button,
   Dropdown,
   IconButton,
   Layout,
   Nav,
+  Popover,
+  Skeleton,
   Spin,
   Toast,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import type { NavItems, OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
 import { logout } from '@/api/auth';
 import { getMyMenus, type MenuItem } from '@/api/menus';
+import {
+  getAnnouncementPopup,
+  getNotifications,
+  getUnreadCount,
+  markAllNotificationsRead,
+  markInboxItemRead,
+  type NotificationItem,
+} from '@/api/notifications';
 import { env } from '@/config/env';
+import { Empty } from '@/components/Empty';
+import { ImportantAnnouncementModal } from '@/components/ImportantAnnouncementModal';
+import { PasswordChangeModal } from '@/components/PasswordChangeModal';
 import { SystemErrorNotice } from '@/components/SystemErrorNotice';
 import { useMe } from '@/hooks/useMe';
+import { useVisitReport } from '@/hooks/useVisitReport';
 import { apiErrorMessage } from '@/lib/apiClient';
+import { formatRelativeTime } from '@/pages/personal/relativeTime';
 import { buildMenuTree, findMenuChain } from './menuTree';
 import { useThemeMode } from './themeMode';
 
@@ -75,6 +95,189 @@ interface RouteHandle {
   title?: string;
 }
 
+const NOTIFICATIONS_QUERY_KEY = ['notifications'] as const;
+const UNREAD_COUNT_KEY = ['notifications', 'unread-count'] as const;
+const PANEL_KEY = ['notifications', 'panel'] as const;
+const POPUP_KEY = ['notifications', 'announcements-popup'] as const;
+
+/**
+ * Header bell: badge polls the unread count every 60s (paused while the tab
+ * is hidden, refetched on return); the popover lists the latest six inbox
+ * items and marks them read through the endpoint matching each kind.
+ */
+function NotificationBell() {
+  const { t } = useTranslation('notifications');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const countQuery = useQuery({
+    queryKey: UNREAD_COUNT_KEY,
+    queryFn: getUnreadCount,
+    refetchInterval: 60_000,
+    retry: 1,
+  });
+  const { refetch: refetchCount } = countQuery;
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refetchCount();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refetchCount]);
+
+  const panelQuery = useQuery({
+    queryKey: PANEL_KEY,
+    queryFn: () => getNotifications({ page: 1, pageSize: 6 }),
+    enabled: open,
+  });
+
+  const invalidateAll = () =>
+    void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+  const handleOpenItem = async (item: NotificationItem) => {
+    setOpen(false);
+    if (!item.read_time) {
+      try {
+        await markInboxItemRead(item);
+        invalidateAll();
+      } catch {
+        // Best-effort: the item still navigates even if marking fails.
+      }
+    }
+    if (item.link) {
+      navigate(item.link);
+    }
+  };
+
+  const handleMarkAll = async () => {
+    try {
+      await markAllNotificationsRead();
+      invalidateAll();
+    } catch (e) {
+      Toast.error(apiErrorMessage(e, t('panel.loadFailed')));
+    }
+  };
+
+  const count = countQuery.data?.count ?? 0;
+  const items = panelQuery.data?.items ?? [];
+
+  return (
+    <Popover
+      visible={open}
+      onVisibleChange={setOpen}
+      trigger="click"
+      position="bottomRight"
+      content={
+        <div className="w-[360px]">
+          <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: 'var(--semi-color-border)' }}>
+            <Typography.Text strong>{t('panel.title')}</Typography.Text>
+            <Button size="small" theme="borderless" onClick={() => void handleMarkAll()}>
+              {t('panel.markAll')}
+            </Button>
+          </div>
+          <div className="max-h-[420px] overflow-y-auto">
+            {panelQuery.isPending ? (
+              <div className="flex flex-col gap-3 p-3">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} loading placeholder={<Skeleton.Paragraph rows={1} />}>
+                    <div />
+                  </Skeleton>
+                ))}
+              </div>
+            ) : panelQuery.isError ? (
+              <div className="flex flex-col items-center gap-2 p-6">
+                <Typography.Text type="danger" size="small">
+                  {t('panel.loadFailed')}
+                </Typography.Text>
+                <Button size="small" onClick={() => void panelQuery.refetch()}>
+                  {t('common:actions.retry')}
+                </Button>
+              </div>
+            ) : items.length === 0 ? (
+              <Empty title={t('panel.empty')} description={t('panel.emptyDesc')} />
+            ) : (
+              <div className="flex flex-col">
+                {items.map((item) => {
+                  const unread = !item.read_time;
+                  return (
+                    <button
+                      key={`${item.kind}-${item.id}`}
+                      type="button"
+                      onClick={() => void handleOpenItem(item)}
+                      className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-[var(--semi-color-fill-0)]"
+                    >
+                      <span
+                        className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: unread ? 'var(--semi-color-primary)' : 'transparent',
+                        }}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <Typography.Text strong={unread} size="small" ellipsis={{ showTooltip: true }}>
+                          {item.kind === 'announcement' ? (item.title ?? item.text) : item.text}
+                        </Typography.Text>
+                        <div>
+                          <Typography.Text type="tertiary" size="small">
+                            {formatRelativeTime(t, item.create_time)}
+                          </Typography.Text>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="border-t px-3 py-2 text-center" style={{ borderColor: 'var(--semi-color-border)' }}>
+            <Button size="small" theme="borderless" onClick={() => { setOpen(false); navigate('/notifications'); }}>
+              {t('panel.viewAll')}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <span className="inline-flex">
+        <Badge count={count} overflowCount={99} type="danger">
+          <Tooltip content={t('bell.tooltip')} position="bottom">
+            <IconButton icon={<IconBell />} aria-label={t('bell.tooltip')} />
+          </Tooltip>
+        </Badge>
+      </span>
+    </Popover>
+  );
+}
+
+/** Fetches important unread announcements once per session and pops them in order. */
+function AnnouncementPopup() {
+  const queryClient = useQueryClient();
+  const popup = useQuery({
+    queryKey: POPUP_KEY,
+    queryFn: getAnnouncementPopup,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const [closed, setClosed] = useState(false);
+
+  const items = popup.data?.items ?? [];
+  if (closed || items.length === 0) {
+    return null;
+  }
+  return (
+    <ImportantAnnouncementModal
+      items={items}
+      onCloseAll={() => {
+        setClosed(true);
+        void queryClient.invalidateQueries({ queryKey: POPUP_KEY });
+      }}
+    />
+  );
+}
+
 export function AppShell() {
   const { t } = useTranslation('shell');
   const navigate = useNavigate();
@@ -85,12 +288,17 @@ export function AppShell() {
 
   const [collapsed, setCollapsed] = useState(false);
   const [manualOpenKeys, setManualOpenKeys] = useState<Array<string | number>>([]);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   const menus = useQuery({
     queryKey: MENUS_QUERY_KEY,
     queryFn: getMyMenus,
     staleTime: 60_000,
   });
+
+  // Page-visit reporting feeds the workbench's 最近访问 stats; throttled
+  // inside the hook and fully silent on failure.
+  useVisitReport(menus.data);
 
   const menuTree = useMemo(() => buildMenuTree(menus.data ?? []), [menus.data]);
   const navItems = useMemo(() => toNavItems(menuTree, 0), [menuTree]);
@@ -235,6 +443,7 @@ export function AppShell() {
             />
           ) : null}
           <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <IconButton
               theme="borderless"
               icon={isDark ? <IconSun /> : <IconMoon />}
@@ -249,6 +458,19 @@ export function AppShell() {
                 position="bottomRight"
                 render={
                   <Dropdown.Menu>
+                    <Dropdown.Item
+                      icon={<IconUser />}
+                      onClick={() => navigate('/profile')}
+                    >
+                      {t('profile:title')}
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                      icon={<IconLock />}
+                      onClick={() => setPasswordModalOpen(true)}
+                    >
+                      {t('profile:security.changePassword')}
+                    </Dropdown.Item>
+                    <Dropdown.Divider />
                     <Dropdown.Item
                       icon={<IconSetting />}
                       onClick={() => navigate('/preferences')}
@@ -288,6 +510,12 @@ export function AppShell() {
             {env.copyright}
           </Typography.Text>
         </Layout.Footer>
+
+        <AnnouncementPopup />
+        <PasswordChangeModal
+          visible={passwordModalOpen}
+          onClose={() => setPasswordModalOpen(false)}
+        />
       </Layout>
     </Layout>
   );

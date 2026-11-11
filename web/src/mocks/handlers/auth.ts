@@ -14,7 +14,7 @@ const CAPTCHA_WIDTH = 300;
 const CAPTCHA_HEIGHT = 160;
 const CAPTCHA_CHAR_COUNT = 3;
 
-interface MockUser {
+export interface MockUser {
   username: string;
   nickname: string;
   mustChangePassword: boolean;
@@ -26,6 +26,15 @@ interface MockUser {
    * may not be configured.
    */
   password?: string;
+  // OpenAPI User fields surfaced by /me for the personal domain.
+  phone?: string;
+  email?: string | null;
+  dept_id?: string | null;
+  dept_name?: string | null;
+  post_id?: string | null;
+  role_ids?: string[];
+  is_admin?: boolean;
+  is_super?: boolean;
 }
 
 interface CaptchaEntry {
@@ -44,6 +53,13 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: false,
     permissions: ['*'],
     password: MOCK_PASSWORD,
+    phone: '13800000001',
+    email: 'admin@example.com',
+    dept_id: 'dept-1',
+    dept_name: '总经办',
+    role_ids: ['role-super'],
+    is_admin: true,
+    is_super: true,
   },
   newbie: {
     username: 'newbie',
@@ -51,14 +67,34 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: true,
     permissions: ['*'],
     password: MOCK_PASSWORD,
+    phone: '13800000002',
+    email: 'newbie@example.com',
+    dept_id: 'dept-1',
+    dept_name: '总经办',
+    role_ids: ['role-admin'],
+    is_admin: true,
+    is_super: false,
   },
   // Read-only demo: menus and pages are visible, every write is denied.
   viewer: {
     username: 'viewer',
     nickname: '只读用户',
     mustChangePassword: false,
-    permissions: ['workbench:view', 'preferences:view'],
+    permissions: [
+      'workbench:view',
+      'preferences:view',
+      'system:dict:index',
+      'system:file:index',
+      'system:announcement:index',
+    ],
     password: env.mockViewerPassword ?? undefined,
+    phone: '13800000003',
+    email: 'viewer@example.com',
+    dept_id: 'dept-2',
+    dept_name: '行政部',
+    role_ids: [],
+    is_admin: false,
+    is_super: false,
   },
   // No-permission demo: /me/menus is empty and every protected route 403s.
   guest: {
@@ -67,6 +103,13 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: false,
     permissions: [],
     password: env.mockGuestPassword ?? undefined,
+    phone: '13800000004',
+    email: null,
+    dept_id: 'dept-3',
+    dept_name: '市场部',
+    role_ids: [],
+    is_admin: false,
+    is_super: false,
   },
 };
 
@@ -286,6 +329,14 @@ export default [
       nickname: user.nickname,
       mustChangePassword: user.mustChangePassword,
       permissions: [...user.permissions],
+      phone: user.phone,
+      email: user.email ?? null,
+      dept_id: user.dept_id ?? null,
+      dept_name: user.dept_name ?? null,
+      post_id: user.post_id ?? null,
+      role_ids: user.role_ids ?? [],
+      is_admin: user.is_admin ?? false,
+      is_super: user.is_super ?? false,
     });
   }),
 ] satisfies HttpHandler[];

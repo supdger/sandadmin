@@ -5,7 +5,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { env } from '@/config/env';
@@ -56,6 +56,8 @@ function renderShell(entry = '/') {
   const children: RouteObject[] = [
     { path: '/', element: <div>首页内容</div> },
     { path: '/preferences', element: <div>偏好页内容</div> },
+    { path: '/profile', element: <div>个人设置页</div> },
+    { path: '/notifications', element: <div>消息页</div> },
   ];
   const router = createMemoryRouter(
     [
@@ -73,6 +75,16 @@ function renderShell(entry = '/') {
 }
 
 describe('AppShell', () => {
+  beforeEach(() => {
+    // The important-announcement popup would cover the header in every test;
+    // individual tests re-enable it with their own server.use override.
+    server.use(
+      http.get(`${base}/me/announcements/popup`, () =>
+        HttpResponse.json({ data: { items: [] }, request_id: 'test' }),
+      ),
+    );
+  });
+
   afterEach(() => {
     clearToken();
     localStorage.removeItem('sandadmin.theme');
@@ -224,5 +236,78 @@ describe('AppShell', () => {
       expect(router.state.location.pathname).toBe('/login');
     });
     expect(getToken()).toBeNull();
+  });
+
+  it('shows the notification bell and personal entries in the avatar menu', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    const { router, nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    // Bell with unread badge (mock returns 20 notifications + 3 announcements).
+    expect(await screen.findByRole('button', { name: '消息' })).toBeInTheDocument();
+    expect(await screen.findByText('23')).toBeInTheDocument();
+
+    // Open the bell panel: latest items + mark-all + view-all actions.
+    await userEvent.click(screen.getByRole('button', { name: '消息' }));
+    expect(await screen.findByText('全部标为已读')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('查看全部'));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/notifications');
+    });
+  });
+
+  it('links 个人设置 and 修改密码 from the avatar menu', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    const { router, nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    await userEvent.click(await screen.findByText('管理员'));
+    await userEvent.click(await screen.findByText('个人设置'));
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/profile');
+    });
+  });
+
+  it('pops an important unread announcement and marks it read on 知道了', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+    let readCalls = 0;
+    server.use(
+      http.get(`${base}/me/announcements/popup`, () =>
+        HttpResponse.json({
+          data: {
+            items: [
+              {
+                id: 'ann-002',
+                title: '新版选项管理上线',
+                content: '<p>选项管理模块已全面升级</p>',
+                level: 'important',
+                published_time: '2026-11-01T10:00:00Z',
+                expire_time: null,
+              },
+            ],
+          },
+          request_id: 'test',
+        }),
+      ),
+      http.post(`${base}/announcements/ann-002/read`, () => {
+        readCalls += 1;
+        return HttpResponse.json({ data: { read: true }, request_id: 'test' });
+      }),
+    );
+
+    const { nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+
+    expect(await screen.findByText('新版选项管理上线')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '知道了' }));
+    await waitFor(() => expect(readCalls).toBe(1));
+    await waitFor(() => {
+      expect(screen.queryByText('新版选项管理上线')).not.toBeInTheDocument();
+    });
   });
 });
