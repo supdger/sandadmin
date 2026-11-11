@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8f284399afe3813e0ce3fc97b862e6c8",
+    "content-hash": "4ce88fd1404363a98876c22c409bec75",
     "packages": [
         {
             "name": "aliyuncs/oss-sdk-php",
@@ -3569,16 +3569,16 @@
         },
         {
             "name": "supdger/sand-core",
-            "version": "0.2.8",
+            "version": "0.2.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/supdger/sand-core.git",
-                "reference": "7f470a82781bdc2c1fe62331b698991cef35939f"
+                "reference": "3dd46605576ab74d9890cf04ce2cba2659e0f2a0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/supdger/sand-core/zipball/7f470a82781bdc2c1fe62331b698991cef35939f",
-                "reference": "7f470a82781bdc2c1fe62331b698991cef35939f",
+                "url": "https://api.github.com/repos/supdger/sand-core/zipball/3dd46605576ab74d9890cf04ce2cba2659e0f2a0",
+                "reference": "3dd46605576ab74d9890cf04ce2cba2659e0f2a0",
                 "shasum": ""
             },
             "require": {
@@ -3608,6 +3608,9 @@
                 "workerman/webman-framework": "^2.1",
                 "zoujingli/ip2region": "^2.0"
             },
+            "bin": [
+                "bin/sand"
+            ],
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -3645,6 +3648,9 @@
             "scripts": {
                 "sand:publish": [
                     "@php tools/publish-frontend.php"
+                ],
+                "sand:check-http-install": [
+                    "@php tools/assert-no-http-install.php"
                 ]
             },
             "license": [
@@ -3652,10 +3658,10 @@
             ],
             "description": "SandAdmin core backend and matching sandadmin-artd source for Webman.",
             "support": {
-                "source": "https://github.com/supdger/sand-core/tree/0.2.8",
+                "source": "https://github.com/supdger/sand-core/tree/0.2.9",
                 "issues": "https://github.com/supdger/sand-core/issues"
             },
-            "time": "2026-11-03T11:00:38+00:00"
+            "time": "2026-11-11T11:43:09+00:00"
         },
         {
             "name": "supdger/sand-package",
