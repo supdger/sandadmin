@@ -4,11 +4,22 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
-$allow = array_values(array_filter(array_map('trim', file(__DIR__ . '/dangerous-functions-allowlist.txt')), fn ($l) => $l !== '' && $l[0] !== '#'));
+$lines = file(__DIR__ . '/dangerous-functions-allowlist.txt');
+if ($lines === false) {
+    fwrite(STDERR, "FAIL 无法读取白名单 dangerous-functions-allowlist.txt\n");
+    exit(1);
+}
+$allow = array_values(array_filter(
+    array_map('trim', $lines),
+    static fn (string $line): bool => $line !== '' && $line[0] !== '#'
+));
 $skip = '#^(vendor|runtime|plugin|tests|node_modules)/#';
 $bad = [];
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
 foreach ($it as $file) {
+    if (!$file instanceof SplFileInfo) {
+        continue;
+    }
     $rel = substr($file->getPathname(), strlen($root) + 1);
     if (preg_match($skip, $rel) || !preg_match('/\.php$|^webman$/', $rel)) {
         continue;
