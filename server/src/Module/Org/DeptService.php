@@ -69,7 +69,7 @@ final class DeptService
         $this->assertLeader($draft['leader_id']);
         try {
             $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
-                $newId = OrgSql::int($this->connection->fetchOne(
+                $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_dept (parent_id, name, leader_id, phone, sort, status, created_by, updated_by)'
                     . ' VALUES (:parent_id, :name, :leader_id, :phone, :sort, :status, :by, :by) RETURNING id',
                     [
@@ -82,9 +82,9 @@ final class DeptService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dept', 'create', '添加了部门' . $draft['name'], 'dept', (string) $newId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dept', 'create', '添加了部门' . $draft['name'], 'dept', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $newId;
+                return $createdId;
             }));
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
@@ -306,7 +306,7 @@ final class DeptService
             }
             $children = $item['children'] ?? [];
             if (is_array($children)) {
-                $childList = [];
+                $childRows = [];
                 foreach ($children as $child) {
                     if (!is_array($child)) {
                         continue;
@@ -317,9 +317,9 @@ final class DeptService
                             $row[$key] = $value;
                         }
                     }
-                    $childList[] = $row;
+                    $childRows[] = $row;
                 }
-                $hit = $this->findNode($childList, $id);
+                $hit = $this->findNode($childRows, $id);
                 if ($hit !== null) {
                     return $hit;
                 }

@@ -66,7 +66,7 @@ final class OrgFlowTest extends TestCase
             'role_ids' => [$role['id']],
         ], $this->actor, 'req-user', '127.0.0.1', null);
         $this->assertSame('甲测用户', $created['nickname']);
-        $updated = self::$kernel->users->update(OrgSql::int($created['id']), [
+        $renamed = self::$kernel->users->update(OrgSql::int($created['id']), [
             'nickname' => '甲测改名',
             'phone' => '13700009001',
             'username' => 'bizuser',
@@ -74,7 +74,7 @@ final class OrgFlowTest extends TestCase
             'role_ids' => [$role['id']],
         ], $this->actor, 'req-user-2', '127.0.0.1', null);
         $again = self::$kernel->users->show(OrgSql::int($created['id']));
-        $this->assertSame('甲测改名', $updated['nickname']);
+        $this->assertSame('甲测改名', $renamed['nickname']);
         $this->assertSame('甲测改名', $again['nickname']);
 
         try {

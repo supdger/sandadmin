@@ -79,7 +79,7 @@ final class DictService
         $draft = $this->typeDraft($body);
         try {
             $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
-                $newId = OrgSql::int($this->connection->fetchOne(
+                $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_dict_type (code, name, remark, created_by, updated_by)'
                     . ' VALUES (:code, :name, :remark, :by, :by) RETURNING id',
                     [
@@ -89,9 +89,9 @@ final class DictService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dict', 'create', '添加了选项组' . $draft['name'], 'dict_type', (string) $newId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dict', 'create', '添加了选项组' . $draft['name'], 'dict_type', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $newId;
+                return $createdId;
             }));
         } catch (\Throwable $error) {
             $this->map($error);
@@ -167,7 +167,7 @@ final class DictService
                         [$typeId],
                     );
                 }
-                $newId = OrgSql::int($this->connection->fetchOne(
+                $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_dict_item (type_id, label, value, color, is_default, status, sort, created_by, updated_by)'
                     . ' VALUES (:type_id, :label, :value, :color, :is_default, :status, :sort, :by, :by) RETURNING id',
                     [
@@ -181,9 +181,9 @@ final class DictService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dict', 'create', '添加了选项' . $draft['label'], 'dict_item', (string) $newId, $draft['label'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dict', 'create', '添加了选项' . $draft['label'], 'dict_item', (string) $createdId, $draft['label'], $requestId, $ip, $device);
 
-                return $newId;
+                return $createdId;
             }));
         } catch (\Throwable $error) {
             $this->map($error);

@@ -107,7 +107,7 @@ final class RoleService
         $draft = $this->draft($body);
         try {
             $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
-                $newId = OrgSql::int($this->connection->fetchOne(
+                $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_role (name, code, remark, status, created_by, updated_by)'
                     . ' VALUES (:name, :code, :remark, :status, :by, :by) RETURNING id',
                     [
@@ -118,9 +118,9 @@ final class RoleService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'role', 'create', '添加了角色' . $draft['name'], 'role', (string) $newId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'role', 'create', '添加了角色' . $draft['name'], 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $newId;
+                return $createdId;
             }));
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
@@ -224,7 +224,7 @@ final class RoleService
             throw OrgException::invalid(['name' => ['名称最多 20 个字']]);
         }
         try {
-            $newId = OrgSql::int($this->connection->transactional(function () use ($id, $source, $name, $actor, $requestId, $ip, $device): int {
+            $createdId = OrgSql::int($this->connection->transactional(function () use ($id, $source, $name, $actor, $requestId, $ip, $device): int {
                 $created = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_role (name, code, remark, data_scope, status, created_by, updated_by)'
                     . ' VALUES (:name, :code, :remark, :scope, 1, :by, :by) RETURNING id',
@@ -254,7 +254,7 @@ final class RoleService
             OrgDbMap::map($error);
         }
 
-        return $this->show($newId);
+        return $this->show($createdId);
     }
 
     public function setStatus(int $id, int $status, OrgActor $actor, string $requestId, ?string $ip, ?string $device): void
@@ -284,23 +284,23 @@ final class RoleService
             'SELECT dept_id FROM sand_system_role_dept WHERE role_id = ? ORDER BY dept_id',
             [$id],
         );
-        $codeList = [];
+        $permissionCodes = [];
         foreach ($codes as $code) {
             if (is_string($code)) {
-                $codeList[] = $code;
+                $permissionCodes[] = $code;
             }
         }
-        $deptList = [];
+        $selectedDeptIds = [];
         foreach ($deptIds as $deptId) {
-            $deptList[] = (string) OrgSql::int($deptId);
+            $selectedDeptIds[] = (string) OrgSql::int($deptId);
         }
         $isSystem = ($row['is_system'] ?? null) === true || ($row['is_system'] ?? null) === 't' || ($row['is_system'] ?? null) === 1;
         $isSuper = ($row['is_super'] ?? null) === true || ($row['is_super'] ?? null) === 't' || ($row['is_super'] ?? null) === 1;
 
         return [
             'data_scope' => OrgSql::str($row['data_scope'] ?? 'self'),
-            'dept_ids' => $deptList,
-            'permission_codes' => $codeList,
+            'dept_ids' => $selectedDeptIds,
+            'permission_codes' => $permissionCodes,
             'user_count' => OrgSql::int($row['user_count'] ?? 0),
             'readonly' => $isSystem || $isSuper,
             'base_version' => OrgSql::int($row['authz_version'] ?? 1),

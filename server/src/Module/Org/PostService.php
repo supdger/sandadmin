@@ -70,7 +70,7 @@ final class PostService
         $draft = $this->draft($body);
         try {
             $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
-                $newId = OrgSql::int($this->connection->fetchOne(
+                $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_post (name, remark, sort, status, created_by, updated_by)'
                     . ' VALUES (:name, :remark, :sort, :status, :by, :by) RETURNING id',
                     [
@@ -81,9 +81,9 @@ final class PostService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'post', 'create', '添加了岗位' . $draft['name'], 'post', (string) $newId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'post', 'create', '添加了岗位' . $draft['name'], 'post', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $newId;
+                return $createdId;
             }));
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
