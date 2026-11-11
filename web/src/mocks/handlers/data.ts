@@ -266,6 +266,17 @@ const MEDIA_BY_KIND: Record<FileRecord['kind'], string> = {
   other: 'application/octet-stream',
 };
 
+/**
+ * 图片类文件统一返回这段真实 PNG 字节（64×64 双色块）。
+ * 之前回 SVG 文本却标 image/png，浏览器解码失败，缩略图破图。
+ */
+const MOCK_IMAGE_PNG = Uint8Array.from(
+  atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAA+klEQVR4nO3YsQ2DQBAF0a2PptylK3AB7gAKAC6agBETXPik0Wb3Z/vs++p9f//ls/sxxxP+9gCGeMJfHsAST/jTAUzxhB9zPOHHHE/4MccTfszxhF8e4OnxhL89gCGe8JcHsMQT/nQAUzzhxxxP+DHHE37M8YRffoefHk/49gBzPOHbA8zxhG8PMMcTvj3AHE/49gBzPOHbA8zxhG8PMMcTvj3AHE/49gBzPOHbA8zxhG8PMMcTvj3AHE/49gBzPOHbA8zxhG8PMMcTvj3AHE/49gBzPOHbA8zxhG8PMMcT/vV7wAGdvIL+KNETaAAAAABJRU5ErkJggg==',
+  ),
+  (char) => char.charCodeAt(0),
+);
+
 function fileRecord(seed: FileSeed, index: number): FileRecord {
   const [uploaderId, uploaderName] = UPLOADERS[seed.uploader % UPLOADERS.length];
   return {
@@ -835,15 +846,12 @@ export default [
       return failOpenapi(404, 'FILE_NOT_FOUND', '文件不存在或已被删除');
     }
     // mock 不校验附件用途与可见性；真实后端按 visibility 与用途登记鉴权。
-    const body =
-      file.kind === 'image'
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><rect width="320" height="180" fill="#e8e9eb"/><text x="160" y="95" text-anchor="middle" font-size="14" fill="#666">' +
-          file.original_name +
-          '</text></svg>'
-        : `mock file content: ${file.original_name}`;
+    // 图片统一回 PNG 字节并标 image/png，保证 <img> 与 blob 缩略图可解码。
+    const isImage = file.kind === 'image';
+    const body = isImage ? MOCK_IMAGE_PNG : `mock file content: ${file.original_name}`;
     return new HttpResponse(body, {
       headers: {
-        'Content-Type': file.media_type,
+        'Content-Type': isImage ? 'image/png' : file.media_type,
         'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.original_name)}`,
       },
     });
