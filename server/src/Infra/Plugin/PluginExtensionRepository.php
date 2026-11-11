@@ -19,6 +19,7 @@ use Sandadmin\Domain\Plugin\InvalidExtensionException;
 /**
  * sand_system_plugin_extension 仓储：只存管理员对扩展位的启停与排序覆盖。
  * 表结构由 1.x 基线迁移定义，本类不建表；每次调用新建 QueryBuilder。
+ * suspend_time 非空的行是卸载停用，不参与合并，重新安装清空后才恢复。
  */
 final readonly class PluginExtensionRepository
 {
@@ -104,6 +105,7 @@ final readonly class PluginExtensionRepository
             ->select('plugin_code', 'kind', 'extension_key', 'enabled', 'sort')
             ->from(self::TABLE)
             ->where($this->connection->quoteSingleIdentifier('kind') . ' = :kind')
+            ->andWhere($this->connection->quoteSingleIdentifier('suspend_time') . ' IS NULL')
             ->setParameter('kind', $kind->value)
             ->executeQuery()
             ->fetchAllAssociative();

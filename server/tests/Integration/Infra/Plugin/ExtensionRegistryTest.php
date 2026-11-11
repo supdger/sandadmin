@@ -135,6 +135,7 @@ final class ExtensionRegistryTest extends TestCase
                 "sort" smallint NOT NULL DEFAULT 0,
                 create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                suspend_time datetime NULL,
                 PRIMARY KEY (plugin_code, kind, extension_key),
                 CONSTRAINT ck_kind CHECK (kind IN (
                     \'settings_category\', \'personal_settings_category\', \'search_source\',
