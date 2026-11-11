@@ -24,7 +24,7 @@ import {
   type AnnouncementWrite,
 } from '@/api/v1/announcements';
 import { getDeptOptions, type DeptOption } from '@/api/v1/org';
-import { adminErrorMessage } from '@/lib/adminError';
+import { adminSaveErrorMessage } from '@/lib/adminError';
 import { useMediaQuery } from './useMediaQuery';
 import { toDateKey } from './format';
 import { RichTextEditor } from './RichTextEditor';
@@ -120,6 +120,8 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   const [errors, setErrors] = useState<{ title?: string; content?: string; dept?: string }>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  // 先存成草稿拿应收人数，弹确认框再发布；确认内容来自已保存的公告。
+  const [pendingPublish, setPendingPublish] = useState<Announcement | null>(null);
   // 每次真正载入表单时递增，拼进正文编辑器的 key 让它重挂载：
   // SideSheet 关闭后 DOM 仍保留，编辑器是非受控的，不换 key 就会带着旧内容重开。
   const [editorEpoch, setEditorEpoch] = useState(0);
@@ -176,20 +178,24 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ['announcements'] });
 
+  const actionError = (error: unknown, fallback: string) =>
+    adminSaveErrorMessage(error, fallback, t('conflict'));
+
   const saveDraft = useMutation({
     mutationFn: (body: AnnouncementWrite) =>
       editing ? updateAnnouncement(announcement.id, body) : createAnnouncement(body),
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       // 已发布公告的「保存」是更新不是存草稿，提示口径不同。
       Toast.success(
         editing && announcement.state === 'published'
-          ? t('editor.updated')
-          : t(editing ? 'editor.saved' : 'editor.savedDraft'),
+          ? t('editor.updated', { name: saved.title })
+          : t(editing ? 'editor.saved' : 'editor.savedDraft', { name: saved.title }),
       );
       await invalidate();
       onClose();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('editor.saveFailed'))),
+    // 冲突时抽屉不关，刚写的内容保留。
+    onError: (error) => Toast.error(actionError(error, t('editor.saveFailed'))),
   });
 
   // 草稿自动保存：只更新不关抽屉，成功后把当前表单记为新基线。
@@ -206,19 +212,28 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
     },
   });
 
-  const doPublish = useMutation({
-    mutationFn: async (body: AnnouncementWrite) => {
-      const saved = editing
-        ? await updateAnnouncement(announcement.id, body)
-        : await createAnnouncement(body);
-      return publishAnnouncement(saved.id);
+  // 发布分两步：先保存拿到接口算的应收人数，确认框里把人数亮出来再发。
+  const saveForPublish = useMutation({
+    mutationFn: (body: AnnouncementWrite) =>
+      editing ? updateAnnouncement(announcement.id, body) : createAnnouncement(body),
+    onSuccess: (saved) => {
+      // 内容已落库，基线换成当前表单，取消确认也不丢内容。
+      setInitial(formRef.current);
+      setPendingPublish(saved);
+      void invalidate();
     },
-    onSuccess: async () => {
-      Toast.success(t('confirm.published'));
+    onError: (error) => Toast.error(actionError(error, t('confirm.publishFailed'))),
+  });
+
+  const publishSaved = useMutation({
+    mutationFn: (a: Announcement) => publishAnnouncement(a.id),
+    onSuccess: async (published) => {
+      Toast.success(t('confirm.published', { name: published.title }));
+      setPendingPublish(null);
       await invalidate();
       onClose();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error, t('confirm.publishFailed'))),
   });
 
   // 存草稿只要求标题（和定向范围）；发布才额外要求正文非空。
@@ -253,16 +268,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
 
   const publish = () => {
     if (!validate(true) || !canPublish) return;
-    Modal.confirm({
-      title: t('editor.publishConfirmTitle'),
-      content:
-        form.scope === 'dept'
-          ? t('editor.publishDeptContent')
-          : t('editor.publishConfirmContent'),
-      okText: t('table.publish'),
-      cancelText: t('editor.think'),
-      onOk: () => doPublish.mutateAsync(toWrite()).catch(() => undefined),
-    });
+    saveForPublish.mutate(toWrite());
   };
 
   const patch = (partial: Partial<FormState>) => setForm((prev) => ({ ...prev, ...partial }));
@@ -277,7 +283,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
           {editing && announcement.state === 'published' ? t('editor.saveChanges') : t('editor.saveDraft')}
         </Button>
         {canPublish && (!editing || announcement.state !== 'published') ? (
-          <Button theme="solid" onClick={publish} loading={doPublish.isPending}>
+          <Button theme="solid" onClick={publish} loading={saveForPublish.isPending}>
             {editing && announcement.state === 'withdrawn' ? t('table.republish') : t('editor.publish')}
           </Button>
         ) : null}
@@ -409,6 +415,29 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
           </Collapse>
         </div>
       </SideSheet>
+
+      <Modal
+        visible={pendingPublish !== null}
+        title={t('editor.publishConfirmTitle')}
+        okText={pendingPublish?.state === 'withdrawn' ? t('table.republish') : t('table.publish')}
+        cancelText={t('editor.think')}
+        confirmLoading={publishSaved.isPending}
+        onOk={() => {
+          if (pendingPublish) publishSaved.mutate(pendingPublish);
+        }}
+        onCancel={() => setPendingPublish(null)}
+      >
+        <Typography.Paragraph>
+          {pendingPublish
+            ? t(
+                pendingPublish.scope === 'dept'
+                  ? 'editor.publishDeptContent'
+                  : 'editor.publishConfirmContent',
+                { count: pendingPublish.recipient_count },
+              )
+            : ''}
+        </Typography.Paragraph>
+      </Modal>
 
       <Modal
         visible={confirmClose}

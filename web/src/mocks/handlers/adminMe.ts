@@ -47,6 +47,8 @@ const MENU_PERMISSION: Record<string, string> = {
   'system:dict': 'system:dict:index',
   'system:file': 'system:file:index',
   'system:announcement': 'system:announcement:index',
+  'system:plugin': 'system:plugin:index',
+  'system:update': 'system:update:index',
 };
 
 function canSee(principal: { permissions: string[] }, key: string): boolean {

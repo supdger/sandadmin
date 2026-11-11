@@ -31,7 +31,7 @@ import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
-import { adminErrorMessage } from '@/lib/adminError';
+import { adminSaveErrorMessage } from '@/lib/adminError';
 import { AnnouncementEditor } from './AnnouncementEditor';
 import { formatDateTime } from './format';
 import { ReadStatsDrawer } from './ReadStatsDrawer';
@@ -109,34 +109,47 @@ export function AnnouncementsPage() {
 
   const items = list.data?.items ?? [];
 
+  // 列表超过 10 秒还没出来：骨架屏下面加一句解释和「重新加载」。
+  const [slowLoading, setSlowLoading] = useState(false);
+  useEffect(() => {
+    if (!list.isPending) return;
+    const timer = setTimeout(() => setSlowLoading(true), 10_000);
+    return () => clearTimeout(timer);
+  }, [list.isPending]);
+  const showSlowLoading = list.isPending && slowLoading;
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
 
+  // 写操作失败文案：STALE_VERSION 是产品定死口径，其余用后端大白话/兜底。
+  const actionError = (error: unknown) =>
+    adminSaveErrorMessage(error, t('confirm.publishFailed'), t('conflict'));
+
   const publish = useMutation({
     mutationFn: (a: Announcement) => publishAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.published'));
+    onSuccess: async (saved) => {
+      Toast.success(t('confirm.published', { name: saved.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const revoke = useMutation({
     mutationFn: (a: Announcement) => revokeAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.revoked'));
+    onSuccess: async (saved) => {
+      Toast.success(t('confirm.revoked', { name: saved.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const remove = useMutation({
     mutationFn: (a: Announcement) => deleteAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.deleted'));
+    onSuccess: async (_result, a) => {
+      Toast.success(t('confirm.deleted', { name: a.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const requestPublish = (a: Announcement) => {
@@ -144,8 +157,8 @@ export function AnnouncementsPage() {
       title: t('editor.publishConfirmTitle'),
       content:
         a.scope === 'dept'
-          ? t('editor.publishDeptContent')
-          : t('editor.publishConfirmContent'),
+          ? t('editor.publishDeptContent', { count: a.recipient_count })
+          : t('editor.publishConfirmContent', { count: a.recipient_count }),
       okText: a.state === 'withdrawn' ? t('table.republish') : t('table.publish'),
       cancelText: t('editor.think'),
       onOk: () => publish.mutateAsync(a).catch(() => undefined),
@@ -327,6 +340,16 @@ export function AnnouncementsPage() {
       {list.isPending ? (
         <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
           <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
+          {showSlowLoading ? (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Typography.Text type="secondary" size="small">
+                {t('slowLoading')}
+              </Typography.Text>
+              <Button size="small" onClick={() => void list.refetch()}>
+                {t('reload')}
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : list.isError ? (
         <div className="rounded-lg border border-[var(--semi-color-border)] p-4">

@@ -3,11 +3,13 @@ import '@douyinfe/semi-ui/react19-adapter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
+import { server } from '@/mocks/server';
 import { AnnouncementsPage } from './AnnouncementsPage';
 
 // jsdom 跑不动 WangEditor 的 DOM 测量，用等价的受控输入替身：
@@ -106,12 +108,42 @@ describe('AnnouncementsPage', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: '发布' }));
-    // 发布前二次确认；确认框的「发布」在抽屉按钮之后，取弹窗内的那个。
+    // 发布前先保存，确认框带出接口算的应收人数。
     expect(await screen.findByText('发布这条公告？')).toBeInTheDocument();
+    expect(screen.getByText(/发布后会发给 \d+ 个人/)).toBeInTheDocument();
     await clickDialogButton('发布');
 
-    // 新公告发布后出现在列表里（标题唯一，可精确断言）。
+    // 成功提示带后端返回的名字；新公告出现在列表里（标题唯一，可精确断言）。
+    expect(await screen.findByText('已发布「关于年会的通知」')).toBeInTheDocument();
     expect(await screen.findByText('关于年会的通知')).toBeInTheDocument();
+  });
+
+  it('保存撞上 STALE_VERSION：固定口径提示且表单内容保留', async () => {
+    // 后端拒收这次的 PUT：另一个管理员先改了这条。
+    server.use(
+      http.put('/api/admin/v1/announcements/:announcementId', () =>
+        HttpResponse.json(
+          { code: 'STALE_VERSION', message: '这条刚被别人改过', request_id: 'x' },
+          { status: 409 },
+        ),
+      ),
+    );
+    setToken('mock-admin-token');
+    renderPage();
+
+    // 草稿行「国庆值班安排」→ 编辑 → 改标题 → 存为草稿。
+    await screen.findByText('国庆值班安排');
+    await userEvent.click(within(rowOf('国庆值班安排')).getByText('编辑'));
+    const titleInput = await screen.findByPlaceholderText('一句话说清楚要通知大家什么');
+    await userEvent.clear(titleInput);
+    await userEvent.type(titleInput, '国庆值班安排（改）');
+    await userEvent.click(screen.getByRole('button', { name: '存为草稿' }));
+
+    // 冲突口径定死；抽屉不关、刚写的内容还在。
+    expect(await screen.findByText('这条刚被别人改过，刷新后再改')).toBeInTheDocument();
+    expect(
+      (screen.getByPlaceholderText('一句话说清楚要通知大家什么') as HTMLInputElement).value,
+    ).toBe('国庆值班安排（改）');
   });
 
   it('revokes a published announcement after confirmation', async () => {

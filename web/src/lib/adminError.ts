@@ -11,6 +11,21 @@ export function adminErrorMessage(error: unknown, fallback: string): string {
 }
 
 /**
+ * 写操作的错误文案：并发冲突（STALE_VERSION）用产品定死的口径，
+ * 其余照旧——业务错误展示后端大白话，系统错误展示统一兜底。
+ */
+export function adminSaveErrorMessage(
+  error: unknown,
+  fallback: string,
+  conflict: string,
+): string {
+  if (error instanceof AdminApiError && error.code === 'STALE_VERSION') {
+    return conflict;
+  }
+  return adminErrorMessage(error, fallback);
+}
+
+/**
  * 「复制问题信息」用的纯文本诊断块，与 lib/problemReport 同构，
  * 只带时间、页面、请求方法/路径、HTTP 状态和请求编号。
  */
