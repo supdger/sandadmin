@@ -60,12 +60,11 @@ return [
             ]
         ]
     ],
-    // Custom process: claims job_run rows and writes progress back to the database.
-    'job_worker' => [
-        'handler' => Sandadmin\Job\JobWorker::class,
-        'count' => 1,
-        'constructor' => [
-            'pollInterval' => 1.0,
-        ],
+    // Custom process: 认领 sand_system_task_run 中可执行的任务并回写进度；
+    // 轮询、租约、并发等参数统一在 config/task.php。
+    'task_worker' => [
+        'handler' => Sandadmin\Task\TaskWorker::class,
+        'count' => max(1, (int) env('SANDADMIN_TASK_WORKERS', 1)),
+        'constructor' => [],
     ],
 ];
