@@ -114,7 +114,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         Toast.success(t('depts.form.saved'));
       } else {
         await createDept(body);
-        Toast.success(t('depts.form.added'));
+        Toast.success(t('depts.form.added', { name: body.name }));
       }
       void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
       onSaved();
