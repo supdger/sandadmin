@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router';
 import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/v1/dashboard';
 import { adminErrorMessage } from '@/lib/adminError';
 import { listOrEmpty } from './listOrEmpty';
+import { LoadError } from './LoadError';
 
 const NOTICES_QUERY_KEY = ['dashboard', 'notices'] as const;
 
@@ -58,7 +59,14 @@ export function NoticeBanner() {
     onError: (e) => Toast.error(adminErrorMessage(e, t('notices.dismissFailed'))),
   });
 
-  if (notices.isPending || notices.isError || !notices.data) {
+  if (notices.isPaused || notices.isError) {
+    return (
+      <Card>
+        <LoadError error={notices.error} paused={notices.isPaused} onRetry={() => void notices.refetch()} />
+      </Card>
+    );
+  }
+  if (notices.isPending || !notices.data) {
     return null;
   }
   const visible = listOrEmpty(notices.data.items).filter((n) => n.notice_key !== dismissedKey);

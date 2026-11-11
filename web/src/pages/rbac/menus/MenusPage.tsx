@@ -43,7 +43,6 @@ import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { useUrlQuery, type UrlQueryFields } from '@/hooks/useUrlQuery';
-import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { menuIconNode } from '@/pages/rbac/lib/menuIcons';
@@ -579,7 +578,7 @@ export function MenusPage() {
 
   const hasFilters = Boolean(keyword || source);
 
-  if (tree.isError) {
+  if (tree.isError || tree.isPaused) {
     const forbidden = isAdminApiError(tree.error) && tree.error.httpStatus === 403;
     return (
       <div className="flex flex-col gap-4">
@@ -587,12 +586,12 @@ export function MenusPage() {
         {forbidden ? (
           <ErrorState kind="403" showHome={false} />
         ) : (
-          <AdminErrorNotice
+          <ErrorState
+            kind="error"
             error={tree.error}
+            paused={tree.isPaused}
             onRetry={() => void tree.refetch()}
-            fallback={
-              <ErrorState kind="error" onRetry={() => void tree.refetch()} showHome={false} />
-            }
+            showHome={false}
           />
         )}
       </div>

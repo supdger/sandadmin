@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 
 import { getOnboarding } from '@/api/v1/dashboard';
 import { listOrEmpty } from './listOrEmpty';
+import { LoadError } from './LoadError';
 
 const ONBOARDING_QUERY_KEY = ['dashboard', 'onboarding'] as const;
 
@@ -22,7 +23,14 @@ export function OnboardingCard() {
   const { t } = useTranslation('workbench');
   const onboarding = useQuery({ queryKey: ONBOARDING_QUERY_KEY, queryFn: getOnboarding });
 
-  if (onboarding.isPending || onboarding.isError || !onboarding.data) {
+  if (onboarding.isPaused || onboarding.isError) {
+    return (
+      <Card title={t('onboarding.title')}>
+        <LoadError error={onboarding.error} paused={onboarding.isPaused} onRetry={() => void onboarding.refetch()} />
+      </Card>
+    );
+  }
+  if (onboarding.isPending || !onboarding.data) {
     return null;
   }
   const state = onboarding.data;

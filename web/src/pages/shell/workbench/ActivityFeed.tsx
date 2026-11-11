@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { getRecentActivities } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
 import { listOrEmpty } from './listOrEmpty';
 
@@ -19,14 +20,12 @@ export function ActivityFeed() {
 
   return (
     <Card title={t('activities.title')}>
-      {activities.isPending ? (
+      {activities.isPaused || activities.isError ? (
+        <LoadError error={activities.error} paused={activities.isPaused} onRetry={() => void activities.refetch()} />
+      ) : activities.isPending ? (
         <Skeleton loading placeholder={<Skeleton.Paragraph rows={4} />}>
           <div />
         </Skeleton>
-      ) : activities.isError ? (
-        <Typography.Text type="danger" size="small">
-          {t('cards.error')}
-        </Typography.Text>
       ) : items.length === 0 ? (
         <Empty title={t('activities.empty')} description={undefined} />
       ) : (

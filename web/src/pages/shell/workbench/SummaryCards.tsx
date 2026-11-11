@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { getSummaryCards, type DashboardCard } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { listOrEmpty } from './listOrEmpty';
 
 const CARD_TITLES: Record<string, string> = {
@@ -81,6 +82,9 @@ function SummaryCard({ card }: { card: DashboardCard }) {
 export function SummaryCards() {
   const summary = useQuery({ queryKey: SUMMARY_QUERY_KEY, queryFn: getSummaryCards });
 
+  if (summary.isPaused || summary.isError) {
+    return <LoadError error={summary.error} paused={summary.isPaused} onRetry={() => void summary.refetch()} />;
+  }
   if (summary.isPending) {
     return (
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -94,7 +98,7 @@ export function SummaryCards() {
       </div>
     );
   }
-  if (summary.isError || !summary.data) {
+  if (!summary.data) {
     return null;
   }
   const cards = listOrEmpty(summary.data.cards).filter((c) => CARD_TITLES[c.key]);

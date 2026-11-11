@@ -10,6 +10,7 @@ import {
   type DictType,
   type DictTypeWrite,
 } from '@/api/v1/dict';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { adminErrorMessage } from '@/lib/adminError';
 
@@ -77,6 +78,7 @@ export function DictTypeModal({ visible, type, onClose, onSaved }: DictTypeModal
             <Typography.Text type="danger"> *</Typography.Text>
           </Typography.Text>
           <Input
+            style={{ width: FIELD_NAME_WIDTH }}
             value={name}
             maxLength={20}
             showClear

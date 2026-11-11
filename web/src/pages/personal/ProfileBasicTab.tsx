@@ -12,6 +12,7 @@ import { useMe } from '@/hooks/useMe';
 import { AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { ErrorState } from '@/components/ErrorState';
+import { FIELD_NAME_WIDTH, FIELD_PHONE_WIDTH } from '@/components/fieldWidth';
 
 const PROFILE_QUERY_KEY = ['me', 'profile'] as const;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -210,6 +211,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="nickname"
             label={t('basic.nickname')}
+            style={{ width: FIELD_NAME_WIDTH }}
             placeholder={t('basic.nicknamePlaceholder')}
             maxLength={20}
             rules={[{ required: true, message: t('basic.nicknameRequired') }]}
@@ -217,6 +219,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="phone"
             label={t('basic.phone')}
+            style={{ width: FIELD_PHONE_WIDTH }}
             placeholder={t('basic.phonePlaceholder')}
             prefix="+86"
             maxLength={13}
@@ -225,6 +228,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="email"
             label={t('basic.email')}
+            style={{ width: FIELD_NAME_WIDTH }}
             placeholder={t('basic.emailPlaceholder')}
             rules={[{ required: false }]}
           />

@@ -20,6 +20,7 @@ import {
   type MenuNode,
 } from '@/api/v1/menus';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
+import { FIELD_CHOICE_WIDTH, FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { MENU_ICON_OPTIONS, menuIconNode } from '@/pages/rbac/lib/menuIcons';
@@ -321,6 +322,7 @@ export function MenuFormSheet({
           <Typography.Text strong>{t('menus.form.name')}</Typography.Text>
           <Input
             className="mt-1"
+            style={{ width: FIELD_NAME_WIDTH }}
             value={title}
             placeholder={t('menus.form.namePlaceholder')}
             onChange={(v) => {
@@ -344,7 +346,8 @@ export function MenuFormSheet({
           <div>
             <Typography.Text strong>{t('menus.form.parent')}</Typography.Text>
             <Select
-              className="mt-1 w-full"
+              className="mt-1"
+              style={{ width: FIELD_CHOICE_WIDTH }}
               placeholder={t('menus.form.parentPlaceholder')}
               value={parentKey || undefined}
               onChange={(v) => {

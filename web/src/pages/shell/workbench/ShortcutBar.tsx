@@ -15,6 +15,7 @@ import {
 import { getMyMenus, type MyMenuNode } from '@/api/v1/me';
 import { adminErrorMessage } from '@/lib/adminError';
 import { listOrEmpty } from './listOrEmpty';
+import { LoadError } from './LoadError';
 
 const SHORTCUTS_QUERY_KEY = ['dashboard', 'shortcuts'] as const;
 const MENUS_QUERY_KEY = ['me', 'menus'] as const;
@@ -125,7 +126,9 @@ export function ShortcutBar() {
         </Button>
       }
     >
-      {shortcuts.isPending ? (
+      {shortcuts.isPaused || shortcuts.isError ? (
+        <LoadError error={shortcuts.error} paused={shortcuts.isPaused} onRetry={() => void shortcuts.refetch()} />
+      ) : shortcuts.isPending ? (
         <Typography.Text type="tertiary" size="small">
           {t('common:loading')}
         </Typography.Text>

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { ApiError } from '@/lib/apiClient';
+import { AdminApiError } from '@/lib/adminClient';
 import { ErrorState } from './ErrorState';
 import { CopyErrorButton, SystemErrorNotice } from './SystemErrorNotice';
 
@@ -87,6 +88,26 @@ describe('ErrorState with an API error', () => {
     );
 
     expect(screen.getByText('请稍后再试')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '复制问题信息' })).not.toBeInTheDocument();
+  });
+
+  it('shows the offline sentence without a copy action', () => {
+    const offline = new AdminApiError({
+      code: 'NETWORK_ERROR',
+      message: '网络好像断了，请检查网络后再试',
+      httpStatus: 0,
+      method: 'GET',
+      url: '/api/admin/v1/users',
+      system: true,
+    });
+    render(
+      <MemoryRouter>
+        <ErrorState kind="error" error={offline} paused onRetry={() => undefined} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('网络好像断了，请检查网络后再试')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '复制问题信息' })).not.toBeInTheDocument();
   });
 });

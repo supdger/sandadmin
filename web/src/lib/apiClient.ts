@@ -20,6 +20,8 @@ export interface ApiErrorShape {
    * schema-mismatched payloads); false/omitted for business envelope errors.
    */
   system?: boolean;
+  /** 浏览器把请求拦下、后端没收到。页面据此换成断网文案，不提供复制问题信息。 */
+  network?: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ export class ApiError extends Error {
   url?: string;
   status?: number;
   system: boolean;
+  network: boolean;
 
   constructor(shape: ApiErrorShape) {
     super(shape.message);
@@ -46,6 +49,7 @@ export class ApiError extends Error {
     this.url = shape.url;
     this.status = shape.status;
     this.system = shape.system ?? false;
+    this.network = shape.network ?? false;
   }
 }
 
@@ -83,12 +87,15 @@ function systemError(init: {
   method: string;
   url: string;
   status?: number;
+  network?: boolean;
 }): ApiError {
+  const network = init.network === true;
   return new ApiError({
     code: -1,
-    message: i18n.t('errors.system.message'),
+    message: i18n.t(network ? 'errors.network.message' : 'errors.system.message'),
     system: true,
     ...init,
+    network,
   });
 }
 
@@ -117,7 +124,7 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw systemError({ method, url });
+    throw systemError({ method, url, network: true });
   }
 
   const headerRequestId = res.headers.get('x-request-id') ?? undefined;

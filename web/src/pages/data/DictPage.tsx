@@ -392,17 +392,18 @@ export function DictPage() {
             showClear
           />
           <div className="flex max-h-[560px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--semi-color-border)] p-1">
-            {types.isPending ? (
-              <div className="flex flex-col gap-2 p-2">
-                <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
-              </div>
-            ) : types.isError ? (
+            {types.isPaused || types.isError ? (
               <ErrorState
                 kind="error"
                 error={types.error}
+                paused={types.isPaused}
                 onRetry={() => void types.refetch()}
                 showHome={false}
               />
+            ) : types.isPending ? (
+              <div className="flex flex-col gap-2 p-2">
+                <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
+              </div>
             ) : groups.length === 0 ? (
               <div className="p-3">
                 <Empty
@@ -477,18 +478,19 @@ export function DictPage() {
             <div className="rounded-lg border border-[var(--semi-color-border)] p-10">
               <Empty title={t('detail.noSelection')} />
             </div>
-          ) : detail.isPending ? (
-            <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
-              <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
-            </div>
-          ) : detail.isError ? (
+          ) : detail.isPaused || detail.isError ? (
             <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
               <ErrorState
                 kind="error"
                 error={detail.error}
+                paused={detail.isPaused}
                 onRetry={() => void detail.refetch()}
                 showHome={false}
               />
+            </div>
+          ) : detail.isPending ? (
+            <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
+              <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
             </div>
           ) : currentType ? (
             <div className="flex flex-col gap-3">

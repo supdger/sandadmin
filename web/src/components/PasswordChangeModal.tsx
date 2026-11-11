@@ -11,6 +11,7 @@ import { changePassword, getPasswordRule, type PasswordRule } from '@/api/v1/pro
 import { useMe } from '@/hooks/useMe';
 import { AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
+import { FIELD_PASSWORD_WIDTH } from '@/components/fieldWidth';
 
 export interface PasswordChangeModalProps {
   visible: boolean;
@@ -170,6 +171,7 @@ export function PasswordChangeModal({ visible, onClose }: PasswordChangeModalPro
             <Form.Input
               field="old_password"
               type="password"
+              style={{ width: FIELD_PASSWORD_WIDTH }}
               label={t('passwordModal.oldPassword')}
               placeholder={t('passwordModal.oldPasswordPlaceholder')}
               rules={[{ required: true, message: t('passwordModal.oldRequired') }]}
@@ -177,6 +179,7 @@ export function PasswordChangeModal({ visible, onClose }: PasswordChangeModalPro
             <Form.Input
               field="new_password"
               type="password"
+              style={{ width: FIELD_PASSWORD_WIDTH }}
               label={t('passwordModal.newPassword')}
               placeholder={t('passwordModal.newPasswordPlaceholder')}
               rules={[{ required: true, message: t('passwordModal.required') }]}
@@ -184,6 +187,7 @@ export function PasswordChangeModal({ visible, onClose }: PasswordChangeModalPro
             <Form.Input
               field="confirm_password"
               type="password"
+              style={{ width: FIELD_PASSWORD_WIDTH }}
               label={t('passwordModal.confirmPassword')}
               placeholder={t('passwordModal.confirmPasswordPlaceholder')}
               rules={[{ required: true, message: t('passwordModal.required') }]}

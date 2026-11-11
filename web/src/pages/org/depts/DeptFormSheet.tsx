@@ -11,6 +11,7 @@ import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { FIELD_CHOICE_WIDTH, FIELD_NAME_WIDTH, FIELD_PHONE_WIDTH } from '@/components/fieldWidth';
 import { collectDescendantIds, deptTreeToOptions } from '../shared/deptTree';
 import { UserOptionSelect } from '../shared/UserOptionSelect';
 import type { DeptTreeOption } from '../shared/deptTree';
@@ -187,6 +188,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.Input
           field="name"
           label={t('depts.form.name')}
+          style={{ width: FIELD_NAME_WIDTH }}
           rules={[{ required: true, message: t('depts.form.nameRequired') }]}
           maxLength={30}
           showClear
@@ -195,6 +197,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.TreeSelect
           field="parent_id"
           label={t('depts.form.parent')}
+          style={{ width: FIELD_CHOICE_WIDTH }}
           treeData={parentOptions}
           filterTreeNode
           showClear
@@ -209,6 +212,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.Input
           field="phone"
           label={t('depts.form.phone')}
+          style={{ width: FIELD_PHONE_WIDTH }}
           maxLength={20}
           showClear
           rules={[{ pattern: /^[\d+\-()\s]{5,20}$/, message: t('depts.form.phoneInvalid') }]}

@@ -353,6 +353,7 @@ export function PluginsPage() {
   }, [items, tab, keyword]);
 
   const isListPending = market.isPending && installed.isPending;
+  const isListPaused = market.isPaused || installed.isPaused || overview.isPaused;
   const isListError = (market.isError && installed.isError) || overview.isError;
   const listError = market.error ?? installed.error ?? overview.error;
 
@@ -555,7 +556,18 @@ export function PluginsPage() {
         <Tabs.TabPane tab={t('tabs.upgradeable', { count: upgradeableCount })} itemKey="upgradeable" />
       </Tabs>
 
-      {isListPending ? (
+      {isListPaused || isListError ? (
+        <Card>
+          <ErrorState
+            kind="error"
+            title={t('loadFailed')}
+            error={listError}
+            paused={isListPaused}
+            onRetry={() => refreshPlugins()}
+            showHome={false}
+          />
+        </Card>
+      ) : isListPending ? (
         <div className="flex flex-wrap gap-4">
           {[0, 1, 2].map((i) => (
             <Card key={i} style={{ width: 280 }}>
@@ -563,16 +575,6 @@ export function PluginsPage() {
             </Card>
           ))}
         </div>
-      ) : isListError ? (
-        <Card>
-          <ErrorState
-            kind="error"
-            title={t('loadFailed')}
-            error={listError}
-            onRetry={() => refreshPlugins()}
-            showHome={false}
-          />
-        </Card>
       ) : filtered.length === 0 ? (
         <Card>
           {keyword || tab !== 'installed' ? (

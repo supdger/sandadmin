@@ -12,6 +12,7 @@ import type { UserStatus } from '@/api/v1/types';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 
 export interface PostFormModalProps {
   visible: boolean;
@@ -134,6 +135,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
         <Form.Input
           field="name"
           label={t('posts.form.name')}
+          style={{ width: FIELD_NAME_WIDTH }}
           placeholder={t('posts.form.name')}
           rules={[{ required: true, message: t('posts.form.nameRequired') }]}
           maxLength={30}

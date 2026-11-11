@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import { getDashboardCharts, type ChartRange, type DashboardChart } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { listOrEmpty } from './listOrEmpty';
 
 const RANGE_KEYS: ChartRange[] = ['7d', '30d', '90d'];
@@ -105,14 +106,12 @@ export function TrendCharts() {
         </div>
       }
     >
-      {charts.isPending ? (
+      {charts.isPaused || charts.isError ? (
+        <LoadError error={charts.error} paused={charts.isPaused} onRetry={() => void charts.refetch()} />
+      ) : charts.isPending ? (
         <Skeleton loading placeholder={<Skeleton.Paragraph rows={4} />}>
           <div />
         </Skeleton>
-      ) : charts.isError ? (
-        <Typography.Text type="danger" size="small">
-          {t('cards.error')}
-        </Typography.Text>
       ) : list.length === 0 ? (
         <Empty title={t('charts.empty')} description={undefined} />
       ) : (

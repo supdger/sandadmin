@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { createRole, updateRole, type Role, type RoleWrite } from '@/api/v1/roles';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
@@ -106,6 +107,7 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
           <Typography.Text strong>{t('roles.form.name')}</Typography.Text>
           <Input
             className="mt-1"
+            style={{ width: FIELD_NAME_WIDTH }}
             value={name}
             maxLength={NAME_MAX}
             placeholder={t('roles.form.namePlaceholder')}

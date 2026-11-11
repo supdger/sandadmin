@@ -116,4 +116,23 @@ describe('WorkbenchPage', () => {
     expect(screen.getByText('还没有快捷入口')).toBeInTheDocument();
     expect(screen.queryByText('这张卡没能加载出来')).not.toBeInTheDocument();
   });
+
+  it('keeps a retryable offline notice inside each block', async () => {
+    server.use(
+      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/todos', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/charts', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/notices', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/shortcuts', () => HttpResponse.error()),
+      http.get('/api/admin/v1/dashboard/onboarding', () => HttpResponse.error()),
+    );
+    setToken('mock-admin-token');
+    renderPage();
+
+    const notes = await screen.findAllByText('网络好像断了，请检查网络后再试');
+    expect(notes.length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: '重试' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: '复制问题信息' })).not.toBeInTheDocument();
+  });
 });

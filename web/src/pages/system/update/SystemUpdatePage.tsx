@@ -212,18 +212,7 @@ export function SystemUpdatePage() {
     onError: handleSubmitError,
   });
 
-  if (statusQuery.isPending) {
-    return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Card style={{ maxWidth: 720 }}>
-          <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
-        </Card>
-      </div>
-    );
-  }
-
-  if (statusQuery.isError) {
+  if (statusQuery.isPaused || statusQuery.isError) {
     return (
       <div className="flex flex-col gap-4">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
@@ -232,9 +221,21 @@ export function SystemUpdatePage() {
             kind="error"
             title={t('loadFailed')}
             error={statusQuery.error}
+            paused={statusQuery.isPaused}
             onRetry={() => void statusQuery.refetch()}
             showHome={false}
           />
+        </Card>
+      </div>
+    );
+  }
+
+  if (statusQuery.isPending) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        <Card style={{ maxWidth: 720 }}>
+          <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
         </Card>
       </div>
     );

@@ -98,6 +98,18 @@ describe('ProfilePage', () => {
     expect(await screen.findByText('新密码需要满足：')).toBeInTheDocument();
   });
 
+  it('keeps the profile form when the device list has no items array', async () => {
+    setToken('mock-admin-token');
+    server.use(
+      http.get(`${base}/me/sessions`, () =>
+        HttpResponse.json({ code: 'OK', message: 'success', data: {} }),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByDisplayValue('管理员')).toBeInTheDocument();
+  });
+
   it('shows the error state when the profile request fails', async () => {
     setToken('mock-admin-token');
     server.use(

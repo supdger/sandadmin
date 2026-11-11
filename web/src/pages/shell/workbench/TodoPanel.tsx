@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
 import { getWorkbenchTodos, type TodoItem } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
 import { listOrEmpty } from './listOrEmpty';
 
@@ -56,14 +57,12 @@ export function TodoPanel() {
         ) : null
       }
     >
-      {todos.isPending ? (
+      {todos.isPaused || todos.isError ? (
+        <LoadError error={todos.error} paused={todos.isPaused} onRetry={() => void todos.refetch()} />
+      ) : todos.isPending ? (
         <Skeleton loading placeholder={<Skeleton.Paragraph rows={3} />}>
           <div />
         </Skeleton>
-      ) : todos.isError ? (
-        <Typography.Text type="danger" size="small">
-          {t('cards.error')}
-        </Typography.Text>
       ) : items.length === 0 ? (
         <Empty title={t('todosSection.empty')} description={undefined} />
       ) : (

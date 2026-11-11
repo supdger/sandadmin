@@ -318,11 +318,12 @@ export function PostsPage() {
         ) : null}
       </div>
 
-      {listQuery.isError ? (
+      {listQuery.isError || listQuery.isPaused ? (
         <OrgErrorState
           title={t('posts.loadFailed.title')}
           description={t('posts.loadFailed.description')}
           error={listQuery.error}
+          paused={listQuery.isPaused}
           onRetry={() => void listQuery.refetch()}
         />
       ) : isFirstLoading ? (

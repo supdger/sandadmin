@@ -337,7 +337,17 @@ export function AnnouncementsPage() {
         ) : null}
       </div>
 
-      {list.isPending ? (
+      {list.isPaused || list.isError ? (
+        <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
+          <ErrorState
+            kind="error"
+            error={list.error}
+            paused={list.isPaused}
+            onRetry={() => void list.refetch()}
+            showHome={false}
+          />
+        </div>
+      ) : list.isPending ? (
         <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
           <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
           {showSlowLoading ? (
@@ -350,10 +360,6 @@ export function AnnouncementsPage() {
               </Button>
             </div>
           ) : null}
-        </div>
-      ) : list.isError ? (
-        <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
-          <ErrorState kind="error" error={list.error} onRetry={() => void list.refetch()} showHome={false} />
         </div>
       ) : (
         <>

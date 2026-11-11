@@ -608,11 +608,12 @@ export function DeptsPage() {
         </div>
       ) : null}
 
-      {treeQuery.isError ? (
+      {treeQuery.isError || treeQuery.isPaused ? (
         <OrgErrorState
           title={t('depts.loadFailed.title')}
           description={t('depts.loadFailed.description')}
           error={treeQuery.error}
+          paused={treeQuery.isPaused}
           onRetry={() => void treeQuery.refetch()}
         />
       ) : isFirstLoading ? (

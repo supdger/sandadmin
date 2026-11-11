@@ -4,6 +4,7 @@ import { Input, Modal, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 import { copyRole, type Role } from '@/api/v1/roles';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
@@ -70,6 +71,7 @@ export function CopyRoleModal({ role, onClose, onCopied }: CopyRoleModalProps) {
       <div className="flex flex-col gap-2">
         <Typography.Text strong>{t('roles.copyModal.name')}</Typography.Text>
         <Input
+          style={{ width: FIELD_NAME_WIDTH }}
           value={name}
           maxLength={NAME_MAX}
           placeholder={role.name}

@@ -808,11 +808,12 @@ export function UsersPage() {
           </div>
         ) : null}
 
-        {usersQuery.isError ? (
+        {usersQuery.isError || usersQuery.isPaused ? (
           <OrgErrorState
             title={t('users.loadFailed.title')}
             description={t('users.loadFailed.description')}
             error={usersQuery.error}
+            paused={usersQuery.isPaused}
             onRetry={() => void usersQuery.refetch()}
           />
         ) : isFirstLoading ? (

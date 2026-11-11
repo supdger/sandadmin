@@ -18,6 +18,9 @@ export default {
   },
 
   errors: {
+    network: {
+      message: '网络好像断了，请检查网络后再试',
+    },
     system: {
       message: '系统出了点问题，请稍后再试',
       copy: '复制问题信息',

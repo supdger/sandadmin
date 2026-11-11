@@ -26,6 +26,13 @@ import {
 import { isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import {
+  FIELD_ACCOUNT_WIDTH,
+  FIELD_CHOICE_WIDTH,
+  FIELD_NAME_WIDTH,
+  FIELD_PASSWORD_WIDTH,
+  FIELD_PHONE_WIDTH,
+} from '@/components/fieldWidth';
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { useEnabledPostOptions, useRoleOptions, useUserDeptTree } from '../shared/useOrgOptions';
 import type { DeptTreeOption } from '../shared/deptTree';
@@ -307,6 +314,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="nickname"
             label={t('users.form.nickname')}
+            style={{ width: FIELD_NAME_WIDTH }}
             required
             maxLength={20}
             showClear
@@ -318,6 +326,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="phone"
             label={t('users.form.phone')}
+            style={{ width: FIELD_PHONE_WIDTH }}
             required
             showClear
             helpText={t('users.form.phoneHint')}
@@ -329,6 +338,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.TreeSelect
             field="dept_id"
             label={t('users.form.dept')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             treeData={deptTreeOptions}
             filterTreeNode
             showClear
@@ -337,6 +347,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Select
             field="post_id"
             label={t('users.form.post')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             placeholder={t('common.unset')}
             showClear
             filter
@@ -346,6 +357,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Select
             field="role_ids"
             label={t('users.form.roles')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             multiple
             filter
             showClear
@@ -375,6 +387,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="username"
             label={t('users.form.username')}
+            style={{ width: FIELD_ACCOUNT_WIDTH }}
             showClear
             helpText={t('users.form.usernameHint')}
             validator={(value) =>
@@ -385,6 +398,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
             <Form.Input
               field="password"
               label={t('users.form.password')}
+              style={{ width: FIELD_PASSWORD_WIDTH }}
               required
               mode="password"
               helpText={t('users.form.passwordHint')}
@@ -398,6 +412,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="email"
             label={t('users.form.email')}
+            style={{ width: FIELD_NAME_WIDTH }}
             showClear
             helpText={t('users.form.emailHint')}
             validator={(value) => (!value || EMAIL_PATTERN.test(value) ? '' : t('users.form.emailInvalid'))}

@@ -37,7 +37,6 @@ import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { useUrlQuery, type UrlQueryFields } from '@/hooks/useUrlQuery';
 import { formatRelativeTime } from '@/lib/format';
-import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { CopyRoleModal } from './CopyRoleModal';
@@ -401,7 +400,7 @@ export function RolesPage() {
     [t, navigate, canCreate, canUpdate, canDelete, canSetPermission],
   );
 
-  if (roles.isError) {
+  if (roles.isError || roles.isPaused) {
     const forbidden = isAdminApiError(roles.error) && roles.error.httpStatus === 403;
     return (
       <div className="flex flex-col gap-4">
@@ -409,12 +408,12 @@ export function RolesPage() {
         {forbidden ? (
           <ErrorState kind="403" showHome={false} />
         ) : (
-          <AdminErrorNotice
+          <ErrorState
+            kind="error"
             error={roles.error}
+            paused={roles.isPaused}
             onRetry={() => void roles.refetch()}
-            fallback={
-              <ErrorState kind="error" onRetry={() => void roles.refetch()} showHome={false} />
-            }
+            showHome={false}
           />
         )}
       </div>

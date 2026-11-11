@@ -24,6 +24,7 @@ import {
   type AnnouncementWrite,
 } from '@/api/v1/announcements';
 import { getDeptOptions, type DeptOption } from '@/api/v1/org';
+import { FIELD_CHOICE_WIDTH, FIELD_DATE_WIDTH, FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { adminSaveErrorMessage } from '@/lib/adminError';
 import { useMediaQuery } from './useMediaQuery';
 import { toDateKey } from './format';
@@ -308,6 +309,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
               <Typography.Text type="danger"> *</Typography.Text>
             </Typography.Text>
             <Input
+              style={{ width: FIELD_NAME_WIDTH }}
               value={form.title}
               maxLength={50}
               showClear
@@ -355,7 +357,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
                   showClear
                   placeholder={t('editor.deptPlaceholder')}
                   onChange={(value) => patch({ deptIds: (Array.isArray(value) ? value : [value]).map(String) })}
-                  style={{ width: '100%' }}
+                  style={{ width: FIELD_CHOICE_WIDTH }}
                 />
                 {errors.dept ? <Typography.Text type="danger" size="small">{errors.dept}</Typography.Text> : null}
               </div>
@@ -405,7 +407,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
                       onChange={(_d, dateString) =>
                         patch({ expireDate: toDateKey(Array.isArray(dateString) ? dateString[0] : dateString) })
                       }
-                      style={{ width: 220 }}
+                      style={{ width: FIELD_DATE_WIDTH }}
                     />
                   ) : null}
                   <Typography.Text type="tertiary" size="small">{t('editor.expireHint')}</Typography.Text>
