@@ -23,7 +23,16 @@ describe('mock demo account permissions', () => {
 
     setToken('mock-viewer-token');
     await expect(getMe()).resolves.toMatchObject({
-      permissions: ['workbench:view', 'preferences:view'],
+      permissions: [
+        'workbench:view',
+        'preferences:view',
+        'system:user:index',
+        'system:dept:index',
+        'system:post:index',
+        'system:role:index',
+        'system:role:permission:index',
+        'system:menu:index',
+      ],
     });
 
     setToken('mock-guest-token');

@@ -1,0 +1,2 @@
+# 命名与注释规范 v2 豁免清单：一行一个名字，# 后写原因。
+attachment	# HTTP Content-Disposition 响应头的协议关键字（attachment; filename=...），用于触发浏览器下载，不是领域命名，不能改成 file
