@@ -263,12 +263,44 @@ export function DeptsPage() {
     });
   };
 
+  /** 还有人或下级的部门不给删除按钮：只给「去看人」和「知道了」。backendReason 用于后端拦下时原样显示原因。 */
+  const showDeleteBlocked = (dept: Dept, check: DeptDeleteCheck | null, backendReason?: string) => {
+    const userCount = check?.user_count ?? dept.user_count;
+    const childCount = check?.child_count ?? dept.children.length;
+    const content =
+      backendReason ??
+      (userCount > 0 && childCount > 0
+        ? t('depts.danger.deleteBlockedBoth', { users: userCount, children: childCount })
+        : userCount > 0
+          ? t('depts.danger.deleteBlockedUsers', { count: userCount })
+          : childCount > 0
+            ? t('depts.danger.deleteBlockedChildren', { count: childCount })
+            : t('depts.danger.deleteBlockedContent'));
+    Modal.info({
+      title: t('depts.danger.deleteBlockedTitle', { name: dept.name }),
+      content,
+      okText:
+        userCount > 0 ? t('depts.danger.viewUsers', { count: userCount }) : t('depts.danger.gotIt'),
+      cancelText: t('depts.danger.gotIt'),
+      hasCancel: userCount > 0,
+      onOk: () => {
+        if (userCount > 0) {
+          navigate(`/system/user?dept_id=${encodeURIComponent(dept.id)}`);
+        }
+      },
+    });
+  };
+
   const removeDept = async (dept: Dept) => {
-    let check: DeptDeleteCheck;
+    let check: DeptDeleteCheck | null = null;
     try {
       check = await deptDeleteCheck(dept.id);
     } catch (error) {
       toastAdminError(error, t('common:errors.system.message'));
+      return;
+    }
+    if (check.user_count > 0 || check.child_count > 0) {
+      showDeleteBlocked(dept, check);
       return;
     }
     const roleNames = check.affected_roles.map((role) => role.name).join('、');
@@ -281,7 +313,12 @@ export function DeptsPage() {
             <div>
               {t('depts.danger.affectedRoleNames', { names: roleNames })}
               <br />
-              {t('depts.danger.affectedRoles', { count: check.affected_roles.length })}
+              {t(
+                check.affected_roles.length === 1
+                  ? 'depts.danger.affectedRoles'
+                  : 'depts.danger.affectedRolesMany',
+                { count: check.affected_roles.length },
+              )}
             </div>
           ) : null}
         </div>
@@ -296,11 +333,7 @@ export function DeptsPage() {
           invalidateDepts();
         } catch (error) {
           if (isAdminApiError(error) && error.code === 'DEPT_NOT_EMPTY') {
-            Modal.info({
-              title: t('depts.danger.deleteBlockedTitle', { name: dept.name }),
-              content: t('depts.danger.deleteBlockedContent'),
-              okText: t('common.confirm'),
-            });
+            showDeleteBlocked(dept, check, adminErrorMessage(error, t('depts.danger.deleteBlockedContent')));
             return;
           }
           toastAdminError(error, t('common:errors.system.message'));
@@ -313,8 +346,9 @@ export function DeptsPage() {
     {
       title: t('depts.table.name'),
       render: (_: unknown, record: Dept) => (
+        // 必须 inline：块级元素会把树形展开箭头挤到上一行。
         <div
-          className="flex items-center gap-1 rounded-sm px-1"
+          className="inline-flex items-center gap-1 rounded-sm px-1"
           style={
             dropTarget === record.id
               ? { background: 'var(--semi-color-primary-light-default)' }
@@ -426,7 +460,7 @@ export function DeptsPage() {
       width: 200,
       fixed: 'right',
       render: (_: unknown, record: Dept) => {
-        const menuItems = [
+        const menuItems: { key: string; name: string; danger?: boolean; onClick: () => void }[] = [
           canUpdate
             ? {
                 key: 'toggle',
@@ -435,9 +469,14 @@ export function DeptsPage() {
               }
             : null,
           canDelete
-            ? { key: 'delete', name: t('common.delete'), onClick: () => void removeDept(record) }
+            ? {
+                key: 'delete',
+                name: t('common.delete'),
+                danger: true,
+                onClick: () => void removeDept(record),
+              }
             : null,
-        ].filter((i): i is { key: string; name: string; onClick: () => void } => i !== null);
+        ].filter((i): i is NonNullable<typeof i> => i !== null);
         return (
           <Space spacing={4}>
             {canCreate ? (
@@ -465,7 +504,11 @@ export function DeptsPage() {
                 render={
                   <Dropdown.Menu>
                     {menuItems.map((item) => (
-                      <Dropdown.Item key={item.key} onClick={item.onClick}>
+                      <Dropdown.Item
+                        key={item.key}
+                        type={item.danger ? 'danger' : undefined}
+                        onClick={item.onClick}
+                      >
                         {item.name}
                       </Dropdown.Item>
                     ))}
@@ -604,6 +647,7 @@ export function DeptsPage() {
           loading={treeQuery.isFetching && !isFirstLoading}
           pagination={false}
           childrenRecordName="children"
+          indentSize={24}
           expandedRowKeys={expandedKeys}
           onExpand={onExpand}
         />
