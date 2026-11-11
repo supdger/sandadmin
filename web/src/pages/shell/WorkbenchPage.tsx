@@ -1,58 +1,34 @@
-import { Card, Typography } from '@douyinfe/semi-ui';
-import { useTranslation } from 'react-i18next';
-
-import { Empty } from '@/components/Empty';
-import { useMe } from '@/hooks/useMe';
-
-function greetingKey(hour: number): 'morning' | 'afternoon' | 'evening' {
-  if (hour < 12) {
-    return 'morning';
-  }
-  if (hour < 18) {
-    return 'afternoon';
-  }
-  return 'evening';
-}
+import { ActivityFeed } from './workbench/ActivityFeed';
+import { GreetingHeader } from './workbench/GreetingHeader';
+import { NoticeBanner } from './workbench/NoticeBanner';
+import { OnboardingCard } from './workbench/OnboardingCard';
+import { ShortcutBar } from './workbench/ShortcutBar';
+import { SummaryCards } from './workbench/SummaryCards';
+import { TodoPanel } from './workbench/TodoPanel';
+import { TrendCharts } from './workbench/TrendCharts';
 
 /**
- * Workbench landing page: a time-aware greeting plus a few placeholder cards
- * that already carry the empty-state style used by real list pages later.
+ * Workbench landing page — the first screen after login. Every block owns
+ * its query and degrades independently: a failed card never blanks the page,
+ * and permission-filtered sections simply don't render for unauthorized
+ * users (the API omits them).
  */
 export function WorkbenchPage() {
-  const { t } = useTranslation('shell');
-  const me = useMe();
-  const name = me.data?.nickname || t('workbench.greeting.fallbackName');
-  const key = greetingKey(new Date().getHours());
-
-  const cards: Array<{ title: string; empty: string }> = [
-    {
-      title: t('workbench.recentVisits.title'),
-      empty: t('workbench.recentVisits.empty'),
-    },
-    {
-      title: t('workbench.announcements.title'),
-      empty: t('workbench.announcements.empty'),
-    },
-    {
-      title: t('workbench.todos.title'),
-      empty: t('workbench.todos.empty'),
-    },
-  ];
-
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Typography.Title heading={3} style={{ margin: 0 }}>
-          {t(`workbench.greeting.${key}`, { name })}
-        </Typography.Title>
-        <Typography.Text type="secondary">{t('workbench.subtitle')}</Typography.Text>
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {cards.map((card) => (
-          <Card key={card.title} title={card.title} style={{ height: '100%' }}>
-            <Empty description={card.empty} />
-          </Card>
-        ))}
+    <div className="flex flex-col gap-4">
+      <GreetingHeader />
+      <NoticeBanner />
+      <SummaryCards />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="flex flex-col gap-4 xl:col-span-2">
+          <TrendCharts />
+          <ShortcutBar />
+        </div>
+        <div className="flex flex-col gap-4">
+          <TodoPanel />
+          <OnboardingCard />
+          <ActivityFeed />
+        </div>
       </div>
     </div>
   );

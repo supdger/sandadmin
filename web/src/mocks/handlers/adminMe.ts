@@ -35,9 +35,35 @@ function principalToUser(principal: { username: string; nickname: string; permis
   };
 }
 
-function toMyMenuNodes(nodes: typeof mockMenuTree.items): MyMenuNode[] {
+// key → 需要的权限；未列出的节点（group/link）不设权限要求。
+const MENU_PERMISSION: Record<string, string> = {
+  home: 'workbench:view',
+  'system:user': 'system:user:index',
+  'system:dept': 'system:dept:index',
+  'system:post': 'system:post:index',
+  'system:role': 'system:role:index',
+  'system:menu': 'system:menu:index',
+  preferences: 'preferences:view',
+  'system:dict': 'system:dict:index',
+  'system:file': 'system:file:index',
+  'system:announcement': 'system:announcement:index',
+};
+
+function canSee(principal: { permissions: string[] }, key: string): boolean {
+  const required = MENU_PERMISSION[key];
+  if (!required) {
+    return true;
+  }
+  return principal.permissions.includes('*') || principal.permissions.includes(required);
+}
+
+function toMyMenuNodes(
+  nodes: typeof mockMenuTree.items,
+  principal: { permissions: string[] },
+): MyMenuNode[] {
   return nodes
     .filter((n) => n.visible !== false)
+    .filter((n) => canSee(principal, n.key))
     .map((n) => ({
       key: n.key,
       type: n.type,
@@ -45,8 +71,10 @@ function toMyMenuNodes(nodes: typeof mockMenuTree.items): MyMenuNode[] {
       icon: n.icon ?? null,
       path: n.url && n.url.startsWith('/') ? n.url : null,
       url: n.url && !n.url.startsWith('/') ? n.url : null,
-      ...(n.children ? { children: toMyMenuNodes(n.children) } : {}),
-    }));
+      ...(n.children ? { children: toMyMenuNodes(n.children, principal) } : {}),
+    }))
+    // 子项被权限过滤光的 group 不再出现。
+    .filter((n) => n.type !== 'group' || (n.children?.length ?? 0) > 0);
 }
 
 export default [
@@ -59,7 +87,7 @@ export default [
   http.get(`${v1Base}/me/menus`, ({ request }) => {
     const auth = requireUser(request);
     if ('response' in auth) return auth.response;
-    return okV1({ menu_version: mockMenuTree.menu_version, items: toMyMenuNodes(mockMenuTree.items) });
+    return okV1({ menu_version: mockMenuTree.menu_version, items: toMyMenuNodes(mockMenuTree.items, auth.user) });
   }),
 
   http.get(`${v1Base}/org/user-options`, ({ request }) => {

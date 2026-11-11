@@ -13,7 +13,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { isSystemApiError } from '@/lib/apiClient';
-import { CopyProblemInfoButton } from './SystemErrorNotice';
+import { isAdminSystemError } from '@/lib/adminClient';
+import { CopyErrorButton } from './SystemErrorNotice';
+import { AdminCopyButton } from './AdminErrorNotice';
 
 export type ErrorKind = '403' | '404' | '500' | 'error';
 
@@ -66,7 +68,10 @@ export function ErrorState({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const illustration = ILLUSTRATIONS[kind];
-  const systemError = isSystemApiError(error) ? error : null;
+  // 旧 apiClient 与 adminClient 并存期：两套 system 错误都认。
+  const legacyError = isSystemApiError(error) ? error : null;
+  const adminError = isAdminSystemError(error) ? error : null;
+  const systemError = legacyError ?? adminError;
 
   return (
     <div className="flex items-center justify-center py-16">
@@ -79,7 +84,8 @@ export function ErrorState({
         }
       >
         <div className="flex items-center justify-center gap-2">
-          {systemError ? <CopyProblemInfoButton error={systemError} /> : null}
+          {legacyError ? <CopyErrorButton error={legacyError} /> : null}
+          {adminError ? <AdminCopyButton error={adminError} /> : null}
           {onRetry ? (
             <Button theme="solid" onClick={onRetry}>
               {t('actions.retry')}

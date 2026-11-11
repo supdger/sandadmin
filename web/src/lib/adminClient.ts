@@ -365,6 +365,92 @@ export function adminDelete<T>(
   return request('DELETE', path, body, options);
 }
 
+/** multipart 上传（如 /files）；FormData 不带手写 Content-Type，浏览器自带 boundary。 */
+export async function adminUpload<T>(
+  path: string,
+  form: FormData,
+  options?: AdminRequestOptions<T>,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Idempotency-Key': options?.idempotencyKey ?? crypto.randomUUID(),
+  };
+  const token = getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const url = buildUrl(path, options?.query);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: form,
+      signal: options?.signal,
+    });
+  } catch {
+    throw systemError({ code: 'NETWORK_ERROR', method: 'POST', url, httpStatus: 0 });
+  }
+
+  trackAuthzVersion(res);
+  const headerRequestId = res.headers.get('x-request-id') ?? undefined;
+  const status = res.status;
+
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!res.ok) {
+    const errPayload = (payload ?? {}) as ErrorEnvelope;
+    const requestId = errPayload.request_id ?? headerRequestId;
+    if (status >= 500 || typeof errPayload.code !== 'string') {
+      throw systemError({
+        code: typeof errPayload.code === 'string' ? errPayload.code : undefined,
+        requestId,
+        method: 'POST',
+        url,
+        httpStatus: status,
+      });
+    }
+    throw new AdminApiError({
+      code: errPayload.code,
+      message: errPayload.message || i18n.t('errors.system.message'),
+      fields: errPayload.fields,
+      httpStatus: status,
+      requestId,
+      method: 'POST',
+      url,
+      system: false,
+    });
+  }
+
+  if (
+    typeof payload !== 'object' ||
+    payload === null ||
+    Array.isArray(payload) ||
+    !('data' in payload)
+  ) {
+    throw systemError({ requestId: headerRequestId, method: 'POST', url, httpStatus: status });
+  }
+  const envelope = payload as SuccessEnvelope;
+  const data = envelope.data as T;
+  try {
+    return options?.schema ? options.schema.parse(data) : data;
+  } catch {
+    throw systemError({
+      requestId: envelope.request_id ?? headerRequestId,
+      method: 'POST',
+      url,
+      httpStatus: status,
+    });
+  }
+}
+
 /** 二进制下载（如 /tasks/{id}/download）；失败抛 AdminApiError。 */
 export function adminDownload(path: string, options?: AdminRequestOptions<Blob>): Promise<DownloadedFile> {
   return requestDownload(path, options);

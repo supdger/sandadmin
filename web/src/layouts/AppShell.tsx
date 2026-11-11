@@ -1,132 +1,49 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 
+import { IconLayers, IconMoon, IconSun } from '@douyinfe/semi-icons';
 import {
-  IconApps,
-  IconBarChartHStroked,
-  IconBell,
-  IconBook,
-  IconBriefcase,
-  IconCalendar,
-  IconChevronDown,
-  IconClock,
-  IconExit,
-  IconEyeOpened,
-  IconFile,
-  IconFilter,
-  IconFolder,
-  IconHome,
-  IconIdCard,
-  IconLayers,
-  IconLink,
-  IconList,
-  IconMail,
-  IconMapPin,
-  IconMenu,
-  IconMoon,
-  IconPhone,
-  IconPriceTag,
-  IconSafe,
-  IconSetting,
-  IconStar,
-  IconSun,
-  IconUser,
-  IconUserGroup,
-} from '@douyinfe/semi-icons';
-import {
-  Avatar,
   Breadcrumb,
   Button,
-  Dropdown,
   IconButton,
   Layout,
   Nav,
   Spin,
-  Toast,
   Typography,
 } from '@douyinfe/semi-ui';
-import type { NavItems, OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
+import type { OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
-import { logout } from '@/api/auth';
-import { getMyMenus, type MenuItem } from '@/api/menus';
+import { getMyMenus } from '@/api/v1/me';
 import { env } from '@/config/env';
-import { SystemErrorNotice } from '@/components/SystemErrorNotice';
-import { useMe } from '@/hooks/useMe';
-import { apiErrorMessage } from '@/lib/apiClient';
-import { buildMenuTree, findMenuChain } from './menuTree';
+import { AdminErrorNotice } from '@/components/AdminErrorNotice';
+import { useVisitReport } from '@/hooks/useVisitReport';
+import { AnnouncementPopup } from './AnnouncementPopup';
+import { findMenuChain, toNavItems } from './menuTree';
+import { NotificationBell } from './NotificationBell';
 import { useThemeMode } from './themeMode';
+import { UserMenu } from './UserMenu';
 
 const MENUS_QUERY_KEY = ['me', 'menus'] as const;
 
 const SIDER_WIDTH = 240;
 const SIDER_COLLAPSED_WIDTH = 60;
 
-// Menu icons travel as names in the API payload; map them to icon components
-// here so new menus only need a name, not a component reference.
-const MENU_ICONS: Record<string, ReactNode> = {
-  home: <IconHome />,
-  setting: <IconSetting />,
-  // 组织与用户域菜单用到的图标名（与 /me/menus、MSW 菜单数据保持一致）。
-  users: <IconUserGroup />,
-  user: <IconUser />,
-  building: <IconBriefcase />,
-  idcard: <IconIdCard />,
-  safe: <IconSafe />,
-  menu: <IconMenu />,
-  chart: <IconBarChartHStroked />,
-  // 菜单管理可自定义图标；键名与 rbac 菜单编辑器的图标集保持一致。
-  file: <IconFile />,
-  link: <IconLink />,
-  star: <IconStar />,
-  calendar: <IconCalendar />,
-  clock: <IconClock />,
-  mail: <IconMail />,
-  phone: <IconPhone />,
-  map: <IconMapPin />,
-  tag: <IconPriceTag />,
-  folder: <IconFolder />,
-  list: <IconList />,
-  filter: <IconFilter />,
-  eye: <IconEyeOpened />,
-  bell: <IconBell />,
-  book: <IconBook />,
-};
-
-function menuIcon(item: MenuItem, depth: number): ReactNode {
-  const icon = item.icon ? MENU_ICONS[item.icon] : undefined;
-  // Collapsed top-level entries only show an icon, so always render one there.
-  return icon ?? (depth === 0 ? <IconApps /> : undefined);
-}
-
-function toNavItems(menus: MenuItem[], depth: number): NavItems {
-  return menus.map((item) => {
-    const icon = menuIcon(item, depth);
-    if (item.children && item.children.length > 0) {
-      // Groups are containers: keyed by id (not a navigable path).
-      return {
-        itemKey: item.id,
-        text: item.title,
-        icon,
-        items: toNavItems(item.children, depth + 1),
-      };
-    }
-    return { itemKey: item.path, text: item.title, icon };
-  });
-}
-
 interface RouteHandle {
   public?: boolean;
   title?: string;
 }
 
+/**
+ * Shell：侧边导航、面包屑、通知铃、主题切换、头像菜单的挂载与布局。
+ * 业务逻辑（通知面板、公告弹层、改密弹窗、退出登录）都在各自组件里。
+ */
 export function AppShell() {
   const { t } = useTranslation('shell');
   const navigate = useNavigate();
   const location = useLocation();
   const matches = useMatches();
-  const me = useMe();
   const { isDark, setMode } = useThemeMode();
 
   const [collapsed, setCollapsed] = useState(false);
@@ -138,8 +55,12 @@ export function AppShell() {
     staleTime: 60_000,
   });
 
-  const menuTree = useMemo(() => buildMenuTree(menus.data ?? []), [menus.data]);
-  const navItems = useMemo(() => toNavItems(menuTree, 0), [menuTree]);
+  // Page-visit reporting feeds the workbench's 最近访问 stats; throttled
+  // inside the hook and fully silent on failure.
+  useVisitReport(menus.data?.items);
+
+  const menuTree = useMemo(() => menus.data?.items ?? [], [menus.data]);
+  const navItems = useMemo(() => toNavItems(menuTree), [menuTree]);
   const chain = useMemo(
     () => findMenuChain(menuTree, location.pathname),
     [menuTree, location.pathname],
@@ -151,7 +72,7 @@ export function AppShell() {
   const openKeys = useMemo(
     () =>
       Array.from(
-        new Set([...manualOpenKeys, ...chain.slice(0, -1).map((item) => item.id)]),
+        new Set([...manualOpenKeys, ...chain.slice(0, -1).map((item) => item.key)]),
       ),
     [manualOpenKeys, chain],
   );
@@ -160,6 +81,8 @@ export function AppShell() {
     const key = String(data.itemKey);
     if (key.startsWith('/')) {
       navigate(key);
+    } else if (key.startsWith('http')) {
+      window.open(key, '_blank', 'noopener');
     }
   };
 
@@ -167,18 +90,6 @@ export function AppShell() {
     // Theme is a per-device display setting kept in localStorage — switching
     // it never hits the API, so read-only accounts can use it too.
     setMode(isDark ? 'light' : 'dark');
-  };
-
-  const onLogout = async () => {
-    try {
-      await logout();
-    } catch (e) {
-      // The token is cleared locally either way; still surface the backend's
-      // reason instead of failing silently.
-      Toast.error(apiErrorMessage(e, t('common:errors.system.message')));
-    } finally {
-      navigate('/login', { replace: true });
-    }
   };
 
   // Breadcrumb follows the menu chain; fall back to the route handle title
@@ -230,7 +141,7 @@ export function AppShell() {
                 {t('common:actions.retry')}
               </Button>
             ) : (
-              <SystemErrorNotice
+              <AdminErrorNotice
                 error={menus.error}
                 onRetry={() => void menus.refetch()}
                 fallback={
@@ -281,47 +192,14 @@ export function AppShell() {
             />
           ) : null}
           <div className="ml-auto flex items-center gap-1">
+            <NotificationBell />
             <IconButton
               theme="borderless"
               icon={isDark ? <IconSun /> : <IconMoon />}
               aria-label={isDark ? t('header.themeToLight') : t('header.themeToDark')}
               onClick={onToggleTheme}
             />
-            {me.isPending ? (
-              <Spin size="small" />
-            ) : me.data ? (
-              <Dropdown
-                trigger="click"
-                position="bottomRight"
-                render={
-                  <Dropdown.Menu>
-                    <Dropdown.Item
-                      icon={<IconSetting />}
-                      onClick={() => navigate('/preferences')}
-                    >
-                      {t('header.preferences')}
-                    </Dropdown.Item>
-                    <Dropdown.Divider />
-                    <Dropdown.Item type="danger" icon={<IconExit />} onClick={() => void onLogout()}>
-                      {t('header.logout')}
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                }
-              >
-                <div
-                  className="flex items-center gap-2 px-2 py-1"
-                  style={{ cursor: 'pointer' }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <Avatar size="small" src={me.data.avatar} alt={me.data.nickname}>
-                    {me.data.nickname?.slice(0, 1)}
-                  </Avatar>
-                  <Typography.Text>{me.data.nickname}</Typography.Text>
-                  <IconChevronDown size="small" />
-                </div>
-              </Dropdown>
-            ) : null}
+            <UserMenu />
           </div>
         </Layout.Header>
 
@@ -334,6 +212,8 @@ export function AppShell() {
             {env.copyright}
           </Typography.Text>
         </Layout.Footer>
+
+        <AnnouncementPopup />
       </Layout>
     </Layout>
   );

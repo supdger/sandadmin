@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import '@/i18n/i18n';
 import { ApiError } from '@/lib/apiClient';
 import { ErrorState } from './ErrorState';
-import { CopyProblemInfoButton, SystemErrorNotice } from './SystemErrorNotice';
+import { CopyErrorButton, SystemErrorNotice } from './SystemErrorNotice';
 
 const systemError = new ApiError({
   code: -1,
@@ -41,10 +41,10 @@ describe('SystemErrorNotice', () => {
   });
 });
 
-describe('CopyProblemInfoButton', () => {
+describe('CopyErrorButton', () => {
   it('copies a multi-line report and confirms with a toast', async () => {
     const user = userEvent.setup();
-    render(<CopyProblemInfoButton error={systemError} />);
+    render(<CopyErrorButton error={systemError} />);
 
     await user.click(screen.getByRole('button', { name: '复制问题信息' }));
 

@@ -8,7 +8,7 @@ export interface Task {
   state: TaskState;
   progress: number | null;
   stage: string | null;
-  result: { file_id?: string } | null;
+  result: ({ file_id?: string } & Record<string, unknown>) | null;
   error: { code: string; message: string } | null;
   create_time: string;
   start_time: string | null;

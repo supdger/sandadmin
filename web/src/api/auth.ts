@@ -1,3 +1,7 @@
+// 遗留（FE0 登录流）：仍走旧 apiClient + 旧信封。v1 契约的登录是 Cookie
+// 会话制且返回结构不同（{user, must_change_password, first_setup} 无 token），
+// 登录页改造属 FE0 范围；本文件不得再扩大对旧 client 的依赖。
+// /me 已由 api/v1/me.ts 接管（adminClient + v1 信封）。
 import { apiGet, apiPost } from '@/lib/apiClient';
 import { clearToken, setToken } from '@/lib/authToken';
 
@@ -11,15 +15,6 @@ export interface LoginParams {
 export interface LoginResult {
   token: string;
   mustChangePassword: boolean;
-}
-
-export interface CurrentUser {
-  id: string;
-  username: string;
-  nickname: string;
-  avatar?: string;
-  mustChangePassword: boolean;
-  permissions: string[];
 }
 
 export interface PasswordPolicy {
@@ -59,8 +54,4 @@ export function getPasswordPolicy(): Promise<PasswordPolicy> {
 
 export function forceChangePassword(oldPassword: string, newPassword: string): Promise<void> {
   return apiPost('/auth/password/force-change', { oldPassword, newPassword });
-}
-
-export function getMe(): Promise<CurrentUser> {
-  return apiGet<CurrentUser>('/me');
 }
