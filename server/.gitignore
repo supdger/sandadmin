@@ -9,4 +9,5 @@
 /tests/tmp
 /tests/.phpunit.result.cache
 /.phpunit.cache
+/.phpunit.cache/
 /.phpunit.result.cache
