@@ -37,7 +37,10 @@
         "php": ">=8.2",
         "supdger/sand-core": "^0.2.8",
         "supdger/sand-package": "^0.2.22",
-        "workerman/webman-framework": "^2.1",
+        "symfony/http-foundation": "^7.4.23",
+        "symfony/http-kernel": "^7.4.23",
+        "workerman/webman-framework": "~2.2.5",
+        "workerman/workerman": "~5.2.3",
         "monolog/monolog": "^2.0",
         "nelexa/zip": "^4.0",
         "godruoyi/php-snowflake": "^3.0.0",
@@ -110,7 +113,7 @@
         ],
         "sand:publish": "php support/sand-publish.php"
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "config": {
         "platform": {
