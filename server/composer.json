@@ -36,7 +36,7 @@
     "require": {
         "php": ">=8.2",
         "supdger/sand-core": "^0.2.8",
-        "supdger/sand-package": "^0.2.21",
+        "supdger/sand-package": "^0.2.22",
         "symfony/http-foundation": "^7.4.23",
         "symfony/http-kernel": "^7.4.23",
         "workerman/webman-framework": "~2.2.5",
