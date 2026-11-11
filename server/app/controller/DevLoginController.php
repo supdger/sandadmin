@@ -11,6 +11,7 @@ use plugin\sandadmin\app\model\system\SystemUser;
 use plugin\sandadmin\basic\OpenController;
 use plugin\sandadmin\utils\ForcedPasswordChange;
 use plugin\sandadmin\utils\JwtSecretGuard;
+use support\exception\PageNotFoundException;
 use support\Request;
 use support\Response;
 use Tinywan\Jwt\JwtToken;
@@ -18,8 +19,9 @@ use Webman\Event\Event;
 
 /**
  * 开发模式本机一键登录：SAND_DEV_LOGIN=1 且真实对端 IP 为回环地址时，
- * 免口令给开发账号签发与正常登录同构的令牌。任一条件不满足一律 404，
- * 不暴露入口存在性；生产环境不得开启 SAND_DEV_LOGIN。
+ * 免口令给开发账号签发与正常登录同构的令牌。任一条件不满足抛
+ * PageNotFoundException，与路由不存在响应逐字节一致，消除可探测指纹；
+ * 生产环境不得开启 SAND_DEV_LOGIN。
  * 对端 IP 只取 getRemoteIp()（Workerman 真实连接地址），不信代理头。
  */
 final class DevLoginController extends OpenController
@@ -35,8 +37,9 @@ final class DevLoginController extends OpenController
 
     public function login(Request $request): Response
     {
+        // 抛与路由不存在相同的异常，响应逐字节一致以消除可探测指纹
         if (env('SAND_DEV_LOGIN') !== '1' || !$this->isLoopback($request->getRemoteIp())) {
-            return new Response(404);
+            throw new PageNotFoundException();
         }
 
         // 与 SystemUserLogic::login 校验密码通过后的发牌流程保持一致
