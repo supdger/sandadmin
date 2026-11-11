@@ -16,6 +16,7 @@ use Sandadmin\Domain\Plugin\ExtensionKind;
 use Sandadmin\Domain\Plugin\ExtensionOverride;
 use Sandadmin\Domain\Plugin\ExtensionResolver;
 use Sandadmin\Domain\Plugin\ExtensionRules;
+use Sandadmin\Domain\Plugin\FileUsageAuthorizer;
 use Sandadmin\Domain\Plugin\FileUsageRegistration;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Domain\Plugin\NotificationSource;
@@ -56,6 +57,35 @@ final readonly class ExtensionRegistry
     public function registerUserTransfer(string $pluginCode, UserTransfer $transfer): void
     {
         $this->callbacks->addUserTransfer($pluginCode, $transfer);
+    }
+
+    /** 按 sand_system_file_usage.subject_type 注册「文件引用鉴权」回调。 */
+    public function registerFileUsageAuthorizer(string $subjectType, FileUsageAuthorizer $authorizer): void
+    {
+        $this->callbacks->addFileUsageAuthorizer($subjectType, $authorizer);
+    }
+
+    /**
+     * 按引用方规则判定文件访问。$usages 为 sand_system_file_usage 的
+     * (subject_type, subject_id) 引用对；每条引用必须由其 subject_type
+     * 注册的鉴权回调放行，某 subject_type 无注册回调视为拒绝。
+     * 空引用返回 true（是否引用由文件模块另行判定）。
+     *
+     * @param list<array{subject_type: string, subject_id: string}> $usages
+     */
+    public function authorizeFileUsage(int $userId, int $fileId, array $usages): bool
+    {
+        foreach ($usages as $usage) {
+            $authorizer = $this->callbacks->fileUsageAuthorizer($usage['subject_type']);
+            if ($authorizer === null) {
+                return false;
+            }
+            if (!$authorizer->authorize($userId, $fileId, $usage['subject_type'], $usage['subject_id'])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

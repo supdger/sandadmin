@@ -19,6 +19,7 @@ final class ExtensionRules
     public const MAX_PLACEHOLDER = 120;
     public const MAX_CHANNEL = 64;
     public const MAX_OWNER_TYPE = 64;
+    public const MAX_SUBJECT_TYPE = 64;
     public const MAX_COMPONENT = 128;
     public const MAX_OPTION_VALUE = 64;
     public const MAX_OPTION_LABEL = 100;
@@ -101,6 +102,14 @@ final class ExtensionRules
         self::slug($ownerType, self::MAX_OWNER_TYPE, '/^[a-z][a-z0-9._-]*$/', 'owner_type');
 
         return $ownerType;
+    }
+
+    /** sand_system_file_usage.subject_type 的取值边界，与列宽一致。 */
+    public static function subjectType(string $subjectType): string
+    {
+        self::slug($subjectType, self::MAX_SUBJECT_TYPE, '/^[a-z][a-z0-9._-]*$/', 'subject_type');
+
+        return $subjectType;
     }
 
     public static function component(string $component): string

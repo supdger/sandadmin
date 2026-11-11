@@ -19,6 +19,7 @@ use Sandadmin\Domain\Plugin\ExtensionManifest;
 use Sandadmin\Domain\Plugin\ExtensionOverride;
 use Sandadmin\Domain\Plugin\ExtensionResolver;
 use Sandadmin\Domain\Plugin\ExtensionRules;
+use Sandadmin\Domain\Plugin\FileUsageAuthorizer;
 use Sandadmin\Domain\Plugin\FileUsageRegistration;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Domain\Plugin\NotificationSource;
@@ -85,7 +86,7 @@ final class RegistrySourceConstraintsTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        self::assertCount(28, $files);
+        self::assertCount(29, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
@@ -173,5 +174,6 @@ final class RegistrySourceConstraintsTest extends TestCase
     {
         self::assertTrue((new \ReflectionClass(UserDisableCheck::class))->isInterface());
         self::assertTrue((new \ReflectionClass(UserTransfer::class))->isInterface());
+        self::assertTrue((new \ReflectionClass(FileUsageAuthorizer::class))->isInterface());
     }
 }

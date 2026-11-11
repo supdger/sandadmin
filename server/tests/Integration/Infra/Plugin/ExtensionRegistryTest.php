@@ -18,6 +18,7 @@ use Sandadmin\Domain\Plugin\ExtensionDraft;
 use Sandadmin\Domain\Plugin\ExtensionKind;
 use Sandadmin\Domain\Plugin\ExtensionManifest;
 use Sandadmin\Domain\Plugin\ExtensionOverride;
+use Sandadmin\Domain\Plugin\FileUsageAuthorizer;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Domain\Plugin\PluginExtensions;
 use Sandadmin\Domain\Plugin\ScheduleFreq;
@@ -372,6 +373,47 @@ final class ExtensionRegistryTest extends TestCase
         $this->registry->registerDisableCheck('acme', $check);
         $this->expectException(InvalidExtensionException::class);
         $this->registry->registerDisableCheck('acme', $check);
+    }
+
+    public function testFileUsageAuthorizationAggregatesBySubjectType(): void
+    {
+        $this->registry->registerFileUsageAuthorizer('article.cover', new class implements FileUsageAuthorizer {
+            public function authorize(int $userId, int $fileId, string $subjectType, string $subjectId): bool
+            {
+                return $subjectId === '42';
+            }
+        });
+        $this->registry->registerFileUsageAuthorizer('user_avatar', new class implements FileUsageAuthorizer {
+            public function authorize(int $userId, int $fileId, string $subjectType, string $subjectId): bool
+            {
+                return true;
+            }
+        });
+
+        self::assertTrue($this->registry->authorizeFileUsage(7, 100, []));
+        self::assertTrue($this->registry->authorizeFileUsage(7, 100, [
+            ['subject_type' => 'article.cover', 'subject_id' => '42'],
+            ['subject_type' => 'user_avatar', 'subject_id' => '7'],
+        ]));
+        self::assertFalse($this->registry->authorizeFileUsage(7, 100, [
+            ['subject_type' => 'article.cover', 'subject_id' => '41'],
+        ]));
+        self::assertFalse($this->registry->authorizeFileUsage(7, 100, [
+            ['subject_type' => 'unknown.thing', 'subject_id' => '1'],
+        ]));
+    }
+
+    public function testDuplicateFileUsageAuthorizerIsRejected(): void
+    {
+        $authorizer = new class implements FileUsageAuthorizer {
+            public function authorize(int $userId, int $fileId, string $subjectType, string $subjectId): bool
+            {
+                return true;
+            }
+        };
+        $this->registry->registerFileUsageAuthorizer('article.cover', $authorizer);
+        $this->expectException(InvalidExtensionException::class);
+        $this->registry->registerFileUsageAuthorizer('article.cover', $authorizer);
     }
 
     public function testScheduleDefinitionRoundTripsThroughManifest(): void
