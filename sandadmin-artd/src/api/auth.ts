@@ -29,6 +29,17 @@ export function fetchLogin(params: Api.Auth.LoginParams) {
 }
 
 /**
+ * 开发模式本机一键登录（不带任何口令）
+ * 仅在服务端 SAND_DEV_LOGIN=1 且对端为回环地址时可用，其余情况 404
+ * @returns 与正常登录一致的登录响应
+ */
+export function fetchDevLogin() {
+  return request.post<Api.Auth.LoginResponse>({
+    url: '/core/dev-login'
+  })
+}
+
+/**
  * 获取用户信息
  * @returns 用户信息
  */

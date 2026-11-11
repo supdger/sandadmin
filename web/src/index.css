@@ -14,3 +14,12 @@ body,
 #root {
   height: 100%;
 }
+
+/*
+ * 侧栏背景铺满整屏高度：sider-children 是 Semi 生成的中间层，默认 block 时
+ * Nav 的 flex:1 不生效、白底只到菜单项下沿；给它 flex 后 Nav 才能撑满侧栏。
+ */
+.semi-layout-sider > .semi-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}

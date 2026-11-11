@@ -1,0 +1,101 @@
+export default {
+  title: '选项管理',
+  subtitle: '管理各个下拉框里能选的内容，改完立即生效',
+
+  group: {
+    searchPlaceholder: '搜索选项组',
+    add: '添加选项组',
+    itemCount: '{{count}} 个选项',
+    systemTag: '系统自带',
+    emptyTitle: '还没有选项组',
+    emptyDesc: '添加后，就能在业务页面的下拉框里使用',
+    noResult: '没有找到这个选项组',
+    clearSearch: '清空搜索',
+  },
+
+  detail: {
+    noSelection: '在左边选一个选项组',
+    remark: '说明',
+    addItem: '添加选项',
+    editType: '编辑选项组',
+    more: '更多',
+    deleteType: '删除选项组',
+    itemEmpty: '这个组还没有选项',
+  },
+
+  table: {
+    dragHandle: '拖动调整顺序',
+    name: '选项名称',
+    color: '颜色',
+    isDefault: '默认选中',
+    status: '状态',
+    actions: '操作',
+    yes: '是',
+    colorDefault: '默认',
+    enabled: '已启用',
+    disabled: '已停用',
+    edit: '编辑',
+    more: '更多',
+    disable: '停用',
+    enable: '启用',
+    delete: '删除',
+  },
+
+  itemModal: {
+    addTitle: '添加选项',
+    editTitle: '编辑选项',
+    label: '选项名称',
+    labelPlaceholder: '例如：展会',
+    labelRequired: '请填写选项名称',
+    color: '颜色',
+    colorDefault: '默认',
+    isDefault: '默认选中',
+    isDefaultHint: '打开后，同组其他选项的默认会自动取消',
+    available: '可用',
+    save: '保存',
+    saved: '已保存',
+    saveFailed: '保存失败了，请稍后再试',
+  },
+
+  typeModal: {
+    addTitle: '添加选项组',
+    editTitle: '编辑选项组',
+    name: '组名称',
+    namePlaceholder: '例如：客户来源',
+    nameRequired: '请填写组名称',
+    remark: '说明',
+    remarkPlaceholder: '这个组用在什么地方',
+    save: '保存',
+    saved: '已保存',
+    saveFailed: '保存失败了，请稍后再试',
+  },
+
+  confirm: {
+    disableTitle: '停用“{{label}}”？',
+    disableContent: '停用后新填的数据选不到它，已经选了它的数据照常显示。',
+    enableTitle: '启用“{{label}}”？',
+    enableContent: '启用后，新填的数据又能选到它了。',
+    think: '再想想',
+    disableOk: '停用',
+    enableOk: '启用',
+
+    deleteUsedTitle: '“{{label}}”可能已经有数据在用',
+    deleteUsedContent:
+      '删除后，已经选了它的数据可能显示不出名称，不能撤销。建议改为停用。',
+    disableInstead: '改为停用',
+    deleteAnyway: '仍然删除',
+
+    deleteItemTitle: '删除“{{label}}”？',
+    deleteItemContent: '删除后不能撤销。',
+    deleteOk: '删除',
+
+    deleteTypeTitle: '删除选项组“{{name}}”？',
+    deleteTypeContent: '组里的 {{count}} 个选项会一起删除，不能撤销。系统自带的组不能删除。',
+
+    added: '已添加{{name}}',
+    deleted: '已删除{{name}}',
+    disabled: '已停用{{name}}',
+    enabled: '已启用{{name}}',
+    sorted: '已调整顺序',
+  },
+} as const;

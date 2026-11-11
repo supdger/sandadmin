@@ -210,6 +210,29 @@
   color: var(--login-link);
 }
 
+.dev-login-banner {
+  margin-bottom: 24px;
+}
+
+.dev-login-error {
+  margin-bottom: 16px;
+}
+
+.dev-switch-account {
+  display: block;
+  padding: 0;
+  margin: 12px auto 0;
+  font-size: 14px;
+  color: var(--login-link);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.dev-switch-account:hover {
+  text-decoration: underline;
+}
+
 .login-submit-wrap {
   margin-top: 32px;
 }

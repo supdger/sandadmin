@@ -47,6 +47,7 @@ return [
                 base_path() . '/process',
                 base_path() . '/support',
                 base_path() . '/resource',
+                base_path() . '/src',
                 base_path() . '/.env',
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
@@ -58,5 +59,12 @@ return [
                 'enable_memory_monitor' => DIRECTORY_SEPARATOR === '/',
             ]
         ]
-    ]
+    ],
+    // Custom process: 认领 sand_system_task_run 中可执行的任务并回写进度；
+    // 轮询、租约、并发等参数统一在 config/task.php。
+    'task_worker' => [
+        'handler' => Sandadmin\Task\TaskWorker::class,
+        'count' => max(1, (int) env('SANDADMIN_TASK_WORKERS', 1)),
+        'constructor' => [],
+    ],
 ];

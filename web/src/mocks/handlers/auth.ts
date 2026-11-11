@@ -1,4 +1,4 @@
-import { http, type HttpHandler } from 'msw';
+import { http, HttpResponse, type HttpHandler } from 'msw';
 
 import { env } from '@/config/env';
 import { fail, ok } from './_shared';
@@ -14,7 +14,7 @@ const CAPTCHA_WIDTH = 300;
 const CAPTCHA_HEIGHT = 160;
 const CAPTCHA_CHAR_COUNT = 3;
 
-interface MockUser {
+export interface MockUser {
   username: string;
   nickname: string;
   mustChangePassword: boolean;
@@ -26,6 +26,17 @@ interface MockUser {
    * may not be configured.
    */
   password?: string;
+  // OpenAPI User fields surfaced by /me for the personal domain.
+  phone?: string;
+  email?: string | null;
+  dept_id?: string | null;
+  dept_name?: string | null;
+  post_id?: string | null;
+  post_name?: string | null;
+  role_ids?: string[];
+  role_names?: string[];
+  is_admin?: boolean;
+  is_super?: boolean;
 }
 
 interface CaptchaEntry {
@@ -44,6 +55,16 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: false,
     permissions: ['*'],
     password: MOCK_PASSWORD,
+    phone: '13800000001',
+    email: 'admin@example.com',
+    // 与 _v1data.mockUsers 的 u-admin 一致：沙盒网络、无岗位、超级管理员。
+    dept_id: 'dept-root',
+    dept_name: '沙盒网络',
+    post_name: null,
+    role_ids: ['role-super'],
+    role_names: ['超级管理员'],
+    is_admin: true,
+    is_super: true,
   },
   newbie: {
     username: 'newbie',
@@ -51,14 +72,49 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: true,
     permissions: ['*'],
     password: MOCK_PASSWORD,
+    phone: '13800000002',
+    email: 'newbie@example.com',
+    // 与 _v1data.mockUsers 的 u-newbie 一致：前端组、前端工程师、技术负责人。
+    dept_id: 'dept-frontend',
+    dept_name: '前端组',
+    post_id: 'post-2',
+    post_name: '前端工程师',
+    role_ids: ['role-tech-lead'],
+    role_names: ['技术负责人'],
+    is_admin: true,
+    is_super: false,
   },
   // Read-only demo: menus and pages are visible, every write is denied.
+  // The `system:*:index` codes let the v1 `/api/admin/v1` mocks serve list
+  // pages while every mutating endpoint still returns PERMISSION_DENIED.
   viewer: {
     username: 'viewer',
     nickname: '只读用户',
     mustChangePassword: false,
-    permissions: ['workbench:view', 'preferences:view'],
+    permissions: [
+      'workbench:view',
+      'preferences:view',
+      'system:user:index',
+      'system:dept:index',
+      'system:post:index',
+      'system:role:index',
+      'system:role:permission:index',
+      'system:menu:index',
+      'system:dict:index',
+      'system:file:index',
+      'system:announcement:index',
+    ],
     password: env.mockViewerPassword ?? undefined,
+    phone: '13800000003',
+    email: 'viewer@example.com',
+    dept_id: 'dept-ops',
+    dept_name: '运营部',
+    post_id: 'post-4',
+    post_name: '运营专员',
+    role_ids: [],
+    role_names: [],
+    is_admin: false,
+    is_super: false,
   },
   // No-permission demo: /me/menus is empty and every protected route 403s.
   guest: {
@@ -67,8 +123,22 @@ const USERS: Record<string, MockUser> = {
     mustChangePassword: false,
     permissions: [],
     password: env.mockGuestPassword ?? undefined,
+    phone: '13800000004',
+    email: null,
+    dept_id: 'dept-product',
+    dept_name: '产品部',
+    post_name: null,
+    role_ids: [],
+    role_names: [],
+    is_admin: false,
+    is_super: false,
   },
 };
+
+// Browser dev defaults to available so the one-click entry can be tried
+// locally; tests flip it through __authMock. Production never runs MSW.
+let devLoginAvailable = true;
+const DEV_LOGIN_USERNAME = 'admin';
 
 const failures = new Map<string, number>();
 const lockedUntil = new Map<string, number>();
@@ -104,11 +174,11 @@ function mulberry32(seed: number): () => number {
 }
 
 function hashId(id: string): number {
-  let h = 0;
+  let hash = 0;
   for (let i = 0; i < id.length; i += 1) {
-    h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
+    hash = (Math.imul(hash, 31) + id.charCodeAt(i)) >>> 0;
   }
-  return h;
+  return hash;
 }
 
 function createCaptcha(): { captchaId: string; imageDataUrl: string } {
@@ -136,8 +206,8 @@ function createCaptcha(): { captchaId: string; imageDataUrl: string } {
   const noise = Array.from({ length: 14 }, () => {
     const cx = Math.round(rand() * CAPTCHA_WIDTH);
     const cy = Math.round(rand() * CAPTCHA_HEIGHT);
-    const r = Math.round(2 + rand() * 4);
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgb(200,205,215)"/>`;
+    const radius = Math.round(2 + rand() * 4);
+    return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="rgb(200,205,215)"/>`;
   }).join('');
 
   const glyphs = chars
@@ -220,6 +290,23 @@ export default [
     return fail(4002, '用户名或密码不正确');
   }),
 
+  http.get(`${base}/auth/dev-login/available`, () =>
+    devLoginAvailable
+      ? ok({ available: true, username: DEV_LOGIN_USERNAME }, 'ok')
+      : ok({ available: false }, 'ok'),
+  ),
+
+  http.post(`${base}/auth/dev-login`, () => {
+    // Contract: an unavailable endpoint answers a bare 404, not an envelope.
+    if (!devLoginAvailable) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    const user = USERS[DEV_LOGIN_USERNAME];
+    const token = `mock-${user.username}-token`;
+    tokenToUser.set(token, user);
+    return ok({ token, mustChangePassword: user.mustChangePassword }, '登录成功');
+  }),
+
   http.post(`${base}/auth/logout`, () => ok(null)),
 
   http.get(`${base}/auth/captcha`, () => ok(createCaptcha())),
@@ -286,6 +373,16 @@ export default [
       nickname: user.nickname,
       mustChangePassword: user.mustChangePassword,
       permissions: [...user.permissions],
+      phone: user.phone,
+      email: user.email ?? null,
+      dept_id: user.dept_id ?? null,
+      dept_name: user.dept_name ?? null,
+      post_id: user.post_id ?? null,
+      post_name: user.post_name ?? null,
+      role_ids: user.role_ids ?? [],
+      role_names: user.role_names ?? [],
+      is_admin: user.is_admin ?? false,
+      is_super: user.is_super ?? false,
     });
   }),
 ] satisfies HttpHandler[];
@@ -302,6 +399,10 @@ export const __authMock = {
     lockedUntil.clear();
     captchas.clear();
     captchaSeq = 0;
+    devLoginAvailable = true;
+  },
+  setDevLoginAvailable(available: boolean): void {
+    devLoginAvailable = available;
   },
   captchaCenters(captchaId: string): number[] | null {
     return captchas.get(captchaId)?.centers ?? null;

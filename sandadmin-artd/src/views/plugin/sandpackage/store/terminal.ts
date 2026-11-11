@@ -8,7 +8,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/store/modules/user'
 
 /** 任务状态枚举 */
 export enum TaskStatus {
@@ -46,13 +45,6 @@ export interface TerminalTask {
   extend: string
 }
 
-// 扩展 window 类型
-declare global {
-  interface Window {
-    terminalAbortController?: AbortController
-  }
-}
-
 /**
  * 生成UUID
  */
@@ -81,14 +73,12 @@ const formatDateTime = (): string => {
 }
 
 /**
- * 构建终端 SSE URL。令牌只通过请求头发送，不写入 URL。
+ * 安全 P0-F5：HTTP 在线终端已停用。
+ * 浏览器不再请求 /app/sandpackage/index/terminal，也不触发服务器执行 composer/npm/pnpm；
+ * 依赖安装改由运维在服务器命令行完成。
  */
-const buildTerminalUrl = (commandKey: string, extend: string): string => {
-  const env = import.meta.env
-  const baseURL = env.VITE_API_URL || ''
-  const terminalUrl = '/app/sandpackage/index/terminal'
-  return `${baseURL}${terminalUrl}?command=${encodeURIComponent(commandKey)}&extend=${encodeURIComponent(extend)}`
-}
+export const TERMINAL_DISABLED_MESSAGE =
+  '在线依赖终端已停用（安全策略）：请由运维在服务器命令行执行依赖安装与前端构建，浏览器不再执行服务器命令。'
 
 const terminalMessage = (value: unknown): string | null => {
   if (!value || typeof value !== 'object' || !('data' in value)) return null
@@ -176,81 +166,14 @@ export const useTerminalStore = defineStore(
     }
 
     /**
-     * 启动受认证的 SSE 请求。EventSource 无法附带 Authorization 头，
-     * 因此用 fetch 流读取服务端事件。
+     * F5：不再发起任何终端请求，任务直接以“已停用”失败结束，交由调用方的失败处理引导到命令行。
      */
-    const startEventSource = async (taskKey: number) => {
-      const task = taskList.value[taskKey]
-      if (!task) return
-
-      window.terminalAbortController?.abort()
-      const controller = new AbortController()
-      window.terminalAbortController = controller
-      const userStore = useUserStore()
-      try {
-        const response = await fetch(buildTerminalUrl(task.command, task.extend), {
-          headers: {
-            Accept: 'text/event-stream',
-            Authorization: `Bearer ${userStore.accessToken}`
-          },
-          signal: controller.signal
-        })
-        if (!response.ok || !response.body) throw new Error('terminal connection failed')
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        let completed = false
-        while (!completed) {
-          const result = await reader.read()
-          if (result.done) break
-          buffer += decoder.decode(result.value, { stream: true })
-          const events = buffer.split(/\r?\n\r?\n/)
-          buffer = events.pop() ?? ''
-          for (const event of events) {
-            const dataLine = event.split(/\r?\n/).find((line) => line.startsWith('data:'))
-            if (!dataLine) continue
-            let value: unknown
-            try {
-              value = JSON.parse(dataLine.slice(5).trim())
-            } catch {
-              continue
-            }
-            const data = terminalMessage(value)
-            if (!data) continue
-            const taskIdx = findTaskIdxFromGuess(taskKey)
-            if (taskIdx === false) continue
-            if (data === 'exec-error') {
-              setTaskStatus(taskIdx, TaskStatus.FAILED)
-              taskCompleted(taskIdx)
-              startTask()
-              completed = true
-            } else if (data === 'exec-completed') {
-              if (taskList.value[taskIdx].status !== TaskStatus.SUCCESS) {
-                setTaskStatus(taskIdx, TaskStatus.FAILED)
-              }
-              taskCompleted(taskIdx)
-              startTask()
-              completed = true
-            } else if (data === 'connection-success') {
-              setTaskStatus(taskIdx, TaskStatus.RUNNING)
-            } else if (data === 'exec-success') {
-              setTaskStatus(taskIdx, TaskStatus.SUCCESS)
-            } else {
-              addTaskMessage(taskIdx, data)
-            }
-          }
-        }
-        if (!completed) throw new Error('terminal stream ended before completion')
-      } catch {
-        const taskIdx = findTaskIdxFromGuess(taskKey)
-        if (taskIdx === false) return
-        setTaskStatus(taskIdx, TaskStatus.FAILED)
-        taskCompleted(taskIdx)
-      } finally {
-        if (window.terminalAbortController === controller) {
-          window.terminalAbortController = undefined
-        }
-      }
+    const startEventSource = (taskKey: number) => {
+      const taskIdx = findTaskIdxFromGuess(taskKey)
+      if (taskIdx === false) return
+      addTaskMessage(taskIdx, TERMINAL_DISABLED_MESSAGE)
+      setTaskStatus(taskIdx, TaskStatus.FAILED)
+      taskCompleted(taskIdx)
     }
 
     /**

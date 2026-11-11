@@ -1,6 +1,6 @@
 import { HttpResponse, type HttpHandler } from 'msw';
 
-function newRequestId(): string {
+function createRequestId(): string {
   return `mock-${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -10,7 +10,7 @@ export function ok<T>(data: T, message = 'ok') {
     code: 200,
     message,
     data,
-    request_id: newRequestId(),
+    request_id: createRequestId(),
   });
 }
 
@@ -24,9 +24,10 @@ export function fail(code: number, message: string, fields?: Record<string, stri
     message,
     data: null,
     fields,
-    request_id: newRequestId(),
+    request_id: createRequestId(),
   });
 }
+
 
 // Aggregator flattens every sibling's default export — contribute nothing here.
 export default [] satisfies HttpHandler[];

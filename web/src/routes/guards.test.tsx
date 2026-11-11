@@ -9,7 +9,7 @@ import { clearToken, setToken } from '@/lib/authToken';
 import { server } from '@/mocks/server';
 import { RequireAuth, RequirePermission } from './guards';
 
-const base = env.apiBaseUrl;
+const base = `${env.apiBaseUrl}/admin/v1`;
 
 function renderAt(entry: string, extraRoutes: RouteObject[] = []) {
   const queryClient = new QueryClient({
@@ -41,15 +41,29 @@ function mockMe(user: { mustChangePassword: boolean; permissions?: string[] }) {
   server.use(
     http.get(`${base}/me`, () =>
       HttpResponse.json({
-        code: 200,
-        message: 'ok',
         data: {
           id: 'u-1',
           username: 'admin',
           nickname: '管理员',
-          mustChangePassword: user.mustChangePassword,
+          avatar: null,
+          avatar_file_id: null,
+          phone: '',
+          email: null,
+          status: 'enabled',
+          is_admin: false,
+          is_super: false,
+          must_change_password: user.mustChangePassword,
           permissions: user.permissions ?? [],
+          dept_id: null,
+          dept_name: null,
+          post_id: null,
+          post_name: null,
+          role_ids: [],
+          role_names: [],
+          last_login_time: null,
+          create_time: '2026-01-01T00:00:00Z',
         },
+        request_id: 't',
       }),
     ),
   );
@@ -129,7 +143,10 @@ describe('RequireAuth', () => {
     setToken('t-dead');
     server.use(
       http.get(`${base}/me`, () =>
-        HttpResponse.json({ code: 4010, message: '登录已过期，请重新登录', data: null }),
+        HttpResponse.json(
+          { code: 'UNAUTHENTICATED', message: '登录已过期，请重新登录', request_id: 't' },
+          { status: 401 },
+        ),
       ),
     );
 

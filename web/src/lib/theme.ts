@@ -22,9 +22,9 @@ function storage(): Storage | null {
 
 export function getStoredTheme(): ThemeMode {
   try {
-    const v = storage()?.getItem(STORAGE_KEY);
-    if (v === 'light' || v === 'dark' || v === 'auto') {
-      return v;
+    const stored = storage()?.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'auto') {
+      return stored;
     }
   } catch {
     // storage unavailable — fall through to default
