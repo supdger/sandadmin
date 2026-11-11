@@ -249,7 +249,15 @@ abstract class Repository
 
     private function bindValue(mixed $value): mixed
     {
-        return $value instanceof \DateTimeInterface ? $value->format(DATE_ATOM) : $value;
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format(DATE_ATOM);
+        }
+        // pgsql 布尔列不接受空串：PHP false 未声明类型会绑定成 ''，显式转字面量
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        return $value;
     }
 
     /**

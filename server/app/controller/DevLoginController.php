@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace app\controller;
 
+use app\support\DevLoginGate;
+use plugin\sandadmin\app\model\system\SystemOperLog;
 use plugin\sandadmin\app\model\system\SystemUser;
 use plugin\sandadmin\basic\OpenController;
 use plugin\sandadmin\utils\ForcedPasswordChange;
@@ -22,33 +24,59 @@ use Webman\Event\Event;
  * 免口令给开发账号签发与正常登录同构的令牌。任一条件不满足抛
  * PageNotFoundException，与路由不存在响应逐字节一致，消除可探测指纹；
  * 生产环境不得开启 SAND_DEV_LOGIN。
- * 对端 IP 只取 getRemoteIp()（Workerman 真实连接地址），不信代理头。
+ * 对端 IP 只取 getRemoteIp()（Workerman 真实连接地址），不信代理头；
+ * 请求出现 X-Forwarded-For / X-Real-IP / Forwarded 时一律拒绝，
+ * 因为此时回环地址可能是伪造的代理终点。
  */
 final class DevLoginController extends OpenController
 {
-    private const DEV_USERNAME = 'admin';
-
-    private const LOOPBACK_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-
     /**
      * 与插件 LoginController 同机制：插件全局中间件按该属性放行本方法。
      */
-    protected array $noNeedLogin = ['login'];
+    protected array $noNeedLogin = ['login', 'devLogin', 'available'];
 
+    /** 旧宿主路径 /core/dev-login */
     public function login(Request $request): Response
     {
         // 抛与路由不存在相同的异常，响应逐字节一致以消除可探测指纹
-        if (env('SAND_DEV_LOGIN') !== '1' || !$this->isLoopback($request->getRemoteIp())) {
+        if (!DevLoginGate::allowed($request)) {
             throw new PageNotFoundException();
         }
 
-        // 与 SystemUserLogic::login 校验密码通过后的发牌流程保持一致
+        return $this->issueToken($request);
+    }
+
+    /** 1.x 前端开发登录 /api/auth/dev-login（亦挂 /api/admin/v1/auth/dev-login） */
+    public function devLogin(Request $request): Response
+    {
+        if (!DevLoginGate::allowed($request)) {
+            throw new PageNotFoundException();
+        }
+
+        return $this->issueToken($request);
+    }
+
+    /**
+     * 开发登录可用性探测：不满足条件时回 available=false，
+     * 前端据此隐藏一键进入入口；不发牌所以不抛 404。
+     */
+    public function available(Request $request): Response
+    {
+        return $this->success([
+            'available' => DevLoginGate::allowed($request),
+            'username' => DevLoginGate::DEV_USERNAME,
+        ]);
+    }
+
+    /** 与 SystemUserLogic::login 校验密码通过后的发牌流程保持一致 */
+    private function issueToken(Request $request): Response
+    {
         try {
             JwtSecretGuard::assertRuntimeConfig();
         } catch (\RuntimeException $exception) {
             return $this->fail($exception->getMessage());
         }
-        $user = SystemUser::where('username', self::DEV_USERNAME)->findOrEmpty();
+        $user = SystemUser::where('username', DevLoginGate::DEV_USERNAME)->findOrEmpty();
         if ($user->isEmpty()) {
             return $this->fail('账号或密码错误，请重新输入!');
         }
@@ -68,13 +96,14 @@ final class DevLoginController extends OpenController
             'plat' => 'sandadmin',
         ]);
 
-        // 与正常登录同一事件、同一负载键，登录日志等监听方照常工作
+        // 与正常登录同一事件、同一负载键；message 记「开发本机登录」供审计区分
         Event::emit('user.login', [
             'username' => $user->username,
             'status' => 1,
-            'message' => '登录成功',
+            'message' => '开发本机登录',
             'admin_id' => $user->id,
         ]);
+        $this->recordOperLog($request, (string) $user->username);
 
         // 旧库没有该列时视为未置位；前端据此跳转强制改密页
         $token['must_change_password'] =
@@ -83,8 +112,23 @@ final class DevLoginController extends OpenController
         return $this->success($token);
     }
 
-    private function isLoopback(string $ip): bool
+    /** 操作日志表缺失（纯 1.x 库未装 0.x 插件表）时不阻断发牌，仅记录后端日志 */
+    private function recordOperLog(Request $request, string $username): void
     {
-        return in_array($ip, self::LOOPBACK_IPS, true);
+        try {
+            SystemOperLog::create([
+                'username' => $username,
+                'app' => 'sandadmin',
+                'method' => $request->method(),
+                'router' => $request->uri(),
+                'service_name' => '开发本机登录',
+                'ip' => $request->getRemoteIp(),
+                'request_data' => '开发本机一键登录',
+                'create_time' => date('Y-m-d H:i:s'),
+                'update_time' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $error) {
+            error_log('开发登录审计写入失败 ' . $error::class . ': ' . $error->getMessage());
+        }
     }
 }
