@@ -235,11 +235,11 @@ export function DeptsPage() {
     const next = dept.status === 'enabled' ? 'disabled' : 'enabled';
     const isDisable = next === 'disabled';
     Modal.confirm({
-      title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.doneEnable', { name: dept.name }),
-      content: isDisable ? t('depts.danger.disableContent') : undefined,
+      title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.enableTitle', { name: dept.name }),
+      content: t(isDisable ? 'depts.danger.disableContent' : 'depts.danger.enableContent'),
       okText: isDisable ? t('depts.danger.disableOk') : t('common.enable'),
       cancelText: t('common.thinkAgain'),
-      okType: isDisable ? 'danger' : 'primary',
+      okType: 'primary',
       onOk: async () => {
         try {
           await updateDept(dept.id, {

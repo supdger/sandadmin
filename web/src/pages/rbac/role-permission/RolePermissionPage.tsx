@@ -175,7 +175,12 @@ export function RolePermissionPage() {
       }),
     onSuccess: (result) => {
       Toast.success(
-        t('permission.toastSaved', { count: result.affected_users }),
+        result.affected_users > 0
+          ? t('permission.toastSavedUsers', {
+              name: role.data?.name ?? '',
+              count: result.affected_users,
+            })
+          : t('permission.toastSaved', { name: role.data?.name ?? '' }),
       );
       refreshPermissions();
     },
@@ -207,7 +212,7 @@ export function RolePermissionPage() {
       title: t('permission.discardTitle'),
       okText: t('permission.discardOk'),
       cancelText: t('permission.discardCancel'),
-      okButtonProps: { type: 'danger' },
+      okButtonProps: { type: 'primary' },
       onOk: () => navigate('/system/role'),
     });
   };

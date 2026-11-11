@@ -177,12 +177,12 @@ final class OrgController
 
     public function rolesDestroy(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:delete', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:delete', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $this->replacementRoleId($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
     }
 
     public function rolesCopy(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesStatus(Request $request, string $role_id): Response
@@ -347,6 +347,27 @@ final class OrgController
         }
 
         return $result;
+    }
+
+    /** 删除在用角色时带上的替换角色。JSON 正文优先，查询参数作退路。 */
+    private function replacementRoleId(Request $request): ?int
+    {
+        $fromBody = OrgInput::optionalId($this->body($request), 'replacement_role_id');
+        if ($fromBody !== null) {
+            return $fromBody;
+        }
+        $raw = $request->rawBody();
+        if ($raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $fromRaw = OrgInput::optionalId($this->stringKeys($decoded), 'replacement_role_id');
+                if ($fromRaw !== null) {
+                    return $fromRaw;
+                }
+            }
+        }
+
+        return OrgInput::optionalId($this->query($request), 'replacement_role_id');
     }
 
     private function idempotencyKey(Request $request): ?string

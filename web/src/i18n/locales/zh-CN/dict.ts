@@ -71,9 +71,9 @@ export default {
   },
 
   confirm: {
-    disableTitle: '停用“{{label}}”？',
+    disableTitle: '停用「{{label}}」？',
     disableContent: '停用后新填的数据选不到它，已经选了它的数据照常显示。',
-    enableTitle: '启用“{{label}}”？',
+    enableTitle: '启用「{{label}}」？',
     enableContent: '启用后，新填的数据又能选到它了。',
     think: '再想想',
     disableOk: '停用',
@@ -85,17 +85,17 @@ export default {
     disableInstead: '改为停用',
     deleteAnyway: '仍然删除',
 
-    deleteItemTitle: '删除“{{label}}”？',
+    deleteItemTitle: '删除「{{label}}」？',
     deleteItemContent: '删除后不能撤销。',
     deleteOk: '删除',
 
-    deleteTypeTitle: '删除选项组“{{name}}”？',
+    deleteTypeTitle: '删除「{{name}}」？',
     deleteTypeContent: '组里的 {{count}} 个选项会一起删除，不能撤销。系统自带的组不能删除。',
 
     added: '已添加「{{name}}」',
     deleted: '已删除「{{name}}」',
     disabled: '已停用「{{name}}」',
     enabled: '已启用「{{name}}」',
-    sorted: '已调整顺序',
+    sorted: '已调整「{{name}}」的顺序',
   },
 } as const;

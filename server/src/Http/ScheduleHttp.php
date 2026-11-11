@@ -8,8 +8,10 @@ declare(strict_types=1);
 namespace Sandadmin\Http;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Domain\Plugin\ExtensionCatalog;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Domain\Plugin\ScheduleOverride;
+use Sandadmin\Domain\Plugin\ScheduleTitle;
 use Sandadmin\Module\Org\OrgException;
 
 /**
@@ -18,8 +20,10 @@ use Sandadmin\Module\Org\OrgException;
  */
 final class ScheduleHttp
 {
-    public function __construct(private readonly Connection $connection)
-    {
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly ?ExtensionCatalog $catalog = null,
+    ) {
     }
 
     /**
@@ -93,10 +97,11 @@ final class ScheduleHttp
             $schedule = $raw;
         }
         $plugin = $row['plugin_code'] ?? null;
+        $code = is_string($row['code'] ?? null) ? $row['code'] : '';
 
         return [
-            'code' => is_string($row['code'] ?? null) ? $row['code'] : '',
-            'name' => is_string($row['code'] ?? null) ? $row['code'] : '',
+            'code' => $code,
+            'name' => ScheduleTitle::of($code, $this->catalog),
             'description' => null,
             'source_label' => $plugin === null ? '宿主' : (is_string($plugin) ? $plugin : null),
             'is_critical' => false,

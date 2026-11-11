@@ -10,6 +10,7 @@ import {
   type DictType,
   type DictTypeWrite,
 } from '@/api/v1/dict';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { adminErrorMessage } from '@/lib/adminError';
 
 export interface DictTypeModalProps {
@@ -29,10 +30,11 @@ export function DictTypeModal({ visible, type, onClose, onSaved }: DictTypeModal
   const [nameError, setNameError] = useState<string | null>(null);
 
   const editing = type !== null;
+  const submitKey = useFormIdempotencyKey(visible && !editing);
 
   const save = useMutation({
     mutationFn: (body: DictTypeWrite) =>
-      editing ? updateDictType(type.id, body) : createDictType(body),
+      editing ? updateDictType(type.id, body) : createDictType(body, submitKey),
     onSuccess: async (saved) => {
       Toast.success(
         t(editing ? 'typeModal.saved' : 'confirm.added', { name: saved.name }),

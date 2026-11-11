@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { createRole, updateRole, type Role, type RoleWrite } from '@/api/v1/roles';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 
@@ -31,10 +32,11 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
   const [remark, setRemark] = useState(role?.remark ?? '');
   const [enabled, setEnabled] = useState(role ? role.status === 'enabled' : true);
   const [nameError, setNameError] = useState('');
+  const submitKey = useFormIdempotencyKey(role === null);
 
   const save = useMutation({
     mutationFn: (body: RoleWrite) =>
-      role ? updateRole(role.id, body) : createRole(body),
+      role ? updateRole(role.id, body) : createRole(body, submitKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['rbac', 'roles'] });
     },

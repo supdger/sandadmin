@@ -90,6 +90,8 @@ export function RolesPage() {
   const [keywordInput, setKeywordInput] = useState(keyword);
   const [sheetRole, setSheetRole] = useState<Role | 'create' | null>(null);
   const [copyRoleTarget, setCopyRoleTarget] = useState<Role | null>(null);
+  const [reassignRole, setReassignRole] = useState<Role | null>(null);
+  const [replacementId, setReplacementId] = useState<string | undefined>();
 
   // URL 是 keyword 的唯一事实源；外部变化（后退、清空筛选）
   // 在渲染期同步进输入框。
@@ -141,14 +143,27 @@ export function RolesPage() {
     },
   });
 
+  const replacementRoles = useQuery({
+    queryKey: ['rbac', 'roles', 'replacement'],
+    queryFn: () => listRoles({ page: 1, page_size: 100 }),
+    enabled: reassignRole !== null,
+  });
+
   const deleteMutation = useMutation({
-    mutationFn: (role: Role) => deleteRole(role.id),
-    onSuccess: (result, role) => {
+    mutationFn: ({ role, nextRoleId }: { role: Role; nextRoleId?: string }) =>
+      deleteRole(role.id, nextRoleId),
+    onSuccess: (result, { role }) => {
       void invalidateRoles();
-      const moved = result.moved_to_default;
+      setReassignRole(null);
+      setReplacementId(undefined);
+      const moved = result.moved_count;
       Toast.success(
-        moved > 0
-          ? t('roles.toast.deletedMoved', { name: role.name, count: moved })
+        moved > 0 && result.replacement_role_name
+          ? t('roles.toast.deletedMoved', {
+              name: role.name,
+              count: moved,
+              replacement: result.replacement_role_name,
+            })
           : t('roles.toast.deleted', { name: role.name }),
       );
     },
@@ -160,28 +175,38 @@ export function RolesPage() {
   const confirmDisable = (role: Role) => {
     Modal.confirm({
       title: t('roles.confirm.disableTitle', { name: role.name }),
-      content:
-        role.user_count > 0
-          ? t('roles.confirm.disableBody', { count: role.user_count })
-          : t('roles.confirm.disableBodyEmpty'),
-      okText: t('roles.statusDisabled'),
+      content: t('roles.confirm.disableBody'),
+      okText: t('roles.disable'),
       cancelText: t('roles.confirm.thinkAgain'),
-      okButtonProps: { type: 'danger' },
+      okButtonProps: { type: 'primary' },
       onOk: () => statusMutation.mutate({ role, next: 'disabled' }),
     });
   };
 
+  const confirmEnable = (role: Role) => {
+    Modal.confirm({
+      title: t('roles.confirm.enableTitle', { name: role.name }),
+      content: t('roles.confirm.enableBody'),
+      okText: t('roles.enable'),
+      cancelText: t('roles.confirm.thinkAgain'),
+      okButtonProps: { type: 'primary' },
+      onOk: () => statusMutation.mutate({ role, next: 'enabled' }),
+    });
+  };
+
   const confirmDelete = (role: Role) => {
+    if (role.user_count > 0) {
+      setReplacementId(undefined);
+      setReassignRole(role);
+      return;
+    }
     Modal.confirm({
       title: t('roles.confirm.deleteTitle', { name: role.name }),
-      content:
-        role.user_count > 0
-          ? t('roles.confirm.deleteBodyWithUsers', { count: role.user_count })
-          : t('roles.confirm.deleteBodyEmpty'),
+      content: t('roles.confirm.deleteBodyEmpty'),
       okText: t('roles.delete'),
       cancelText: t('roles.confirm.thinkAgain'),
       okButtonProps: { type: 'danger' },
-      onOk: () => deleteMutation.mutate(role),
+      onOk: () => deleteMutation.mutate({ role }),
     });
   };
 
@@ -190,7 +215,7 @@ export function RolesPage() {
       confirmDisable(role);
       return;
     }
-    statusMutation.mutate({ role, next: 'enabled' });
+    confirmEnable(role);
   };
 
   const openPermission = (role: Role) => {
@@ -474,6 +499,42 @@ export function RolesPage() {
             }
           }}
         />
+      ) : null}
+      {reassignRole !== null ? (
+        <Modal
+          visible
+          title={t('roles.confirm.deleteTitle', { name: reassignRole.name })}
+          okText={t('roles.confirm.reassignOk')}
+          cancelText={t('roles.confirm.thinkAgain')}
+          okButtonProps={{ type: 'danger', disabled: !replacementId }}
+          onCancel={() => {
+            setReassignRole(null);
+            setReplacementId(undefined);
+          }}
+          onOk={() => {
+            if (!replacementId) {
+              return;
+            }
+            deleteMutation.mutate({ role: reassignRole, nextRoleId: replacementId });
+          }}
+        >
+          <div className="flex flex-col gap-3">
+            <Typography.Paragraph>
+              {t('roles.confirm.reassignBody', { count: reassignRole.user_count })}
+            </Typography.Paragraph>
+            <Select
+              style={{ width: '100%' }}
+              placeholder={t('roles.confirm.reassignPlaceholder')}
+              value={replacementId}
+              optionList={(replacementRoles.data?.items ?? [])
+                .filter((item) => item.id !== reassignRole.id)
+                .slice()
+                .sort((left, right) => left.name.localeCompare(right.name, 'zh'))
+                .map((item) => ({ value: item.id, label: item.name }))}
+              onChange={(value) => setReplacementId(typeof value === 'string' ? value : undefined)}
+            />
+          </div>
+        </Modal>
       ) : null}
       {copyRoleTarget !== null ? (
         <CopyRoleModal

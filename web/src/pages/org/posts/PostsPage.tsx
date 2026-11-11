@@ -123,9 +123,10 @@ export function PostsPage() {
       title: t(next === 'disabled' ? 'posts.danger.disableTitle' : 'posts.danger.enableTitle', {
         name: post.name,
       }),
+      content: t(next === 'disabled' ? 'posts.danger.disableContent' : 'posts.danger.enableContent'),
       okText: next === 'disabled' ? t('common.disable') : t('common.enable'),
       cancelText: t('common.thinkAgain'),
-      okType: next === 'disabled' ? 'danger' : 'primary',
+      okType: 'primary',
       onOk: async () => {
         try {
           await updatePost(post.id, {

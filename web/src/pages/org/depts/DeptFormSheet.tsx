@@ -7,6 +7,7 @@ import { Banner, Button, Form, SideSheet, Space, Toast, withField } from '@douyi
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createDept, updateDept, type Dept, type DeptWrite } from '@/api/v1/depts';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
@@ -47,6 +48,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
 
   const isEdit = mode === 'edit' && Boolean(dept);
   const isChild = mode === 'child' && Boolean(dept);
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   // 上级部门选项：编辑时剔除自身与下级，避免成环；不选即顶层。
   const parentOptions = useMemo<DeptTreeOption[]>(() => {
@@ -111,7 +113,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     try {
       const saved = isEdit && dept
         ? await updateDept(dept.id, { ...body, sort: dept.sort })
-        : await createDept(body);
+        : await createDept(body, submitKey);
       Toast.success(t(isEdit ? 'depts.form.saved' : 'depts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
       onSaved();

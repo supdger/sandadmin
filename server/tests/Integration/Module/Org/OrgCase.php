@@ -49,11 +49,13 @@ abstract class OrgCase extends TestCase
     }
 
     /**
-     * 清表顺序按外键方向：先删关联表与用户（用户删除触发 leader_id/created_by
-     * SET NULL），再删部门（自引用 RESTRICT，单语句全删可过）与角色。
+     * 清表顺序按外键方向。任务和生命周期的创建人是 RESTRICT，
+     * 必须先于用户删除；部门自引用也是 RESTRICT，单语句全删可过。
      */
     private function resetTables(): void
     {
+        $this->conn->executeStatement('DELETE FROM sand_system_lifecycle_request');
+        $this->conn->executeStatement('DELETE FROM sand_system_task_run');
         $this->conn->executeStatement('DELETE FROM sand_system_role_dept');
         $this->conn->executeStatement('DELETE FROM sand_system_user_role');
         $this->conn->executeStatement('DELETE FROM sand_system_user');

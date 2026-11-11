@@ -17,7 +17,8 @@ use Sandadmin\Module\Org\OrgSql;
 
 /**
  * 选项组与选项。系统自带的组不能删。
- * used 固定为 null：宿主查不到业务引用时按「可能已使用」交给前端提醒。
+ * used 查 sand_system_dict_item_ref：有引用为 true，管理员自建组没有引用为 false。
+ * 插件组（extension_key 非空）没有引用行时为 null，前端按可能已使用提醒。
  */
 final class DictService
 {
@@ -59,8 +60,12 @@ final class DictService
     {
         $type = $this->typeItem($this->requireType($id));
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT id, type_id, label, value, color, is_default, is_system, sort, status, create_time'
-            . ' FROM sand_system_dict_item WHERE type_id = ? ORDER BY sort, id',
+            'SELECT i.id, i.type_id, i.label, i.value, i.color, i.is_default, i.is_system, i.sort, i.status, i.create_time,'
+            . ' t.extension_key,'
+            . ' (SELECT COUNT(*) FROM sand_system_dict_item_ref r WHERE r.item_id = i.id) AS ref_count'
+            . ' FROM sand_system_dict_item i'
+            . ' JOIN sand_system_dict_type t ON t.id = i.type_id'
+            . ' WHERE i.type_id = ? ORDER BY i.sort, i.id',
             [$id],
         );
         $items = [];
@@ -359,8 +364,12 @@ final class DictService
     private function requireItem(int $id): array
     {
         $row = $this->connection->fetchAssociative(
-            'SELECT id, type_id, label, value, color, is_default, is_system, sort, status, create_time'
-            . ' FROM sand_system_dict_item WHERE id = ?',
+            'SELECT i.id, i.type_id, i.label, i.value, i.color, i.is_default, i.is_system, i.sort, i.status, i.create_time,'
+            . ' t.extension_key,'
+            . ' (SELECT COUNT(*) FROM sand_system_dict_item_ref r WHERE r.item_id = i.id) AS ref_count'
+            . ' FROM sand_system_dict_item i'
+            . ' JOIN sand_system_dict_type t ON t.id = i.type_id'
+            . ' WHERE i.id = ?',
             [$id],
         );
         if ($row === false) {
@@ -410,9 +419,27 @@ final class DictService
             'is_system' => $isSystem,
             'sort' => OrgSql::int($row['sort'] ?? 0),
             'status' => OrgSql::statusName(OrgSql::int($row['status'] ?? 1)),
-            'used' => null,
+            'used' => $this->usedFlag($row),
             'create_time' => OrgSql::time($row['create_time'] ?? null) ?? '',
         ];
+    }
+
+    /**
+     * 有引用行就是已使用。插件组查不到引用时返回 null，调用方按已使用提醒。
+     *
+     * @param array<string, mixed> $row
+     */
+    private function usedFlag(array $row): ?bool
+    {
+        if (OrgSql::int($row['ref_count'] ?? 0) > 0) {
+            return true;
+        }
+        $extensionKey = $row['extension_key'] ?? null;
+        if (is_string($extensionKey) && $extensionKey !== '') {
+            return null;
+        }
+
+        return false;
     }
 
     private function map(\Throwable $error): never

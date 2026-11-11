@@ -10,6 +10,7 @@ import {
   type DictItem,
   type DictItemWrite,
 } from '@/api/v1/dict';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { adminErrorMessage } from '@/lib/adminError';
 
 /** 8 个预设色；null 表示「默认」色。 */
@@ -67,13 +68,14 @@ export function DictItemModal({
   const [labelError, setLabelError] = useState<string | null>(null);
 
   const editing = item !== null;
+  const submitKey = useFormIdempotencyKey(visible && !editing);
 
   const save = useMutation({
     mutationFn: async () => {
       const body = toWrite(label.trim(), color, isDefault, available);
       const saved = editing
         ? await updateDictItem(item.id, body)
-        : await createDictItem(typeId, body);
+        : await createDictItem(typeId, body, submitKey);
       // 「默认选中」一组只能有一个：保存成功后把同组其他默认项取消。
       if (isDefault) {
         const others = items.filter((i) => i.is_default && i.id !== saved.id);

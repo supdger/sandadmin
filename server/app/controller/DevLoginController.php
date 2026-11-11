@@ -57,7 +57,7 @@ final class DevLoginController extends OpenController
         } catch (PageNotFoundException $error) {
             throw $error;
         } catch (\Throwable $error) {
-            error_log('开发登录旧账号表不可用，改发本机令牌 ' . $error::class);
+            $this->note('开发登录旧账号表不可用，改发本机令牌 ' . $error::class);
 
             return $this->localToken();
         }
@@ -130,13 +130,23 @@ final class DevLoginController extends OpenController
                 'admin_id' => 0,
             ]);
         } catch (\Throwable $error) {
-            error_log('开发本机登录事件失败 ' . $error::class);
+            $this->note('开发本机登录事件失败 ' . $error::class);
         }
 
         return $this->success([
             'token' => bin2hex(random_bytes(16)),
             'mustChangePassword' => false,
         ]);
+    }
+
+    /** 写到运行日志。error_log 在这个进程里会混进正在返回的响应。 */
+    private function note(string $message): void
+    {
+        $dir = runtime_path() . '/logs';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+        file_put_contents($dir . '/dev-login.log', $message . PHP_EOL, FILE_APPEND);
     }
 
     /** 操作日志表缺失（纯 1.x 库未装 0.x 插件表）时不阻断发牌，仅记录后端日志 */
@@ -155,7 +165,7 @@ final class DevLoginController extends OpenController
                 'update_time' => date('Y-m-d H:i:s'),
             ]);
         } catch (\Throwable $error) {
-            error_log('开发登录审计写入失败 ' . $error::class . ': ' . $error->getMessage());
+            $this->note('开发登录审计写入失败 ' . $error::class);
         }
     }
 }

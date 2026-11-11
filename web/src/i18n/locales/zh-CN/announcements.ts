@@ -68,7 +68,7 @@ export default {
     saved: '已保存「{{name}}」',
     savedDraft: '已添加「{{name}}」',
     updated: '已保存「{{name}}」，已读的人不会再收到提醒',
-    publishConfirmTitle: '发布这条公告？',
+    publishConfirmTitle: '发布「{{name}}」？',
     publishConfirmContent: '发布后会发给 {{count}} 个人，大家马上就能在消息里看到。',
     publishDeptContent: '发布后会发给所选部门的 {{count}} 个人，大家马上就能在消息里看到。',
     think: '再想想',
@@ -95,11 +95,11 @@ export default {
   },
 
   confirm: {
-    revokeTitle: '收回这条公告？',
+    revokeTitle: '收回「{{name}}」？',
     revokeContent:
       '收回后大家的消息里就看不到了，已经看过的人也看不到；谁看过的记录会留着，你还能查。之后可以重新发布。',
     revokeOk: '收回',
-    deleteTitle: '删除这条公告？',
+    deleteTitle: '删除「{{name}}」？',
     deleteContent:
       '删除后不能找回，已读记录也会一起删掉；已发布的会先自动收回。如果只是不想让大家看到，请用“收回”。',
     deleteOk: '删除',

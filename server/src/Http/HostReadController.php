@@ -9,42 +9,39 @@ namespace Sandadmin\Http;
 
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Module\Org\OrgException;
+use Sandadmin\Module\Package\PackageOps;
 use support\Request;
 use support\Response;
 use Throwable;
 
-/** 插件概览与系统更新状态。本轮只读，安装和升级不在范围内。 */
+/** 插件概览、系统更新状态和定时任务。安装入口在 PackageController。 */
 final class HostReadController
 {
     private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
 
     public function pluginsOverview(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => ApiOutcome::ok([
-            'compiled' => true,
-            'package_ops_enabled' => false,
-            'signature_required' => true,
-        ], $requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->overview($requestId));
     }
 
     public function pluginsMarket(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => ApiOutcome::ok(['items' => []], $requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->market($requestId));
     }
 
     public function pluginsInstalled(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => ApiOutcome::ok(['items' => []], $requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->installed($requestId));
     }
 
     public function updateStatus(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => ApiOutcome::ok(self::status(), $requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->updateStatus($requestId));
     }
 
     public function updateCheck(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => ApiOutcome::ok(self::status(), $requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->updateStatus($requestId));
     }
 
     public function scheduledTaskUpdate(Request $request, string $code): Response
@@ -73,20 +70,14 @@ final class HostReadController
         }
     }
 
-    /** @return array<string, mixed> */
-    private static function status(): array
+    private function packages(): PackageOps
     {
-        return [
-            'current_version' => '1.1.0',
-            'latest_version' => null,
-            'update_available' => false,
-            'changes' => [],
-            'bundled_plugins' => [],
-            'checked_time' => null,
-            'compiled' => true,
-            'package_ops_enabled' => false,
-            'running_request' => null,
-        ];
+        $kernel = BizKernel::fromWebman();
+        if ($kernel === null) {
+            throw OrgException::invalid([], '系统出了点问题，请稍后再试');
+        }
+
+        return new PackageOps($kernel->connection);
     }
 
     /**

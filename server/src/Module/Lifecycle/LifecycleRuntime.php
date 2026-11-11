@@ -28,9 +28,11 @@ final readonly class LifecycleRuntime
             return null;
         }
         try {
+            $connection = DbalConnection::connection($database);
+
             return new self(
-                new LifecycleRepository(DbalConnection::connection($database)),
-                new UnavailableLifecycleActorProvider(),
+                new LifecycleRepository($connection),
+                new DevLifecycleActorProvider($connection),
             );
         } catch (\Throwable $exception) {
             error_log('生命周期运行时初始化失败 ' . $exception::class . ': ' . $exception->getMessage());

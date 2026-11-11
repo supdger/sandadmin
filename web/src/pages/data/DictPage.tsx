@@ -116,7 +116,7 @@ export function DictPage() {
       return { previous };
     },
     onSuccess: () => {
-      Toast.success(t('confirm.sorted'));
+      Toast.success(t('confirm.sorted', { name: detail.data?.name ?? '' }));
       void invalidateAll();
     },
     onError: (error, _vars, context) => {
@@ -333,6 +333,7 @@ export function DictPage() {
                         content={t('confirm.disableContent')}
                         okText={t('confirm.disableOk')}
                         cancelText={t('confirm.think')}
+                        okType="primary"
                         onConfirm={() =>
                           statusItem.mutate({ itemId: record.id, status: 'disabled' })
                         }
@@ -340,13 +341,18 @@ export function DictPage() {
                         <Dropdown.Item>{t('table.disable')}</Dropdown.Item>
                       </Popconfirm>
                     ) : (
-                      <Dropdown.Item
-                        onClick={() =>
+                      <Popconfirm
+                        title={t('confirm.enableTitle', { label: record.label })}
+                        content={t('confirm.enableContent')}
+                        okText={t('confirm.enableOk')}
+                        cancelText={t('confirm.think')}
+                        okType="primary"
+                        onConfirm={() =>
                           statusItem.mutate({ itemId: record.id, status: 'enabled' })
                         }
                       >
-                        {t('table.enable')}
-                      </Dropdown.Item>
+                        <Dropdown.Item>{t('table.enable')}</Dropdown.Item>
+                      </Popconfirm>
                     )
                   ) : null}
                   {canDelete && !record.is_system ? (

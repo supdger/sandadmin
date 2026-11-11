@@ -18,6 +18,7 @@ use Sandadmin\Http\AnnouncementController;
 use Sandadmin\Http\DictController;
 use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
+use Sandadmin\Http\PackageController;
 use Sandadmin\Http\MeController;
 use Sandadmin\Http\OrgController;
 use Sandadmin\Http\TaskController;
@@ -117,10 +118,17 @@ Route::put('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'updat
 Route::delete('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'destroyItem']);
 Route::put('/api/admin/v1/dicts/items/{item_id}/status', [DictController::class, 'itemStatus']);
 
-// 插件与系统更新只读；定时任务时间不合法时返回 422 TASK_SCHEDULE_INVALID。
+// 插件与系统更新。编译版和生产环境拒绝在线安装；定时任务时间不合法时返回 422 TASK_SCHEDULE_INVALID。
 Route::get('/api/admin/v1/plugins/overview', [HostReadController::class, 'pluginsOverview']);
 Route::get('/api/admin/v1/plugins/market', [HostReadController::class, 'pluginsMarket']);
 Route::get('/api/admin/v1/plugins/installed', [HostReadController::class, 'pluginsInstalled']);
+Route::post('/api/admin/v1/plugins/upgrade-all', [PackageController::class, 'upgradeAll']);
+Route::post('/api/admin/v1/plugins/upload', [PackageController::class, 'upload']);
+Route::get('/api/admin/v1/plugins/{plugin_code}', [PackageController::class, 'show']);
+Route::post('/api/admin/v1/plugins/{plugin_code}/install', [PackageController::class, 'install']);
+Route::post('/api/admin/v1/plugins/{plugin_code}/upgrade', [PackageController::class, 'upgrade']);
+Route::post('/api/admin/v1/plugins/{plugin_code}/uninstall', [PackageController::class, 'uninstall']);
 Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'updateStatus']);
 Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
+Route::post('/api/admin/v1/system/update/start', [PackageController::class, 'startUpdate']);
 Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);

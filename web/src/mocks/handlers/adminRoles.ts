@@ -135,7 +135,7 @@ export default [
     return okV1(role);
   }),
 
-  http.delete(`${v1Base}/roles/:roleId`, ({ request, params }) => {
+  http.delete(`${v1Base}/roles/:roleId`, async ({ request, params }) => {
     const auth = requirePermission(request, ROLE_PERMS.remove);
     if ('response' in auth) return auth.response;
     const role = findRole(String(params.roleId));
@@ -145,18 +145,46 @@ export default [
     if (role.is_system || role.is_super) {
       return failV1(409, 'SYSTEM_ROLE_READONLY', '系统内置角色不允许删除');
     }
-    // 在用角色删除时，把成员迁到默认「只读访客」角色。
+    const url = new URL(request.url);
+    const body = await request.json().catch(() => ({})) as { replacement_role_id?: string };
+    const replacementId = body.replacement_role_id ?? url.searchParams.get('replacement_role_id') ?? '';
     let moved = 0;
     for (const member of mockUsers) {
-      const idx = member.role_ids.indexOf(role.id);
-      if (idx >= 0) {
-        member.role_ids[idx] = 'role-viewer';
+      if (member.role_ids.includes(role.id)) {
         moved += 1;
+      }
+    }
+    if (moved > 0 && !replacementId) {
+      return failV1(422, 'VALIDATION_FAILED', `还有 ${moved} 个人在用这个角色，先给他们换一个角色再删除`, {
+        replacement_role_id: [`还有 ${moved} 个人在用这个角色，先给他们换一个角色再删除`],
+      });
+    }
+    if (replacementId === role.id) {
+      return failV1(422, 'VALIDATION_FAILED', '不能换成正在删除的这个角色', {
+        replacement_role_id: ['不能换成正在删除的这个角色'],
+      });
+    }
+    const replacement = replacementId ? findRole(replacementId) : undefined;
+    if (moved > 0 && !replacement) {
+      return failV1(404, 'NOT_FOUND', '要操作的角色不存在或已被删除');
+    }
+    for (const member of mockUsers) {
+      const idx = member.role_ids.indexOf(role.id);
+      if (idx >= 0 && replacement) {
+        if (!member.role_ids.includes(replacement.id)) {
+          member.role_ids.push(replacement.id);
+        }
+        member.role_ids.splice(idx, 1);
+      } else if (idx >= 0) {
+        member.role_ids.splice(idx, 1);
       }
     }
     mockRoles.splice(mockRoles.indexOf(role), 1);
     if (moved > 0) bumpAuthzVersion();
-    return okV1({ moved_to_default: moved });
+    return okV1({
+      moved_count: moved,
+      replacement_role_name: replacement?.name ?? null,
+    });
   }),
 
   http.post(`${v1Base}/roles/:roleId/copy`, async ({ request, params }) => {

@@ -418,7 +418,7 @@ export function AnnouncementEditor({ visible, announcement, canPublish, onClose 
 
       <Modal
         visible={pendingPublish !== null}
-        title={t('editor.publishConfirmTitle')}
+        title={t('editor.publishConfirmTitle', { name: pendingPublish?.title ?? '' })}
         okText={pendingPublish?.state === 'withdrawn' ? t('table.republish') : t('table.publish')}
         cancelText={t('editor.think')}
         confirmLoading={publishSaved.isPending}

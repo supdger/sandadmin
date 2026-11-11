@@ -171,43 +171,59 @@ final class RoleService
         return $this->item($this->requireRow($id));
     }
 
-    /** @return array{moved_to_default: int} */
-    public function remove(int $id, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    /**
+     * 还有人在用时必须带上替换角色。换角色和删除在同一个事务里。
+     * 不再自动挑选编号最小的系统角色。
+     *
+     * @return array{moved_count: int, replacement_role_name: string|null}
+     */
+    public function remove(int $id, ?int $replacementRoleId, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
     {
         $row = $this->requireRow($id);
         $this->assertWritable($row);
         $name = OrgSql::str($row['name'] ?? null);
         $moved = 0;
-        $this->connection->transactional(function () use ($id, $actor, $name, $requestId, $ip, $device, &$moved): void {
-            $sole = $this->connection->fetchFirstColumn(
+        $replacementName = null;
+        $this->connection->transactional(function () use ($id, $replacementRoleId, $actor, $name, $requestId, $ip, $device, &$moved, &$replacementName): void {
+            $holders = $this->connection->fetchFirstColumn(
                 'SELECT ur.user_id FROM sand_system_user_role ur'
                 . ' JOIN sand_system_user u ON u.id = ur.user_id AND u.delete_time IS NULL'
-                . ' WHERE ur.role_id = :id'
-                . ' AND NOT EXISTS (SELECT 1 FROM sand_system_user_role other WHERE other.user_id = ur.user_id AND other.role_id <> :id)',
-                ['id' => $id],
+                . ' WHERE ur.role_id = ?',
+                [$id],
             );
             $userIds = [];
-            foreach ($sole as $userId) {
+            foreach ($holders as $userId) {
                 $userIds[] = OrgSql::int($userId);
             }
-            if ($userIds !== []) {
-                $defaultId = OrgSql::int($this->connection->fetchOne(
-                    'SELECT id FROM sand_system_role WHERE is_system AND NOT is_super AND id <> ? ORDER BY id LIMIT 1',
-                    [$id],
-                ));
-                if ($defaultId <= 0) {
-                    throw OrgException::invalid([], '系统还没有默认角色，暂时不能删除正在使用的角色');
+            $moved = count($userIds);
+            if ($moved > 0) {
+                if ($replacementRoleId === null || $replacementRoleId <= 0) {
+                    $reason = '还有 ' . $moved . ' 个人在用这个角色，先给他们换一个角色再删除';
+                    throw OrgException::invalid(['replacement_role_id' => [$reason]], $reason);
                 }
-                foreach ($userIds as $userId) {
-                    $this->connection->insert('sand_system_user_role', ['user_id' => $userId, 'role_id' => $defaultId]);
+                if ($replacementRoleId === $id) {
+                    throw OrgException::invalid(
+                        ['replacement_role_id' => ['不能换成正在删除的这个角色']],
+                        '不能换成正在删除的这个角色',
+                    );
                 }
-                $moved = count($userIds);
+                $replacement = $this->requireRow($replacementRoleId);
+                $replacementName = OrgSql::str($replacement['name'] ?? null);
+                $this->connection->executeStatement(
+                    'INSERT INTO sand_system_user_role (user_id, role_id)'
+                    . ' SELECT ur.user_id, :new_id FROM sand_system_user_role ur'
+                    . ' JOIN sand_system_user u ON u.id = ur.user_id AND u.delete_time IS NULL'
+                    . ' WHERE ur.role_id = :old_id'
+                    . ' AND NOT EXISTS (SELECT 1 FROM sand_system_user_role held WHERE held.user_id = ur.user_id AND held.role_id = :new_id)',
+                    ['new_id' => $replacementRoleId, 'old_id' => $id],
+                );
             }
             $this->connection->executeStatement('DELETE FROM sand_system_role WHERE id = ?', [$id]);
-            $this->audit->record($actor, 'role', 'delete', '删除了角色' . $name, 'role', (string) $id, $name, $requestId, $ip, $device);
+            $detail = $replacementName === null ? '删除了角色' . $name : '删除了角色' . $name . '，' . $moved . '个人换成了' . $replacementName;
+            $this->audit->record($actor, 'role', 'delete', $detail, 'role', (string) $id, $name, $requestId, $ip, $device);
         });
 
-        return ['moved_to_default' => $moved];
+        return ['moved_count' => $moved, 'replacement_role_name' => $replacementName];
     }
 
     /**
@@ -215,7 +231,7 @@ final class RoleService
      *
      * @return array<string, mixed>
      */
-    public function copy(int $id, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function copy(int $id, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $source = $this->requireRow($id);
         $name = OrgInput::requiredText($body, 'name');
@@ -223,7 +239,7 @@ final class RoleService
             throw OrgException::invalid(['name' => ['名称最多 20 个字']]);
         }
         try {
-            $createdId = OrgSql::int($this->connection->transactional(function () use ($id, $source, $name, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'role.copy.' . $id, $body, function () use ($id, $source, $name, $actor, $requestId, $ip, $device): array {
                 $created = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_role (name, code, remark, data_scope, status, created_by, updated_by)'
                     . ' VALUES (:name, :code, :remark, :scope, 1, :by, :by) RETURNING id',
@@ -247,13 +263,11 @@ final class RoleService
                 );
                 $this->audit->record($actor, 'role', 'create', '复制了角色' . $name, 'role', (string) $created, $name, $requestId, $ip, $device);
 
-                return $created;
-            }));
+                return $this->show($created);
+            });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
         }
-
-        return $this->show($createdId);
     }
 
     public function setStatus(int $id, int $status, OrgActor $actor, string $requestId, ?string $ip, ?string $device): void

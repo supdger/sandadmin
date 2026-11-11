@@ -109,7 +109,7 @@ describe('AnnouncementsPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '发布' }));
     // 发布前先保存，确认框带出接口算的应收人数。
-    expect(await screen.findByText('发布这条公告？')).toBeInTheDocument();
+    expect(await screen.findByText('发布「关于年会的通知」？')).toBeInTheDocument();
     expect(screen.getByText(/发布后会发给 \d+ 个人/)).toBeInTheDocument();
     await clickDialogButton('发布');
 
@@ -154,7 +154,7 @@ describe('AnnouncementsPage', () => {
     await userEvent.click(within(rowOf('系统维护通知')).getByLabelText('更多'));
     await userEvent.click(await screen.findByText('收回'));
 
-    expect(await screen.findByText('收回这条公告？')).toBeInTheDocument();
+    expect(await screen.findByText('收回「系统维护通知」？')).toBeInTheDocument();
     await clickDialogButton('收回');
 
     // 收回后该行状态变为「已收回」。

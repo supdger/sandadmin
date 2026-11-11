@@ -4,6 +4,7 @@ import { Input, Modal, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 import { copyRole, type Role } from '@/api/v1/roles';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 
@@ -26,6 +27,7 @@ export function CopyRoleModal({ role, onClose, onCopied }: CopyRoleModalProps) {
   const [name, setName] = useState(`${role.name} 副本`);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  const submitKey = useFormIdempotencyKey(true);
 
   const submit = async () => {
     const trimmed = name.trim();
@@ -40,7 +42,7 @@ export function CopyRoleModal({ role, onClose, onCopied }: CopyRoleModalProps) {
     setPending(true);
     setError('');
     try {
-      const copied = await copyRole(role.id, { name: trimmed });
+      const copied = await copyRole(role.id, { name: trimmed }, submitKey);
       onCopied(copied);
       onClose();
     } catch (err) {

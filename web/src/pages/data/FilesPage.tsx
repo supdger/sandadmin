@@ -428,7 +428,7 @@ export function FilesPage() {
       content: t('confirmCleanupContent'),
       okText: t('cleanupOk'),
       cancelText: t('think'),
-      okType: 'danger',
+      okType: 'primary',
       onOk: () => runCleanup(),
     });
   };

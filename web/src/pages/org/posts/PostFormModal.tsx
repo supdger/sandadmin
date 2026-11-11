@@ -7,6 +7,7 @@ import { Banner, Button, Form, Modal, Space, Toast } from '@douyinfe/semi-ui';
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createPost, updatePost, type Post, type PostWrite } from '@/api/v1/posts';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import type { UserStatus } from '@/api/v1/types';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
@@ -34,6 +35,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
   const [submitError, setSubmitError] = useState('');
 
   const isEdit = Boolean(post);
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   useEffect(() => {
     if (!visible) {
@@ -68,7 +70,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
     try {
       const saved = isEdit && post
         ? await updatePost(post.id, { ...body, sort: post.sort })
-        : await createPost(body);
+        : await createPost(body, submitKey);
       Toast.success(t(isEdit ? 'posts.form.saved' : 'posts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'posts'] });
       onSaved();

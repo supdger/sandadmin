@@ -154,7 +154,7 @@ export function AnnouncementsPage() {
 
   const requestPublish = (a: Announcement) => {
     Modal.confirm({
-      title: t('editor.publishConfirmTitle'),
+      title: t('editor.publishConfirmTitle', { name: a.title }),
       content:
         a.scope === 'dept'
           ? t('editor.publishDeptContent', { count: a.recipient_count })
@@ -167,18 +167,18 @@ export function AnnouncementsPage() {
 
   const requestRevoke = (a: Announcement) => {
     Modal.confirm({
-      title: t('confirm.revokeTitle'),
+      title: t('confirm.revokeTitle', { name: a.title }),
       content: t('confirm.revokeContent'),
       okText: t('confirm.revokeOk'),
       cancelText: t('confirm.think'),
-      okType: 'danger',
+      okType: 'primary',
       onOk: () => revoke.mutateAsync(a).catch(() => undefined),
     });
   };
 
   const requestDelete = (a: Announcement) => {
     Modal.confirm({
-      title: t('confirm.deleteTitle'),
+      title: t('confirm.deleteTitle', { name: a.title }),
       content: t('confirm.deleteContent'),
       okText: t('confirm.deleteOk'),
       cancelText: t('confirm.think'),

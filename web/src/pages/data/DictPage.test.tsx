@@ -130,7 +130,7 @@ describe('DictPage', () => {
     await userEvent.click(within(rowOf('网上搜索')).getByLabelText('更多'));
     await userEvent.click(await screen.findByText('删除'));
 
-    expect(await screen.findByText('删除“网上搜索”？')).toBeInTheDocument();
+    expect(await screen.findByText('删除「网上搜索」？')).toBeInTheDocument();
     await clickDialogButton('删除');
 
     await waitFor(() =>

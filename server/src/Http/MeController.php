@@ -38,26 +38,39 @@ final class MeController
 
             return ApiOutcome::ok([
                 'menu_version' => 1,
-                'items' => self::items(),
+                'items' => $this->items($kernel),
             ], $requestId);
         });
     }
 
     /** @return list<array<string, mixed>> */
-    private static function items(): array
+    private function items(BizKernel $kernel): array
     {
+        $children = [
+            self::page('system:user', '用户管理', 'user', '/system/user'),
+            self::page('system:dept', '部门管理', 'dept', '/system/dept'),
+            self::page('system:post', '岗位管理', 'post', '/system/post'),
+            self::page('system:role', '角色管理', 'role', '/system/role'),
+            self::page('system:dict', '选项管理', 'dict', '/data/dict'),
+            self::page('system:announcement', '公告管理', 'notice', '/data/notice'),
+            self::page('system:plugin', '插件管理', 'plugin', '/system/plugins'),
+            self::page('system:update', '系统更新', 'refresh', '/system/update'),
+        ];
+        $rows = $kernel->connection->fetchAllAssociative(
+            'SELECT code, name FROM sand_system_plugin WHERE state = \'installed\' ORDER BY name',
+        );
+        foreach ($rows as $row) {
+            $code = $row['code'] ?? null;
+            $name = $row['name'] ?? null;
+            if (!is_string($code) || !is_string($name) || $code === '') {
+                continue;
+            }
+            $children[] = self::page('plugin:' . $code, $name, 'plugin', '/plugin/' . $code);
+        }
+
         return [
             self::page('home', '工作台', 'home', '/'),
-            self::group('system', '系统', 'setting', [
-                self::page('system:user', '用户管理', 'user', '/system/user'),
-                self::page('system:dept', '部门管理', 'dept', '/system/dept'),
-                self::page('system:post', '岗位管理', 'post', '/system/post'),
-                self::page('system:role', '角色管理', 'role', '/system/role'),
-                self::page('system:dict', '选项管理', 'dict', '/data/dict'),
-                self::page('system:announcement', '公告管理', 'notice', '/data/notice'),
-                self::page('system:plugin', '插件管理', 'plugin', '/system/plugins'),
-                self::page('system:update', '系统更新', 'refresh', '/system/update'),
-            ]),
+            self::group('system', '系统', 'setting', $children),
         ];
     }
 

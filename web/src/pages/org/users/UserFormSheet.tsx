@@ -26,6 +26,7 @@ import {
 import { isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { useEnabledPostOptions, useRoleOptions, useUserDeptTree } from '../shared/useOrgOptions';
 import type { DeptTreeOption } from '../shared/deptTree';
 
@@ -81,6 +82,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
   const initialSnapshot = useRef('');
 
   const isEdit = mode === 'edit';
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   const detailQuery = useQuery({
     queryKey: ['v1', 'users', 'detail', user?.id],
@@ -198,7 +200,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         content: t('users.form.discardContent'),
         okText: t('users.form.discard'),
         cancelText: t('users.form.keepEditing'),
-        okType: 'danger',
+        okType: 'primary',
         onOk: onClose,
       });
       return;
@@ -252,7 +254,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         Toast.success(t('users.form.saved', { name: saved.nickname }));
       } else {
         const body: UserWrite = { ...payload, password: values.password ?? '' };
-        const saved = await createUser(body);
+        const saved = await createUser(body, submitKey);
         Toast.success(t('users.form.added', { name: saved.nickname }));
       }
       onSaved();

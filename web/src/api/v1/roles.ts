@@ -54,8 +54,8 @@ export function listRoles(query?: RoleListQuery): Promise<Page<Role>> {
   return adminGet<Page<Role>>('/roles', { query });
 }
 
-export function createRole(body: RoleWrite): Promise<Role> {
-  return adminPost<Role>('/roles', body);
+export function createRole(body: RoleWrite, idempotencyKey?: string): Promise<Role> {
+  return adminPost<Role>('/roles', body, { idempotencyKey });
 }
 
 export function getRole(roleId: Id): Promise<Role> {
@@ -66,13 +66,19 @@ export function updateRole(roleId: Id, body: RoleWrite): Promise<Role> {
   return adminPut<Role>(rolePath(roleId), body);
 }
 
-/** 删除在用角色时，在用用户迁到默认角色，返回迁移人数。 */
-export function deleteRole(roleId: Id): Promise<{ moved_to_default: number }> {
-  return adminDelete<{ moved_to_default: number }>(rolePath(roleId));
+/** 还有人在用时必须带上替换角色。换角色和删除由后端放在同一个事务里。 */
+export function deleteRole(
+  roleId: Id,
+  replacementRoleId?: string,
+): Promise<{ moved_count: number; replacement_role_name: string | null }> {
+  return adminDelete<{ moved_count: number; replacement_role_name: string | null }>(
+    rolePath(roleId),
+    replacementRoleId ? { replacement_role_id: replacementRoleId } : {},
+  );
 }
 
-export function copyRole(roleId: Id, body: RoleCopyBody): Promise<Role> {
-  return adminPost<Role>(`${rolePath(roleId)}/copy`, body);
+export function copyRole(roleId: Id, body: RoleCopyBody, idempotencyKey?: string): Promise<Role> {
+  return adminPost<Role>(`${rolePath(roleId)}/copy`, body, { idempotencyKey });
 }
 
 export function updateRoleStatus(

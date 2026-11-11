@@ -319,7 +319,7 @@ export function UsersPage() {
           content: t(isDisable ? 'users.danger.disableContent' : 'users.danger.deleteContent'),
           okText: t(isDisable ? 'users.danger.disableOk' : 'users.danger.deleteOk'),
           cancelText: t('common.thinkAgain'),
-          okType: 'danger',
+          okType: isDisable ? 'primary' : 'danger',
           onOk: async () => {
             try {
               if (isDisable) {
@@ -345,17 +345,26 @@ export function UsersPage() {
     }
   };
 
-  const onEnable = async (user: User) => {
-    setPendingRowId(user.id);
-    try {
-      await runStatus(user, 'enabled');
-      Toast.success(t('users.danger.doneEnable', { name: user.nickname }));
-      invalidateUsers();
-    } catch (error) {
-      toastAdminError(error, t('common:errors.system.message'));
-    } finally {
-      setPendingRowId(null);
-    }
+  const onEnable = (user: User) => {
+    Modal.confirm({
+      title: t('users.danger.enableTitle', { name: user.nickname }),
+      content: t('users.danger.enableContent'),
+      okText: t('common.enable'),
+      cancelText: t('common.thinkAgain'),
+      okType: 'primary',
+      onOk: async () => {
+        setPendingRowId(user.id);
+        try {
+          await runStatus(user, 'enabled');
+          Toast.success(t('users.danger.doneEnable', { name: user.nickname }));
+          invalidateUsers();
+        } catch (error) {
+          toastAdminError(error, t('common:errors.system.message'));
+        } finally {
+          setPendingRowId(null);
+        }
+      },
+    });
   };
 
   /** 返回是否成功；失败时由调用方留在弹窗里并提示。 */
@@ -413,9 +422,9 @@ export function UsersPage() {
     Modal.confirm({
       title: t(isDisable ? 'users.batch.disableTitle' : 'users.batch.removeTitle', { count }),
       content: t(isDisable ? 'users.batch.disableContent' : 'users.batch.removeContent'),
-      okText: t(isDisable ? 'users.batch.disableOk' : 'users.batch.removeOk', { count }),
+      okText: t(isDisable ? 'users.batch.disableOk' : 'users.batch.removeOk'),
       cancelText: t('common.thinkAgain'),
-      okType: 'danger',
+      okType: isDisable ? 'primary' : 'danger',
       onOk: () => batchRun(kind),
     });
   };

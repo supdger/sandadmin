@@ -7,8 +7,10 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Http\BizKernel;
 use Sandadmin\Module\Lifecycle\LifecycleHttp;
 use Sandadmin\Module\Lifecycle\LifecycleRuntime;
+use Sandadmin\Module\Package\PackageOps;
 use support\Request;
 use support\Response;
 use Throwable;
@@ -29,6 +31,10 @@ final class LifecycleController
             $runtime = LifecycleRuntime::fromWebman();
             if ($runtime === null) {
                 return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $envelopeId);
+            }
+            $kernel = BizKernel::fromWebman();
+            if ($kernel !== null) {
+                (new PackageOps($kernel->connection))->advance($request_id);
             }
             $outcome = LifecycleHttp::show(
                 $runtime->requests,

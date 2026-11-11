@@ -17,6 +17,10 @@ use Sandadmin\Module\Dict\DictException;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Org\OrgSql;
+use Sandadmin\Module\Package\PackageOps;
+use Sandadmin\Task\StoredExportResolver;
+use Sandadmin\Task\TaskRun;
+use Sandadmin\Task\TaskState;
 
 /**
  * 用户、部门、角色、岗位、选项的写后回读，以及定时任务时间错误码。
@@ -36,6 +40,20 @@ final class OrgFlowTest extends TestCase
         }
         self::$conn = DriverManager::getConnection((new DsnParser())->parse($url));
         self::$kernel = BizKernel::fromConnection(self::$conn);
+        self::$conn->executeStatement(
+            'CREATE TABLE IF NOT EXISTS sand_system_dict_item_ref ('
+            . ' item_id bigint NOT NULL,'
+            . ' subject_type varchar(64) NOT NULL,'
+            . ' subject_id varchar(64) NOT NULL,'
+            . ' create_time timestamptz(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,'
+            . ' CONSTRAINT pk_sand_system_dict_item_ref PRIMARY KEY (item_id, subject_type, subject_id),'
+            . ' CONSTRAINT fk_sand_system_dict_item_ref_item FOREIGN KEY (item_id)'
+            . ' REFERENCES sand_system_dict_item (id) ON DELETE CASCADE)'
+        );
+        self::$conn->executeStatement(
+            'CREATE INDEX IF NOT EXISTS ix_sand_system_dict_item_ref_subject'
+            . ' ON sand_system_dict_item_ref (subject_type, subject_id)'
+        );
         self::wipe();
     }
 
@@ -184,7 +202,7 @@ final class OrgFlowTest extends TestCase
         $item = self::$kernel->dicts->createItem(OrgSql::int($type['id']), ['label' => '甲测选项'], $this->actor, 'req-i1', '127.0.0.1', null);
         $itemRenamed = self::$kernel->dicts->updateItem(OrgSql::int($item['id']), ['label' => '甲测选项改'], $this->actor, 'req-i2', '127.0.0.1', null);
         $this->assertSame('甲测选项改', $itemRenamed['label']);
-        $this->assertNull($itemRenamed['used']);
+        $this->assertFalse($itemRenamed['used']);
         try {
             self::$kernel->dicts->createType(['name' => '甲测选项组改'], $this->actor, 'req-t3', '127.0.0.1', null);
             $this->fail('选项组重名应被拒绝');
@@ -286,6 +304,259 @@ final class OrgFlowTest extends TestCase
         $this->assertSame('TASK_NOT_FOUND', $missing['body']['code'] ?? null);
     }
 
+    public function testDictItemUsedFollowsReferences(): void
+    {
+        $type = self::$kernel->dicts->createType(['name' => '甲测引用组'], $this->actor, 'req-used-t', '127.0.0.1', null);
+        $item = self::$kernel->dicts->createItem(OrgSql::int($type['id']), ['label' => '甲测引用项'], $this->actor, 'req-used-i', '127.0.0.1', null);
+        $this->assertFalse($item['used']);
+        self::$conn->executeStatement(
+            'INSERT INTO sand_system_dict_item_ref (item_id, subject_type, subject_id) VALUES (?, ?, ?)',
+            [OrgSql::int($item['id']), 'demo', 'row-1'],
+        );
+        $used = self::$kernel->dicts->updateItem(OrgSql::int($item['id']), ['label' => '甲测引用项'], $this->actor, 'req-used-i2', '127.0.0.1', null);
+        $this->assertTrue($used['used']);
+        self::$conn->executeStatement('DELETE FROM sand_system_dict_item_ref WHERE item_id = ?', [OrgSql::int($item['id'])]);
+        self::$conn->executeStatement(
+            'UPDATE sand_system_dict_type SET extension_key = ? WHERE id = ?',
+            ['flow.group', OrgSql::int($type['id'])],
+        );
+        $unknown = self::$kernel->dicts->updateItem(OrgSql::int($item['id']), ['label' => '甲测引用项'], $this->actor, 'req-used-i3', '127.0.0.1', null);
+        $this->assertNull($unknown['used']);
+    }
+
+    public function testRoleDeleteRequiresReplacementWhenUsed(): void
+    {
+        $dept = self::$kernel->depts->create(['name' => '甲测换角部门'], $this->actor, 'req-mv-d', '127.0.0.1', null);
+        $role = self::$kernel->roles->create(['name' => '甲测在用角色'], $this->actor, 'req-mv-r', '127.0.0.1', null);
+        $next = self::$kernel->roles->create(['name' => '甲测替换角色'], $this->actor, 'req-mv-n', '127.0.0.1', null);
+        $user = self::$kernel->users->create([
+            'nickname' => '甲测换角人',
+            'phone' => '13700009021',
+            'username' => 'moverole',
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ], $this->actor, 'req-mv-u', '127.0.0.1', null);
+        $roleId = OrgSql::int($role['id']);
+        $nextId = OrgSql::int($next['id']);
+        try {
+            self::$kernel->roles->remove($roleId, null, $this->actor, 'req-mv-x', '127.0.0.1', null);
+            $this->fail('还有人在用时不传新角色应被拒绝');
+        } catch (OrgException $error) {
+            $this->assertSame(422, $error->status);
+            $this->assertStringContainsString('还有 1 个人在用这个角色', $error->getMessage());
+        }
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_role WHERE name = '甲测在用角色'"));
+        $kept = self::$conn->fetchOne(
+            'SELECT role_id FROM sand_system_user_role WHERE user_id = ?',
+            [OrgSql::int($user['id'])],
+        );
+        $this->assertSame($roleId, OrgSql::int($kept));
+        $removed = self::$kernel->roles->remove($roleId, $nextId, $this->actor, 'req-mv-ok', '127.0.0.1', null);
+        $this->assertSame(1, $removed['moved_count']);
+        $this->assertSame('甲测替换角色', $removed['replacement_role_name']);
+        $this->assertSame(0, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_role WHERE name = '甲测在用角色'"));
+        $now = self::$conn->fetchOne(
+            'SELECT role_id FROM sand_system_user_role WHERE user_id = ?',
+            [OrgSql::int($user['id'])],
+        );
+        $this->assertSame($nextId, OrgSql::int($now));
+        $empty = self::$kernel->roles->create(['name' => '甲测空角色'], $this->actor, 'req-mv-e', '127.0.0.1', null);
+        $gone = self::$kernel->roles->remove(OrgSql::int($empty['id']), null, $this->actor, 'req-mv-e2', '127.0.0.1', null);
+        $this->assertSame(0, $gone['moved_count']);
+        $this->assertNull($gone['replacement_role_name']);
+    }
+
+    public function testCopyRoleReusesIdempotencyKey(): void
+    {
+        $owner = $this->ownerActor('13700009041', 'copyowner', '甲测复制人');
+        $source = self::$kernel->roles->create(['name' => '甲测复制源'], $owner, 'req-cp-s', '127.0.0.1', null);
+        $body = ['name' => '甲测副本'];
+        $first = self::$kernel->roles->copy(OrgSql::int($source['id']), $body, $owner, 'req-cp-1', '127.0.0.1', null, 'idem-copy-1');
+        $second = self::$kernel->roles->copy(OrgSql::int($source['id']), $body, $owner, 'req-cp-2', '127.0.0.1', null, 'idem-copy-1');
+        $this->assertSame($first['id'], $second['id']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_role WHERE name = '甲测副本'"));
+    }
+
+    public function testScheduleSaveReturnsChineseName(): void
+    {
+        self::$conn->executeStatement(
+            'INSERT INTO sand_system_schedule (code, enabled) VALUES (?, true)',
+            ['host.log-cleanup'],
+        );
+        $http = new ScheduleHttp(self::$conn);
+        $saved = $http->update('host.log-cleanup', ['status' => 'disabled'], 'req-sch-name');
+        $this->assertSame(200, $saved['status']);
+        $data = $saved['body']['data'] ?? null;
+        $this->assertIsArray($data);
+        $this->assertSame('日志清理', $data['name'] ?? null);
+    }
+
+    public function testUserExportWritesDownloadableFile(): void
+    {
+        $root = sys_get_temp_dir() . '/sandadmin-export-' . getmypid();
+        $previous = getenv('SAND_FILE_ROOT');
+        putenv('SAND_FILE_ROOT=' . $root);
+        try {
+            $owner = $this->ownerActor('13700009031', 'exportowner', '甲测导出人');
+            $exported = self::$kernel->users->export([], $owner, 'req-exp', '127.0.0.1', null);
+            $this->assertSame('succeeded', $exported['state']);
+            $raw = self::$conn->fetchOne(
+                'SELECT result::text FROM sand_system_task_run WHERE public_id = ?',
+                [$exported['task_id']],
+            );
+            $this->assertIsString($raw);
+            $decoded = json_decode($raw, true);
+            $this->assertIsArray($decoded);
+            $now = new \DateTimeImmutable();
+            $task = new TaskRun(
+                $exported['task_id'],
+                'user.export',
+                TaskState::Succeeded,
+                '已完成',
+                100,
+                ['file_id' => OrgSql::int($decoded['file_id'] ?? 0)],
+                null,
+                null,
+                [],
+                $owner->userId,
+                null,
+                0,
+                null,
+                null,
+                $now,
+                $now,
+                $now,
+                $now,
+            );
+            $artifact = (new StoredExportResolver(self::$conn))->resolve($task);
+            $this->assertNotNull($artifact);
+            $bytes = file_get_contents($artifact->path);
+            $this->assertIsString($bytes);
+            $this->assertStringContainsString('甲测导出人', $bytes);
+            $this->assertStringNotContainsString('temp-pass-1', $bytes);
+        } finally {
+            if (is_string($previous) && $previous !== '') {
+                putenv('SAND_FILE_ROOT=' . $previous);
+            } else {
+                putenv('SAND_FILE_ROOT');
+            }
+        }
+    }
+
+    public function testProductionRefusesCompiledPluginInstall(): void
+    {
+        $this->withPackageEnv('production', '0', '1', function (): void {
+            $owner = $this->ownerActor('13700009051', 'pkgowner', '甲测安装人');
+            $ops = new PackageOps(self::$conn);
+            $refused = $ops->install('flow', $owner, 'req-pkg-prod');
+            $this->assertSame(403, $refused['status']);
+            $this->assertSame('PLUGIN_OPERATION_FORBIDDEN', $refused['body']['code'] ?? null);
+            $this->assertSame(0, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_plugin WHERE code = 'flow'"));
+            $phar = $ops->upload('evil.phar', '{"code":"flow"}', $owner, 'req-pkg-phar');
+            $this->assertSame(403, $phar['status']);
+            $this->assertSame(0, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_lifecycle_request WHERE executor_id = 'package-ops'"));
+        });
+    }
+
+    public function testPackageInstallAdvancesWithoutExecutingCode(): void
+    {
+        $root = sys_get_temp_dir() . '/sandadmin-export-' . getmypid();
+        $previous = getenv('SAND_FILE_ROOT');
+        putenv('SAND_FILE_ROOT=' . $root);
+        try {
+            $this->withPackageEnv('development', '0', '1', function (): void {
+                $owner = $this->ownerActor('13700009061', 'pkgdev', '甲测开发装');
+                $ops = new PackageOps(self::$conn);
+                $compiled = $ops->upload('pack.json', '{"compiled":true,"code":"flow"}', $owner, 'req-pkg-c');
+                $this->assertSame(403, $compiled['status']);
+                $bad = $ops->upload('pack.json', 'not-json', $owner, 'req-pkg-b');
+                $this->assertSame(422, $bad['status']);
+                $accepted = $ops->install('flow', $owner, 'req-pkg-ok');
+                $this->assertSame(200, $accepted['status']);
+                $data = $accepted['body']['data'] ?? null;
+                $this->assertIsArray($data);
+                $requestId = $data['request_id'] ?? '';
+                $this->assertIsString($requestId);
+                for ($step = 0; $step < 4; $step++) {
+                    $ops->advance($requestId);
+                }
+                $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_plugin WHERE code = 'flow' AND state = 'installed'"));
+                $this->assertSame('1.0.0', self::$conn->fetchOne("SELECT version FROM sand_system_plugin WHERE code = 'flow'"));
+                $started = $ops->startUpdate($owner, 'req-up');
+                $this->assertSame(200, $started['status']);
+                $update = $started['body']['data'] ?? null;
+                $this->assertIsArray($update);
+                $updateId = $update['request_id'] ?? '';
+                $this->assertIsString($updateId);
+                $seen = [];
+                for ($step = 0; $step < 6; $step++) {
+                    $ops->advance($updateId);
+                    $key = self::$conn->fetchOne(
+                        'SELECT stage_key FROM sand_system_lifecycle_request WHERE public_id = ?',
+                        [$updateId],
+                    );
+                    if (is_string($key)) {
+                        $seen[$key] = true;
+                    }
+                }
+                foreach (['check', 'backup', 'download', 'switch', 'verify'] as $stage) {
+                    $this->assertArrayHasKey($stage, $seen);
+                }
+                $state = self::$conn->fetchOne(
+                    'SELECT state FROM sand_system_lifecycle_request WHERE public_id = ?',
+                    [$updateId],
+                );
+                $this->assertSame('succeeded', $state);
+            });
+        } finally {
+            if (is_string($previous) && $previous !== '') {
+                putenv('SAND_FILE_ROOT=' . $previous);
+            } else {
+                putenv('SAND_FILE_ROOT');
+            }
+        }
+    }
+
+    private function ownerActor(string $phone, string $username, string $nickname): OrgActor
+    {
+        $dept = self::$kernel->depts->create(['name' => '甲测' . $username], $this->actor, 'req-' . $username . '-d', '127.0.0.1', null);
+        $role = self::$kernel->roles->create(['name' => '甲测' . $username], $this->actor, 'req-' . $username . '-r', '127.0.0.1', null);
+        $user = self::$kernel->users->create([
+            'nickname' => $nickname,
+            'phone' => $phone,
+            'username' => $username,
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ], $this->actor, 'req-' . $username . '-u', '127.0.0.1', null);
+
+        return new OrgActor(OrgSql::int($user['id']), $nickname, null, true, ['*']);
+    }
+
+    private function withPackageEnv(string $appEnv, string $compiled, string $ops, callable $work): void
+    {
+        $saved = [
+            'APP_ENV' => getenv('APP_ENV'),
+            'SAND_COMPILED' => getenv('SAND_COMPILED'),
+            'SAND_PACKAGE_OPS' => getenv('SAND_PACKAGE_OPS'),
+        ];
+        putenv('APP_ENV=' . $appEnv);
+        putenv('SAND_COMPILED=' . $compiled);
+        putenv('SAND_PACKAGE_OPS=' . $ops);
+        try {
+            $work();
+        } finally {
+            foreach ($saved as $name => $value) {
+                if (is_string($value) && $value !== '') {
+                    putenv($name . '=' . $value);
+                } else {
+                    putenv($name);
+                }
+            }
+        }
+    }
+
     private function rowsMatching(string $sql): int
     {
         return OrgSql::int(self::$conn->fetchOne($sql));
@@ -293,6 +564,12 @@ final class OrgFlowTest extends TestCase
 
     private static function wipe(): void
     {
+        self::$conn->executeStatement("DELETE FROM sand_system_lifecycle_request WHERE executor_id = 'package-ops' OR target_code IN ('flow', 'host')");
+        self::$conn->executeStatement("DELETE FROM sand_system_task_run WHERE created_by IN (SELECT id FROM sand_system_user WHERE phone LIKE '13700009%')");
+        self::$conn->executeStatement("DELETE FROM sand_system_file WHERE uploader_id IN (SELECT id FROM sand_system_user WHERE phone LIKE '13700009%')");
+        self::$conn->executeStatement("DELETE FROM sand_system_plugin WHERE code = 'flow'");
+        self::$conn->executeStatement("DELETE FROM sand_system_setting WHERE key = 'host.version'");
+        self::$conn->executeStatement("DELETE FROM sand_system_schedule WHERE code = 'host.log-cleanup'");
         self::$conn->executeStatement("DELETE FROM sand_system_idempotency_key WHERE key LIKE 'idem-%'");
         self::$conn->executeStatement("DELETE FROM sand_system_user WHERE phone LIKE '13700009%'");
         self::$conn->executeStatement("DELETE FROM sand_system_role WHERE name LIKE '甲测%' OR name LIKE '幂等%'");

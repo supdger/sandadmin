@@ -50,13 +50,15 @@ export default {
       ok: '复制',
     },
     confirm: {
-      disableTitle: '停用“{{name}}”？',
-      disableBody: '有 {{count}} 人是这个角色。停用后他们暂时失去这个角色的权限（其他角色的权限不受影响），随时可以再启用。',
-      disableBodyEmpty: '停用后这个角色的权限暂时失效，随时可以再启用。',
-      deleteTitle: '删除“{{name}}”？',
-      deleteBodyWithUsers:
-        '有 {{count}} 人是这个角色。删除后他们失去这个角色的权限；其中只有这一个角色的人会自动改为默认角色。此操作不能撤销；如果只是暂时不用，请用“停用”。',
+      disableTitle: '停用「{{name}}」？',
+      disableBody: '停用后，这个角色的人就不能登录了，随时可以再启用',
+      enableTitle: '启用「{{name}}」？',
+      enableBody: '启用后，这个角色的人又能登录了。',
+      deleteTitle: '删除「{{name}}」？',
       deleteBodyEmpty: '删除后不能恢复。',
+      reassignBody: '还有 {{count}} 个人在用这个角色，先给他们换一个：',
+      reassignOk: '换好并删除',
+      reassignPlaceholder: '选择角色',
       thinkAgain: '再想想',
     },
     toast: {
@@ -66,7 +68,7 @@ export default {
       disabled: '已停用「{{name}}」',
       enabled: '已启用「{{name}}」',
       deleted: '已删除「{{name}}」',
-      deletedMoved: '已删除「{{name}}」，其中 {{count}} 人已转到默认角色',
+      deletedMoved: '已删除「{{name}}」，{{count}} 个人换成了「{{replacement}}」',
     },
     scope: {
       all: '全公司',
@@ -104,7 +106,8 @@ export default {
     cancel: '取消',
     save: '保存',
     saving: '保存中…',
-    toastSaved: '已保存，{{count}} 人马上按新权限使用',
+    toastSaved: '已保存「{{name}}」的权限',
+    toastSavedUsers: '已保存「{{name}}」的权限，用这个角色的 {{count}} 个人马上生效',
     staleVersion: '这条刚被别人改过，刷新后再改',
     discardTitle: '放弃刚才的修改吗？',
     discardOk: '放弃修改',
@@ -179,9 +182,9 @@ export default {
       ok: '移过去',
     },
     confirm: {
-      deleteLinkTitle: '删除“{{name}}”？',
+      deleteLinkTitle: '删除「{{name}}」？',
       deleteLinkBody: '删除后左侧菜单里不再有这个链接，不能恢复。',
-      deleteGroupTitle: '删除分组“{{name}}”？',
+      deleteGroupTitle: '删除「{{name}}」？',
       deleteGroupBody:
         '里面的 {{count}} 个菜单会自动移回它们原来的分组；你加的外部链接会一起删除。此操作不能撤销。',
       deleteGroupEmptyBody: '删除后不能恢复。',

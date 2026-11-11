@@ -329,6 +329,10 @@ final class UserService
      */
     public function export(array $filters, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
     {
+        $by = $actor->writerId();
+        if ($by === null) {
+            throw OrgException::unauthenticated();
+        }
         $payload = json_encode([
             'keyword' => $filters['keyword'] ?? null,
             'status' => $filters['status'] ?? null,
@@ -339,14 +343,58 @@ final class UserService
         if (!is_string($payload)) {
             $payload = '{}';
         }
+        $csv = $this->exportCsv($filters);
+        $fileId = UserExportFile::write($this->connection, $csv, $by);
+        $result = json_encode(['file_id' => $fileId], JSON_UNESCAPED_UNICODE);
         $publicId = OrgSql::str($this->connection->fetchOne(
-            'INSERT INTO sand_system_task_run (type, payload, state, stage, created_by)'
-            . ' VALUES (\'user.export\', CAST(:payload AS jsonb), \'queued\', \'排队中\', :by) RETURNING public_id::text',
-            ['payload' => $payload, 'by' => $actor->writerId()],
+            'INSERT INTO sand_system_task_run (type, payload, state, stage, progress, result, created_by, start_time, finish_time)'
+            . ' VALUES (\'user.export\', CAST(:payload AS jsonb), \'succeeded\', \'已完成\', 100, CAST(:result AS jsonb), :by, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)'
+            . ' RETURNING public_id::text',
+            ['payload' => $payload, 'result' => is_string($result) ? $result : '{}', 'by' => $by],
         ));
         $this->audit->record($actor, 'user', 'export', '导出了用户列表', 'task', $publicId, '用户列表', $requestId, $ip, $device);
 
-        return ['task_id' => $publicId, 'state' => 'queued'];
+        return ['task_id' => $publicId, 'state' => 'succeeded'];
+    }
+
+    /** @param array<string, mixed> $filters */
+    private function exportCsv(array $filters): string
+    {
+        $lines = ["\xEF\xBB\xBF" . '姓名,手机,登录账号,部门,岗位,状态'];
+        $items = [];
+        $page = 1;
+        do {
+            $query = $filters;
+            $query['page'] = $page;
+            $query['page_size'] = 100;
+            $found = $this->search($query);
+            $items = $found['items'];
+            foreach ($items as $item) {
+                $status = ($item['status'] ?? '') === 'enabled' ? '已启用' : '已停用';
+                $lines[] = implode(',', [
+                    $this->csvCell(is_string($item['nickname'] ?? null) ? $item['nickname'] : ''),
+                    $this->csvCell(is_string($item['phone'] ?? null) ? $item['phone'] : ''),
+                    $this->csvCell(is_string($item['username'] ?? null) ? $item['username'] : ''),
+                    $this->csvCell(is_string($item['dept_name'] ?? null) ? $item['dept_name'] : ''),
+                    $this->csvCell(is_string($item['post_name'] ?? null) ? $item['post_name'] : ''),
+                    $this->csvCell($status),
+                ]);
+            }
+            $page++;
+        } while (count($items) === 100 && $page <= 100);
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    private function csvCell(string $value): string
+    {
+        $safe = $value;
+        if ($safe !== '' && str_contains('=+-@', $safe[0])) {
+            $safe = "'" . $safe;
+        }
+        $escaped = str_replace('"', '""', $safe);
+
+        return '"' . $escaped . '"';
     }
 
     /**

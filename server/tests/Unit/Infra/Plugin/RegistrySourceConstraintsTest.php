@@ -91,7 +91,7 @@ final class RegistrySourceConstraintsTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        self::assertCount(32, $files);
+        self::assertCount(33, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
