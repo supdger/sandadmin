@@ -43,7 +43,7 @@ const FULL_MENUS = [
         id: 'files',
         parentId: 'system',
         title: '文件管理',
-        path: '/data/attachment',
+        path: '/data/file',
         order: 3,
       },
       {

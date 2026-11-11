@@ -14,7 +14,7 @@ const routes: RouteObject[] = [
     handle: { title: 'dict:title', permission: 'system:dict:index' },
   },
   {
-    path: '/data/attachment',
+    path: '/data/file',
     element: <FilesPage />,
     handle: { title: 'files:title', permission: 'system:file:index' },
   },
