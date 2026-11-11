@@ -6,12 +6,12 @@
         "src/views/plugin/sandpackage/api/index.ts": "66b3a3d5e2067aeb2ab81c0907d754d88a2d3d2612ec5ce7f58d16048785e525",
         "src/views/plugin/sandpackage/api/system-update.ts": "f2c33520cfa368c660f7d6e7c831c4b4f533b2598f74321d2a92c5ca916607e5",
         "src/views/plugin/sandpackage/install/dependency-chain.ts": "0bb2450079761ac64cb1473d7a1af09ce34bc57248cedd70e99dce971dc7835f",
-        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.ts": "5ac56246b72ecfe4d083584caabaef96845880378bc85bb457cf1ae4ac0a1ac6",
-        "src/views/plugin/sandpackage/install/index.vue": "8083f742a6aa7a1562715a8ae006dda90b2d3f0aa17491ced142570b839aca00",
+        "src/views/plugin/sandpackage/install/failed-upgrade-recovery.ts": "0e64116f1cf52957e1cb6b987a2fe72b9f722b9ba3dc1a58143bacd72f3ddbd9",
+        "src/views/plugin/sandpackage/install/index.vue": "15607042f15da51606312080be4d3c12662aa7f3e534f127804e37c7c3928f48",
         "src/views/plugin/sandpackage/install/install-box.vue": "75e70a10e32530770baf04f1e5ede920c1edb9364b914b4cd93793157d2f95df",
         "src/views/plugin/sandpackage/install/plain-confirmations.ts": "a5f37eff8c9314c91a54ffd056b57a8f02ce84cefcca4d4d1a01e7615e1993b0",
         "src/views/plugin/sandpackage/install/read-recovery.ts": "d0e56a288b7f50f62ca9e7a97ce061e7e6ed9e45598f1c21603ced8b337e24fe",
-        "src/views/plugin/sandpackage/install/system-update.vue": "e3f2a70e755018c9adc5e774294124e5f349f7b424094eb8e7be9e9479e274a9",
+        "src/views/plugin/sandpackage/install/system-update.vue": "2641ed723a8fd62090af1a6b347976056200db396dcc09d8e63ae39d2cff7bf7",
         "src/views/plugin/sandpackage/install/version-compatibility.ts": "50b371b425ad0ce317c62d9f78d61cfac5c495228939c4e7689cc288e15e6688",
         "src/views/plugin/sandpackage/store/install-orchestrator.ts": "5173c99cd342e1590f41c2062a385047537ef105e2d8db823f796d9da6288146"
     }
