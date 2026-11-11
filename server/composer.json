@@ -36,7 +36,7 @@
     "require": {
         "php": ">=8.2",
         "supdger/sand-core": "^0.2.8",
-        "supdger/sand-package": "^0.2.21",
+        "supdger/sand-package": "^0.2.22",
         "workerman/webman-framework": "^2.1",
         "monolog/monolog": "^2.0",
         "nelexa/zip": "^4.0",
@@ -66,8 +66,7 @@
         "zoujingli/ip2region": "^2.0",
         "aliyuncs/oss-sdk-php": "^2.7",
         "smalot/pdfparser": "^2.12",
-        "doctrine/dbal": "^4.2",
-        "doctrine/migrations": "^3.8"
+        "doctrine/dbal": "^4.2"
     },
     "suggest": {
         "ext-event": "For better performance. "
@@ -77,8 +76,7 @@
             "app\\": "./app",
             "App\\": "./app",
             "app\\View\\Components\\": "./app/view/components",
-            "Sandadmin\\": "src/",
-            "Sandadmin\\Migrations\\": "migrations/"
+            "Sandadmin\\": "src/"
         }
     },
     "require-dev": {
