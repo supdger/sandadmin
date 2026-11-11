@@ -12,6 +12,7 @@
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
+use app\controller\DevLoginController;
 use app\controller\FileController;
 use Sandadmin\Http\TaskController;
 use Webman\Route;
@@ -34,3 +35,7 @@ Route::post('/api/admin/v1/files/cleanup', [FileController::class, 'cleanup']);
 Route::get('/api/admin/v1/tasks', [TaskController::class, 'index']);
 Route::get('/api/admin/v1/tasks/{task_id}', [TaskController::class, 'show']);
 Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'download']);
+
+// 开发模式本机一键登录：与 /core/login 同前缀，是否放行由控制器按
+// SAND_DEV_LOGIN 与真实回环对端 IP 判定，不满足时返回 404 等同路由不存在。
+Route::post('/core/dev-login', [DevLoginController::class, 'login']);
