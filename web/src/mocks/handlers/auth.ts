@@ -1,4 +1,4 @@
-import { http, type HttpHandler } from 'msw';
+import { http, HttpResponse, type HttpHandler } from 'msw';
 
 import { env } from '@/config/env';
 import { fail, ok } from './_shared';
@@ -134,6 +134,11 @@ const USERS: Record<string, MockUser> = {
     is_super: false,
   },
 };
+
+// Browser dev defaults to available so the one-click entry can be tried
+// locally; tests flip it through __authMock. Production never runs MSW.
+let devLoginAvailable = true;
+const DEV_LOGIN_USERNAME = 'admin';
 
 const failures = new Map<string, number>();
 const lockedUntil = new Map<string, number>();
@@ -285,6 +290,23 @@ export default [
     return fail(4002, '用户名或密码不正确');
   }),
 
+  http.get(`${base}/auth/dev-login/available`, () =>
+    devLoginAvailable
+      ? ok({ available: true, username: DEV_LOGIN_USERNAME }, 'ok')
+      : ok({ available: false }, 'ok'),
+  ),
+
+  http.post(`${base}/auth/dev-login`, () => {
+    // Contract: an unavailable endpoint answers a bare 404, not an envelope.
+    if (!devLoginAvailable) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    const user = USERS[DEV_LOGIN_USERNAME];
+    const token = `mock-${user.username}-token`;
+    tokenToUser.set(token, user);
+    return ok({ token, mustChangePassword: user.mustChangePassword }, '登录成功');
+  }),
+
   http.post(`${base}/auth/logout`, () => ok(null)),
 
   http.get(`${base}/auth/captcha`, () => ok(createCaptcha())),
@@ -377,6 +399,10 @@ export const __authMock = {
     lockedUntil.clear();
     captchas.clear();
     captchaSeq = 0;
+    devLoginAvailable = true;
+  },
+  setDevLoginAvailable(available: boolean): void {
+    devLoginAvailable = available;
   },
   captchaCenters(captchaId: string): number[] | null {
     return captchas.get(captchaId)?.centers ?? null;

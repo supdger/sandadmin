@@ -53,6 +53,7 @@ pnpm dev        # 开发服务器，默认启用 MSW mock
   - `viewer`：只读账号。能登录、菜单和页面照常可见，但 `/me` 只返回 `workbench:view`、`preferences:view`——偏好设置等写操作控件全部禁用并提示只读，调 `PUT /me/preferences` 等写接口返回权限不足（业务码 4030）。
   - `guest`：无权限账号。`/me/menus` 返回空、`permissions` 为空，访问任何受保护路由都落到 `/403` 无权限页。
 - 安装：默认返回未安装；在 `/install/status` 请求上加 `?mocks=installed`，或设置 localStorage `mock.installed=1`，可切到「已安装」状态。
+- 开发登录：`GET /api/auth/dev-login/available` 默认返回可用（开发账号 `admin`），`POST /api/auth/dev-login` 直接签发 admin 令牌；测试里用 `__authMock.setDevLoginAvailable(false)` 可切回生产体验，此时 POST 返回裸 404。真实环境是否可用由后端决定。
 - 任务进度：`GET /api/jobs/{id}` 每次轮询推进 25%，直至成功。
 
 `VITE_ENABLE_MOCKS=false` 或生产构建下不启动 mock，请求按 `VITE_API_BASE_URL` 直达真实后端。
