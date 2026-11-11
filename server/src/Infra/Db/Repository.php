@@ -11,8 +11,6 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
-use Sandadmin\Infra\Db\Query\Filter;
-use Sandadmin\Infra\Db\Query\FilterOperator;
 use Sandadmin\Infra\Db\Query\ListQuery;
 use Sandadmin\Infra\Db\Query\Page;
 
@@ -20,9 +18,12 @@ use Sandadmin\Infra\Db\Query\Page;
  * DBAL 仓储基类（无 ORM / EntityManager / Active Record）。
  *
  * 约定：
- * - 子类 per-table，`final`；只暴露返回 VO / Page / ?VO / int / void 的公有方法，不返回裸数组。
- * - 对外字段名（API 字段）→ 列名 映射由 fieldMap() 白名单给出；排序/筛选只允许白名单字段，防注入。
- * - 无可变状态：仅持有构造注入的 Connection（由 Pool 按请求借出）；每次调用新建 QueryBuilder。
+ * - 子类 per-table，`final`；公有方法只返回 VO / Page / ?VO / int / bool，不返回裸数组。
+ * - 查询列由 columns() 显式列出，禁止 SELECT *；hydrate() 用 Row 逐列取类型化值。
+ * - 排序/筛选字段白名单由 fieldMap() 给出（白名单键 => 列名）；筛选运算符由服务端固定，
+ *   页面具名参数在各模块列表查询对象中声明，仓储用 where* 助手按白名单键落条件。
+ * - 模糊匹配只允许 likeFields() 声明的字段（须有索引支撑），且只做前缀匹配。
+ * - 无可变状态：仅持有构造注入的 Connection；每次调用新建 QueryBuilder。
  *
  * @template T of object
  */
@@ -40,18 +41,33 @@ abstract class Repository
     }
 
     /**
-     * API 字段 => 列名；可排序/筛选字段白名单。
+     * SELECT 显式列（禁止 SELECT *）。
+     *
+     * @return list<string>
+     */
+    abstract protected function columns(): array;
+
+    /**
+     * 排序/筛选字段白名单：接口字段名 => 列名。
      *
      * @return array<string, string>
      */
     abstract protected function fieldMap(): array;
 
     /**
-     * @param array<string, mixed> $row
+     * 允许前缀模糊匹配的白名单字段（键与 fieldMap 一致）；只允许有索引支撑的列。
      *
+     * @return list<string>
+     */
+    protected function likeFields(): array
+    {
+        return [];
+    }
+
+    /**
      * @return T
      */
-    abstract protected function hydrate(array $row): object;
+    abstract protected function hydrate(Row $row): object;
 
     /**
      * 未传 sort 时的默认排序（列名 => ASC|DESC）。
@@ -71,12 +87,12 @@ abstract class Repository
     /** @return T|null */
     protected function findOneBy(string $column, int|string $value): ?object
     {
-        $row = $this->qb()->select('*')->from($this->table())
-            ->where($this->connection->quoteSingleIdentifier($column) . ' = :v')
+        $qb = $this->qb()->select(...$this->columns())->from($this->table());
+        $row = $qb->where($qb->expr()->eq($this->connection->quoteSingleIdentifier($column), ':v'))
             ->setParameter('v', $value)->setMaxResults(1)
             ->executeQuery()->fetchAssociative();
 
-        return $row === false ? null : $this->hydrate($row);
+        return $row === false ? null : $this->hydrate(new Row($row));
     }
 
     /** @return T|null */
@@ -89,18 +105,17 @@ abstract class Repository
     protected function paginate(ListQuery $query, ?QueryBuilder $base = null): Page
     {
         $base ??= $this->qb()->from($this->table());
-        $this->applyFilters($base, $query);
 
         $count = (clone $base)->select('COUNT(*)')->executeQuery()->fetchOne();
         $total = is_numeric($count) ? (int) $count : 0;
 
-        $list = (clone $base)->select('*');
+        $list = (clone $base)->select(...$this->columns());
         $this->applySort($list, $query);
         $list->setFirstResult($query->offset())->setMaxResults($query->pageSize);
 
         $items = [];
         foreach ($list->executeQuery()->iterateAssociative() as $row) {
-            $items[] = $this->hydrate($row);
+            $items[] = $this->hydrate(new Row($row));
         }
 
         return new Page($items, $total, $query->page, $query->pageSize);
@@ -109,13 +124,13 @@ abstract class Repository
     /** @param array<string, mixed> $data 列名 => 值 */
     protected function insertRow(array $data): int
     {
-        return (int) $this->connection->insert($this->table(), $data);
+        return (int) $this->connection->insert($this->table(), $this->bindValues($data));
     }
 
     /** @param array<string, mixed> $data */
     protected function updateRow(int|string $id, array $data): int
     {
-        return (int) $this->connection->update($this->table(), $data, [$this->primaryKey() => $id]);
+        return (int) $this->connection->update($this->table(), $this->bindValues($data), [$this->primaryKey() => $id]);
     }
 
     protected function deleteRow(int|string $id): int
@@ -123,11 +138,131 @@ abstract class Repository
         return (int) $this->connection->delete($this->table(), [$this->primaryKey() => $id]);
     }
 
+    /**
+     * 等值筛选；$field 为 fieldMap 白名单键，$param 为绑定参数名（同一 QueryBuilder 内不可重复）。
+     * 值为 null 时不加条件。
+     *
+     * @param scalar|\DateTimeInterface|null $value
+     */
+    protected function whereEq(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'eq', $value);
+    }
+
+    /** @param scalar|\DateTimeInterface|null $value */
+    protected function whereNeq(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'neq', $value);
+    }
+
+    /** @param scalar|\DateTimeInterface|null $value */
+    protected function whereGt(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'gt', $value);
+    }
+
+    /** @param scalar|\DateTimeInterface|null $value */
+    protected function whereGte(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'gte', $value);
+    }
+
+    /** @param scalar|\DateTimeInterface|null $value */
+    protected function whereLt(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'lt', $value);
+    }
+
+    /** @param scalar|\DateTimeInterface|null $value */
+    protected function whereLte(QueryBuilder $qb, string $field, string|int|float|bool|\DateTimeInterface|null $value, string $param): void
+    {
+        $this->compare($qb, $field, $param, 'lte', $value);
+    }
+
+    /**
+     * 前缀模糊筛选（LIKE '值%'，可走索引）。仅 likeFields() 声明的字段可用，值里的 % _ \ 会被转义。
+     */
+    protected function whereLikePrefix(QueryBuilder $qb, string $field, ?string $value, string $param): void
+    {
+        if ($value === null || $value === '') {
+            return;
+        }
+        if (!in_array($field, $this->likeFields(), true)) {
+            throw new InvalidQueryException("字段不支持模糊查询：{$field}", [$field => 'like_not_allowed']);
+        }
+        $qb->setParameter($param, addcslashes($value, '%_\\') . '%');
+        $qb->andWhere($qb->expr()->like($this->column($field, '筛选'), ':' . $param, "'\\'"));
+    }
+
+    /**
+     * IN 列表筛选；$values 为空不加条件。
+     *
+     * @param list<scalar>|null $values
+     */
+    protected function whereIn(QueryBuilder $qb, string $field, ?array $values, string $param): void
+    {
+        if ($values === null || $values === []) {
+            return;
+        }
+        $qb->andWhere($qb->expr()->in($this->column($field, '筛选'), ':' . $param));
+        $qb->setParameter($param, $values, ArrayParameterType::STRING);
+    }
+
+    /**
+     * 比较类筛选的公共实现：运算符由 $op 固定映射，值绑定参数；null 不加条件。
+     *
+     * @param scalar|\DateTimeInterface|null $value
+     */
+    private function compare(QueryBuilder $qb, string $field, string $param, string $op, string|int|float|bool|\DateTimeInterface|null $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+        $expr = $qb->expr();
+        $col = $this->column($field, '筛选');
+        $p = ':' . $param;
+        $qb->setParameter($param, $this->bindValue($value));
+        $qb->andWhere(match ($op) {
+            'eq' => $expr->eq($col, $p),
+            'neq' => $expr->neq($col, $p),
+            'gt' => $expr->gt($col, $p),
+            'gte' => $expr->gte($col, $p),
+            'lt' => $expr->lt($col, $p),
+            'lte' => $expr->lte($col, $p),
+            default => throw new \LogicException("未知筛选运算：{$op}"),
+        });
+    }
+
+    /**
+     * DBAL 把未显式声明类型的参数按字符串绑定，DateTimeInterface 需先转成
+     * 带时区偏移的 ISO 8601（timestamptz 按字面量解析，不能丢时区）。
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    private function bindValues(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            $data[$key] = $this->bindValue($value);
+        }
+
+        return $data;
+    }
+
+    private function bindValue(mixed $value): mixed
+    {
+        return $value instanceof \DateTimeInterface ? $value->format(DATE_ATOM) : $value;
+    }
+
+    /**
+     * 白名单键 => 引用列名；键未声明抛 InvalidQueryException。
+     */
     private function column(string $field, string $kind): string
     {
         $map = $this->fieldMap();
         if (!isset($map[$field])) {
-            throw new InvalidQueryException("不允许的{$kind}字段：{$field}", [$kind === '排序' ? 'sort' : "filters.$field" => 'not_allowed']);
+            throw new InvalidQueryException("不允许的{$kind}字段：{$field}", [$kind === '排序' ? 'sort' : $field => 'not_allowed']);
         }
 
         return $this->connection->quoteSingleIdentifier($map[$field]);
@@ -145,47 +280,5 @@ abstract class Repository
         foreach ($query->sort as $sort) {
             $qb->addOrderBy($this->column($sort->field, '排序'), $sort->direction->value);
         }
-    }
-
-    private function applyFilters(QueryBuilder $qb, ListQuery $query): void
-    {
-        foreach ($query->filters as $i => $filter) {
-            $qb->andWhere($this->filterExpr($qb, $filter, 'f' . $i));
-        }
-    }
-
-    private function filterExpr(QueryBuilder $qb, Filter $f, string $param): string
-    {
-        $col = $this->column($f->field, '筛选');
-        $expr = $qb->expr();
-        if ($f->operator === FilterOperator::In) {
-            $qb->setParameter($param, (array) $f->value, ArrayParameterType::STRING);
-
-            return $expr->in($col, ':' . $param);
-        }
-        if ($f->operator === FilterOperator::IsNull) {
-            return $expr->isNull($col);
-        }
-        if ($f->operator === FilterOperator::NotNull) {
-            return $expr->isNotNull($col);
-        }
-        if (!is_scalar($f->value)) {
-            throw new InvalidQueryException('筛选值必须为标量', ["filters.{$f->field}" => 'scalar']);
-        }
-        $value = $f->operator === FilterOperator::Like
-            ? '%' . addcslashes((string) $f->value, '%_\\') . '%'
-            : $f->value;
-        $qb->setParameter($param, $value);
-        $p = ':' . $param;
-
-        return match ($f->operator) {
-            FilterOperator::Eq => $expr->eq($col, $p),
-            FilterOperator::Neq => $expr->neq($col, $p),
-            FilterOperator::Gt => $expr->gt($col, $p),
-            FilterOperator::Gte => $expr->gte($col, $p),
-            FilterOperator::Lt => $expr->lt($col, $p),
-            FilterOperator::Lte => $expr->lte($col, $p),
-            FilterOperator::Like => $col . " LIKE $p ESCAPE '\\'",
-        };
     }
 }
