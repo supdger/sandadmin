@@ -27,6 +27,7 @@ final class UserService
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
+        private readonly OrgIdempotency $keys,
     ) {
     }
 
@@ -105,35 +106,33 @@ final class UserService
      *
      * @return array<string, mixed>
      */
-    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $draft = $this->draft($body, true);
         $this->assertRefs($draft['dept_id'], $draft['post_id'], $draft['role_ids']);
         $flags = $this->flagsForRoles($draft['role_ids']);
         try {
-            $id = $this->connection->transactional(function () use ($draft, $flags, $actor, $requestId, $ip, $device): int {
-                $id = $this->insertUser($draft, $flags['is_super'], $flags['is_admin'], $actor->userId);
-                $this->replaceRoles($id, $draft['role_ids']);
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'user.create', $body, function () use ($draft, $flags, $actor, $requestId, $ip, $device): array {
+                $createdId = $this->insertUser($draft, $flags['is_super'], $flags['is_admin'], $actor->userId);
+                $this->replaceRoles($createdId, $draft['role_ids']);
                 $this->audit->record(
                     $actor,
                     'user',
                     'create',
                     '添加了用户' . $draft['nickname'],
                     'user',
-                    (string) $id,
+                    (string) $createdId,
                     $draft['nickname'],
                     $requestId,
                     $ip,
                     $device,
                 );
 
-                return $id;
+                return $this->show($createdId);
             });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
         }
-
-        return $this->show($id);
     }
 
     /**

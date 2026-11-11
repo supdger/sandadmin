@@ -9,11 +9,13 @@ namespace Sandadmin\Http;
 
 use Doctrine\DBAL\Connection;
 use Sandadmin\Infra\Db\DbalConnection;
+use Sandadmin\Infra\Idempotency\ConnectionIdempotencyStore;
 use Sandadmin\Module\Dict\DictService;
 use Sandadmin\Module\Org\DeptDeletion;
 use Sandadmin\Module\Org\DeptRepository;
 use Sandadmin\Module\Org\DeptService;
 use Sandadmin\Module\Org\OrgAudit;
+use Sandadmin\Module\Org\OrgIdempotency;
 use Sandadmin\Module\Org\PostService;
 use Sandadmin\Module\Org\RoleRepository;
 use Sandadmin\Module\Org\RoleService;
@@ -63,14 +65,15 @@ final readonly class BizKernel
             new UserRepository($connection),
             new RoleRepository($connection),
         );
+        $keys = new OrgIdempotency(new ConnectionIdempotencyStore($connection));
 
         return new self(
             $connection,
-            new UserService($connection, $audit),
-            new DeptService($connection, $deletion, $audit),
-            new RoleService($connection, $audit),
-            new PostService($connection, $audit),
-            new DictService($connection, $audit),
+            new UserService($connection, $audit, $keys),
+            new DeptService($connection, $deletion, $audit, $keys),
+            new RoleService($connection, $audit, $keys),
+            new PostService($connection, $audit, $keys),
+            new DictService($connection, $audit, $keys),
             new DevPrincipal($connection),
         );
     }

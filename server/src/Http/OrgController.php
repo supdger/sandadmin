@@ -32,7 +32,7 @@ final class OrgController
 
     public function usersStore(Request $request): Response
     {
-        return $this->run($request, 'system:user:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:user:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function usersShow(Request $request, string $user_id): Response
@@ -133,7 +133,7 @@ final class OrgController
 
     public function deptsStore(Request $request): Response
     {
-        return $this->run($request, 'system:dept:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dept:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function deptsUpdate(Request $request, string $dept_id): Response
@@ -162,7 +162,7 @@ final class OrgController
 
     public function rolesStore(Request $request): Response
     {
-        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesShow(Request $request, string $role_id): Response
@@ -216,7 +216,7 @@ final class OrgController
 
     public function postsStore(Request $request): Response
     {
-        return $this->run($request, 'system:post:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:post:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function postsUpdate(Request $request, string $post_id): Response
@@ -347,6 +347,13 @@ final class OrgController
         }
 
         return $result;
+    }
+
+    private function idempotencyKey(Request $request): ?string
+    {
+        $key = $request->header('idempotency-key');
+
+        return is_string($key) ? $key : null;
     }
 
     private function device(Request $request): ?string

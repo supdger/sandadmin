@@ -10,6 +10,8 @@ namespace Sandadmin\Module\Dict;
 use Doctrine\DBAL\Connection;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgAudit;
+use Sandadmin\Module\Org\OrgException;
+use Sandadmin\Module\Org\OrgIdempotency;
 use Sandadmin\Module\Org\OrgInput;
 use Sandadmin\Module\Org\OrgSql;
 
@@ -25,6 +27,7 @@ final class DictService
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
+        private readonly OrgIdempotency $keys,
     ) {
     }
 
@@ -74,11 +77,11 @@ final class DictService
      *
      * @return array<string, mixed>
      */
-    public function createType(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function createType(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $draft = $this->typeDraft($body);
         try {
-            $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'dict.type.create', $body, function () use ($draft, $actor, $requestId, $ip, $device): array {
                 $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_dict_type (code, name, remark, created_by, updated_by)'
                     . ' VALUES (:code, :name, :remark, :by, :by) RETURNING id',
@@ -91,13 +94,11 @@ final class DictService
                 ));
                 $this->audit->record($actor, 'dict', 'create', '添加了选项组' . $draft['name'], 'dict_type', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $createdId;
-            }));
+                return $this->typeItem($this->requireType($createdId));
+            });
         } catch (\Throwable $error) {
             $this->map($error);
         }
-
-        return $this->typeItem($this->requireType($id));
     }
 
     /**
@@ -155,12 +156,12 @@ final class DictService
      *
      * @return array<string, mixed>
      */
-    public function createItem(int $typeId, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function createItem(int $typeId, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $this->requireType($typeId);
         $draft = $this->itemDraft($body);
         try {
-            $id = OrgSql::int($this->connection->transactional(function () use ($typeId, $draft, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'dict.item.create.' . $typeId, $body, function () use ($typeId, $draft, $actor, $requestId, $ip, $device): array {
                 if ($draft['is_default']) {
                     $this->connection->executeStatement(
                         'UPDATE sand_system_dict_item SET is_default = false WHERE type_id = ? AND is_default',
@@ -183,13 +184,11 @@ final class DictService
                 ));
                 $this->audit->record($actor, 'dict', 'create', '添加了选项' . $draft['label'], 'dict_item', (string) $createdId, $draft['label'], $requestId, $ip, $device);
 
-                return $createdId;
-            }));
+                return $this->item($this->requireItem($createdId));
+            });
         } catch (\Throwable $error) {
             $this->map($error);
         }
-
-        return $this->item($this->requireItem($id));
     }
 
     /**
@@ -418,7 +417,7 @@ final class DictService
 
     private function map(\Throwable $error): never
     {
-        if ($error instanceof DictException) {
+        if ($error instanceof DictException || $error instanceof OrgException) {
             throw $error;
         }
         $text = $error->getMessage();

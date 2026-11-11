@@ -50,6 +50,7 @@ final class RoleService
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
+        private readonly OrgIdempotency $keys,
     ) {
     }
 
@@ -102,11 +103,11 @@ final class RoleService
      *
      * @return array<string, mixed>
      */
-    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $draft = $this->draft($body);
         try {
-            $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'role.create', $body, function () use ($draft, $actor, $requestId, $ip, $device): array {
                 $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_role (name, code, remark, status, created_by, updated_by)'
                     . ' VALUES (:name, :code, :remark, :status, :by, :by) RETURNING id',
@@ -120,13 +121,11 @@ final class RoleService
                 ));
                 $this->audit->record($actor, 'role', 'create', '添加了角色' . $draft['name'], 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $createdId;
-            }));
+                return $this->show($createdId);
+            });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
         }
-
-        return $this->show($id);
     }
 
     /**

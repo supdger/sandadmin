@@ -193,6 +193,88 @@ final class OrgFlowTest extends TestCase
         }
     }
 
+    public function testCreateSameKeyInsertsOnce(): void
+    {
+        $dept = self::$kernel->depts->create(['name' => '幂等底部门'], $this->actor, 'req-base-dept', '127.0.0.1', null);
+        $role = self::$kernel->roles->create(['name' => '幂等底角色'], $this->actor, 'req-base-role', '127.0.0.1', null);
+        $owner = self::$kernel->users->create([
+            'nickname' => '幂等操作人',
+            'phone' => '13700009100',
+            'username' => 'idemowner',
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ], $this->actor, 'req-owner', '127.0.0.1', null);
+        $actor = new OrgActor(OrgSql::int($owner['id']), '幂等操作人', null, true, ['*']);
+
+        $body = ['name' => '幂等部门'];
+        $first = self::$kernel->depts->create($body, $actor, 'req-idem-d1', '127.0.0.1', null, 'idem-dept-1');
+        $second = self::$kernel->depts->create($body, $actor, 'req-idem-d2', '127.0.0.1', null, 'idem-dept-1');
+        $this->assertSame($first['id'], $second['id']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_dept WHERE name = '幂等部门'"));
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_idempotency_key WHERE key = 'idem-dept-1'"));
+
+        try {
+            self::$kernel->depts->create(['name' => '幂等部门另'], $actor, 'req-idem-d3', '127.0.0.1', null, 'idem-dept-1');
+            $this->fail('同键不同内容应被拒绝');
+        } catch (OrgException $error) {
+            $this->assertSame(409, $error->status);
+            $this->assertSame('IDEMPOTENCY_KEY_REUSED', $error->errorCode);
+        }
+        $this->assertSame(0, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_dept WHERE name = '幂等部门另'"));
+
+        try {
+            self::$kernel->depts->create(['name' => '幂等坏键'], $actor, 'req-idem-bad', '127.0.0.1', null, 'bad key');
+            $this->fail('不合规的幂等键应被拒绝');
+        } catch (OrgException $error) {
+            $this->assertSame(422, $error->status);
+        }
+
+        $postBody = ['name' => '幂等岗位'];
+        $post = self::$kernel->posts->create($postBody, $actor, 'req-idem-p1', '127.0.0.1', null, 'idem-post-1');
+        $postAgain = self::$kernel->posts->create($postBody, $actor, 'req-idem-p2', '127.0.0.1', null, 'idem-post-1');
+        $this->assertSame($post['id'], $postAgain['id']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_post WHERE name = '幂等岗位'"));
+
+        $roleBody = ['name' => '幂等角色'];
+        $made = self::$kernel->roles->create($roleBody, $actor, 'req-idem-r1', '127.0.0.1', null, 'idem-role-1');
+        $madeAgain = self::$kernel->roles->create($roleBody, $actor, 'req-idem-r2', '127.0.0.1', null, 'idem-role-1');
+        $this->assertSame($made['id'], $madeAgain['id']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_role WHERE name = '幂等角色'"));
+
+        $userBody = [
+            'nickname' => '幂等用户',
+            'phone' => '13700009101',
+            'username' => 'idemuser',
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ];
+        $user = self::$kernel->users->create($userBody, $actor, 'req-idem-u1', '127.0.0.1', null, 'idem-user-1');
+        $userAgain = self::$kernel->users->create($userBody, $actor, 'req-idem-u2', '127.0.0.1', null, 'idem-user-1');
+        $this->assertSame($user['id'], $userAgain['id']);
+        $this->assertArrayNotHasKey('password', $userAgain);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_user WHERE phone = '13700009101'"));
+        $stored = self::$conn->fetchOne("SELECT response::text FROM sand_system_idempotency_key WHERE key = 'idem-user-1'");
+        $this->assertIsString($stored);
+        $this->assertStringNotContainsString('temp-pass-1', $stored);
+
+        $typeBody = ['name' => '幂等选项组'];
+        $type = self::$kernel->dicts->createType($typeBody, $actor, 'req-idem-t1', '127.0.0.1', null, 'idem-type-1');
+        $typeAgain = self::$kernel->dicts->createType($typeBody, $actor, 'req-idem-t2', '127.0.0.1', null, 'idem-type-1');
+        $this->assertSame($type['id'], $typeAgain['id']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_dict_type WHERE name = '幂等选项组'"));
+
+        $itemBody = ['label' => '幂等选项'];
+        $typeId = OrgSql::int($type['id']);
+        $item = self::$kernel->dicts->createItem($typeId, $itemBody, $actor, 'req-idem-i1', '127.0.0.1', null, 'idem-item-1');
+        $itemAgain = self::$kernel->dicts->createItem($typeId, $itemBody, $actor, 'req-idem-i2', '127.0.0.1', null, 'idem-item-1');
+        $this->assertSame($item['id'], $itemAgain['id']);
+        $this->assertSame($item['value'], $itemAgain['value']);
+        $this->assertSame(1, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_dict_item WHERE label = '幂等选项'"));
+        $this->assertSame(6, $this->rowsMatching("SELECT COUNT(*) FROM sand_system_idempotency_key WHERE key LIKE 'idem-%'"));
+    }
+
     public function testScheduleInvalidReturns422BeforeWrite(): void
     {
         $http = new ScheduleHttp(self::$conn);
@@ -204,14 +286,20 @@ final class OrgFlowTest extends TestCase
         $this->assertSame('TASK_NOT_FOUND', $missing['body']['code'] ?? null);
     }
 
+    private function rowsMatching(string $sql): int
+    {
+        return OrgSql::int(self::$conn->fetchOne($sql));
+    }
+
     private static function wipe(): void
     {
+        self::$conn->executeStatement("DELETE FROM sand_system_idempotency_key WHERE key LIKE 'idem-%'");
         self::$conn->executeStatement("DELETE FROM sand_system_user WHERE phone LIKE '13700009%'");
-        self::$conn->executeStatement("DELETE FROM sand_system_role WHERE name LIKE '甲测%'");
-        self::$conn->executeStatement("DELETE FROM sand_system_post WHERE name LIKE '甲测%'");
-        self::$conn->executeStatement("DELETE FROM sand_system_dept WHERE name LIKE '甲测%'");
-        self::$conn->executeStatement("DELETE FROM sand_system_dict_type WHERE name LIKE '甲测%'");
+        self::$conn->executeStatement("DELETE FROM sand_system_role WHERE name LIKE '甲测%' OR name LIKE '幂等%'");
+        self::$conn->executeStatement("DELETE FROM sand_system_post WHERE name LIKE '甲测%' OR name LIKE '幂等%'");
+        self::$conn->executeStatement("DELETE FROM sand_system_dept WHERE name LIKE '甲测%' OR name LIKE '幂等%'");
+        self::$conn->executeStatement("DELETE FROM sand_system_dict_type WHERE name LIKE '甲测%' OR name LIKE '幂等%'");
         self::$conn->executeStatement("DELETE FROM sand_system_schedule WHERE code LIKE 'host.biz-a%'");
-        self::$conn->executeStatement("DELETE FROM sand_system_audit_log WHERE actor_name = '测试账号'");
+        self::$conn->executeStatement("DELETE FROM sand_system_audit_log WHERE actor_name = '测试账号' OR actor_name = '幂等操作人'");
     }
 }

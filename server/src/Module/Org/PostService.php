@@ -15,6 +15,7 @@ final class PostService
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
+        private readonly OrgIdempotency $keys,
     ) {
     }
 
@@ -65,11 +66,11 @@ final class PostService
      *
      * @return array<string, mixed>
      */
-    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $draft = $this->draft($body);
         try {
-            $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'post.create', $body, function () use ($draft, $actor, $requestId, $ip, $device): array {
                 $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_post (name, remark, sort, status, created_by, updated_by)'
                     . ' VALUES (:name, :remark, :sort, :status, :by, :by) RETURNING id',
@@ -83,13 +84,11 @@ final class PostService
                 ));
                 $this->audit->record($actor, 'post', 'create', '添加了岗位' . $draft['name'], 'post', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $createdId;
-            }));
+                return $this->show($createdId);
+            });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
         }
-
-        return $this->show($id);
     }
 
     /**

@@ -18,6 +18,7 @@ final class DeptService
         private readonly Connection $connection,
         private readonly DeptDeletion $deletion,
         private readonly OrgAudit $audit,
+        private readonly OrgIdempotency $keys,
     ) {
     }
 
@@ -62,13 +63,13 @@ final class DeptService
      *
      * @return array<string, mixed>
      */
-    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    public function create(array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device, ?string $idempotencyKey = null): array
     {
         $draft = $this->draft($body);
         $this->assertParent($draft['parent_id']);
         $this->assertLeader($draft['leader_id']);
         try {
-            $id = OrgSql::int($this->connection->transactional(function () use ($draft, $actor, $requestId, $ip, $device): int {
+            return $this->keys->storeOnce($this->connection, $actor->userId, $idempotencyKey, 'dept.create', $body, function () use ($draft, $actor, $requestId, $ip, $device): array {
                 $createdId = OrgSql::int($this->connection->fetchOne(
                     'INSERT INTO sand_system_dept (parent_id, name, leader_id, phone, sort, status, created_by, updated_by)'
                     . ' VALUES (:parent_id, :name, :leader_id, :phone, :sort, :status, :by, :by) RETURNING id',
@@ -84,13 +85,11 @@ final class DeptService
                 ));
                 $this->audit->record($actor, 'dept', 'create', '添加了部门' . $draft['name'], 'dept', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
-                return $createdId;
-            }));
+                return $this->one($createdId);
+            });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
         }
-
-        return $this->one($id);
     }
 
     /**

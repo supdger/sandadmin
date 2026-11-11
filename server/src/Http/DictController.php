@@ -37,7 +37,7 @@ final class DictController
 
     public function store(Request $request): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function update(Request $request, string $type_id): Response
@@ -56,7 +56,7 @@ final class DictController
 
     public function storeItem(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function updateItem(Request $request, string $item_id): Response
@@ -155,6 +155,13 @@ final class DictController
         }
 
         return $result;
+    }
+
+    private function idempotencyKey(Request $request): ?string
+    {
+        $key = $request->header('idempotency-key');
+
+        return is_string($key) ? $key : null;
     }
 
     private function device(Request $request): ?string
