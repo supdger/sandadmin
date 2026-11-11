@@ -108,8 +108,8 @@ final class TaskHttp
         }
         $artifact = $task->state === TaskState::Succeeded ? $resolver->resolve($task) : null;
         if ($artifact === null) {
-            // 未成功、产物已清理、无产物统一按不可下载处理
-            return self::failure(404, 'TASK_RUN_NOT_DOWNLOADABLE', '结果文件已过期或不存在', [], $requestId);
+            // 未成功、产物已清理、无产物统一按不可下载处理；任务已存在，按契约用 409 表示状态冲突
+            return self::failure(409, 'TASK_RUN_NOT_DOWNLOADABLE', '结果文件已过期或不存在', [], $requestId);
         }
 
         return ['status' => 200, 'artifact' => $artifact];

@@ -168,7 +168,7 @@ final class TaskHttpTest extends TestCase
         $actor = new TaskActor(7, false);
 
         $noArtifact = TaskHttp::download($this->store, $actor, $task->publicId, self::nullResolver(), 'r');
-        self::assertSame(404, $noArtifact['status']);
+        self::assertSame(409, $noArtifact['status']);
         self::assertSame('TASK_RUN_NOT_DOWNLOADABLE', self::body($noArtifact)['code'] ?? null);
 
         $withArtifact = TaskHttp::download($this->store, $actor, $task->publicId, self::fileResolver(), 'r');
@@ -187,12 +187,22 @@ final class TaskHttpTest extends TestCase
             self::fileResolver(),
             'r',
         );
-        self::assertSame(404, $outcome['status']);
+        self::assertSame(409, $outcome['status']);
         self::assertSame('TASK_RUN_NOT_DOWNLOADABLE', self::body($outcome)['code'] ?? null);
     }
 
-    public function testDownloadHidesInvisibleTask(): void
+    public function testDownloadHidesInvisibleOrMissingTask(): void
     {
+        $missing = TaskHttp::download(
+            $this->store,
+            new TaskActor(7, false),
+            '01932f2a-7c1e-7b3a-9f4d-2a6c8e0b1d3f',
+            self::fileResolver(),
+            'r',
+        );
+        self::assertSame(404, $missing['status']);
+        self::assertSame('TASK_RUN_NOT_FOUND', self::body($missing)['code'] ?? null);
+
         $task = TaskRunFixture::make(state: TaskState::Succeeded, createdBy: 9);
         $this->store->insert($task);
         $outcome = TaskHttp::download(

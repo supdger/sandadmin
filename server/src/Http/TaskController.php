@@ -138,9 +138,9 @@ final class TaskController
     private function respondArtifact(TaskArtifact $artifact, string $requestId): Response
     {
         if (!is_file($artifact->path) || !is_readable($artifact->path)) {
-            // 解析后文件被清理：按契约返回不可下载错误
+            // 解析后文件被清理：按契约返回不可下载错误，任务存在故用 409
             $failure = TaskHttp::failure(
-                404,
+                409,
                 'TASK_RUN_NOT_DOWNLOADABLE',
                 '结果文件已过期或不存在',
                 [],
