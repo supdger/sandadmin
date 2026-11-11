@@ -253,7 +253,7 @@
 
       const titles = Object.keys(processedData[0] ?? {})
       const widths = calculateColumnWidths(processedData)
-      const sheetData = [
+      const sheetRows = [
         titles,
         ...processedData.map((row) => titles.map((title) => row[title] ?? ''))
       ]
@@ -263,7 +263,7 @@
 
       emit('export-progress', 50)
 
-      const blob = await writeExcelFile(sheetData, {
+      const blob = await writeExcelFile(sheetRows, {
         sheet: sheetName,
         columns: widths.map((column) => ({ width: column.wch }))
       }).toBlob()
