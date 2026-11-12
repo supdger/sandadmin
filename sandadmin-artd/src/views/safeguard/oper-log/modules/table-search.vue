@@ -15,7 +15,7 @@
     </el-col>
     <el-col v-bind="setSpan(6)">
       <el-form-item label="操作路由" prop="router">
-        <el-input v-model="formData.router" placeholder="请输入操作路由" clearable />
+        <el-input v-model="formData.router" placeholder="例如 dictData" clearable />
       </el-form-item>
     </el-col>
     <el-col v-bind="setSpan(6)">
