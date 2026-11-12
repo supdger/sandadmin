@@ -143,12 +143,13 @@ const DEV_LOGIN_USERNAME = 'admin';
 const failures = new Map<string, number>();
 const lockedUntil = new Map<string, number>();
 const captchas = new Map<string, CaptchaEntry>();
-const tokenToUser = new Map<string, MockUser>([
+const SEED_TOKENS: ReadonlyArray<readonly [string, MockUser]> = [
   ['mock-admin-token', USERS.admin],
   ['mock-newbie-token', USERS.newbie],
   ['mock-viewer-token', USERS.viewer],
   ['mock-guest-token', USERS.guest],
-]);
+];
+const tokenToUser = new Map<string, MockUser>(SEED_TOKENS);
 
 let captchaSeq = 0;
 
@@ -392,6 +393,14 @@ export function mockUserForToken(token: string): MockUser | undefined {
   return tokenToUser.get(token);
 }
 
+/** Revoke the old token after a password change and register a fresh one. */
+export function rotateMockToken(oldToken: string, user: MockUser): string {
+  tokenToUser.delete(oldToken);
+  const token = `mock-${user.username}-token-${Date.now().toString(36)}`;
+  tokenToUser.set(token, user);
+  return token;
+}
+
 /** Test hooks: deterministic access to the mock's internal state. */
 export const __authMock = {
   reset(): void {
@@ -400,6 +409,11 @@ export const __authMock = {
     captchas.clear();
     captchaSeq = 0;
     devLoginAvailable = true;
+    // Token rotation (e.g. password change) revokes seed tokens; restore them.
+    tokenToUser.clear();
+    for (const [token, user] of SEED_TOKENS) {
+      tokenToUser.set(token, user);
+    }
   },
   setDevLoginAvailable(available: boolean): void {
     devLoginAvailable = available;

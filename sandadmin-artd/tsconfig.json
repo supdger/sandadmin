@@ -28,6 +28,7 @@
     "node_modules",
     "dist",
     "**/*.js",
-    "src/views/plugin/sandpackage/install/failed-upgrade-recovery.vite.config.mts"
+    "src/views/plugin/sandpackage/install/failed-upgrade-recovery.vite.config.mts",
+    "src/views/plugin/sandpackage/**/*.test.ts"
   ]
 }

@@ -1,7 +1,7 @@
 import '@douyinfe/semi-ui/react19-adapter';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -51,6 +51,18 @@ describe('DeptsPage', () => {
     // 抽屉表单字段（「部门名称」同时是表格列名，用只在表单出现的标签断言）。
     expect(await screen.findByText('上级部门')).toBeInTheDocument();
     expect(screen.getByText('联系电话')).toBeInTheDocument();
+  });
+
+  it('disables delete when the dept still has children', async () => {
+    setToken('mock-admin-token');
+    renderPage();
+
+    const cell = await screen.findByText('技术部');
+    const row = cell.closest('tr');
+    expect(row).not.toBeNull();
+    await userEvent.click(within(row as HTMLElement).getByRole('button', { name: '更多' }));
+    const remove = await screen.findByText('删除');
+    expect(remove.closest('[aria-disabled="true"]')).not.toBeNull();
   });
 
   it('hides write controls for view-only accounts', async () => {

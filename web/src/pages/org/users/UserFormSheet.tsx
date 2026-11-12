@@ -7,7 +7,6 @@ import {
   Banner,
   Button,
   Form,
-  Modal,
   SideSheet,
   Space,
   Toast,
@@ -23,11 +22,21 @@ import {
   type UserUpdate,
   type UserWrite,
 } from '@/api/v1/users';
+import type { UserStatus } from '@/api/v1/types';
 import { isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import {
+  FIELD_ACCOUNT_WIDTH,
+  FIELD_CHOICE_WIDTH,
+  FIELD_NAME_WIDTH,
+  FIELD_PASSWORD_WIDTH,
+  FIELD_PHONE_WIDTH,
+} from '@/components/fieldWidth';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { useEnabledPostOptions, useRoleOptions, useUserDeptTree } from '../shared/useOrgOptions';
 import type { DeptTreeOption } from '../shared/deptTree';
+import { confirmAction } from '@/lib/confirmAction';
 
 interface FormValues {
   nickname?: string;
@@ -81,6 +90,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
   const initialSnapshot = useRef('');
 
   const isEdit = mode === 'edit';
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   const detailQuery = useQuery({
     queryKey: ['v1', 'users', 'detail', user?.id],
@@ -100,6 +110,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
     if (isEdit && user?.dept_id && !findOption(options, user.dept_id)) {
       options.push({
         value: user.dept_id,
+        key: user.dept_id,
         label: user.dept_name ?? user.dept_id,
         children: [],
       });
@@ -192,12 +203,12 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
 
   const requestClose = () => {
     if (isDirty()) {
-      Modal.confirm({
+      confirmAction({
         title: t('users.form.discardTitle'),
         content: t('users.form.discardContent'),
         okText: t('users.form.discard'),
         cancelText: t('users.form.keepEditing'),
-        okType: 'danger',
+        okType: 'primary',
         onOk: onClose,
       });
       return;
@@ -234,7 +245,10 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
     }
     setSaving(true);
     setSystemError(null);
+    Toast.destroyAll();
     try {
+      const status: UserStatus | undefined =
+        values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
       const payload = {
         nickname: (values.nickname ?? '').trim(),
         phone: (values.phone ?? '').trim(),
@@ -243,18 +257,18 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         dept_id: values.dept_id as string,
         post_id: values.post_id || null,
         role_ids: values.role_ids ?? [],
-        status: values.status ? ('enabled' as const) : ('disabled' as const),
+        ...(status !== undefined ? { status } : {}),
       };
       if (isEdit && user) {
         const body: UserUpdate = { ...payload };
-        await updateUser(user.id, body);
-        Toast.success(t('users.form.saved'));
+        const saved = await updateUser(user.id, body);
+        Toast.destroyAll();
+        Toast.success(t('users.form.saved', { name: saved.nickname }));
       } else {
         const body: UserWrite = { ...payload, password: values.password ?? '' };
-        await createUser(body);
-        Toast.success(
-          t('users.form.added', { name: payload.nickname || user?.nickname || '' }),
-        );
+        const saved = await createUser(body, submitKey);
+        Toast.destroyAll();
+        Toast.success(t('users.form.added', { name: saved.nickname }));
       }
       onSaved();
       onClose();
@@ -306,6 +320,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="nickname"
             label={t('users.form.nickname')}
+            style={{ width: FIELD_NAME_WIDTH }}
             required
             maxLength={20}
             showClear
@@ -317,6 +332,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="phone"
             label={t('users.form.phone')}
+            style={{ width: FIELD_PHONE_WIDTH }}
             required
             showClear
             helpText={t('users.form.phoneHint')}
@@ -328,6 +344,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.TreeSelect
             field="dept_id"
             label={t('users.form.dept')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             treeData={deptTreeOptions}
             filterTreeNode
             showClear
@@ -336,6 +353,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Select
             field="post_id"
             label={t('users.form.post')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             placeholder={t('common.unset')}
             showClear
             filter
@@ -345,13 +363,19 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Select
             field="role_ids"
             label={t('users.form.roles')}
+            style={{ width: FIELD_CHOICE_WIDTH }}
             multiple
             filter
             showClear
             helpText={t('users.form.rolesHint')}
             optionList={roleOptions}
             renderOptionItem={(option) => (
-              <div>
+              <div
+                style={option.style}
+                className={option.className}
+                onClick={option.onClick}
+                onMouseEnter={option.onMouseEnter}
+              >
                 <div>{option.label}</div>
                 {option.remark ? (
                   <Typography.Text type="secondary" size="small">
@@ -369,6 +393,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="username"
             label={t('users.form.username')}
+            style={{ width: FIELD_ACCOUNT_WIDTH }}
             showClear
             helpText={t('users.form.usernameHint')}
             validator={(value) =>
@@ -379,6 +404,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
             <Form.Input
               field="password"
               label={t('users.form.password')}
+              style={{ width: FIELD_PASSWORD_WIDTH }}
               required
               mode="password"
               helpText={t('users.form.passwordHint')}
@@ -392,6 +418,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
           <Form.Input
             field="email"
             label={t('users.form.email')}
+            style={{ width: FIELD_NAME_WIDTH }}
             showClear
             helpText={t('users.form.emailHint')}
             validator={(value) => (!value || EMAIL_PATTERN.test(value) ? '' : t('users.form.emailInvalid'))}

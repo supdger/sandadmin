@@ -117,7 +117,8 @@ describe('apiClient', () => {
     expect(apiErr.code).toBe(-1);
     expect(apiErr.method).toBe('GET');
     expect(apiErr.url).toBe(`${base}/test/netfail`);
-    expect(apiErr.message).toBe('系统出了点问题，请稍后再试');
+    expect(apiErr.message).toBe('网络好像断了，请检查网络后再试');
+    expect(apiErr.network).toBe(true);
   });
 
   it('marks HTTP 5xx as system errors even with an envelope body', async () => {

@@ -10,6 +10,8 @@ import {
   type DictItem,
   type DictItemWrite,
 } from '@/api/v1/dict';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { adminErrorMessage } from '@/lib/adminError';
 
 /** 8 个预设色；null 表示「默认」色。 */
@@ -67,13 +69,14 @@ export function DictItemModal({
   const [labelError, setLabelError] = useState<string | null>(null);
 
   const editing = item !== null;
+  const submitKey = useFormIdempotencyKey(visible && !editing);
 
   const save = useMutation({
     mutationFn: async () => {
       const body = toWrite(label.trim(), color, isDefault, available);
       const saved = editing
         ? await updateDictItem(item.id, body)
-        : await createDictItem(typeId, body);
+        : await createDictItem(typeId, body, submitKey);
       // 「默认选中」一组只能有一个：保存成功后把同组其他默认项取消。
       if (isDefault) {
         const others = items.filter((i) => i.is_default && i.id !== saved.id);
@@ -86,8 +89,10 @@ export function DictItemModal({
       }
       return saved;
     },
-    onSuccess: async () => {
-      Toast.success(t('itemModal.saved'));
+    onSuccess: async (saved) => {
+      Toast.success(
+        t(editing ? 'itemModal.saved' : 'confirm.added', { name: saved.label }),
+      );
       await queryClient.invalidateQueries({ queryKey: ['dict'] });
       onSaved();
       onClose();
@@ -115,7 +120,7 @@ export function DictItemModal({
       onCancel={onClose}
       onOk={handleSubmit}
       okText={t('itemModal.save')}
-      cancelText={t('confirm.think')}
+      cancelText={t('cancel')}
       confirmLoading={save.isPending}
       closable
     >
@@ -126,6 +131,7 @@ export function DictItemModal({
             <Typography.Text type="danger"> *</Typography.Text>
           </Typography.Text>
           <Input
+            style={{ width: FIELD_NAME_WIDTH }}
             value={label}
             maxLength={20}
             showClear
@@ -173,21 +179,17 @@ export function DictItemModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <Typography.Text strong>{t('itemModal.isDefault')}</Typography.Text>
-            <div>
-              <Typography.Text type="tertiary" size="small">
-                {t('itemModal.isDefaultHint')}
-              </Typography.Text>
-            </div>
-          </div>
+        <div className="flex flex-col items-start gap-1">
+          <Typography.Text strong>{t('itemModal.isDefault')}</Typography.Text>
           <Switch checked={isDefault} onChange={setIsDefault} />
+          <Typography.Text type="tertiary" size="small">
+            {t('itemModal.isDefaultHint')}
+          </Typography.Text>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-start gap-1">
           <Typography.Text strong>{t('itemModal.available')}</Typography.Text>
-          <Switch checked={available} onChange={setAvailable} />
+          <Switch checked={available} onChange={setAvailable} aria-label={t('itemModal.available')} />
         </div>
       </div>
     </Modal>

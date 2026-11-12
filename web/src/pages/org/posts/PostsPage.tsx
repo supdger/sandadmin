@@ -8,7 +8,6 @@ import {
   Button,
   Dropdown,
   Input,
-  Modal,
   Pagination,
   Select,
   Space,
@@ -37,6 +36,7 @@ import { OrgErrorState } from '../shared/OrgErrorState';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
 import { PostFormModal } from './PostFormModal';
+import { confirmAction } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -119,13 +119,14 @@ export function PostsPage() {
 
   const toggleStatus = (post: Post) => {
     const next: UserStatus = post.status === 'enabled' ? 'disabled' : 'enabled';
-    Modal.confirm({
+    confirmAction({
       title: t(next === 'disabled' ? 'posts.danger.disableTitle' : 'posts.danger.enableTitle', {
         name: post.name,
       }),
+      content: t(next === 'disabled' ? 'posts.danger.disableContent' : 'posts.danger.enableContent'),
       okText: next === 'disabled' ? t('common.disable') : t('common.enable'),
       cancelText: t('common.thinkAgain'),
-      okType: next === 'disabled' ? 'danger' : 'primary',
+      okType: 'primary',
       onOk: async () => {
         try {
           await updatePost(post.id, {
@@ -148,7 +149,7 @@ export function PostsPage() {
   };
 
   const removePost = (post: Post) => {
-    Modal.confirm({
+    confirmAction({
       title: t('posts.danger.deleteTitle', { name: post.name }),
       content: t('posts.danger.deleteContent', { count: post.user_count }),
       okText: t('posts.danger.deleteOk'),
@@ -317,11 +318,12 @@ export function PostsPage() {
         ) : null}
       </div>
 
-      {listQuery.isError ? (
+      {listQuery.isError || listQuery.isPaused ? (
         <OrgErrorState
           title={t('posts.loadFailed.title')}
           description={t('posts.loadFailed.description')}
           error={listQuery.error}
+          paused={listQuery.isPaused}
           onRetry={() => void listQuery.refetch()}
         />
       ) : isFirstLoading ? (

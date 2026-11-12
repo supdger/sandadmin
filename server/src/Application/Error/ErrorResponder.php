@@ -9,6 +9,7 @@ namespace Sandadmin\Application\Error;
 
 use Sandadmin\Domain\Error\ErrorLogger;
 use Sandadmin\Domain\Exception\DomainException;
+use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
 
 /** 把异常映射为契约错误体。未知异常不把内部信息返回给调用方。 */
@@ -25,6 +26,9 @@ final class ErrorResponder
         }
         if ($error instanceof InvalidQueryException) {
             return new ErrorBody(422, 'VALIDATION_FAILED', $error->getMessage(), self::fieldMessages($error->fields), $requestId);
+        }
+        if ($error instanceof InvalidExtensionException && self::isScheduleError($error->fields)) {
+            return new ErrorBody(422, 'TASK_SCHEDULE_INVALID', '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId);
         }
         if ($error instanceof DomainException) {
             if ($error->httpStatus() >= 500) {
@@ -43,6 +47,22 @@ final class ErrorResponder
         $this->logger->unexpected($error, $requestId);
 
         return new ErrorBody(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+    }
+
+    /**
+     * 定时任务时间结构（J11）用专用码，不用笼统的 VALIDATION_FAILED。
+     *
+     * @param array<string, string> $fields
+     */
+    private static function isScheduleError(array $fields): bool
+    {
+        foreach (array_keys($fields) as $field) {
+            if ($field === 'schedule' || str_starts_with($field, 'schedule.')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

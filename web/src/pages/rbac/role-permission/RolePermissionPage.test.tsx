@@ -126,7 +126,7 @@ describe('RolePermissionPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '保存' }));
 
     expect(
-      await screen.findByText(/权限刚被别人改过/),
+      await screen.findByText('这条刚被别人改过，刷新后再改'),
     ).toBeInTheDocument();
   });
 

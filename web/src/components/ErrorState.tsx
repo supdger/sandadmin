@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router';
 
 import { isSystemApiError } from '@/lib/apiClient';
 import { isAdminSystemError } from '@/lib/adminClient';
+import { isNetworkFailure } from '@/lib/networkFailure';
 import { CopyErrorButton } from './SystemErrorNotice';
 import { AdminCopyButton } from './AdminErrorNotice';
 
@@ -32,6 +33,8 @@ export interface ErrorStateProps {
   error?: unknown;
   /** Show a retry button that calls this handler. */
   onRetry?: () => void;
+  /** 浏览器离线，查询停住，还没有 error。 */
+  paused?: boolean;
   /** Show a "back to home" button (default true). */
   showHome?: boolean;
 }
@@ -63,14 +66,16 @@ export function ErrorState({
   description,
   error,
   onRetry,
+  paused = false,
   showHome = true,
 }: ErrorStateProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const illustration = ILLUSTRATIONS[kind];
-  // 旧 apiClient 与 adminClient 并存期：两套 system 错误都认。
-  const legacyError = isSystemApiError(error) ? error : null;
-  const adminError = isAdminSystemError(error) ? error : null;
+  const offline = paused || isNetworkFailure(error);
+  // 旧 apiClient 与 adminClient 并存期：两套 system 错误都认。断网不给复制。
+  const legacyError = !offline && isSystemApiError(error) ? error : null;
+  const adminError = !offline && isAdminSystemError(error) ? error : null;
   const systemError = legacyError ?? adminError;
 
   return (
@@ -80,7 +85,9 @@ export function ErrorState({
         darkModeImage={illustration.dark}
         title={title ?? t(TITLE_KEYS[kind])}
         description={
-          description ?? (systemError ? t('errors.system.message') : t(DESC_KEYS[kind]))
+          offline
+            ? t('errors.network.message')
+            : (description ?? (systemError ? t('errors.system.message') : t(DESC_KEYS[kind])))
         }
       >
         <div className="flex items-center justify-center gap-2">

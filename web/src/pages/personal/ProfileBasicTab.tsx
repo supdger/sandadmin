@@ -12,6 +12,7 @@ import { useMe } from '@/hooks/useMe';
 import { AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { ErrorState } from '@/components/ErrorState';
+import { FIELD_NAME_WIDTH, FIELD_PHONE_WIDTH } from '@/components/fieldWidth';
 
 const PROFILE_QUERY_KEY = ['me', 'profile'] as const;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -102,7 +103,12 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
   };
 
   const handleSubmit = async (values: Record<string, unknown>) => {
-    const parsed = schema.safeParse(values);
+    // 空邮箱在 Semi 表单里是缺字段，不能交给校验器生成英文报错。
+    const parsed = schema.safeParse({
+      nickname: typeof values.nickname === 'string' ? values.nickname : '',
+      phone: typeof values.phone === 'string' ? values.phone : '',
+      email: typeof values.email === 'string' ? values.email : '',
+    });
     if (!parsed.success) {
       const shown = new Set<string>();
       for (const issue of parsed.error.issues) {
@@ -210,6 +216,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="nickname"
             label={t('basic.nickname')}
+            style={{ width: FIELD_NAME_WIDTH }}
             placeholder={t('basic.nicknamePlaceholder')}
             maxLength={20}
             rules={[{ required: true, message: t('basic.nicknameRequired') }]}
@@ -217,6 +224,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="phone"
             label={t('basic.phone')}
+            style={{ width: FIELD_PHONE_WIDTH }}
             placeholder={t('basic.phonePlaceholder')}
             prefix="+86"
             maxLength={13}
@@ -225,6 +233,7 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
           <Form.Input
             field="email"
             label={t('basic.email')}
+            style={{ width: FIELD_NAME_WIDTH }}
             placeholder={t('basic.emailPlaceholder')}
             rules={[{ required: false }]}
           />

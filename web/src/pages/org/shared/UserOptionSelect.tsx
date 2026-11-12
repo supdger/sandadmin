@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { getUserOptions, type UserOption } from '@/api/v1/org';
+import { FIELD_CHOICE_WIDTH } from '@/components/fieldWidth';
 import type { Id } from '@/api/v1/types';
 
 export interface UserOptionItem {
@@ -91,7 +92,7 @@ export function UserOptionSelect({
       optionList={options}
       onSearch={setKeyword}
       onChange={(next) => onChange?.(typeof next === 'string' ? next : undefined)}
-      style={{ width: '100%' }}
+      style={{ width: FIELD_CHOICE_WIDTH }}
     />
   );
 }

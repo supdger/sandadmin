@@ -4,10 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
+import { restorePhoneConsultItem } from '@/mocks/handlers/data';
 import { DictPage } from './DictPage';
 
 function renderPage() {
@@ -51,8 +52,13 @@ async function clickDialogButton(text: string) {
 }
 
 describe('DictPage', () => {
+  beforeEach(() => {
+    restorePhoneConsultItem();
+  });
+
   afterEach(() => {
     clearToken();
+    restorePhoneConsultItem();
   });
 
   it('loads option groups and shows items after selecting a group', async () => {
@@ -86,7 +92,7 @@ describe('DictPage', () => {
     );
     await clickDialogButton('保存');
 
-    expect(await screen.findByText('已添加回访渠道')).toBeInTheDocument();
+    expect(await screen.findByText('已添加「回访渠道」')).toBeInTheDocument();
     // 新建后自动选中该组，右侧先出现空态（说明详情已加载、右侧标题已渲染）。
     expect(await screen.findByText('这个组还没有选项')).toBeInTheDocument();
     // 左栏与右侧标题都会出现组名。
@@ -119,6 +125,32 @@ describe('DictPage', () => {
     );
   });
 
+  it('keeps a disabled option disabled when only the name changes', async () => {
+    setToken('mock-admin-token');
+    renderPage();
+
+    await userEvent.click(await screen.findByText('客户来源'));
+    await screen.findByText('电话咨询');
+    await userEvent.click(within(rowOf('电话咨询')).getByLabelText('更多'));
+    await userEvent.click(await screen.findByText('删除'));
+    await userEvent.click(await screen.findByRole('button', { name: '改为停用' }));
+    await waitFor(() =>
+      expect(within(rowOf('电话咨询')).getByText('已停用')).toBeInTheDocument(),
+    );
+
+    await userEvent.click(within(rowOf('电话咨询')).getByRole('button', { name: '编辑' }));
+    const name = await screen.findByPlaceholderText('例如：展会');
+    expect(screen.getByRole('switch', { name: '启用' })).not.toBeChecked();
+    await userEvent.clear(name);
+    await userEvent.type(name, '来电咨询');
+    await clickDialogButton('保存');
+
+    expect(await screen.findByText('已保存「来电咨询」')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(rowOf('来电咨询')).getByText('已停用')).toBeInTheDocument(),
+    );
+  });
+
   it('deletes an unused option after plain confirmation', async () => {
     setToken('mock-admin-token');
     renderPage();
@@ -130,7 +162,7 @@ describe('DictPage', () => {
     await userEvent.click(within(rowOf('网上搜索')).getByLabelText('更多'));
     await userEvent.click(await screen.findByText('删除'));
 
-    expect(await screen.findByText('删除“网上搜索”？')).toBeInTheDocument();
+    expect(await screen.findByText('删除「网上搜索」？')).toBeInTheDocument();
     await clickDialogButton('删除');
 
     await waitFor(() =>

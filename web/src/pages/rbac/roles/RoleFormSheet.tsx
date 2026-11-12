@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { createRole, updateRole, type Role, type RoleWrite } from '@/api/v1/roles';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 
@@ -31,10 +33,11 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
   const [remark, setRemark] = useState(role?.remark ?? '');
   const [enabled, setEnabled] = useState(role ? role.status === 'enabled' : true);
   const [nameError, setNameError] = useState('');
+  const submitKey = useFormIdempotencyKey(role === null);
 
   const save = useMutation({
     mutationFn: (body: RoleWrite) =>
-      role ? updateRole(role.id, body) : createRole(body),
+      role ? updateRole(role.id, body) : createRole(body, submitKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['rbac', 'roles'] });
     },
@@ -82,6 +85,9 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
       title={role ? t('roles.form.editTitle') : t('roles.form.addTitle')}
       footer={
         <div className="flex justify-end gap-2">
+          <Button theme="light" disabled={save.isPending} onClick={onClose}>
+            {t('common:actions.cancel')}
+          </Button>
           <Button
             theme="light"
             disabled={save.isPending}
@@ -101,9 +107,14 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
     >
       <div className="flex flex-col gap-4">
         <div>
-          <Typography.Text strong>{t('roles.form.name')}</Typography.Text>
+          <div className="mb-1">
+            <Typography.Text strong>
+              {t('roles.form.name')}
+              <Typography.Text type="danger"> *</Typography.Text>
+            </Typography.Text>
+          </div>
           <Input
-            className="mt-1"
+            style={{ width: FIELD_NAME_WIDTH }}
             value={name}
             maxLength={NAME_MAX}
             placeholder={t('roles.form.namePlaceholder')}
@@ -113,15 +124,22 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
             }}
           />
           {nameError ? (
-            <Typography.Text type="danger" size="small">
-              {nameError}
-            </Typography.Text>
+            <div className="mt-1 w-full">
+              <Typography.Text
+                type="danger"
+                size="small"
+                style={{ display: 'block', whiteSpace: 'nowrap' }}
+              >
+                {nameError}
+              </Typography.Text>
+            </div>
           ) : null}
         </div>
         <div>
-          <Typography.Text strong>{t('roles.form.remark')}</Typography.Text>
+          <div className="mb-1">
+            <Typography.Text strong>{t('roles.form.remark')}</Typography.Text>
+          </div>
           <TextArea
-            className="mt-1"
             value={remark}
             maxLength={REMARK_MAX}
             placeholder={t('roles.form.remarkPlaceholder')}
@@ -129,20 +147,16 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
             onChange={(v) => setRemark(v)}
           />
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <Typography.Text strong>{t('roles.form.enabled')}</Typography.Text>
-            <div>
-              <Typography.Text type="secondary" size="small">
-                {t('roles.form.enabledHint')}
-              </Typography.Text>
-            </div>
-          </div>
+        <div className="flex flex-col items-start gap-1">
+          <Typography.Text strong>{t('roles.form.enabled')}</Typography.Text>
           <Switch
             checked={enabled}
             onChange={(checked) => setEnabled(checked)}
             aria-label={t('roles.form.enabled')}
           />
+          <Typography.Text type="secondary" size="small">
+            {t('roles.form.enabledHint')}
+          </Typography.Text>
         </div>
       </div>
     </SideSheet>

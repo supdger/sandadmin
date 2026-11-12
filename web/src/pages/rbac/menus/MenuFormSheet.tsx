@@ -20,6 +20,7 @@ import {
   type MenuNode,
 } from '@/api/v1/menus';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
+import { FIELD_CHOICE_WIDTH, FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { MENU_ICON_OPTIONS, menuIconNode } from '@/pages/rbac/lib/menuIcons';
@@ -211,7 +212,7 @@ export function MenuFormSheet({
           icon: iconKey,
           visible: visibleFlag,
         });
-        Toast.success(t('menus.toast.saved'));
+        Toast.success(t('menus.toast.saved', { name: title.trim() }));
       }
       onSaved();
       onClose();
@@ -247,7 +248,7 @@ export function MenuFormSheet({
         ...(node.original_title ? { title: node.original_title } : {}),
         icon: null,
       });
-      Toast.success(t('menus.toast.saved'));
+      Toast.success(t('menus.toast.saved', { name: node.original_title || node.title }));
       onSaved();
       onClose();
     } catch (error) {
@@ -318,9 +319,14 @@ export function MenuFormSheet({
         ) : null}
 
         <div>
-          <Typography.Text strong>{t('menus.form.name')}</Typography.Text>
+          <div className="mb-1">
+            <Typography.Text strong>
+              {t('menus.form.name')}
+              <Typography.Text type="danger"> *</Typography.Text>
+            </Typography.Text>
+          </div>
           <Input
-            className="mt-1"
+            style={{ width: FIELD_NAME_WIDTH }}
             value={title}
             placeholder={t('menus.form.namePlaceholder')}
             onChange={(v) => {
@@ -336,15 +342,22 @@ export function MenuFormSheet({
         </div>
 
         <div>
-          <Typography.Text strong>{t('menus.form.icon')}</Typography.Text>
-          <div className="mt-1">{iconPicker}</div>
+          <div className="mb-1">
+            <Typography.Text strong>{t('menus.form.icon')}</Typography.Text>
+          </div>
+          <div>{iconPicker}</div>
         </div>
 
         {mode === 'link' && !isEdit ? (
           <div>
-            <Typography.Text strong>{t('menus.form.parent')}</Typography.Text>
+            <div className="mb-1">
+              <Typography.Text strong>
+                {t('menus.form.parent')}
+                <Typography.Text type="danger"> *</Typography.Text>
+              </Typography.Text>
+            </div>
             <Select
-              className="mt-1 w-full"
+              style={{ width: FIELD_CHOICE_WIDTH }}
               placeholder={t('menus.form.parentPlaceholder')}
               value={parentKey || undefined}
               onChange={(v) => {
@@ -401,20 +414,16 @@ export function MenuFormSheet({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <Typography.Text strong>{t('menus.form.visible')}</Typography.Text>
-            <div>
-              <Typography.Text type="secondary" size="small">
-                {t('menus.form.visibleHint')}
-              </Typography.Text>
-            </div>
-          </div>
+        <div className="flex flex-col items-start gap-1">
+          <Typography.Text strong>{t('menus.form.visible')}</Typography.Text>
           <Switch
             checked={visibleFlag}
             onChange={(checked) => setVisibleFlag(checked)}
             aria-label={t('menus.form.visible')}
           />
+          <Typography.Text type="secondary" size="small">
+            {t('menus.form.visibleHint')}
+          </Typography.Text>
         </div>
       </div>
     </SideSheet>

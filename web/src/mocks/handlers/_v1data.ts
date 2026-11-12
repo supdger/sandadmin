@@ -315,6 +315,27 @@ export const mockPermissionTree: PermissionGroup[] = [
         title: '任务中心',
         actions: [{ code: 'system:task:index', action: 'index', label: '查看' }],
       },
+      {
+        menu_key: 'system:plugin',
+        title: '插件管理',
+        actions: [
+          { code: 'system:plugin:index', action: 'index', label: '查看' },
+          { code: 'system:plugin:install', action: 'install', label: '安装' },
+          { code: 'system:plugin:upgrade', action: 'upgrade', label: '升级' },
+          { code: 'system:plugin:uninstall', action: 'uninstall', label: '卸载' },
+          { code: 'system:plugin:upload', action: 'upload', label: '上传' },
+        ],
+      },
+      {
+        menu_key: 'system:update',
+        title: '系统更新',
+        actions: [
+          { code: 'system:update:index', action: 'index', label: '查看' },
+          { code: 'system:update:check', action: 'check', label: '检查更新' },
+          { code: 'system:update:start', action: 'start', label: '开始升级' },
+          { code: 'system:update:upload', action: 'upload', label: '上传升级包' },
+        ],
+      },
     ],
   },
 ];
@@ -374,6 +395,8 @@ export function buildMenuTree(): MenuTree {
         children: [
           { key: 'preferences', type: 'page', title: '偏好设置', icon: 'setting', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/preferences' },
           { key: 'custom:docs', type: 'link', title: '帮助文档', icon: null, source: { kind: 'custom' }, visible: true, locked: { move: false, hide: false }, url: 'https://docs.example.com' },
+          { key: 'system:plugin', type: 'page', title: '插件管理', icon: 'layers', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/plugins' },
+          { key: 'system:update', type: 'page', title: '系统更新', icon: 'refresh', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/update' },
         ],
       },
       {
@@ -514,9 +537,16 @@ const initialPosts = structuredClone(mockPosts);
 const initialRoles = structuredClone(mockRoles);
 const initialDepts = structuredClone(mockDepts);
 
+/** 其他 mock 数据模块（如 lifecycle.ts）注册的清理函数；避免反向 import 成环。 */
+const extraResetters: Array<() => void> = [];
+export function registerV1Resetter(fn: () => void): void {
+  extraResetters.push(fn);
+}
+
 export function resetV1Mock(): void {
   authzVersionCounter = 1;
   mockMenuTree = buildMenuTree();
+  for (const fn of extraResetters) fn();
   mockRolePermissions.clear();
   for (const [roleId, state] of seededRolePermissions) {
     mockRolePermissions.set(roleId, structuredClone(state));

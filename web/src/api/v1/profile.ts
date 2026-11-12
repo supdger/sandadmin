@@ -1,4 +1,5 @@
 import { adminDelete, adminGet, adminPost, adminPut } from '@/lib/adminClient';
+import { setToken } from '@/lib/authToken';
 import type { Id } from './types';
 
 /** GET /me/profile — editable fields plus the read-only org context rows. */
@@ -64,11 +65,21 @@ export function getPasswordRule(): Promise<PasswordRule> {
   return adminGet<PasswordRule>('/auth/password-policy');
 }
 
-export function changePassword(body: {
+/** POST /auth/password/change — 改密后旧令牌全部失效，响应带回新令牌。 */
+export interface PasswordChangeResult {
+  changed: boolean;
+  token?: string;
+}
+
+export async function changePassword(body: {
   old_password: string;
   new_password: string;
-}): Promise<unknown> {
-  return adminPost('/auth/password/change', body);
+}): Promise<PasswordChangeResult> {
+  const data = await adminPost<PasswordChangeResult>('/auth/password/change', body);
+  if (typeof data.token === 'string' && data.token !== '') {
+    setToken(data.token);
+  }
+  return data;
 }
 
 export function getMySessions(): Promise<SessionList> {

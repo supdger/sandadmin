@@ -23,3 +23,9 @@ body,
   display: flex;
   flex-direction: column;
 }
+
+/* 提示条靠右，避免盖住页面中间确认框的标题。 */
+.semi-toast-wrapper {
+  justify-content: flex-end;
+  padding-right: 16px;
+}

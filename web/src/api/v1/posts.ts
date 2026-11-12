@@ -33,8 +33,8 @@ export function listPosts(query?: PostListQuery): Promise<Page<Post>> {
   return adminGet<Page<Post>>('/posts', { query });
 }
 
-export function createPost(body: PostWrite): Promise<Post> {
-  return adminPost<Post>('/posts', body);
+export function createPost(body: PostWrite, idempotencyKey?: string): Promise<Post> {
+  return adminPost<Post>('/posts', body, { idempotencyKey });
 }
 
 export function updatePost(postId: Id, body: PostWrite): Promise<Post> {

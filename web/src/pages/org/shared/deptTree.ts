@@ -5,6 +5,8 @@ import type { Id } from '@/api/v1/types';
 /** TreeSelect 需要的节点形状（Semi TreeSelect 用 children 递归）。 */
 export interface DeptTreeOption {
   value: Id;
+  /** Semi TreeSelect 用 key 识别节点；缺了下拉里不会画出选项。 */
+  key: Id;
   label: string;
   /** 停用部门：表单里置灰不可选，筛选场景仍可用。 */
   disabled?: boolean;
@@ -25,6 +27,7 @@ export function buildDeptTreeOptions(depts: FlatDeptLike[]): DeptTreeOption[] {
   for (const dept of depts) {
     byId.set(dept.id, {
       value: dept.id,
+      key: dept.id,
       label: dept.name,
       disabled: dept.status === 'disabled',
       children: [],

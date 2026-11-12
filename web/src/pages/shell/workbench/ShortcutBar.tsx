@@ -12,11 +12,12 @@ import {
   saveShortcuts,
   type ShortcutItem,
 } from '@/api/v1/dashboard';
-import { getMyMenus, type MyMenuNode } from '@/api/v1/me';
+import { getMyMenus, MY_MENUS_QUERY_KEY, type MyMenuNode } from '@/api/v1/me';
 import { adminErrorMessage } from '@/lib/adminError';
+import { listOrEmpty } from './listOrEmpty';
+import { LoadError } from './LoadError';
 
 const SHORTCUTS_QUERY_KEY = ['dashboard', 'shortcuts'] as const;
-const MENUS_QUERY_KEY = ['me', 'menus'] as const;
 const MAX_SHORTCUTS = 8;
 
 interface LeafMenu {
@@ -51,9 +52,12 @@ export function ShortcutBar() {
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
   const shortcuts = useQuery({ queryKey: SHORTCUTS_QUERY_KEY, queryFn: getShortcuts });
-  const menus = useQuery({ queryKey: MENUS_QUERY_KEY, queryFn: getMyMenus, staleTime: 60_000 });
+  const menus = useQuery({ queryKey: MY_MENUS_QUERY_KEY, queryFn: getMyMenus, staleTime: 60_000 });
 
-  const leafMenus = useMemo(() => flattenLeaves(menus.data?.items ?? []), [menus.data]);
+  const leafMenus = useMemo(
+    () => flattenLeaves(Array.isArray(menus.data?.items) ? menus.data.items : []),
+    [menus.data],
+  );
 
   const save = useMutation({
     mutationFn: (menuKeys: string[]) => saveShortcuts(menuKeys),
@@ -76,7 +80,7 @@ export function ShortcutBar() {
   });
 
   const openModal = () => {
-    setDraft(shortcuts.data?.items ?? []);
+    setDraft(listOrEmpty(shortcuts.data?.items));
     setDragIndex(null);
     setOverIndex(null);
     setModalOpen(true);
@@ -110,7 +114,7 @@ export function ShortcutBar() {
     .filter((m) => !draft.some((s) => s.menu_key === m.key))
     .map((m) => ({ value: m.key, label: m.title }));
 
-  const items = shortcuts.data?.items ?? [];
+  const items = listOrEmpty(shortcuts.data?.items);
 
   return (
     <Card
@@ -121,7 +125,9 @@ export function ShortcutBar() {
         </Button>
       }
     >
-      {shortcuts.isPending ? (
+      {shortcuts.isPaused || shortcuts.isError ? (
+        <LoadError error={shortcuts.error} paused={shortcuts.isPaused} onRetry={() => void shortcuts.refetch()} />
+      ) : shortcuts.isPending ? (
         <Typography.Text type="tertiary" size="small">
           {t('common:loading')}
         </Typography.Text>

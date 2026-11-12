@@ -149,9 +149,10 @@ function systemError(init: {
   url: string;
   httpStatus: number;
 }): AdminApiError {
+  const network = init.code === 'NETWORK_ERROR';
   return new AdminApiError({
     code: init.code ?? 'INTERNAL_ERROR',
-    message: i18n.t('errors.system.message'),
+    message: i18n.t(network ? 'errors.network.message' : 'errors.system.message'),
     httpStatus: init.httpStatus,
     requestId: init.requestId,
     method: init.method,

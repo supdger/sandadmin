@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AdminApiError, isAdminSystemError } from '@/lib/adminClient';
 import { adminProblemReport } from '@/lib/adminError';
+import { isNetworkFailure } from '@/lib/networkFailure';
 
 async function copyText(text: string): Promise<boolean> {
   const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
@@ -54,6 +55,19 @@ export interface AdminErrorNoticeProps {
  */
 export function AdminErrorNotice({ error, onRetry, fallback }: AdminErrorNoticeProps) {
   const { t } = useTranslation();
+
+  if (isNetworkFailure(error)) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Typography.Text type="danger">{t('errors.network.message')}</Typography.Text>
+        {onRetry ? (
+          <Button size="small" onClick={onRetry}>
+            {t('actions.retry')}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (!isAdminSystemError(error)) {
     return <>{fallback ?? null}</>;

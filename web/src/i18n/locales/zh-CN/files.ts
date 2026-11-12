@@ -85,10 +85,10 @@ export default {
   confirmDeleteUsedTitle: '其中 {{count}} 个文件正在使用',
   confirmDeleteUsedContent:
     '删除后，用到它们的地方（{{labels}}）会显示“文件已删除”。不能找回。',
-  confirmDeleteUnknownTitle: '删除“{{name}}”？',
+  confirmDeleteUnknownTitle: '删除「{{name}}」？',
   confirmDeleteUnknownContent:
     '可能有地方还在用这个文件，删了以后那里会显示“文件已删除”，不能找回。',
-  confirmDeleteUsedSingleTitle: '删除“{{name}}”？',
+  confirmDeleteUsedSingleTitle: '删除「{{name}}」？',
   confirmDeleteUsedSingleContent:
     '它正在被使用（{{usage}}），删除后那里会显示“文件已删除”，不能找回。',
   deleteAnyway: '仍然删除',

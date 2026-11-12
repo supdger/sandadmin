@@ -13,6 +13,7 @@ import {
   Space,
   Table,
   Toast,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconPlus, IconSearch } from '@douyinfe/semi-icons';
@@ -45,6 +46,7 @@ import {
   relocateDept,
 } from '../shared/deptTree';
 import { DeptFormSheet } from './DeptFormSheet';
+import { confirmAction } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -234,12 +236,12 @@ export function DeptsPage() {
   const toggleStatus = (dept: Dept) => {
     const next = dept.status === 'enabled' ? 'disabled' : 'enabled';
     const isDisable = next === 'disabled';
-    Modal.confirm({
-      title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.doneEnable', { name: dept.name }),
-      content: isDisable ? t('depts.danger.disableContent') : undefined,
+    confirmAction({
+      title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.enableTitle', { name: dept.name }),
+      content: t(isDisable ? 'depts.danger.disableContent' : 'depts.danger.enableContent'),
       okText: isDisable ? t('depts.danger.disableOk') : t('common.enable'),
       cancelText: t('common.thinkAgain'),
-      okType: isDisable ? 'danger' : 'primary',
+      okType: 'primary',
       onOk: async () => {
         try {
           await updateDept(dept.id, {
@@ -304,7 +306,7 @@ export function DeptsPage() {
       return;
     }
     const roleNames = check.affected_roles.map((role) => role.name).join('、');
-    Modal.confirm({
+    confirmAction({
       title: t('depts.danger.deleteTitle', { name: dept.name }),
       content: (
         <div>
@@ -411,7 +413,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.leader'),
-      width: 160,
+      width: 112,
       render: (_: unknown, record: Dept) => {
         // leader_status 为 null 表示未设置或负责人已删除，统一按「未设置」显示。
         if (record.leader_status === 'disabled') {
@@ -439,7 +441,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.userCount'),
-      width: 80,
+      width: 64,
       render: (_: unknown, record: Dept) => (
         <Button
           type="tertiary"
@@ -457,10 +459,18 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.actions'),
-      width: 200,
+      width: 248,
       fixed: 'right',
       render: (_: unknown, record: Dept) => {
-        const menuItems: { key: string; name: string; danger?: boolean; onClick: () => void }[] = [
+        const hasChildren = (record.children?.length ?? 0) > 0;
+        const menuItems: {
+          key: string;
+          name: string;
+          danger?: boolean;
+          disabled?: boolean;
+          hint?: string;
+          onClick: () => void;
+        }[] = [
           canUpdate
             ? {
                 key: 'toggle',
@@ -473,12 +483,14 @@ export function DeptsPage() {
                 key: 'delete',
                 name: t('common.delete'),
                 danger: true,
+                disabled: hasChildren,
+                hint: hasChildren ? t('depts.danger.deleteChildHint') : undefined,
                 onClick: () => void removeDept(record),
               }
             : null,
         ].filter((i): i is NonNullable<typeof i> => i !== null);
         return (
-          <Space spacing={4}>
+          <Space spacing={4} style={{ whiteSpace: 'nowrap' }}>
             {canCreate ? (
               <Button
                 type="tertiary"
@@ -503,15 +515,25 @@ export function DeptsPage() {
                 position="bottomRight"
                 render={
                   <Dropdown.Menu>
-                    {menuItems.map((item) => (
-                      <Dropdown.Item
-                        key={item.key}
-                        type={item.danger ? 'danger' : undefined}
-                        onClick={item.onClick}
-                      >
-                        {item.name}
-                      </Dropdown.Item>
-                    ))}
+                    {menuItems.map((item) => {
+                      const entry = (
+                        <Dropdown.Item
+                          disabled={item.disabled}
+                          type={item.danger && !item.disabled ? 'danger' : undefined}
+                          onClick={item.disabled ? undefined : item.onClick}
+                        >
+                          {item.name}
+                        </Dropdown.Item>
+                      );
+                      if (item.disabled && item.hint) {
+                        return (
+                          <Tooltip key={item.key} content={item.hint} position="left">
+                            <span style={{ display: 'block' }}>{entry}</span>
+                          </Tooltip>
+                        );
+                      }
+                      return <span key={item.key}>{entry}</span>;
+                    })}
                   </Dropdown.Menu>
                 }
               >
@@ -608,11 +630,12 @@ export function DeptsPage() {
         </div>
       ) : null}
 
-      {treeQuery.isError ? (
+      {treeQuery.isError || treeQuery.isPaused ? (
         <OrgErrorState
           title={t('depts.loadFailed.title')}
           description={t('depts.loadFailed.description')}
           error={treeQuery.error}
+          paused={treeQuery.isPaused}
           onRetry={() => void treeQuery.refetch()}
         />
       ) : isFirstLoading ? (

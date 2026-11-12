@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
-  Modal,
   Radio,
   Spin,
   Toast,
@@ -38,6 +37,7 @@ import {
   togglePermissionCode,
 } from '@/pages/rbac/lib/permissionMatrix';
 import { PermissionMatrix } from './PermissionMatrix';
+import { confirmAction } from '@/lib/confirmAction';
 
 const SCOPE_ORDER: PermScope[] = [
   'all',
@@ -175,7 +175,12 @@ export function RolePermissionPage() {
       }),
     onSuccess: (result) => {
       Toast.success(
-        t('permission.toastSaved', { count: result.affected_users }),
+        result.affected_users > 0
+          ? t('permission.toastSavedUsers', {
+              name: role.data?.name ?? '',
+              count: result.affected_users,
+            })
+          : t('permission.toastSaved', { name: role.data?.name ?? '' }),
       );
       refreshPermissions();
     },
@@ -203,11 +208,11 @@ export function RolePermissionPage() {
       navigate('/system/role');
       return;
     }
-    Modal.confirm({
+    confirmAction({
       title: t('permission.discardTitle'),
       okText: t('permission.discardOk'),
       cancelText: t('permission.discardCancel'),
-      okButtonProps: { type: 'danger' },
+      okButtonProps: { type: 'primary' },
       onOk: () => navigate('/system/role'),
     });
   };

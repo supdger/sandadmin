@@ -36,6 +36,7 @@ import { adminErrorMessage } from '@/lib/adminError';
 import { DictItemModal } from './DictItemModal';
 import { DictTypeModal } from './DictTypeModal';
 import { useDebouncedValue } from './useDebouncedValue';
+import { confirmAction } from '@/lib/confirmAction';
 
 const DICT_QUERY_KEY = ['dict'] as const;
 
@@ -116,7 +117,7 @@ export function DictPage() {
       return { previous };
     },
     onSuccess: () => {
-      Toast.success(t('confirm.sorted'));
+      Toast.success(t('confirm.sorted', { name: detail.data?.name ?? '' }));
       void invalidateAll();
     },
     onError: (error, _vars, context) => {
@@ -208,7 +209,7 @@ export function DictPage() {
     // used === true 或 null（查不了）都按「可能已被使用」提醒；is_system 不给删除入口。
     if (item.is_system) return;
     if (item.used === false) {
-      Modal.confirm({
+      confirmAction({
         title: t('confirm.deleteItemTitle', { label: item.label }),
         content: t('confirm.deleteItemContent'),
         okText: t('confirm.deleteOk'),
@@ -223,7 +224,7 @@ export function DictPage() {
   };
 
   const requestDeleteType = (type: DictType) => {
-    Modal.confirm({
+    confirmAction({
       title: t('confirm.deleteTypeTitle', { name: type.name }),
       content: t('confirm.deleteTypeContent', { count: type.item_count }),
       okText: t('confirm.deleteOk'),
@@ -333,6 +334,7 @@ export function DictPage() {
                         content={t('confirm.disableContent')}
                         okText={t('confirm.disableOk')}
                         cancelText={t('confirm.think')}
+                        okType="primary"
                         onConfirm={() =>
                           statusItem.mutate({ itemId: record.id, status: 'disabled' })
                         }
@@ -340,13 +342,18 @@ export function DictPage() {
                         <Dropdown.Item>{t('table.disable')}</Dropdown.Item>
                       </Popconfirm>
                     ) : (
-                      <Dropdown.Item
-                        onClick={() =>
+                      <Popconfirm
+                        title={t('confirm.enableTitle', { label: record.label })}
+                        content={t('confirm.enableContent')}
+                        okText={t('confirm.enableOk')}
+                        cancelText={t('confirm.think')}
+                        okType="primary"
+                        onConfirm={() =>
                           statusItem.mutate({ itemId: record.id, status: 'enabled' })
                         }
                       >
-                        {t('table.enable')}
-                      </Dropdown.Item>
+                        <Dropdown.Item>{t('table.enable')}</Dropdown.Item>
+                      </Popconfirm>
                     )
                   ) : null}
                   {canDelete && !record.is_system ? (
@@ -386,17 +393,18 @@ export function DictPage() {
             showClear
           />
           <div className="flex max-h-[560px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--semi-color-border)] p-1">
-            {types.isPending ? (
-              <div className="flex flex-col gap-2 p-2">
-                <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
-              </div>
-            ) : types.isError ? (
+            {types.isPaused || types.isError ? (
               <ErrorState
                 kind="error"
                 error={types.error}
+                paused={types.isPaused}
                 onRetry={() => void types.refetch()}
                 showHome={false}
               />
+            ) : types.isPending ? (
+              <div className="flex flex-col gap-2 p-2">
+                <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
+              </div>
             ) : groups.length === 0 ? (
               <div className="p-3">
                 <Empty
@@ -416,14 +424,6 @@ export function DictPage() {
                       }}
                     >
                       {t('group.clearSearch')}
-                    </Button>
-                  ) : canCreate ? (
-                    <Button
-                      size="small"
-                      theme="solid"
-                      onClick={() => setTypeModal({ open: true, type: null })}
-                    >
-                      {t('group.add')}
                     </Button>
                   ) : null}
                 </Empty>
@@ -468,21 +468,24 @@ export function DictPage() {
         {/* 右栏：选项 */}
         <div className="min-w-0 flex-1">
           {!selectedTypeId ? (
-            <div className="rounded-lg border border-[var(--semi-color-border)] p-10">
-              <Empty title={t('detail.noSelection')} />
-            </div>
-          ) : detail.isPending ? (
-            <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
-              <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
-            </div>
-          ) : detail.isError ? (
+            groups.length === 0 ? null : (
+              <div className="rounded-lg border border-[var(--semi-color-border)] p-10">
+                <Empty title={t('detail.noSelection')} />
+              </div>
+            )
+          ) : detail.isPaused || detail.isError ? (
             <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
               <ErrorState
                 kind="error"
                 error={detail.error}
+                paused={detail.isPaused}
                 onRetry={() => void detail.refetch()}
                 showHome={false}
               />
+            </div>
+          ) : detail.isPending ? (
+            <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
+              <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
             </div>
           ) : currentType ? (
             <div className="flex flex-col gap-3">
@@ -578,6 +581,7 @@ export function DictPage() {
       </div>
 
       <DictTypeModal
+        key={typeModal.open ? `type-${typeModal.type?.id ?? 'new'}` : 'type-closed'}
         visible={typeModal.open}
         type={typeModal.type}
         onClose={() => setTypeModal({ open: false, type: null })}
@@ -586,6 +590,7 @@ export function DictPage() {
         }}
       />
       <DictItemModal
+        key={itemModal.open ? `item-${itemModal.item?.id ?? 'new'}` : 'item-closed'}
         visible={itemModal.open}
         typeId={selectedTypeId ?? ''}
         items={items}
