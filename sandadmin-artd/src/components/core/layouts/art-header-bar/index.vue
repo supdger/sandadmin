@@ -54,10 +54,10 @@
         />
 
         <!-- 顶部菜单 -->
-        <ArtHorizontalMenu v-if="isTopMenu" :list="menuList" />
+        <ArtHorizontalMenu v-if="isTopMenu" :list="visibleMenus" />
 
         <!-- 混合菜单-顶部 -->
-        <ArtMixedMenu v-if="isTopLeftMenu" :list="menuList" />
+        <ArtMixedMenu v-if="isTopLeftMenu" :list="visibleMenus" />
       </div>
 
       <div class="flex-c gap-2.5">
@@ -170,7 +170,8 @@
 
 <script setup lang="ts">
   import { useI18n } from 'vue-i18n'
-  import { useRouter } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
+  import { devSurfaceOpen, hideDevMenus } from '@/utils/devSurface'
   import { useFullscreen, useWindowSize } from '@vueuse/core'
   import { LanguageEnum, MenuTypeEnum } from '@/enums/appEnum'
   import { useSettingStore } from '@/store/modules/setting'
@@ -189,6 +190,7 @@
   // 检测操作系统类型
   const isWindows = navigator.userAgent.includes('Windows')
 
+  const route = useRoute()
   const router = useRouter()
   const { locale } = useI18n()
   const { width } = useWindowSize()
@@ -213,7 +215,8 @@
     storeToRefs(settingStore)
 
   const { language } = storeToRefs(userStore)
-  const { menuList } = storeToRefs(menuStore)
+  const { menuList: rawMenus } = storeToRefs(menuStore)
+  const visibleMenus = computed(() => hideDevMenus(rawMenus.value, devSurfaceOpen(route.query)))
 
   const showNotice = ref(false)
   const notice = ref(null)

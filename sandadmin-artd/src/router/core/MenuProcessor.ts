@@ -14,6 +14,12 @@ import { fetchGetMenuList } from '@/api/auth'
 import { asyncRoutes } from '../routes/asyncRoutes'
 import { RoutesAlias } from '../routesAlias'
 
+/** 菜单显示名收口：去掉实现代号，页面名和界面叫法保持一致。 */
+function displayMenuTitle(title: string): string {
+  const stripped = title.replace('（SandIAM）', '').replace('(SandIAM)', '')
+  return stripped === '应用用户身份' ? '应用用户' : stripped
+}
+
 export class MenuProcessor {
   /**
    * 获取菜单数据
@@ -141,11 +147,16 @@ export class MenuProcessor {
 
       const redirect = item.redirect || this.resolveDefaultRedirect(children)
 
+      const meta = item.meta && typeof item.meta.title === 'string'
+        ? { ...item.meta, title: displayMenuTitle(item.meta.title) }
+        : item.meta
+
       return {
         ...item,
         path: fullPath,
         redirect,
-        children
+        children,
+        meta
       }
     })
   }
