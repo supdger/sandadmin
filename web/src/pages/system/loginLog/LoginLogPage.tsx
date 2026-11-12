@@ -345,8 +345,8 @@ export function LoginLogPage() {
               { key: t('columns.time'), value: formatDateTime(detail.login_time) },
               { key: t('columns.location'), value: detail.location },
               { key: t('columns.device'), value: detail.device_label },
-              { key: t('detail.source'), value: detail.ip },
-              { key: t('detail.address'), value: detail.user_agent },
+              // 规格：「登录设备地址」显示 ip；user_agent 仅排查/导出用，页面不渲染。
+              { key: t('detail.address'), value: detail.ip },
             ]}
           />
         ) : null}

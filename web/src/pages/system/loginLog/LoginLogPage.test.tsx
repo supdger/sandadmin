@@ -45,6 +45,9 @@ describe('LoginLogPage', () => {
     const cell = await screen.findByText('密码不对');
     await userEvent.click(cell);
     expect(await screen.findByText('登录设备地址')).toBeInTheDocument();
+    // 「登录设备地址」渲染 ip（ll-3 = 10.0.0.32）；user_agent 原文不在页面出现。
+    expect(screen.getByText('10.0.0.32')).toBeInTheDocument();
+    expect(screen.queryByText(/Mozilla\//)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '关闭' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '查看用户' })).toBeInTheDocument();
   });

@@ -36,9 +36,7 @@ export default {
 
   detail: {
     title: '登录详情',
-    // 契约 LoginLogDetail.ip：登录来源，仅详情返回。
-    source: '登录来源',
-    // 契约 LoginLogDetail.user_agent：原始浏览器字符串。
+    // 契约 LoginLogDetail.ip：登录时地址，页面称「登录设备地址」。
     address: '登录设备地址',
     close: '关闭',
     viewUser: '查看用户',
