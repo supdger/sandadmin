@@ -24,9 +24,13 @@ foreach ($it as $file) {
         $fail[] = "$rel: 终端入口按钮";
     }
 }
-$store = (string) file_get_contents("$root/views/plugin/sandpackage/store/terminal.ts");
-if (preg_match('/\bfetch\s*\(/', $store)) {
-    $fail[] = 'store/terminal.ts: 仍发起 fetch';
+$storePath = "$root/views/plugin/sandpackage/store/terminal.ts";
+// 0.2.25 起载荷整体移除终端 store；文件已删比「不发 fetch」更强，不存在即跳过该项检查
+if (is_file($storePath)) {
+    $store = (string) file_get_contents($storePath);
+    if (preg_match('/\bfetch\s*\(/', $store)) {
+        $fail[] = 'store/terminal.ts: 仍发起 fetch';
+    }
 }
 if ($fail) {
     fwrite(STDERR, "FAIL\n  " . implode("\n  ", $fail) . "\n");
