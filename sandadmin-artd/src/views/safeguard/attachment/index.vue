@@ -268,26 +268,26 @@
       },
       columnsFactory: () => [
         { type: 'selection' },
-        { prop: 'url', label: '预览', saiType: 'image', width: 80 },
-        { prop: 'origin_name', label: '文件名称', minWidth: 160, showOverflowTooltip: true },
+        { prop: 'url', label: '预览', saiType: 'image', width: 64 },
+        { prop: 'origin_name', label: '文件名称', minWidth: 120, showOverflowTooltip: true },
         {
           prop: 'storage_mode',
           label: '存储模式',
-          width: 100,
+          width: 88,
           saiType: 'dict',
           saiDict: 'upload_mode'
         },
         {
           prop: 'mime_type',
           label: '文件类型',
-          width: 110,
+          width: 96,
           showOverflowTooltip: true,
           formatter: (row: any) => mimeTypeText(row.mime_type)
         },
         {
           prop: 'size_byte',
           label: '文件大小',
-          width: 100,
+          width: 84,
           formatter: (row: any) => formatFileSize(row.size_byte)
         },
         {
@@ -298,7 +298,7 @@
           showOverflowTooltip: true,
           formatter: (row: any) => formatMinute(row.create_time)
         },
-        { prop: 'operation', label: '操作', width: 100, fixed: 'right', useSlot: true }
+        { prop: 'operation', label: '操作', width: 80, fixed: 'right', useSlot: true }
       ]
     }
   })
