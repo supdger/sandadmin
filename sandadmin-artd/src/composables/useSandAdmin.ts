@@ -33,11 +33,12 @@ export function useSandAdmin() {
     selectedRows.value = selection
   }
 
-  // 删除数据
+  // 删除数据；name 传入后提示里带上具体名字
   const deleteRow = (
     row: Record<string, any>,
     apiFn: (params: any) => Promise<any>,
-    callback?: () => void
+    callback?: () => void,
+    name?: string
   ): void => {
     ElMessageBox.confirm(`确定要删除该数据吗？`, '删除数据', {
       confirmButtonText: '确定',
@@ -45,7 +46,7 @@ export function useSandAdmin() {
       type: 'error'
     }).then(() => {
       apiFn({ ids: [row.id] }).then(() => {
-        ElMessage.success('删除成功')
+        ElMessage.success(name ? `已删除「${name}」` : '删除成功')
         if (callback) callback()
       })
     })

@@ -39,9 +39,15 @@ export const useDictStore = defineStore(
       }
     }
 
-    /** 根据 code 获取字典数据 */
+    /** 根据 code 获取字典数据；启用停用统一叫「已启用/已停用」，停用用灰色不用红色。 */
     const getByCode = (code: any): Api.Auth.DictItem[] => {
-      return dictList.value?.[code] || []
+      const rows: Api.Auth.DictItem[] = dictList.value?.[code] || []
+      if (code !== 'data_status') return rows
+      return rows.map((item) => {
+        if (String(item.value) === '1') return { ...item, label: '已启用' }
+        if (String(item.value) === '2') return { ...item, label: '已停用', color: '#909399' }
+        return item
+      })
     }
 
     /** 根据 code 和 value 获取字典标签 */

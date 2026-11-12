@@ -126,7 +126,7 @@
                 <SaButton
                   v-permission="'core:attachment:edit'"
                   type="error"
-                  @click="deleteRow(row, api.delete, refreshData)"
+                  @click="deleteRow(row, api.delete, refreshData, row.origin_name)"
                 />
               </div>
             </template>
@@ -255,7 +255,7 @@
         },
         { prop: 'mime_type', label: '文件类型', width: 160, showOverflowTooltip: true },
         { prop: 'size_info', label: '文件大小', width: 100 },
-        { prop: 'create_time', label: '上传时间', width: 180, sortable: true },
+        { prop: 'create_time', label: '上传时间', minWidth: 180, sortable: true },
         { prop: 'operation', label: '操作', width: 100, fixed: 'right', useSlot: true }
       ]
     }
@@ -289,7 +289,7 @@
       const formData = new FormData()
       formData.append('file', file)
       await uploadImage(formData)
-      ElMessage.success('上传成功')
+      ElMessage.success(`已上传「${file.name}」`)
       refreshData()
     } catch (error: any) {
       console.error('上传失败:', error)
