@@ -32,6 +32,7 @@ import { useCan } from '@/hooks/useCan';
 import { useUrlQuery } from '@/hooks/useUrlQuery';
 import { adminErrorMessage } from '@/lib/adminError';
 import { formatDateTime } from '@/lib/format';
+import { useViewportWidth } from '@/pages/org/shared/useViewportWidth';
 import { runExport } from '@/pages/system/shared/runExport';
 
 const PAGE_SIZE = 20;
@@ -52,9 +53,38 @@ function fmtDate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** 密码/密钥类改动：只显示「已修改」。 */
-function isMasked(label: string, value: string | null): boolean {
-  return /密码|口令|密钥|secret/i.test(label) || value === '***';
+interface ChangeRow {
+  key: string;
+  label: string;
+  before: string | null;
+  after: string | null;
+}
+
+/**
+ * 契约 changes 是对象 map：值是改后新值，或 {before, after} 对。
+ * 键的中文名看 change_labels，未知键回显键名兜底；口令类值后端
+ * 已替换为「已修改」标记，这里只回显、不再二次遮掩。
+ */
+function changeRows(
+  changes: Record<string, unknown> | null | undefined,
+  labels: Record<string, string> | null | undefined,
+): ChangeRow[] {
+  if (!changes || typeof changes !== 'object' || Array.isArray(changes)) return [];
+  const rows: ChangeRow[] = [];
+  for (const [key, value] of Object.entries(changes)) {
+    const label = labels?.[key] ?? key;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const pair = value as { before?: unknown; after?: unknown };
+      const before = pair.before == null ? null : String(pair.before);
+      const after = pair.after == null ? null : String(pair.after);
+      // 前后相同的占位项不列。
+      if (before === after) continue;
+      rows.push({ key, label, before, after });
+    } else {
+      rows.push({ key, label, before: null, after: value == null ? null : String(value) });
+    }
+  }
+  return rows;
 }
 
 export function AuditLogPage() {
@@ -134,12 +164,15 @@ export function AuditLogPage() {
 
   const hasFilter = Boolean(keyword || actorId || moduleKey || succeeded || from || to);
 
+  // 窄屏（<1440）藏「地点」列：契约 location 在条目里有，宽屏再展示。
+  const viewportWidth = useViewportWidth();
+
   const columns = useMemo(
     () => [
       {
         title: t('columns.actor'),
         dataIndex: 'actor_name',
-        render: (_: unknown, row: AuditLog) => row.actor_name ?? '',
+        render: (_: unknown, row: AuditLog) => row.actor_name,
       },
       { title: t('columns.action'), dataIndex: 'action_text' },
       {
@@ -157,13 +190,22 @@ export function AuditLogPage() {
             <Tag color="red" size="small">{t('result.failed')}</Tag>
           ),
       },
+      ...(viewportWidth >= 1440
+        ? [
+            {
+              title: t('columns.location'),
+              dataIndex: 'location',
+              render: (_: unknown, row: AuditLog) => row.location,
+            },
+          ]
+        : []),
       {
         title: t('columns.time'),
         dataIndex: 'create_time',
         render: (_: unknown, row: AuditLog) => formatDateTime(row.create_time),
       },
     ],
-    [t],
+    [t, viewportWidth],
   );
 
   if (!canIndex) {
@@ -185,7 +227,7 @@ export function AuditLogPage() {
   }
 
   const detail = detailQuery.data;
-  const changes = (detail?.changes ?? []).filter((c) => c.before !== c.after || isMasked(c.label, c.after));
+  const changes = changeRows(detail?.changes, detail?.change_labels);
 
   return (
     <div className="p-6 flex flex-col gap-4">
@@ -226,6 +268,19 @@ export function AuditLogPage() {
           type="dateRange"
           value={from && to ? [from, to] : undefined}
           disabledDate={disabledDate}
+          presets={[
+            { text: t('filters.rangeToday'), start: () => new Date(), end: () => new Date() },
+            {
+              text: t('filters.range7d'),
+              start: () => new Date(Date.now() - 6 * 86_400_000),
+              end: () => new Date(),
+            },
+            {
+              text: t('filters.range30d'),
+              start: () => new Date(Date.now() - 29 * 86_400_000),
+              end: () => new Date(),
+            },
+          ]}
           placeholder={t('filters.rangePlaceholder')}
           onChange={(dates) => {
             if (Array.isArray(dates) && dates.length === 2 && dates[0] && dates[1]) {
@@ -265,7 +320,8 @@ export function AuditLogPage() {
             value={moduleKey || undefined}
             optionList={[
               { value: '', label: t('filters.moduleAll') },
-              ...(modulesQuery.data?.items ?? []).map((m) => ({ value: m.key, label: m.label })),
+              // 契约：module-options 的 data 直接是 [{key, name}] 数组。
+              ...(modulesQuery.data ?? []).map((m) => ({ value: m.key, label: m.name })),
             ]}
             onChange={(v) => setValues({ module: (v as string) || undefined, page: 1 })}
             style={{ width: 180 }}
@@ -324,11 +380,15 @@ export function AuditLogPage() {
             <Descriptions
               align="left"
               data={[
-                { key: t('columns.actor'), value: detail.actor_name ?? '' },
+                { key: t('columns.actor'), value: detail.actor_name },
                 { key: t('columns.action'), value: detail.action_text },
                 { key: t('columns.module'), value: detail.module_label ?? '' },
                 { key: t('columns.result'), value: detail.succeeded ? t('result.ok') : t('result.failed') },
                 { key: t('columns.time'), value: formatDateTime(detail.create_time) },
+                ...(detail.location ? [{ key: t('columns.location'), value: detail.location }] : []),
+                ...(detail.device_label ? [{ key: t('detail.device'), value: detail.device_label }] : []),
+                ...(detail.ip ? [{ key: t('detail.source'), value: detail.ip }] : []),
+                { key: t('detail.request'), value: detail.request_id },
               ]}
             />
             <div>
@@ -336,31 +396,26 @@ export function AuditLogPage() {
               {changes.length === 0 ? (
                 <div>{t('detail.noChanges')}</div>
               ) : (
-                <Table<{ label: string; before: string | null; after: string | null }>
+                <Table<ChangeRow>
                   columns={[
                     { title: '', dataIndex: 'label', width: 120 },
                     {
                       title: t('detail.before'),
                       dataIndex: 'before',
-                      render: (_: unknown, c: { label: string; before: string | null; after: string | null }) =>
-                        isMasked(c.label, c.before) ? t('detail.masked') : (c.before ?? ''),
+                      render: (_: unknown, c: ChangeRow) => c.before ?? '',
                     },
                     {
                       title: t('detail.after'),
                       dataIndex: 'after',
-                      render: (_: unknown, c: { label: string; before: string | null; after: string | null }) =>
-                        isMasked(c.label, c.after) ? t('detail.masked') : (c.after ?? ''),
+                      render: (_: unknown, c: ChangeRow) => c.after ?? '',
                     },
                   ]}
                   dataSource={changes}
-                  rowKey="label"
+                  rowKey="key"
                   pagination={false}
                 />
               )}
             </div>
-            {detail.remark ? (
-              <Descriptions align="left" data={[{ key: t('detail.remark'), value: detail.remark }]} />
-            ) : null}
           </div>
         ) : null}
       </SideSheet>

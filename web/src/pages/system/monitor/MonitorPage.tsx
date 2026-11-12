@@ -147,8 +147,8 @@ export function MonitorPage() {
             <div className="flex flex-col gap-1">
               <span>{t('cards.dbDownDesc')}</span>
               <span>{t('cards.dbNext')}</span>
-              {status?.db_check_time ? (
-                <span>{t('cards.dbCheckTime', { time: fmtTime(status.db_check_time) })}</span>
+              {status?.db_checked_time ? (
+                <span>{t('cards.dbCheckTime', { time: fmtTime(status.db_checked_time) })}</span>
               ) : null}
             </div>
           }
@@ -237,8 +237,8 @@ export function MonitorPage() {
                 {dbDown ? t('cards.dbDown') : dbUnknown ? unread : t('cards.dbOk')}
               </Typography.Title>
               <Typography.Text type="tertiary" size="small">
-                {status?.db_check_time
-                  ? t('cards.dbCheckTime', { time: fmtTime(status.db_check_time) })
+                {status?.db_checked_time
+                  ? t('cards.dbCheckTime', { time: fmtTime(status.db_checked_time) })
                   : unread}
               </Typography.Text>
             </div>

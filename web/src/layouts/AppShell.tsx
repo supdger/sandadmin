@@ -21,6 +21,7 @@ import { Watermark } from '@/components/Watermark';
 import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { useCan } from '@/hooks/useCan';
+import { useFileImageUrl } from '@/hooks/useFileImageUrl';
 import { useMe } from '@/hooks/useMe';
 import { useSiteSettings, useSeedSiteSettings } from '@/hooks/useSiteSettings';
 import { useVisitReport } from '@/hooks/useVisitReport';
@@ -55,7 +56,9 @@ export function AppShell() {
   const site = useSiteSettings();
   const me = useMe();
   const appName = site.appName || env.appName;
-  const appLogo = site.appLogo ?? env.appLogo;
+  // site_logo 存的是 file_id（契约）：经 /files/{id}/download 解析成可显示的地址；
+  // env 配的地址类值直接透传。
+  const appLogoUrl = useFileImageUrl(site.appLogo ?? env.appLogo);
 
   // 个人信息页才显示水印：淡淡铺当前登录人昵称，关掉设置立即消失。
   const WATERMARK_PATHS = ['/system/user', '/system/login-log', '/system/oper-log'];
@@ -139,8 +142,8 @@ export function AppShell() {
         }}
       >
         <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-          {appLogo ? (
-            <img src={appLogo} alt={appName} className="h-7 w-7 shrink-0" />
+          {appLogoUrl ? (
+            <img src={appLogoUrl} alt={appName} className="h-7 w-7 shrink-0" />
           ) : (
             <IconLayers size="large" />
           )}

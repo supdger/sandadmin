@@ -5,7 +5,8 @@ export default {
   readonlyBanner: '你只能查看，不能修改',
 
   groups: {
-    securityHint: '一般不用改',
+    // 「登录与安全」组（契约组键 login）的副标。
+    loginHint: '一般不用改',
   },
 
   form: {

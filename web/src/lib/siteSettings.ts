@@ -64,7 +64,8 @@ export function settingsItemsToPatch(items: SettingItem[]): SiteSettingsPatch {
       patch.appName = item.value;
     }
     if (item.key === 'site_logo') {
-      patch.appLogo = typeof item.value === 'string' && item.value ? item.value : null;
+      // 契约：值是 file_id（int）；渲染方按 file_id 走 /files/{id}/download。
+      patch.appLogo = item.value == null || item.value === '' ? null : String(item.value);
     }
     if (item.key === 'timezone') {
       patch.timezone = typeof item.value === 'string' && item.value ? item.value : null;

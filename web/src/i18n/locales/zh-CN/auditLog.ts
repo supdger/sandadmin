@@ -6,6 +6,9 @@ export default {
     keywordPlaceholder: '搜操作内容',
     actorPlaceholder: '操作人',
     rangePlaceholder: ['开始日期', '结束日期'],
+    rangeToday: '今天',
+    range7d: '近 7 天',
+    range30d: '近 30 天',
     more: '更多条件',
     collapse: '收起条件',
     module: '功能',
@@ -20,9 +23,10 @@ export default {
 
   columns: {
     actor: '操作人',
-    action: '操作内容',
+    action: '做了什么',
     module: '功能',
     result: '结果',
+    location: '地点',
     time: '时间',
   },
 
@@ -43,7 +47,9 @@ export default {
     after: '改后',
     masked: '已修改',
     noChanges: '这次操作没有可展示的改动明细',
-    remark: '补充说明',
+    source: '来源地址',
+    device: '设备',
+    request: '请求编号',
     close: '关闭',
   },
 

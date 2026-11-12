@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { devLogin, getDevLoginAvailable, login } from '@/api/auth';
 import type { DevLoginAvailability } from '@/api/auth';
 import { env } from '@/config/env';
+import { useFileImageUrl } from '@/hooks/useFileImageUrl';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import { apiErrorMessage, ApiError } from '@/lib/apiClient';
 import { ClickCaptcha } from './ClickCaptcha';
@@ -35,7 +36,7 @@ export default function LoginPage() {
   // 系统设置改了名字/标志，登录页同源立即换。
   const site = useSiteSettings();
   const appName = site.appName || env.appName;
-  const appLogo = site.appLogo ?? env.appLogo;
+  const appLogoUrl = useFileImageUrl(site.appLogo ?? env.appLogo);
   const formApi = useRef<FormApi<Record<string, unknown>> | null>(null);
   const autoEnterOnce = useRef(false);
 
@@ -193,8 +194,8 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center">
         <Card style={{ width: 400 }} shadows="hover">
           <div className="flex flex-col items-center gap-2 pb-4">
-            {appLogo ? (
-              <img src={appLogo} alt={appName} style={{ height: 44 }} />
+            {appLogoUrl ? (
+              <img src={appLogoUrl} alt={appName} style={{ height: 44 }} />
             ) : (
               <IconSemiLogo size="extra-large" style={{ color: 'var(--semi-color-primary)' }} />
             )}

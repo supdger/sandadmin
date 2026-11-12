@@ -25,13 +25,33 @@ import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
+import { useFileImageUrl } from '@/hooks/useFileImageUrl';
 import { adminErrorMessage } from '@/lib/adminError';
 import { confirmAction } from '@/lib/confirmAction';
 import { applySiteSettings, settingsItemsToPatch } from '@/lib/siteSettings';
 
-/** 密钥类：has_value=true 且 value 为 null——只说明「已设置」，不给输入框。 */
+/** 密钥类：password 型或 has_value=true 且 value 为 null——只说明「已设置」，不给输入框。 */
 function isSecretItem(item: SettingItem): boolean {
-  return item.type === 'text' && item.has_value && item.value === null;
+  return (item.type === 'password' || item.type === 'text') && item.has_value && item.value === null;
+}
+
+/** image 项的浅/深底色预览：value 是 file_id（或直出地址），统一走 useFileImageUrl。 */
+function SettingLogoPreview({ fileRef }: { fileRef: string | null }) {
+  const url = useFileImageUrl(fileRef);
+  return (
+    <div
+      style={{
+        width: 120,
+        height: 48,
+        border: '1px solid var(--semi-color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {url ? <img src={url} alt="" style={{ maxHeight: 40, maxWidth: 110 }} /> : null}
+    </div>
+  );
 }
 
 export function SettingsPage() {
@@ -155,7 +175,8 @@ export function SettingsPage() {
   const uploadLogo = async (item: SettingItem, file: File) => {
     try {
       const res = await uploadSettingLogo(file);
-      saveMutation.mutate({ [item.key]: res.url });
+      // 契约：回 FileObject，把 file_id 写进设置项保存。
+      saveMutation.mutate({ [item.key]: res.id });
     } catch (error) {
       Toast.error(adminErrorMessage(error, t('loadFailed')));
     }
@@ -195,7 +216,8 @@ export function SettingsPage() {
       <Typography.Text type="tertiary" size="small" style={{ display: 'block' }}>
         {[
           item.remark,
-          item.type === 'select' && item.default_value != null && drafts[item.key] === null
+          // 有默认值的 select 随时告诉人清空会落到哪。
+          item.type === 'select' && item.default_value != null
             ? t('form.clearedToDefault', {
                 value:
                   item.options?.find((o) => o.value === item.default_value)?.label ??
@@ -219,9 +241,11 @@ export function SettingsPage() {
             onChange={(v) => setDrafts((d) => ({ ...d, [item.key]: v }))}
             style={{ maxWidth: 420 }}
           />
-        ) : item.type === 'textarea' ? (
+        ) : item.type === 'password' ? (
+          // 未设置过的敏感项可以在这里第一次填写。
           <Input
             data-setting-key={item.key}
+            type="password"
             value={String(drafts[item.key] ?? item.value ?? '')}
             disabled={readonly}
             onChange={(v) => setDrafts((d) => ({ ...d, [item.key]: v }))}
@@ -262,34 +286,14 @@ export function SettingsPage() {
           <div className="flex items-center gap-4">
             <div className="flex gap-3">
               <div className="flex flex-col items-center gap-1">
-                <div
-                  style={{
-                    width: 120,
-                    height: 48,
-                    background: '#fff',
-                    border: '1px solid var(--semi-color-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.value ? <img src={String(item.value)} alt="" style={{ maxHeight: 40, maxWidth: 110 }} /> : null}
+                <div style={{ background: '#fff' }}>
+                  <SettingLogoPreview fileRef={item.value == null ? null : String(item.value)} />
                 </div>
                 <Typography.Text type="tertiary" size="small">{t('form.logoLight')}</Typography.Text>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <div
-                  style={{
-                    width: 120,
-                    height: 48,
-                    background: '#16161a',
-                    border: '1px solid var(--semi-color-border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.value ? <img src={String(item.value)} alt="" style={{ maxHeight: 40, maxWidth: 110 }} /> : null}
+                <div style={{ background: '#16161a' }}>
+                  <SettingLogoPreview fileRef={item.value == null ? null : String(item.value)} />
                 </div>
                 <Typography.Text type="tertiary" size="small">{t('form.logoDark')}</Typography.Text>
               </div>
@@ -342,9 +346,9 @@ export function SettingsPage() {
               tab={
                 <span className="flex flex-col">
                   <span>{g.title}</span>
-                  {g.key === 'security' ? (
+                  {g.key === 'login' ? (
                     <Typography.Text type="tertiary" size="small">
-                      {t('groups.securityHint')}
+                      {t('groups.loginHint')}
                     </Typography.Text>
                   ) : null}
                 </span>

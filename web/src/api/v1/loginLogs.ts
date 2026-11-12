@@ -1,23 +1,35 @@
 import { adminGet, adminPost, type AdminQuery } from '@/lib/adminClient';
 import type { Id, Page, TaskAccepted } from './types';
 
-/** GET /login-logs 列表行：ip/登录设备地址只进详情与导出，不进列表。 */
+/**
+ * GET /login-logs 列表行（契约 LoginLog）：列表不返回 ip、
+ * 原始 user_agent 与 user_id——这些只在详情里出现。
+ */
 export interface LoginLog {
   id: Id;
-  user_id?: Id | null;
+  /** 输入的账号原文，账号不存在也记录。 */
+  username: string;
   nickname: string | null;
-  username?: string | null;
   succeeded: boolean;
-  /** 后端大白话失败原因；成功或未知时为 null，页面按规则兜底。 */
+  /** 失败原因枚举码；成功为 null。 */
   reason: string | null;
-  ip?: string | null;
-  location: string | null;
-  device_label: string | null;
+  /** 后端中文人话失败原因；成功或未识别为 null，页面显示为空/兜底。 */
+  reason_text: string | null;
+  /** 城市级地点（NOT NULL）；内网由后端给内部网络标记。 */
+  location: string;
+  /** 设备描述（NOT NULL），如「Mac 上的 Chrome」。 */
+  device_label: string;
   login_time: string;
 }
 
+/** 详情：LoginLog + ip、user_agent（登录设备地址原文）、user_id。 */
 export interface LoginLogDetail extends LoginLog {
-  ip: string | null;
+  /** 对应账号编号；查不到用户（账号不存在）时为 null，「查看用户」不渲染。 */
+  user_id: Id | null;
+  /** 登录来源地址，仅详情与导出返回。 */
+  ip: string;
+  /** 原始浏览器字符串，即详情「登录设备地址」。 */
+  user_agent: string;
 }
 
 export interface LoginLogQuery extends AdminQuery {

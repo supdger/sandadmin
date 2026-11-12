@@ -29,6 +29,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { useUrlQuery } from '@/hooks/useUrlQuery';
+import { useViewportWidth } from '@/pages/org/shared/useViewportWidth';
 import { adminErrorMessage } from '@/lib/adminError';
 import { formatDateTime } from '@/lib/format';
 import { runExport } from '@/pages/system/shared/runExport';
@@ -130,12 +131,15 @@ export function LoginLogPage() {
 
   const hasFilter = Boolean(keyword || succeeded || values.login_time_from || values.login_time_to);
 
+  // 窄屏（<1440）藏「设备」列：横向滚动空间先留给结果与原因。
+  const viewportWidth = useViewportWidth();
+
   const columns = useMemo(
     () => [
       {
         title: t('columns.user'),
         dataIndex: 'nickname',
-        render: (_: unknown, row: LoginLog) => row.nickname ?? row.username ?? t('empty.noData'),
+        render: (_: unknown, row: LoginLog) => row.nickname ?? row.username,
       },
       {
         title: t('columns.result'),
@@ -149,10 +153,10 @@ export function LoginLogPage() {
       },
       {
         title: t('columns.reason'),
-        dataIndex: 'reason',
-        // 成功行留空；失败但后端没给原因时按规格兜底「没有成功」。
+        dataIndex: 'reason_text',
+        // 成功行留空；失败但后端没给人话原因时按规格兜底「没有成功」。
         render: (_: unknown, row: LoginLog) =>
-          row.succeeded ? '' : row.reason || t('result.failed'),
+          row.succeeded ? '' : row.reason_text || t('result.failed'),
       },
       {
         title: t('columns.time'),
@@ -162,22 +166,30 @@ export function LoginLogPage() {
       {
         title: t('columns.location'),
         dataIndex: 'location',
-        render: (_: unknown, row: LoginLog) => row.location ?? '',
+        render: (_: unknown, row: LoginLog) => row.location,
       },
-      {
-        title: t('columns.device'),
-        dataIndex: 'device_label',
-        render: (_: unknown, row: LoginLog) => row.device_label ?? '',
-      },
+      ...(viewportWidth >= 1440
+        ? [
+            {
+              title: t('columns.device'),
+              dataIndex: 'device_label',
+              render: (_: unknown, row: LoginLog) => row.device_label,
+            },
+          ]
+        : []),
     ],
-    [t],
+    [t, viewportWidth],
   );
 
   if (!canIndex) {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')} />
+        <Empty title={t('noPermission')}>
+          <Button type="primary" onClick={() => navigate('/')}>
+            {t('empty.backHome')}
+          </Button>
+        </Empty>
       </div>
     );
   }
@@ -309,7 +321,8 @@ export function LoginLogPage() {
                 type="primary"
                 onClick={() => {
                   setDetailId(null);
-                  navigate(`/system/user?kw=${encodeURIComponent(detail.nickname ?? '')}`);
+                  // UsersPage 的 URL 筛选字段是 keyword；用账号定位更准。
+                  navigate(`/system/user?keyword=${encodeURIComponent(detail.username)}`);
                 }}
               >
                 {t('detail.viewUser')}
@@ -326,13 +339,14 @@ export function LoginLogPage() {
           <Descriptions
             align="left"
             data={[
-              { key: t('columns.user'), value: detail.nickname ?? detail.username ?? '' },
+              { key: t('columns.user'), value: detail.nickname ?? detail.username },
               { key: t('columns.result'), value: detail.succeeded ? t('result.ok') : t('result.failed') },
-              ...(detail.succeeded ? [] : [{ key: t('columns.reason'), value: detail.reason || t('result.failed') }]),
+              ...(detail.succeeded ? [] : [{ key: t('columns.reason'), value: detail.reason_text || t('result.failed') }]),
               { key: t('columns.time'), value: formatDateTime(detail.login_time) },
-              { key: t('columns.location'), value: detail.location ?? '' },
-              { key: t('columns.device'), value: detail.device_label ?? '' },
-              { key: t('detail.address'), value: detail.ip ?? '' },
+              { key: t('columns.location'), value: detail.location },
+              { key: t('columns.device'), value: detail.device_label },
+              { key: t('detail.source'), value: detail.ip },
+              { key: t('detail.address'), value: detail.user_agent },
             ]}
           />
         ) : null}

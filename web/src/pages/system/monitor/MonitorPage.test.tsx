@@ -58,7 +58,7 @@ describe('MonitorPage', () => {
           data: {
             collected_time: '2026-01-10T08:00:00+08:00',
             db_ok: false,
-            db_check_time: '2026-01-10T08:00:00+08:00',
+            db_checked_time: '2026-01-10T08:00:00+08:00',
             cpu: { usage_percent: 10 },
             memory: { usage_percent: 30, used_mb: 100, total_mb: 512 },
             disk: { free_gb: 40, total_gb: 100 },

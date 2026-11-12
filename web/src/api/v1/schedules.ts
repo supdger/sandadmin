@@ -1,7 +1,7 @@
 import { adminGet, adminPost, adminPut } from '@/lib/adminClient';
 import type { Id, Page } from './types';
 
-/** schedule.freq 的取值；null schedule 表示时间由系统定，不可改。 */
+/** schedule.freq 的取值；结构对应 sand_system_schedule.schedule jsonb。 */
 export type ScheduleFreq = 'interval' | 'hourly' | 'daily' | 'weekly' | 'monthly';
 
 export interface TaskSchedule {
@@ -16,63 +16,87 @@ export interface TaskSchedule {
   monthday?: number | null;
 }
 
-/** GET /scheduled-tasks 行。schedule_locked 的任务不显示「改时间」。 */
+/**
+ * GET /scheduled-tasks 行（契约 ScheduledTask）。schedule 总是返回
+ * 生效时间结构（覆盖值或清单默认）；schedule_overridden 标是否改过；
+ * schedule_locked=清单锁定，锁定任务不出现「改时间」。
+ */
 export interface ScheduledTask {
-  code: Id;
+  code: string;
   name: string;
   description: string | null;
-  source: { kind: 'system' | 'plugin'; label?: string | null } | null;
+  /** 来源名（宿主/插件名），来自静态清单。 */
+  source_label: string | null;
+  is_critical: boolean;
+  /** 插件任务的所属插件编码；宿主内置任务为 null。 */
+  plugin_code: string | null;
   schedule: TaskSchedule | null;
+  /** true=保存过页面覆盖；false=用的是清单默认。 */
+  schedule_overridden: boolean;
+  /** 清单声明不可改时为 true。 */
   schedule_locked: boolean;
   status: 'enabled' | 'disabled';
-  is_critical: boolean;
   last_run_time: string | null;
-  last_run_ok: boolean | null;
-  last_run_message?: string | null;
+  /** 上次执行是否成功；从未执行为 null。 */
+  last_run_succeeded: boolean | null;
   next_run_time: string | null;
+  /** 未来三次执行预览；停用/无有效时间结构时为空数组。 */
+  next_run_times: string[];
 }
 
+/** PUT 入参：schedule 传 null 恢复清单默认；locked 任务返回 409。 */
 export interface ScheduledTaskWrite {
   status?: 'enabled' | 'disabled';
   schedule?: TaskSchedule | null;
 }
 
-/** GET /scheduled-tasks/{code}/runs 行；error 为系统故障诊断块。 */
-export interface ScheduleRun {
+/**
+ * GET /scheduled-tasks/{code}/runs 行（契约 TaskRun）。
+ * 业务失败看 message 人话；系统内部失败看 error_code + request_id。
+ */
+export interface TaskRun {
   id: Id;
-  trigger: 'manual' | 'auto';
-  state: 'running' | 'succeeded' | 'failed';
+  schedule_code: string;
+  /** schedule=到点自动执行；manual=页面手动触发。 */
+  trigger: 'schedule' | 'manual';
+  status: 'running' | 'succeeded' | 'failed';
+  /** start 到 finish 的毫秒数；执行中为 null。 */
+  duration_ms: number | null;
+  /** 失败原因摘要（人话）；系统内部失败时为通用提示。 */
+  message: string | null;
+  /** 失败类别/排查码；interrupted=进程中断被标记。 */
+  error_code: string | null;
+  /** 排查用请求追踪编号。 */
+  request_id: string | null;
   start_time: string;
   finish_time: string | null;
-  /** 业务失败的大白话；系统故障走 error 块。 */
-  message: string | null;
-  error?: { code: string; request_id?: string } | null;
 }
 
 export function listScheduledTasks(query?: {
   keyword?: string;
   status?: 'enabled' | 'disabled';
-  last_failed?: boolean;
+  /** true=只看上次执行没有成功的任务（last_run_succeeded=false）。 */
+  failed_only?: boolean;
 }): Promise<{ items: ScheduledTask[] }> {
   return adminGet<{ items: ScheduledTask[] }>('/scheduled-tasks', { query });
 }
 
 export function updateScheduledTask(
-  code: Id,
+  code: string,
   body: ScheduledTaskWrite,
 ): Promise<ScheduledTask> {
   return adminPut<ScheduledTask>(`/scheduled-tasks/${encodeURIComponent(code)}`, body);
 }
 
 /** 手动跑一次；受理后页面轮询 runs 看结果。 */
-export function runScheduledTask(code: Id): Promise<{ schedule_run_id: Id }> {
+export function runScheduledTask(code: string): Promise<{ schedule_run_id: Id }> {
   return adminPost<{ schedule_run_id: Id }>(
     `/scheduled-tasks/${encodeURIComponent(code)}/run`,
   );
 }
 
-export function listScheduleRuns(code: Id, page = 1): Promise<Page<ScheduleRun>> {
-  return adminGet<Page<ScheduleRun>>(
+export function listScheduleRuns(code: string, page = 1): Promise<Page<TaskRun>> {
+  return adminGet<Page<TaskRun>>(
     `/scheduled-tasks/${encodeURIComponent(code)}/runs`,
     { query: { page } },
   );

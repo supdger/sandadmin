@@ -1,7 +1,7 @@
 import '@douyinfe/semi-ui/react19-adapter';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -62,12 +62,15 @@ describe('CronPage', () => {
     expect(screen.getByRole('button', { name: '只看失败的' })).toBeInTheDocument();
   });
 
-  it('锁定任务不出现可点的「改时间」', async () => {
+  it('锁定任务不出现「改时间」', async () => {
     renderPage();
-    await screen.findByText('系统自检');
-    // 锁定行的改时间按钮是禁用的。
-    const editButtons = screen.getAllByRole('button', { name: '改时间' });
-    expect(editButtons.some((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    const name = await screen.findByText('系统自检');
+    // schedule_locked=清单锁定：该行完全不渲染改时间按钮。
+    const row = name.closest('tr');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).queryByRole('button', { name: '改时间' })).toBeNull();
+    // 未锁定的任务照常出现。
+    expect(screen.getAllByRole('button', { name: '改时间' }).length).toBeGreaterThan(0);
   });
 
   it('执行记录抽屉显示运行历史', async () => {

@@ -14,7 +14,6 @@ import {
   Tag,
   TimePicker,
   Toast,
-  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
@@ -26,8 +25,8 @@ import {
   listScheduledTasks,
   runScheduledTask,
   updateScheduledTask,
-  type ScheduleRun,
   type ScheduledTask,
+  type TaskRun,
   type TaskSchedule,
 } from '@/api/v1/schedules';
 import { Empty } from '@/components/Empty';
@@ -42,7 +41,7 @@ import { confirmDanger } from '@/lib/confirmAction';
 import { formatDateTime } from '@/lib/format';
 import { nextRunTimes, normalizeTime, scheduleText } from './scheduleText';
 
-const URL_FIELDS = { keyword: {}, status: {}, last_failed: { kind: 'boolean' as const } };
+const URL_FIELDS = { keyword: {}, status: {}, failed_only: { kind: 'boolean' as const } };
 
 interface EditDraft {
   freq: TaskSchedule['freq'];
@@ -94,15 +93,15 @@ export function CronPage() {
   const { values, setValues } = useUrlQuery(URL_FIELDS);
   const keyword = (values.keyword as string | undefined) ?? '';
   const status = (values.status as string | undefined) ?? '';
-  const lastFailed = values.last_failed === true;
+  const failedOnly = values.failed_only === true;
 
   const query = useQuery({
-    queryKey: ['scheduledTasks', keyword, status, lastFailed],
+    queryKey: ['scheduledTasks', keyword, status, failedOnly],
     queryFn: () =>
       listScheduledTasks({
         keyword: keyword || undefined,
         status: status === '' ? undefined : (status as 'enabled' | 'disabled'),
-        last_failed: lastFailed || undefined,
+        failed_only: failedOnly || undefined,
       }),
     enabled: canIndex,
   });
@@ -118,7 +117,7 @@ export function CronPage() {
       try {
         const runs = await listScheduleRuns(task.code);
         const latest = runs.items[0];
-        if (latest?.state === 'failed') {
+        if (latest?.status === 'failed') {
           Toast.error(t('run.failed', { name: task.name, reason: latest.message ?? '' }));
         } else {
           Toast.success(t('run.done', { name: task.name }));
@@ -218,7 +217,7 @@ export function CronPage() {
     enabled: runsTask !== null,
   });
 
-  const failedCount = (query.data?.items ?? []).filter((x) => x.last_run_ok === false).length;
+  const failedCount = (query.data?.items ?? []).filter((x) => x.last_run_succeeded === false).length;
 
   const columns = useMemo(
     () => [
@@ -229,7 +228,12 @@ export function CronPage() {
           <div className="flex flex-col">
             <span>{row.name}</span>
             <Typography.Text type="tertiary" size="small">
-              {[row.description, row.source?.kind === 'plugin' ? `${t('source.plugin')} · ${row.source.label ?? ''}` : t('source.system')]
+              {[
+                row.description,
+                row.plugin_code
+                  ? `${t('source.plugin')} · ${row.source_label ?? ''}`
+                  : row.source_label ?? t('source.system'),
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </Typography.Text>
@@ -239,7 +243,9 @@ export function CronPage() {
       {
         title: t('columns.schedule'),
         dataIndex: 'schedule',
-        render: (_: unknown, row: ScheduledTask) => scheduleText(row.schedule),
+        // 清单锁定写「时间由系统定」；否则渲染生效时间结构（覆盖或清单默认）。
+        render: (_: unknown, row: ScheduledTask) =>
+          row.schedule_locked ? t('schedule.bySystem') : scheduleText(row.schedule),
       },
       {
         title: t('columns.last'),
@@ -248,8 +254,8 @@ export function CronPage() {
           row.last_run_time ? (
             <div className="flex flex-col">
               <span>{formatDateTime(row.last_run_time)}</span>
-              <Typography.Text type={row.last_run_ok === false ? 'danger' : 'tertiary'} size="small">
-                {row.last_run_ok === false ? t('lastResult.failed') : t('lastResult.ok')}
+              <Typography.Text type={row.last_run_succeeded === false ? 'danger' : 'tertiary'} size="small">
+                {row.last_run_succeeded === false ? t('lastResult.failed') : t('lastResult.ok')}
               </Typography.Text>
             </div>
           ) : (
@@ -259,7 +265,11 @@ export function CronPage() {
       {
         title: t('columns.next'),
         dataIndex: 'next_run_time',
-        render: (_: unknown, row: ScheduledTask) => formatDateTime(row.next_run_time) || '',
+        // 停用的任务没有下一次：写「已暂停」。
+        render: (_: unknown, row: ScheduledTask) =>
+          row.status === 'disabled'
+            ? t('nextRun.paused')
+            : formatDateTime(row.next_run_time) || '',
       },
       {
         title: t('columns.enabled'),
@@ -293,13 +303,8 @@ export function CronPage() {
               </Button>
             ) : null}
             {canUpdate ? (
-              row.schedule_locked ? (
-                <Tooltip content={t('actions.locked')}>
-                  <Button size="small" theme="borderless" disabled>
-                    {t('actions.editTime')}
-                  </Button>
-                </Tooltip>
-              ) : (
+              // schedule_locked=清单锁定：不渲染「改时间」。
+              row.schedule_locked ? null : (
                 <Button
                   size="small"
                   theme="borderless"
@@ -353,13 +358,13 @@ export function CronPage() {
     <div className="p-6 flex flex-col gap-4">
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
-      {failedCount > 0 && !lastFailed ? (
+      {failedCount > 0 && !failedOnly ? (
         <Banner
           type="warning"
           description={
             <span className="flex items-center gap-3">
               {t('failedBanner', { count: failedCount })}
-              <Button size="small" onClick={() => setValues({ last_failed: true })}>
+              <Button size="small" onClick={() => setValues({ failed_only: true, status: undefined })}>
                 {t('failedOnly')}
               </Button>
             </span>
@@ -367,8 +372,8 @@ export function CronPage() {
           closeIcon={null}
         />
       ) : null}
-      {lastFailed ? (
-        <Button style={{ alignSelf: 'flex-start' }} onClick={() => setValues({ last_failed: undefined })}>
+      {failedOnly ? (
+        <Button style={{ alignSelf: 'flex-start' }} onClick={() => setValues({ failed_only: undefined })}>
           {t('showAll')}
         </Button>
       ) : null}
@@ -384,14 +389,22 @@ export function CronPage() {
         />
         <Select
           placeholder={t('filters.status')}
-          value={status}
+          value={failedOnly ? 'failed' : status}
           optionList={[
             { value: '', label: t('filters.statusAll') },
             { value: 'enabled', label: t('filters.enabled') },
             { value: 'disabled', label: t('filters.disabled') },
+            { value: 'failed', label: t('filters.failedOnly') },
           ]}
-          onChange={(v) => setValues({ status: (v as string) || undefined })}
-          style={{ width: 140 }}
+          onChange={(v) => {
+            const next = v as string;
+            if (next === 'failed') {
+              setValues({ failed_only: true, status: undefined });
+            } else {
+              setValues({ status: next || undefined, failed_only: undefined });
+            }
+          }}
+          style={{ width: 160 }}
         />
       </div>
 
@@ -550,13 +563,13 @@ export function CronPage() {
           <Empty title={t('runsDrawer.empty')} />
         ) : (
           <div className="flex flex-col gap-3">
-            {(runsQuery.data?.items ?? []).map((run: ScheduleRun) => (
+            {(runsQuery.data?.items ?? []).map((run: TaskRun) => (
               <div key={run.id} className="border-b border-solid pb-3" style={{ borderColor: 'var(--semi-color-border)' }}>
                 <div className="flex justify-between">
                   <Typography.Text strong>{formatDateTime(run.start_time)}</Typography.Text>
-                  {run.state === 'succeeded' ? (
+                  {run.status === 'succeeded' ? (
                     <Tag color="green" size="small">{t('runsDrawer.stateOk')}</Tag>
-                  ) : run.state === 'failed' ? (
+                  ) : run.status === 'failed' ? (
                     <Tag color="red" size="small">{t('runsDrawer.stateFailed')}</Tag>
                   ) : (
                     <Tag color="blue" size="small">{t('runsDrawer.stateRunning')}</Tag>
@@ -564,30 +577,28 @@ export function CronPage() {
                 </div>
                 <Typography.Text type="tertiary" size="small">
                   {run.trigger === 'manual' ? t('runsDrawer.manual') : t('runsDrawer.auto')}
-                  {run.finish_time
+                  {run.duration_ms != null
                     ? ` · ${t('runsDrawer.durationSeconds', {
-                        count: Math.max(
-                          0,
-                          Math.round((new Date(run.finish_time).getTime() - new Date(run.start_time).getTime()) / 1000),
-                        ),
+                        count: Math.max(0, Math.round(run.duration_ms / 1000)),
                       })}`
                     : ''}
                 </Typography.Text>
-                {run.state === 'failed' ? (
-                  run.error ? (
+                {run.status === 'failed' ? (
+                  // 系统内部失败（有 error_code）→ 复制问题信息；否则回显后端人话。
+                  run.error_code ? (
                     <div className="flex items-center gap-2 mt-1">
                       <Typography.Text type="danger" size="small">
-                        {t('runsDrawer.systemFail')}
+                        {run.message ?? t('runsDrawer.systemFail')}
                       </Typography.Text>
                       <AdminCopyButton
                         error={
                           new AdminApiError({
-                            code: run.error.code,
-                            message: run.error.code,
+                            code: run.error_code,
+                            message: run.error_code,
                             httpStatus: 500,
                             method: 'POST',
                             url: `/scheduled-tasks/${runsTask?.code ?? ''}/run`,
-                            requestId: run.error.request_id,
+                            requestId: run.request_id ?? undefined,
                             system: true,
                           })
                         }

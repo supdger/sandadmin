@@ -8,6 +8,8 @@ export default {
     statusAll: '全部',
     enabled: '启用中',
     disabled: '已暂停',
+    // 走契约 failed_only 查询参数（last_run_succeeded=false）。
+    failedOnly: '上次没有成功',
   },
 
   failedBanner: '有 {{count}} 个任务上次没有成功',
@@ -43,6 +45,11 @@ export default {
     ok: '成功',
     failed: '没有成功',
     never: '还没执行过',
+  },
+
+  // 「下次」列：status=disabled 时写「已暂停」而不是具体时间点。
+  nextRun: {
+    paused: '已暂停',
   },
 
   actions: {
