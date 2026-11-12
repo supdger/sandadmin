@@ -14,6 +14,13 @@ export default {
     verify: '正在检查结果',
     defaultStage: '正在处理',
   },
+  stagesDone: {
+    check: '检查好了',
+    backup: '备份好了',
+    download: '下载好了',
+    switch: '切换好了',
+    verify: '检查好了',
+  },
   cancelled: '已取消，系统没有改动',
   switching: '正在切换到新版本，马上就好',
   unreachable: '连不上服务，可刷新页面再看进度',

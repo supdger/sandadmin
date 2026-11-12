@@ -91,14 +91,15 @@ describe('SystemUpdatePage', () => {
 
     await screen.findByRole('button', { name: '升级到 1.6.0' });
     await userEvent.click(screen.getByRole('button', { name: '升级到 1.6.0' }));
+    expect(await screen.findByText('升级到 1.6.0？')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('升级'));
 
     // 进度视图：五阶段步骤条 + 执行中标签，没有取消按钮
     await screen.findByTestId('upgrade-progress');
-    // 「正在切换」既是阶段文案又是步骤标题，会出现两次
-    expect(screen.getAllByText('正在切换').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('正在检查')).toBeInTheDocument();
-    expect(screen.getByText('正在备份')).toBeInTheDocument();
-    expect(screen.getByText('正在下载')).toBeInTheDocument();
+    expect(screen.getByText('检查好了')).toBeInTheDocument();
+    expect(screen.getByText('备份好了')).toBeInTheDocument();
+    expect(screen.getByText('下载好了')).toBeInTheDocument();
+    expect(screen.getAllByText('正在切换').length).toBeGreaterThan(0);
     expect(screen.getByText('正在检查结果')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /取消/ })).not.toBeInTheDocument();
 
@@ -126,7 +127,7 @@ describe('SystemUpdatePage', () => {
       ),
     );
     renderPage();
-    expect(await screen.findByText(/这是编译版，不能在网页上升级/)).toBeInTheDocument();
+    expect(await screen.findByText(/这个后台不能在网页上升级/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '上传升级包' })).not.toBeInTheDocument();
   });

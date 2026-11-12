@@ -131,8 +131,10 @@ describe('WorkbenchPage', () => {
     renderPage();
 
     const notes = await screen.findAllByText('网络好像断了，请检查网络后再试');
-    expect(notes.length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: '重试' }).length).toBeGreaterThan(0);
+    expect(notes).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: '重试' })).toHaveLength(1);
+    expect(screen.getAllByTestId('offline-placeholder').length).toBeGreaterThan(0);
+    expect(screen.queryByText('数据趋势')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '复制问题信息' })).not.toBeInTheDocument();
   });
 });

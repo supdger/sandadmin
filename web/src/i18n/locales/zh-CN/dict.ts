@@ -1,4 +1,5 @@
 export default {
+  cancel: '取消',
   title: '选项管理',
   subtitle: '管理各个下拉框里能选的内容，改完立即生效',
 
@@ -51,7 +52,7 @@ export default {
     colorDefault: '默认',
     isDefault: '默认选中',
     isDefaultHint: '打开后，同组其他选项的默认会自动取消',
-    available: '可用',
+    available: '启用',
     save: '保存',
     saved: '已保存「{{name}}」',
     saveFailed: '保存失败了，请稍后再试',

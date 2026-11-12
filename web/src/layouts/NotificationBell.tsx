@@ -172,7 +172,7 @@ export function NotificationBell() {
       }
     >
       <span className="inline-flex">
-        <Badge count={count} overflowCount={99} type="danger">
+        <Badge count={count > 0 ? count : undefined} overflowCount={99} type="danger">
           <Tooltip content={t('bell.tooltip')} position="bottom">
             <IconButton icon={<IconBell />} aria-label={t('bell.tooltip')} />
           </Tooltip>

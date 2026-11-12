@@ -102,7 +102,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
       footer={
         <Space>
           <Button onClick={onClose} disabled={saving}>
-            {t('common.thinkAgain')}
+            {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApiRef.current?.submitForm()}>
             {isEdit ? t('common.save') : t('posts.form.create')}

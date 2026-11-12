@@ -85,6 +85,9 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
       title={role ? t('roles.form.editTitle') : t('roles.form.addTitle')}
       footer={
         <div className="flex justify-end gap-2">
+          <Button theme="light" disabled={save.isPending} onClick={onClose}>
+            {t('common:actions.cancel')}
+          </Button>
           <Button
             theme="light"
             disabled={save.isPending}
@@ -104,9 +107,13 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
     >
       <div className="flex flex-col gap-4">
         <div>
-          <Typography.Text strong>{t('roles.form.name')}</Typography.Text>
+          <div className="mb-1">
+            <Typography.Text strong>
+              {t('roles.form.name')}
+              <Typography.Text type="danger"> *</Typography.Text>
+            </Typography.Text>
+          </div>
           <Input
-            className="mt-1"
             style={{ width: FIELD_NAME_WIDTH }}
             value={name}
             maxLength={NAME_MAX}
@@ -129,9 +136,10 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
           ) : null}
         </div>
         <div>
-          <Typography.Text strong>{t('roles.form.remark')}</Typography.Text>
+          <div className="mb-1">
+            <Typography.Text strong>{t('roles.form.remark')}</Typography.Text>
+          </div>
           <TextArea
-            className="mt-1"
             value={remark}
             maxLength={REMARK_MAX}
             placeholder={t('roles.form.remarkPlaceholder')}
@@ -139,20 +147,16 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
             onChange={(v) => setRemark(v)}
           />
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <Typography.Text strong>{t('roles.form.enabled')}</Typography.Text>
-            <div>
-              <Typography.Text type="secondary" size="small">
-                {t('roles.form.enabledHint')}
-              </Typography.Text>
-            </div>
-          </div>
+        <div className="flex flex-col items-start gap-1">
+          <Typography.Text strong>{t('roles.form.enabled')}</Typography.Text>
           <Switch
             checked={enabled}
             onChange={(checked) => setEnabled(checked)}
             aria-label={t('roles.form.enabled')}
           />
+          <Typography.Text type="secondary" size="small">
+            {t('roles.form.enabledHint')}
+          </Typography.Text>
         </div>
       </div>
     </SideSheet>

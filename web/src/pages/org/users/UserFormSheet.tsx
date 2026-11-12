@@ -7,7 +7,6 @@ import {
   Banner,
   Button,
   Form,
-  Modal,
   SideSheet,
   Space,
   Toast,
@@ -37,6 +36,7 @@ import {
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { useEnabledPostOptions, useRoleOptions, useUserDeptTree } from '../shared/useOrgOptions';
 import type { DeptTreeOption } from '../shared/deptTree';
+import { confirmAction } from '@/lib/confirmAction';
 
 interface FormValues {
   nickname?: string;
@@ -203,7 +203,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
 
   const requestClose = () => {
     if (isDirty()) {
-      Modal.confirm({
+      confirmAction({
         title: t('users.form.discardTitle'),
         content: t('users.form.discardContent'),
         okText: t('users.form.discard'),
@@ -245,6 +245,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
     }
     setSaving(true);
     setSystemError(null);
+    Toast.destroyAll();
     try {
       const status: UserStatus | undefined =
         values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
@@ -261,10 +262,12 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
       if (isEdit && user) {
         const body: UserUpdate = { ...payload };
         const saved = await updateUser(user.id, body);
+        Toast.destroyAll();
         Toast.success(t('users.form.saved', { name: saved.nickname }));
       } else {
         const body: UserWrite = { ...payload, password: values.password ?? '' };
         const saved = await createUser(body, submitKey);
+        Toast.destroyAll();
         Toast.success(t('users.form.added', { name: saved.nickname }));
       }
       onSaved();

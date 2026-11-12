@@ -41,6 +41,7 @@ import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { CopyRoleModal } from './CopyRoleModal';
 import { RoleFormSheet } from './RoleFormSheet';
+import { confirmAction } from '@/lib/confirmAction';
 
 const QUERY_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -172,7 +173,7 @@ export function RolesPage() {
   });
 
   const confirmDisable = (role: Role) => {
-    Modal.confirm({
+    confirmAction({
       title: t('roles.confirm.disableTitle', { name: role.name }),
       content: t('roles.confirm.disableBody'),
       okText: t('roles.disable'),
@@ -183,7 +184,7 @@ export function RolesPage() {
   };
 
   const confirmEnable = (role: Role) => {
-    Modal.confirm({
+    confirmAction({
       title: t('roles.confirm.enableTitle', { name: role.name }),
       content: t('roles.confirm.enableBody'),
       okText: t('roles.enable'),
@@ -199,7 +200,7 @@ export function RolesPage() {
       setReassignRole(role);
       return;
     }
-    Modal.confirm({
+    confirmAction({
       title: t('roles.confirm.deleteTitle', { name: role.name }),
       content: t('roles.confirm.deleteBodyEmpty'),
       okText: t('roles.delete'),

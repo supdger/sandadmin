@@ -67,7 +67,7 @@ export function DictTypeModal({ visible, type, onClose, onSaved }: DictTypeModal
       onCancel={onClose}
       onOk={handleSubmit}
       okText={t('typeModal.save')}
-      cancelText={t('confirm.think')}
+      cancelText={t('cancel')}
       confirmLoading={save.isPending}
       closable
     >

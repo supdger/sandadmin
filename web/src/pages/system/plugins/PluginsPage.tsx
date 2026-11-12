@@ -150,7 +150,11 @@ export function PluginsPage() {
   } | null>(null);
   const handledRequest = useRef<string | null>(null);
 
-  const overview = useQuery({ queryKey: [...PLUGINS_QUERY_KEY, 'overview'], queryFn: getPluginsOverview });
+  const overview = useQuery({
+    queryKey: [...PLUGINS_QUERY_KEY, 'overview'],
+    queryFn: getPluginsOverview,
+    placeholderData: (previous) => previous,
+  });
   const market = useQuery({
     queryKey: [...PLUGINS_QUERY_KEY, 'market'],
     queryFn: listMarketPlugins,

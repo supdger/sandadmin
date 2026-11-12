@@ -15,6 +15,15 @@ export function LoadError({ error, paused, onRetry }: LoadErrorProps) {
   const { t } = useTranslation();
   const { t: tWorkbench } = useTranslation('workbench');
   const offline = paused === true || isNetworkFailure(error);
+  if (offline) {
+    return (
+      <div
+        className="h-24 rounded"
+        style={{ background: 'var(--semi-color-fill-0)' }}
+        aria-hidden
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">

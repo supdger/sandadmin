@@ -36,6 +36,7 @@ import { adminErrorMessage } from '@/lib/adminError';
 import { DictItemModal } from './DictItemModal';
 import { DictTypeModal } from './DictTypeModal';
 import { useDebouncedValue } from './useDebouncedValue';
+import { confirmAction } from '@/lib/confirmAction';
 
 const DICT_QUERY_KEY = ['dict'] as const;
 
@@ -208,7 +209,7 @@ export function DictPage() {
     // used === true 或 null（查不了）都按「可能已被使用」提醒；is_system 不给删除入口。
     if (item.is_system) return;
     if (item.used === false) {
-      Modal.confirm({
+      confirmAction({
         title: t('confirm.deleteItemTitle', { label: item.label }),
         content: t('confirm.deleteItemContent'),
         okText: t('confirm.deleteOk'),
@@ -223,7 +224,7 @@ export function DictPage() {
   };
 
   const requestDeleteType = (type: DictType) => {
-    Modal.confirm({
+    confirmAction({
       title: t('confirm.deleteTypeTitle', { name: type.name }),
       content: t('confirm.deleteTypeContent', { count: type.item_count }),
       okText: t('confirm.deleteOk'),
@@ -424,14 +425,6 @@ export function DictPage() {
                     >
                       {t('group.clearSearch')}
                     </Button>
-                  ) : canCreate ? (
-                    <Button
-                      size="small"
-                      theme="solid"
-                      onClick={() => setTypeModal({ open: true, type: null })}
-                    >
-                      {t('group.add')}
-                    </Button>
                   ) : null}
                 </Empty>
               </div>
@@ -475,9 +468,11 @@ export function DictPage() {
         {/* 右栏：选项 */}
         <div className="min-w-0 flex-1">
           {!selectedTypeId ? (
-            <div className="rounded-lg border border-[var(--semi-color-border)] p-10">
-              <Empty title={t('detail.noSelection')} />
-            </div>
+            groups.length === 0 ? null : (
+              <div className="rounded-lg border border-[var(--semi-color-border)] p-10">
+                <Empty title={t('detail.noSelection')} />
+              </div>
+            )
           ) : detail.isPaused || detail.isError ? (
             <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
               <ErrorState

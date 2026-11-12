@@ -49,6 +49,7 @@ import { blobObjectUrl, isPdfPreview, openBlobTab, saveBlob } from './fileAction
 import { formatBytes as formatSize, formatDateTime as formatTime, toDateKey } from './format';
 import { useDebouncedValue } from './useDebouncedValue';
 import { useMediaQuery } from './useMediaQuery';
+import { confirmAction } from '@/lib/confirmAction';
 
 const FILES_QUERY_KEY = ['files'] as const;
 const PAGE_SIZE = 20;
@@ -315,7 +316,7 @@ export function FilesPage() {
     if (targets.length === 1) {
       const file = targets[0];
       if (file.usage_state === 'used') {
-        Modal.confirm({
+        confirmAction({
           title: t('confirmDeleteUsedSingleTitle', { name: file.original_name }),
           content: t('confirmDeleteUsedSingleContent', { usage: file.usage_label ?? t('table.usageUsed') }),
           okText: t('deleteAnyway'),
@@ -326,7 +327,7 @@ export function FilesPage() {
         return;
       }
       if (file.usage_state === 'unknown') {
-        Modal.confirm({
+        confirmAction({
           title: t('confirmDeleteUnknownTitle', { name: file.original_name }),
           content: t('confirmDeleteUnknownContent'),
           okText: t('deleteAnyway'),
@@ -336,7 +337,7 @@ export function FilesPage() {
         });
         return;
       }
-      Modal.confirm({
+      confirmAction({
         title: t('confirmDeleteUnusedTitle', { count: 1 }),
         content: t('confirmDeleteUnusedContent', { size: formatSize(file.size_bytes) }),
         okText: t('deleteOk'),
@@ -349,7 +350,7 @@ export function FilesPage() {
 
     if (used.length > 0) {
       const labels = [...new Set(used.map((f) => f.usage_label ?? t('table.usageUsed')))].join('、');
-      Modal.confirm({
+      confirmAction({
         title: t('confirmDeleteUsedTitle', { count: used.length }),
         content: t('confirmDeleteUsedContent', { count: used.length, labels }),
         footer: (
@@ -379,7 +380,7 @@ export function FilesPage() {
       return;
     }
 
-    Modal.confirm({
+    confirmAction({
       title: t('confirmDeleteUnusedTitle', { count: targets.length }),
       content: t('confirmDeleteUnusedContent', { size: formatSize(freed) }),
       okText: t('deleteOk'),
@@ -423,7 +424,7 @@ export function FilesPage() {
   };
 
   const confirmCleanup = () => {
-    Modal.confirm({
+    confirmAction({
       title: t('confirmCleanupTitle'),
       content: t('confirmCleanupContent'),
       okText: t('cleanupOk'),

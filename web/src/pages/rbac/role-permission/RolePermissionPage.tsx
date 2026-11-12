@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
-  Modal,
   Radio,
   Spin,
   Toast,
@@ -38,6 +37,7 @@ import {
   togglePermissionCode,
 } from '@/pages/rbac/lib/permissionMatrix';
 import { PermissionMatrix } from './PermissionMatrix';
+import { confirmAction } from '@/lib/confirmAction';
 
 const SCOPE_ORDER: PermScope[] = [
   'all',
@@ -208,7 +208,7 @@ export function RolePermissionPage() {
       navigate('/system/role');
       return;
     }
-    Modal.confirm({
+    confirmAction({
       title: t('permission.discardTitle'),
       okText: t('permission.discardOk'),
       cancelText: t('permission.discardCancel'),

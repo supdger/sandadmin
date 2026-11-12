@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router';
 
 import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/v1/dashboard';
 import { adminErrorMessage } from '@/lib/adminError';
+import { isNetworkFailure } from '@/lib/networkFailure';
 import { listOrEmpty } from './listOrEmpty';
 import { LoadError } from './LoadError';
 
@@ -59,7 +60,10 @@ export function NoticeBanner() {
     onError: (e) => Toast.error(adminErrorMessage(e, t('notices.dismissFailed'))),
   });
 
-  if (notices.isPaused || notices.isError) {
+  if (notices.isPaused || isNetworkFailure(notices.error)) {
+    return null;
+  }
+  if (notices.isError) {
     return (
       <Card>
         <LoadError error={notices.error} paused={notices.isPaused} onRetry={() => void notices.refetch()} />

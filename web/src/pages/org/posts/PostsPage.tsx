@@ -8,7 +8,6 @@ import {
   Button,
   Dropdown,
   Input,
-  Modal,
   Pagination,
   Select,
   Space,
@@ -37,6 +36,7 @@ import { OrgErrorState } from '../shared/OrgErrorState';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
 import { PostFormModal } from './PostFormModal';
+import { confirmAction } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -119,7 +119,7 @@ export function PostsPage() {
 
   const toggleStatus = (post: Post) => {
     const next: UserStatus = post.status === 'enabled' ? 'disabled' : 'enabled';
-    Modal.confirm({
+    confirmAction({
       title: t(next === 'disabled' ? 'posts.danger.disableTitle' : 'posts.danger.enableTitle', {
         name: post.name,
       }),
@@ -149,7 +149,7 @@ export function PostsPage() {
   };
 
   const removePost = (post: Post) => {
-    Modal.confirm({
+    confirmAction({
       title: t('posts.danger.deleteTitle', { name: post.name }),
       content: t('posts.danger.deleteContent', { count: post.user_count }),
       okText: t('posts.danger.deleteOk'),

@@ -46,6 +46,7 @@ import {
   relocateDept,
 } from '../shared/deptTree';
 import { DeptFormSheet } from './DeptFormSheet';
+import { confirmAction } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -235,7 +236,7 @@ export function DeptsPage() {
   const toggleStatus = (dept: Dept) => {
     const next = dept.status === 'enabled' ? 'disabled' : 'enabled';
     const isDisable = next === 'disabled';
-    Modal.confirm({
+    confirmAction({
       title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.enableTitle', { name: dept.name }),
       content: t(isDisable ? 'depts.danger.disableContent' : 'depts.danger.enableContent'),
       okText: isDisable ? t('depts.danger.disableOk') : t('common.enable'),
@@ -305,7 +306,7 @@ export function DeptsPage() {
       return;
     }
     const roleNames = check.affected_roles.map((role) => role.name).join('、');
-    Modal.confirm({
+    confirmAction({
       title: t('depts.danger.deleteTitle', { name: dept.name }),
       content: (
         <div>
@@ -412,7 +413,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.leader'),
-      width: 160,
+      width: 112,
       render: (_: unknown, record: Dept) => {
         // leader_status 为 null 表示未设置或负责人已删除，统一按「未设置」显示。
         if (record.leader_status === 'disabled') {
@@ -440,7 +441,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.userCount'),
-      width: 80,
+      width: 64,
       render: (_: unknown, record: Dept) => (
         <Button
           type="tertiary"
@@ -458,7 +459,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.actions'),
-      width: 200,
+      width: 248,
       fixed: 'right',
       render: (_: unknown, record: Dept) => {
         const hasChildren = (record.children?.length ?? 0) > 0;
@@ -489,7 +490,7 @@ export function DeptsPage() {
             : null,
         ].filter((i): i is NonNullable<typeof i> => i !== null);
         return (
-          <Space spacing={4}>
+          <Space spacing={4} style={{ whiteSpace: 'nowrap' }}>
             {canCreate ? (
               <Button
                 type="tertiary"

@@ -120,7 +120,7 @@ export function DictItemModal({
       onCancel={onClose}
       onOk={handleSubmit}
       okText={t('itemModal.save')}
-      cancelText={t('confirm.think')}
+      cancelText={t('cancel')}
       confirmLoading={save.isPending}
       closable
     >
@@ -179,19 +179,15 @@ export function DictItemModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <Typography.Text strong>{t('itemModal.isDefault')}</Typography.Text>
-            <div>
-              <Typography.Text type="tertiary" size="small">
-                {t('itemModal.isDefaultHint')}
-              </Typography.Text>
-            </div>
-          </div>
+        <div className="flex flex-col items-start gap-1">
+          <Typography.Text strong>{t('itemModal.isDefault')}</Typography.Text>
           <Switch checked={isDefault} onChange={setIsDefault} />
+          <Typography.Text type="tertiary" size="small">
+            {t('itemModal.isDefaultHint')}
+          </Typography.Text>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-start gap-1">
           <Typography.Text strong>{t('itemModal.available')}</Typography.Text>
           <Switch checked={available} onChange={setAvailable} aria-label={t('itemModal.available')} />
         </div>

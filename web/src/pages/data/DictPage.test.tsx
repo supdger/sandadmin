@@ -140,7 +140,7 @@ describe('DictPage', () => {
 
     await userEvent.click(within(rowOf('电话咨询')).getByRole('button', { name: '编辑' }));
     const name = await screen.findByPlaceholderText('例如：展会');
-    expect(screen.getByRole('switch', { name: '可用' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: '启用' })).not.toBeChecked();
     await userEvent.clear(name);
     await userEvent.type(name, '来电咨询');
     await clickDialogButton('保存');

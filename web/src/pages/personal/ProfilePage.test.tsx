@@ -72,20 +72,13 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument();
   });
 
-  it('switches to the devices tab and lists sessions with the current marker', async () => {
+  it('hides the devices tab until that api exists', async () => {
     setToken('mock-admin-token');
     renderPage('/profile?tab=devices');
 
-    expect(await screen.findByText('MacBook Pro · Chrome')).toBeInTheDocument();
-    expect(screen.getByText('iPhone · Safari')).toBeInTheDocument();
-    expect(screen.getAllByText('当前设备').length).toBe(1);
-    // Non-current devices offer a revoke action; the current one does not.
-    expect(screen.getAllByRole('button', { name: '退出这台设备' }).length).toBeGreaterThan(0);
-    // 接口照收 ip/user_agent，但页面一律不显示（G5）。
-    expect(screen.queryByText(/192\.0\.2\./)).toBeNull();
-    expect(screen.queryByText(/Mozilla\//)).toBeNull();
-    expect(document.body.innerHTML).not.toContain('192.0.2.21');
-    expect(document.body.innerHTML).not.toContain('Mozilla/5.0');
+    expect(await screen.findByDisplayValue('管理员')).toBeInTheDocument();
+    expect(screen.queryByText('登录设备')).not.toBeInTheDocument();
+    expect(screen.queryByText('MacBook Pro · Chrome')).not.toBeInTheDocument();
   });
 
   it('security tab opens the change-password modal', async () => {

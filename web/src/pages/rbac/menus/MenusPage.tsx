@@ -55,6 +55,7 @@ import {
 } from '@/pages/rbac/lib/menuTree';
 import { MenuFormSheet, type MenuFormMode } from './MenuFormSheet';
 import { MenuPreview } from './MenuPreview';
+import { confirmAction } from '@/lib/confirmAction';
 
 const QUERY_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -305,7 +306,7 @@ export function MenusPage() {
   });
 
   const confirmDelete = (node: MenuNode) => {
-    Modal.confirm({
+    confirmAction({
       title:
         node.type === 'group'
           ? t('menus.confirm.deleteGroupTitle', { name: node.title })
@@ -326,7 +327,7 @@ export function MenusPage() {
   };
 
   const confirmReset = () => {
-    Modal.confirm({
+    confirmAction({
       title: t('menus.confirm.resetTitle'),
       content: t('menus.confirm.resetBody'),
       okText: t('menus.confirm.resetOk'),

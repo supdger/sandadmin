@@ -4,7 +4,7 @@ import type { TaskState } from './types';
 
 /** 插件管理页头信息（构建形态与能力开关）。 */
 export interface PluginsOverview {
-  /** 编译版本：网页上不能安装或升级，只显示版本信息。 */
+  /** 网页上不能安装或升级，只显示版本信息。 */
   compiled: boolean;
   /** 未编译且超级管理员可网页安装/升级时为 true。 */
   package_ops_enabled: boolean;

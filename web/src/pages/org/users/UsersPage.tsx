@@ -8,7 +8,6 @@ import {
   Button,
   Dropdown,
   Input,
-  Modal,
   Notification,
   Pagination,
   Select,
@@ -57,6 +56,7 @@ import type { DeptTreeOption } from '../shared/deptTree';
 import { UserFormSheet } from './UserFormSheet';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { TransferConfirmModal } from './TransferConfirmModal';
+import { confirmAction } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -312,7 +312,7 @@ export function UsersPage() {
       const items = await getUserDisableCheck(user.id);
       const isDisable = kind === 'disable';
       if (items.length === 0) {
-        Modal.confirm({
+        confirmAction({
           title: t(isDisable ? 'users.danger.disableTitle' : 'users.danger.deleteTitle', {
             name: user.nickname,
           }),
@@ -346,7 +346,7 @@ export function UsersPage() {
   };
 
   const onEnable = (user: User) => {
-    Modal.confirm({
+    confirmAction({
       title: t('users.danger.enableTitle', { name: user.nickname }),
       content: t('users.danger.enableContent'),
       okText: t('common.enable'),
@@ -419,7 +419,7 @@ export function UsersPage() {
   const confirmBatch = (kind: 'disable' | 'delete') => {
     const count = selectedKeys.length;
     const isDisable = kind === 'disable';
-    Modal.confirm({
+    confirmAction({
       title: t(isDisable ? 'users.batch.disableTitle' : 'users.batch.removeTitle', { count }),
       content: t(isDisable ? 'users.batch.disableContent' : 'users.batch.removeContent'),
       okText: t(isDisable ? 'users.batch.disableOk' : 'users.batch.removeOk'),

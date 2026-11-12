@@ -85,9 +85,12 @@ const MENU_ICONS: Record<string, ReactNode> = {
 };
 
 function menuIcon(item: MyMenuNode, depth: number): ReactNode {
+  // 子项一律不带图标。内置页只有少数几项有图标时，侧栏会把它们看成分组。
+  if (depth > 0) {
+    return undefined;
+  }
   const icon = item.icon ? MENU_ICONS[item.icon] : undefined;
-  // Collapsed top-level entries only show an icon, so always render one there.
-  return icon ?? (depth === 0 ? <IconApps /> : undefined);
+  return icon ?? <IconApps />;
 }
 
 /** MyMenuNode 树 → Semi Nav items；group/link 用 key 做标识，page 用 path。 */

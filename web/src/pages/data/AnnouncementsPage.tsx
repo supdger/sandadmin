@@ -4,7 +4,6 @@ import {
   Button,
   Dropdown,
   Input,
-  Modal,
   Pagination,
   Select,
   Skeleton,
@@ -36,6 +35,7 @@ import { AnnouncementEditor } from './AnnouncementEditor';
 import { formatDateTime } from './format';
 import { ReadStatsDrawer } from './ReadStatsDrawer';
 import { useDebouncedValue } from './useDebouncedValue';
+import { confirmAction } from '@/lib/confirmAction';
 
 const ANNOUNCEMENTS_QUERY_KEY = ['announcements'] as const;
 const PAGE_SIZE = 20;
@@ -118,8 +118,11 @@ export function AnnouncementsPage() {
   }, [list.isPending]);
   const showSlowLoading = list.isPending && slowLoading;
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+    // 发布后铃铛未读数要马上变，不等 60 秒轮询。
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  };
 
   // 写操作失败文案：STALE_VERSION 是产品定死口径，其余用后端大白话/兜底。
   const actionError = (error: unknown) =>
@@ -153,7 +156,7 @@ export function AnnouncementsPage() {
   });
 
   const requestPublish = (a: Announcement) => {
-    Modal.confirm({
+    confirmAction({
       title: t('editor.publishConfirmTitle', { name: a.title }),
       content:
         a.scope === 'dept'
@@ -166,7 +169,7 @@ export function AnnouncementsPage() {
   };
 
   const requestRevoke = (a: Announcement) => {
-    Modal.confirm({
+    confirmAction({
       title: t('confirm.revokeTitle', { name: a.title }),
       content: t('confirm.revokeContent'),
       okText: t('confirm.revokeOk'),
@@ -177,7 +180,7 @@ export function AnnouncementsPage() {
   };
 
   const requestDelete = (a: Announcement) => {
-    Modal.confirm({
+    confirmAction({
       title: t('confirm.deleteTitle', { name: a.title }),
       content: t('confirm.deleteContent'),
       okText: t('confirm.deleteOk'),

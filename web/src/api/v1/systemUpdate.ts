@@ -21,6 +21,8 @@ export interface UpdateStatus {
   package_ops_enabled: boolean;
   /** 进行中的系统升级生命周期申请；无则 null。 */
   running_request: LifecycleRequest | null;
+  /** 最近一次失败的升级；没有进行中的申请时用来展示失败页。 */
+  last_failed_request?: LifecycleRequest | null;
 }
 
 export function getUpdateStatus(): Promise<UpdateStatus> {

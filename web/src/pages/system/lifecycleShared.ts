@@ -1,9 +1,9 @@
 import type { TFunction } from 'i18next';
-import { Modal } from '@douyinfe/semi-ui';
 
 import { API_ERROR_CODES } from '@/api/errorCodes';
 import type { LifecycleRequest } from '@/api/v1/lifecycle';
 import { isAdminApiError } from '@/lib/adminClient';
+import { confirmAction } from '@/lib/confirmAction';
 
 /** kind → 界面动词（「正在安装/升级/卸载 X」用）。 */
 export function actionOfKind(kind: LifecycleRequest['kind'], t: TFunction): string {
@@ -63,7 +63,7 @@ export function batchFailedNames(request: LifecycleRequest): string[] {
 
 /** 权限在用着用着被收回：下一次操作被后端拒绝时统一走这个弹窗。 */
 export function showPermissionRevoked(t: TFunction<'lifecycle'>): void {
-  Modal.confirm({
+  confirmAction({
     title: t('permissionRevoked'),
     okText: t('refresh'),
     cancelText: t('think'),

@@ -31,6 +31,7 @@ import { useLifecycleRequest, isLifecycleRunning } from '@/hooks/useLifecycleReq
 import { useMe } from '@/hooks/useMe';
 import { AdminApiError, isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
+import { confirmAction } from '@/lib/confirmAction';
 import { isBusyError, isPermissionRevoked, showPermissionRevoked } from '../lifecycleShared';
 
 /** 系统升级固定五阶段，顺序即展示顺序（stage_key → 文案）。 */
@@ -44,6 +45,7 @@ function stageIndex(request: LifecycleRequest | null): number {
 /** 升级进度视图：五步步骤条 + 阶段白话 + 进度条；无取消按钮。 */
 function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
   const { t } = useTranslation('lifecycle');
+  const current = stageIndex(request);
   return (
     <div className="flex flex-col gap-4" data-testid="upgrade-progress">
       <div className="flex items-center gap-2">
@@ -54,12 +56,21 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
           {request.stage ?? t('stages.defaultStage')}
         </Typography.Text>
       </div>
-      <Steps current={stageIndex(request)} direction="vertical" size="small">
-        {STAGE_KEYS.map((key) => (
-          <Steps.Step key={key} title={t(`stages.${key}`)} />
+      <Steps current={current} direction="vertical" size="small">
+        {STAGE_KEYS.map((key, index) => (
+          <Steps.Step
+            key={key}
+            title={t(index < current ? `stagesDone.${key}` : `stages.${key}`)}
+          />
         ))}
       </Steps>
-      <Progress percent={request.progress} showInfo aria-label="upgrade-progress" />
+      <Progress
+        percent={request.progress}
+        showInfo
+        motion={false}
+        format={(percent) => `${percent}%`}
+        aria-label="upgrade-progress"
+      />
     </div>
   );
 }
@@ -125,14 +136,25 @@ function UpgradeResult({
       );
     }
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" data-testid="upgrade-failed">
         <Banner
           type="danger"
           fullMode={false}
-          description={t('notRecoveredTitle')}
+          title={t('notRecoveredTitle')}
+          description={t('notRecoveredDesc')}
           closeIcon={null}
         />
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button theme="solid" type="primary" onClick={onAgain}>
+            {t('upgradeAgain')}
+          </Button>
+          <Button
+            onClick={() =>
+              Toast.success(t('restoredHint', { version: request.from_version ?? '' }))
+            }
+          >
+            {t('restoreVersion')}
+          </Button>
           <AdminCopyButton error={problem} />
         </div>
       </div>
@@ -163,9 +185,10 @@ export function SystemUpdatePage() {
 
   const [requestId, setRequestId] = useState<string | null>(null);
   const running = status?.running_request ?? null;
+  const failed = status?.last_failed_request ?? null;
   const activeId = requestId ?? (running && isLifecycleRunning(running) ? running.id : null);
   const poll = useLifecycleRequest(activeId, { seed: running });
-  const request = poll.request ?? running;
+  const request = poll.request ?? running ?? (requestId ? null : failed);
   const uploadInput = useRef<HTMLInputElement | null>(null);
 
   const refreshStatus = () =>
@@ -212,7 +235,7 @@ export function SystemUpdatePage() {
     onError: handleSubmitError,
   });
 
-  if (statusQuery.isPaused || statusQuery.isError) {
+  if ((statusQuery.isPaused || statusQuery.isError) && !status) {
     return (
       <div className="flex flex-col gap-4">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
@@ -325,7 +348,15 @@ export function SystemUpdatePage() {
                     theme="solid"
                     type="primary"
                     loading={start.isPending}
-                    onClick={() => start.mutate()}
+                    onClick={() => {
+                      confirmAction({
+                        title: t('upgradeConfirmTitle', { version: status.latest_version }),
+                        content: t('upgradeConfirmContent'),
+                        okText: t('upgradeConfirmOk'),
+                        cancelText: tl('think'),
+                        onOk: () => start.mutate(),
+                      });
+                    }}
                   >
                     {t('upgradeTo', { version: status.latest_version })}
                   </Button>
