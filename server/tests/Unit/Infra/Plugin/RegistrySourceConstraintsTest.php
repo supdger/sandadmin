@@ -42,6 +42,8 @@ use Sandadmin\Infra\Plugin\ExtensionCallbacks;
 use Sandadmin\Infra\Plugin\ExtensionRegistry;
 use Sandadmin\Infra\Plugin\PluginDictRepository;
 use Sandadmin\Infra\Plugin\PluginExtensionRepository;
+use Sandadmin\Infra\Plugin\PluginResidue;
+use Sandadmin\Infra\Plugin\ScheduleClaim;
 
 final class RegistrySourceConstraintsTest extends TestCase
 {
@@ -91,7 +93,9 @@ final class RegistrySourceConstraintsTest extends TestCase
                 $files[] = $file->getPathname();
             }
         }
-        self::assertCount(33, $files);
+        // 合并 #75（33 个）与 #76（新增 PluginResidue、ScheduleClaim 两个 Infra 源文件）后为 35 个；
+        // 重算依据：find src/Domain/Plugin src/Infra/Plugin -name '*.php'，29 + 6 = 35。
+        self::assertCount(35, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
@@ -135,6 +139,8 @@ final class RegistrySourceConstraintsTest extends TestCase
             ScheduleFreq::class,
             ExtensionRegistry::class,
             PluginExtensionRepository::class,
+            PluginResidue::class,
+            ScheduleClaim::class,
             PluginDictRepository::class,
             ExtensionCallbacks::class,
             AuditModuleOption::class,
@@ -170,6 +176,8 @@ final class RegistrySourceConstraintsTest extends TestCase
             ScheduleOverride::class,
             ExtensionRegistry::class,
             PluginExtensionRepository::class,
+            PluginResidue::class,
+            ScheduleClaim::class,
             PluginDictRepository::class,
             AuditModuleOption::class,
             AuditModuleOptions::class,

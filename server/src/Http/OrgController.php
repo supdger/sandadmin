@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Http;
 
 use Sandadmin\Module\Dict\DictException;
+use Sandadmin\Module\Org\DisableCheckAccess;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Org\OrgInput;
@@ -66,7 +67,17 @@ final class OrgController
 
     public function usersDisableCheck(Request $request, string $user_id): Response
     {
-        return $this->runAny($request, ['system:user:update', 'system:user:delete'], fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->disableCheck(OrgInput::pathId($user_id, 'user_id')), $requestId));
+        return $this->execute($request, function (BizKernel $kernel, Request $request, string $requestId) use ($user_id): array {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
+                throw OrgException::unauthenticated();
+            }
+            if (!$actor->isSuper && !DisableCheckAccess::allowed($actor->permissions)) {
+                throw OrgException::denied();
+            }
+
+            return ApiOutcome::ok($kernel->users->disableCheck(OrgInput::pathId($user_id, 'user_id')), $requestId);
+        });
     }
 
     public function usersResetPassword(Request $request, string $user_id): Response
@@ -240,25 +251,6 @@ final class OrgController
     {
         return $this->execute($request, function (BizKernel $kernel, Request $request, string $requestId) use ($permission, $work): array {
             $actor = $this->permit($kernel, $request, $permission);
-
-            return $work($kernel, $actor, $request, $requestId);
-        });
-    }
-
-    /**
-     * @param list<string> $permissions
-     * @param callable(BizKernel, OrgActor, Request, string): array{status: int, body: array<string, mixed>} $work
-     */
-    private function runAny(Request $request, array $permissions, callable $work): Response
-    {
-        return $this->execute($request, function (BizKernel $kernel, Request $request, string $requestId) use ($permissions, $work): array {
-            $actor = $kernel->principal->resolve($request);
-            if ($actor === null) {
-                throw OrgException::unauthenticated();
-            }
-            if (!$actor->canAny($permissions)) {
-                throw OrgException::denied();
-            }
 
             return $work($kernel, $actor, $request, $requestId);
         });

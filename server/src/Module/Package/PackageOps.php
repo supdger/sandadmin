@@ -10,6 +10,7 @@ namespace Sandadmin\Module\Package;
 use Doctrine\DBAL\Connection;
 use Sandadmin\Http\ApiOutcome;
 use Sandadmin\Infra\File\LocalFileStorage;
+use Sandadmin\Infra\Plugin\PluginResidue;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgSql;
 use Sandadmin\Module\Org\UserExportFile;
@@ -424,6 +425,7 @@ final class PackageOps
                     'UPDATE sand_system_plugin SET state = \'uninstalled\', uninstall_time = CURRENT_TIMESTAMP, update_time = CURRENT_TIMESTAMP WHERE code = ?',
                     [$code],
                 );
+                (new PluginResidue($this->connection))->suspend($code, new \DateTimeImmutable());
             }
 
             return;
@@ -462,13 +464,15 @@ final class PackageOps
                     'sha' => $sha,
                 ],
             );
-
-            return;
+        } else {
+            $this->connection->executeStatement(
+                'UPDATE sand_system_plugin SET version = :version, state = \'installed\', uninstall_time = NULL, update_time = CURRENT_TIMESTAMP WHERE code = :code',
+                ['version' => $version, 'code' => $code],
+            );
         }
-        $this->connection->executeStatement(
-            'UPDATE sand_system_plugin SET version = :version, state = \'installed\', uninstall_time = NULL, update_time = CURRENT_TIMESTAMP WHERE code = :code',
-            ['version' => $version, 'code' => $code],
-        );
+        if ($kind === 'plugin_install') {
+            (new PluginResidue($this->connection))->resume($code, new \DateTimeImmutable());
+        }
     }
 
     /** @return array{done: bool, stage: string, stage_key: string|null, progress: int} */
