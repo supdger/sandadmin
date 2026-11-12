@@ -15,6 +15,11 @@ export function devSurfaceOpen(query: { dev?: unknown }): boolean {
   return Array.isArray(value) && value.includes('1')
 }
 
+/** 路径是否属于开发专用页面；路由守卫与菜单过滤共用同一份清单。 */
+export function isDevSurfacePath(path: string): boolean {
+  return DEV_MENU_PATHS.some((devPath) => path === devPath || path.endsWith(devPath))
+}
+
 function isDevMenu(item: AppRouteRecord): boolean {
   const title = item.meta?.title
   if (typeof title === 'string' && DEV_MENU_TITLES.has(title)) return true
