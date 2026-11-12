@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
 import { getMyMenus, MY_MENUS_QUERY_KEY } from '@/api/v1/me';
+import { GlobalSearch } from '@/components/GlobalSearch';
 import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { useVisitReport } from '@/hooks/useVisitReport';
@@ -189,6 +190,7 @@ export function AppShell() {
               }}
             />
           ) : null}
+          <GlobalSearch menus={menuTree} />
           <div className="ml-auto flex items-center gap-1">
             <NotificationBell />
             <IconButton

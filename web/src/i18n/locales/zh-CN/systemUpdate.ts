@@ -3,8 +3,30 @@ export default {
   subtitle: '一键升级后台和所有已安装的插件',
   subtitleReadonly: '查看当前版本，有新版本时提醒你',
 
-  compiledNotice: '这个后台不能在网页上升级，要升级请找负责部署的人。',
-  opsDisabledNotice: '网页上的安装和升级已关闭，请联系负责部署的人。',
+  compiledNotice: '这是编译版，不能在网页上升级。要升级，请让负责部署的人在开发环境升级后重新打包上传。',
+  opsDisabledNotice: '网页上的安装和升级已经关闭，请联系负责部署的人。',
+
+  upgradeStages: {
+    check: '检查环境',
+    backup: '备份数据',
+    download: '下载新版本',
+    switch: '切换到新版本',
+    verify: '确认能正常用',
+  },
+  upgradeStagesRunning: {
+    check: '正在检查环境',
+    backup: '正在备份数据',
+    download: '正在下载新版本',
+    switch: '正在切换到新版本',
+    verify: '正在确认能正常用',
+  },
+  upgradeStagesDone: {
+    check: '环境检查好了',
+    backup: '数据备份好了',
+    download: '新版本下载好了',
+    switch: '已经切到新版本',
+    verify: '确认能正常用了',
+  },
 
   currentVersion: '现在的版本 {{version}}',
   latestTag: '已经是最新版本 {{version}}',

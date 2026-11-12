@@ -49,6 +49,11 @@ const MENU_PERMISSION: Record<string, string> = {
   'system:announcement': 'system:announcement:index',
   'system:plugin': 'system:plugin:index',
   'system:update': 'system:update:index',
+  'system:monitor': 'system:monitor:index',
+  'system:login-log': 'system:login-log:index',
+  'system:audit-log': 'system:audit-log:index',
+  'system:cron': 'system:cron:index',
+  'system:config': 'system:config:index',
 };
 
 function canSee(principal: { permissions: string[] }, key: string): boolean {

@@ -1,15 +1,16 @@
 export default {
   title: '插件管理',
   subtitle: '给后台加功能，或者升级、卸载已有的功能',
-  subtitleReadonly: '查看已经安装的插件',
+  subtitleReadonly: '查看已安装的插件和版本，有新版本时提醒你',
 
-  compiledNotice: '这个后台不能在网页上安装或升级插件，要加插件请找负责部署的人。',
-  opsDisabledNotice: '网页上的安装和升级已关闭，请联系负责部署的人。',
+  compiledNotice: '这是编译版，不能在网页上安装或升级插件。要加插件，请让负责部署的人在开发环境装好后重新打包上传。',
+  opsDisabledNotice: '网页上的安装和升级已经关闭，请联系负责部署的人。',
   marketDown: '暂时看不到可以安装的新插件，请稍后再试。已安装的插件不受影响。',
 
   tabs: {
     all: '全部插件',
     installed: '已安装（{{count}}）',
+    installedEmpty: '已安装',
     upgradeable: '有新版本（{{count}}）',
   },
   searchPlaceholder: '搜插件名或它能做什么',

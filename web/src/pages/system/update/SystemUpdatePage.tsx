@@ -31,7 +31,6 @@ import { useLifecycleRequest, isLifecycleRunning } from '@/hooks/useLifecycleReq
 import { useMe } from '@/hooks/useMe';
 import { AdminApiError, isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
-import { confirmAction } from '@/lib/confirmAction';
 import { isBusyError, isPermissionRevoked, showPermissionRevoked } from '../lifecycleShared';
 
 /** 升级卡片里的时间用「M月D日 HH:mm」，不走列表页的 YYYY-MM-DD 格式。 */
@@ -65,6 +64,7 @@ function stageIndex(request: LifecycleRequest | null): number {
 /** 升级进度视图：五步步骤条 + 阶段白话 + 进度条；无取消按钮。 */
 function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
   const { t } = useTranslation('lifecycle');
+  const { t: tu } = useTranslation('systemUpdate');
   const current = stageIndex(request);
   return (
     <div className="flex flex-col gap-4" data-testid="upgrade-progress">
@@ -80,12 +80,12 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
         {STAGE_KEYS.map((key, index) => (
           <Steps.Step
             key={key}
-            title={t(
+            title={tu(
               index < current
-                ? `stagesDone.${key}`
+                ? `upgradeStagesDone.${key}`
                 : index === current
-                  ? `stages.${key}`
-                  : `stagesPending.${key}`,
+                  ? `upgradeStagesRunning.${key}`
+                  : `upgradeStages.${key}`,
             )}
           />
         ))}
@@ -421,15 +421,7 @@ export function SystemUpdatePage() {
                     theme="solid"
                     type="primary"
                     loading={start.isPending}
-                    onClick={() => {
-                      confirmAction({
-                        title: t('upgradeConfirmTitle', { version: status.latest_version }),
-                        content: t('upgradeConfirmContent'),
-                        okText: t('upgradeConfirmOk'),
-                        cancelText: tl('think'),
-                        onOk: () => start.mutate(),
-                      });
-                    }}
+                    onClick={() => start.mutate()}
                   >
                     {t('upgradeTo', { version: status.latest_version })}
                   </Button>

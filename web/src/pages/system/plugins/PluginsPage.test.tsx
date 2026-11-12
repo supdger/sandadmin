@@ -153,7 +153,7 @@ describe('PluginsPage', () => {
   it('编译版只读：副标题不提升级卸载，卡片没有操作按钮', async () => {
     mockPluginsOverview.compiled = true;
     renderPage();
-    expect(await screen.findByText('查看已经安装的插件')).toBeInTheDocument();
+    expect(await screen.findByText('查看已安装的插件和版本，有新版本时提醒你')).toBeInTheDocument();
     expect(await screen.findByText(/不能在网页上安装或升级插件/)).toBeInTheDocument();
     expect(screen.queryByText('给后台加功能，或者升级、卸载已有的功能')).not.toBeInTheDocument();
     await screen.findByText('数据看板');

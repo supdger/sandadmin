@@ -117,7 +117,7 @@ describe('AppShell', () => {
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
 
     // The nested items live inside collapsed groups — open both.
-    await userEvent.click(within(nav()).getByText('系统设置'));
+    await userEvent.click(within(nav()).getByText('系统'));
     expect(await within(nav()).findByText('偏好设置')).toBeInTheDocument();
     // Data-domain pages are real routes now, so the mock advertises them too.
     await userEvent.click(within(nav()).getByText('数据管理'));

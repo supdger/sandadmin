@@ -73,7 +73,7 @@ export default {
     publishDeptContent: '发布后，所选部门的 {{count}} 个人马上就能看到。',
     think: '再想想',
     saveFailed: '保存失败了，请稍后再试',
-    contentPlaceholder: '写公告内容，支持加粗、列表、链接和图片',
+    contentPlaceholder: '写公告内容，支持文字和图片',
   },
 
   empty: {

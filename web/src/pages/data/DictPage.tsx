@@ -467,7 +467,7 @@ export function DictPage() {
                         })}
                       </Tag>
                     ) : (
-                      <Tag size="small" color="green">
+                      <Tag size="small" color="grey">
                         {t('group.customTag')}
                       </Tag>
                     )}
@@ -530,7 +530,7 @@ export function DictPage() {
                         })}
                       </Tag>
                     ) : (
-                      <Tag size="small" color="green">
+                      <Tag size="small" color="grey">
                         {t('group.customTag')}
                       </Tag>
                     )}

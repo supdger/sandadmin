@@ -528,9 +528,14 @@ export function PluginsPage() {
           fullMode={false}
           title={finishedFailure.rolled_back ? t('failed.rolledBackTitle') : t('failed.notRecoveredTitle')}
           description={
-            finishedFailure.rolled_back
-              ? `${t('failed.rolledBackDesc')}${finishedFailure.error_message ? ` ${finishedFailure.error_message}` : ''}`
-              : finishedFailure.error_message ?? undefined
+            <div className="flex flex-col gap-1">
+              {finishedFailure.rolled_back ? (
+                <span>{t('failed.rolledBackDesc')}</span>
+              ) : null}
+              {finishedFailure.error_message ? (
+                <span>{finishedFailure.error_message}</span>
+              ) : null}
+            </div>
           }
           closeIcon={null}
         />
@@ -557,10 +562,16 @@ export function PluginsPage() {
       >
         <Tabs.TabPane tab={t('tabs.all')} itemKey="all" />
         <Tabs.TabPane
-          tab={t('tabs.installed', { count: items.filter((p) => p.installed).length })}
+          tab={
+            items.filter((p) => p.installed).length > 0
+              ? t('tabs.installed', { count: items.filter((p) => p.installed).length })
+              : t('tabs.installedEmpty')
+          }
           itemKey="installed"
         />
-        <Tabs.TabPane tab={t('tabs.upgradeable', { count: upgradeableCount })} itemKey="upgradeable" />
+        {upgradeableCount > 0 ? (
+          <Tabs.TabPane tab={t('tabs.upgradeable', { count: upgradeableCount })} itemKey="upgradeable" />
+        ) : null}
       </Tabs>
 
       {isListPaused || isListError ? (

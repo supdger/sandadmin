@@ -29,3 +29,16 @@ body,
   justify-content: flex-end;
   padding-right: 16px;
 }
+
+/*
+ * 侧栏菜单长标题（如插件菜单「插件：流程演示」）不截断成省略号：
+ * 允许换行完整显示，同时保留悬停提示。
+ */
+.semi-navigation-item .semi-navigation-item-text,
+.semi-navigation-sub-title .semi-navigation-item-text {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
+}

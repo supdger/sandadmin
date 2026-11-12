@@ -90,18 +90,17 @@ describe('SystemUpdatePage', () => {
       .mockResolvedValue(makeRequest({ state: 'succeeded', progress: 100 }));
     renderPage();
 
+    // 点升级不弹确认，直接开始走进度
     await screen.findByRole('button', { name: '升级到 1.6.0' });
     await userEvent.click(screen.getByRole('button', { name: '升级到 1.6.0' }));
-    expect(await screen.findByText('升级到 1.6.0？')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('升级'));
 
     // 进度视图：五阶段步骤条 + 执行中标签，没有取消按钮
     await screen.findByTestId('upgrade-progress');
-    expect(screen.getByText('检查好了')).toBeInTheDocument();
-    expect(screen.getByText('备份好了')).toBeInTheDocument();
-    expect(screen.getByText('下载好了')).toBeInTheDocument();
-    expect(screen.getAllByText('正在切换').length).toBeGreaterThan(0);
-    expect(screen.getByText('检查结果')).toBeInTheDocument();
+    expect(screen.getByText('环境检查好了')).toBeInTheDocument();
+    expect(screen.getByText('数据备份好了')).toBeInTheDocument();
+    expect(screen.getByText('新版本下载好了')).toBeInTheDocument();
+    expect(screen.getAllByText('正在切换到新版本').length).toBeGreaterThan(0);
+    expect(screen.getByText('确认能正常用')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /取消/ })).not.toBeInTheDocument();
 
     expect(await screen.findByText(/已升级到 1\.6\.0/, {}, { timeout: 8000 })).toBeInTheDocument();
@@ -128,7 +127,7 @@ describe('SystemUpdatePage', () => {
       ),
     );
     renderPage();
-    expect(await screen.findByText(/这个后台不能在网页上升级/)).toBeInTheDocument();
+    expect(await screen.findByText(/这是编译版，不能在网页上升级/)).toBeInTheDocument();
     expect(screen.getByText('查看当前版本，有新版本时提醒你')).toBeInTheDocument();
     expect(screen.queryByText('一键升级后台和所有已安装的插件')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
