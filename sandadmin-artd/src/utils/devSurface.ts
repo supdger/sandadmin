@@ -1,8 +1,7 @@
 import type { AppRouteRecord } from '@/types/router'
 
-const DEV_MENU_TITLES = new Set(['费用核对', '应用试用', 'AI 工作流', '任务排障', '材料整理'])
+const DEV_MENU_TITLES = new Set(['应用试用', 'AI 工作流', '任务排障', '材料整理'])
 const DEV_MENU_PATHS = [
-  '/sand-ai/usage-review',
   '/sand-ai/app-trial',
   '/sand-ai/ai-workflows',
   '/sand-ai/task',
