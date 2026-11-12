@@ -25,6 +25,9 @@ final class DictService
     /** @var list<string> */
     private const COLORS = ['#3491FA', '#13C2C2', '#52C41A', '#7B61FF', '#F77234', '#D83931', '#C7A252', '#8C8C8C'];
 
+    /** @var array<string, string>|null 插件编码 → 显示名，一次请求里只查一次 */
+    private ?array $pluginNames = null;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
@@ -389,6 +392,7 @@ final class DictService
     private function typeItem(array $row): array
     {
         $isSystem = ($row['is_system'] ?? null) === true || ($row['is_system'] ?? null) === 't' || ($row['is_system'] ?? null) === 1 || ($row['is_system'] ?? null) === '1';
+        $extensionKey = ($row['extension_key'] ?? null) === null ? null : OrgSql::str($row['extension_key']);
 
         return [
             'id' => (string) OrgSql::int($row['id'] ?? null),
@@ -396,9 +400,65 @@ final class DictService
             'code' => OrgSql::str($row['code'] ?? null),
             'remark' => ($row['remark'] ?? null) === null ? null : OrgSql::str($row['remark']),
             'is_system' => $isSystem,
-            'extension_key' => ($row['extension_key'] ?? null) === null ? null : OrgSql::str($row['extension_key']),
+            'extension_key' => $extensionKey,
+            'source' => $this->typeSource($isSystem, $extensionKey),
             'item_count' => OrgSql::int($row['item_count'] ?? 0),
         ];
+    }
+
+    /**
+     * 来源与菜单节点同一形状：插件组优先看 extension_key，
+     * 剩下 is_system 的是系统自带，再剩下是管理员自建。
+     *
+     * @return array{kind: string, plugin_label: ?string}
+     */
+    private function typeSource(bool $isSystem, ?string $extensionKey): array
+    {
+        if ($extensionKey !== null && $extensionKey !== '') {
+            return ['kind' => 'plugin', 'plugin_label' => $this->pluginLabel($extensionKey)];
+        }
+        if ($isSystem) {
+            return ['kind' => 'system', 'plugin_label' => null];
+        }
+
+        return ['kind' => 'custom', 'plugin_label' => null];
+    }
+
+    /**
+     * extension_key 形如 <plugin_code>.<组key>，中文名查 sand_system_plugin.name；
+     * 插件已卸载查不到行时兜底用编码本身，前端不至于没有可显示的字。
+     */
+    private function pluginLabel(string $extensionKey): ?string
+    {
+        $dot = strpos($extensionKey, '.');
+        $code = $dot === false ? $extensionKey : substr($extensionKey, 0, $dot);
+        if ($code === '') {
+            return null;
+        }
+        if ($this->pluginNames === null) {
+            $this->pluginNames = $this->loadPluginNames();
+        }
+
+        return $this->pluginNames[$code] ?? $code;
+    }
+
+    /** @return array<string, string> */
+    private function loadPluginNames(): array
+    {
+        try {
+            $rows = $this->connection->fetchAllAssociative('SELECT code, name FROM sand_system_plugin');
+        } catch (\Throwable) {
+            return [];
+        }
+        $names = [];
+        foreach ($rows as $row) {
+            $code = OrgSql::str($row['code'] ?? null);
+            if ($code !== '') {
+                $names[$code] = OrgSql::str($row['name'] ?? null);
+            }
+        }
+
+        return $names;
     }
 
     /**
