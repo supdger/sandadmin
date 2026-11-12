@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增文件' : '编辑文件'"
+    :title="dialogType === 'add' ? '新建文件' : '编辑文件'"
     width="800px"
     align-center
     :close-on-click-modal="false"
@@ -15,7 +15,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">提交</el-button>
+        <el-button type="primary" @click="handleSubmit">保存</el-button>
       </div>
     </template>
   </el-dialog>
@@ -123,7 +123,7 @@
       await formRef.value.validate()
       if (props.dialogType === 'edit') {
         await api.update(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.origin_name}」`)
       }
       emit('success')
       handleClose()

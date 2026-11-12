@@ -33,6 +33,7 @@
     symbol: 'none',
     symbolSize: 6,
     animationDelay: 200,
+    animated: true,
 
     // 轴线显示配置
     showAxisLabel: true,
@@ -189,10 +190,11 @@
 
   // 生成图表配置
   const generateChartOptions = (isInitial = false): EChartsOption => {
+    const noAnimation = isInitial || !props.animated
     const options: EChartsOption = {
       animation: true,
-      animationDuration: isInitial ? 0 : 1300,
-      animationDurationUpdate: isInitial ? 0 : 1300,
+      animationDuration: noAnimation ? 0 : 1300,
+      animationDurationUpdate: noAnimation ? 0 : 1300,
       grid: getGridWithLegend(props.showLegend && isMultipleData.value, props.legendPosition, {
         top: 15,
         right: 15,
@@ -265,6 +267,14 @@
   // 初始化动画函数（优化：统一定时器管理，减少内存泄漏风险）
   const initChartWithAnimation = () => {
     clearAnimationTimers()
+
+    // 关闭入场动画时直接画终值：金额类图表若从 0 生长，中途截图会被读成金额在变
+    if (!props.animated) {
+      animatedData.value = copyRealData()
+      updateChartOptions(generateChartOptions(true))
+      return
+    }
+
     isAnimating.value = true
 
     // 初始化为0值数据

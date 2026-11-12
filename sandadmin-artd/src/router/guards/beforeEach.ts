@@ -23,6 +23,7 @@ import {
   showError
 } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager } from '../core'
+import { devSurfaceOpen, isDevSurfacePath } from '@/utils/devSurface'
 
 let routeRegistry: RouteRegistry | null = null
 const menuProcessor = new MenuProcessor()
@@ -207,6 +208,13 @@ async function handleRouteGuard(
   }
 
   if (handleRootPathRedirect(to, next, router)) {
+    return
+  }
+
+  // 开发专用页面只在地址带 dev=1 时可用；没有 dev 参数按页面不存在处理
+  if (isDevSurfacePath(to.path) && !devSurfaceOpen(to.query)) {
+    closeLoading(to)
+    next({ name: 'Exception404' })
     return
   }
 

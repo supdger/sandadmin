@@ -145,7 +145,7 @@
         id: props.data?.id,
         menu_ids: checkedKeys
       })
-      ElMessage.success('保存成功')
+      ElMessage.success(`已保存「${props.data?.name}」的菜单权限`)
       emit('success')
       handleClose()
     } catch (error) {

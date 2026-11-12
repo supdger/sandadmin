@@ -233,7 +233,12 @@
       ElMessage.error('请选择要修改的数据')
       return
     }
-    deleteRow({ ...selectedRow.value }, api.delete, reloadConfigData)
+    deleteRow(
+      { ...selectedRow.value },
+      api.delete,
+      reloadConfigData,
+      (selectedRow.value as any).name
+    )
   }
 
   // 配置数据

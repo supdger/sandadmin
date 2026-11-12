@@ -33,19 +33,25 @@ export function useSandAdmin() {
     selectedRows.value = selection
   }
 
-  // 删除数据
+  // 删除数据；name 传入后确认框与提示里带上具体名字
   const deleteRow = (
     row: Record<string, any>,
     apiFn: (params: any) => Promise<any>,
-    callback?: () => void
+    callback?: () => void,
+    name?: string
   ): void => {
-    ElMessageBox.confirm(`确定要删除该数据吗？`, '删除数据', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    }).then(() => {
+    ElMessageBox.confirm(
+      name ? `删除「${name}」？删除后不能恢复。` : '确定要删除该数据吗？删除后不能恢复。',
+      '删除数据',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '再想想',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
+      }
+    ).then(() => {
       apiFn({ ids: [row.id] }).then(() => {
-        ElMessage.success('删除成功')
+        ElMessage.success(name ? `已删除「${name}」` : '已删除')
         if (callback) callback()
       })
     })
@@ -57,20 +63,22 @@ export function useSandAdmin() {
     callback?: () => void
   ): void => {
     if (selectedRows.value.length === 0) {
-      ElMessage.warning('请选择要删除的行')
+      ElMessage.warning('先勾选要删除的项')
       return
     }
     ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 条数据吗？`,
+      `确定要删除选中的 ${selectedRows.value.length} 项吗？删除后不能恢复。`,
       '删除选中数据',
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'error'
+        confirmButtonText: '删除',
+        cancelButtonText: '再想想',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
       }
     ).then(() => {
+      const count = selectedRows.value.length
       apiFn({ ids: selectedRows.value.map((row) => row.id) }).then(() => {
-        ElMessage.success('删除成功')
+        ElMessage.success(`已删除 ${count} 项`)
         if (callback) callback()
         selectedRows.value = []
       })

@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增字典数据' : '编辑字典数据'"
+    :title="dialogType === 'add' ? '新建字典' : '编辑字典'"
     width="600px"
     align-center
     @close="handleClose"
@@ -14,7 +14,10 @@
         <el-input v-model="formData.code" placeholder="请输入字典标识" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <SaiRadio v-model="formData.status" dict="data_status" />
+        <el-radio-group v-model="formData.status">
+          <el-radio :value="1">启用</el-radio>
+          <el-radio :value="2">停用</el-radio>
+        </el-radio-group>
       </el-form-item>
       <el-form-item label="备注" prop="remark">
         <el-input v-model="formData.remark" type="textarea" :rows="3" placeholder="请输入备注" />
@@ -22,7 +25,7 @@
     </el-form>
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">提交</el-button>
+      <el-button type="primary" @click="handleSubmit">保存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -140,11 +143,14 @@
     try {
       await formRef.value.validate()
       if (props.dialogType === 'add') {
-        await api.save(formData)
-        ElMessage.success('新增成功')
+        // 新建不传 id；编辑请求才带 id。
+        const payload: Record<string, unknown> = { ...formData }
+        delete payload.id
+        await api.save(payload)
+        ElMessage.success(`已新建「${formData.name}」`)
       } else {
         await api.update(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.name}」`)
       }
       emit('success')
       handleClose()

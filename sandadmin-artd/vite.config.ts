@@ -62,7 +62,10 @@ export default ({ mode, command }: ConfigEnv) => {
         '/api': {
           target: VITE_API_PROXY_URL,
           changeOrigin: true,
-          rewrite: (path) => path.replace(new RegExp('^' + VITE_API_URL), '')
+          rewrite: (path) => {
+            if (path.startsWith('/api/sand-ai') || path.startsWith('/api/sand-iam')) return path
+            return path.replace(new RegExp('^' + VITE_API_URL), '')
+          }
         },
         '/app': {
           target: VITE_API_PROXY_URL,

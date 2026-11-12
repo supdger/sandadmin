@@ -30,6 +30,15 @@
       "theme": "Theme style",
       "menu": "Open top menu",
       "description": "More configurations"
+    },
+    "tips": {
+      "refresh": "Refresh page",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "language": "Switch language",
+      "settings": "Settings",
+      "darkMode": "Dark mode",
+      "lightMode": "Light mode"
     }
   },
   "common": {

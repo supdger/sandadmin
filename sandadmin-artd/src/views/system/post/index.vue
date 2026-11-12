@@ -12,19 +12,27 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
-              新增
+              新建
             </ElButton>
-            <ElButton
-              v-permission="'core:post:destroy'"
-              :disabled="selectedRows.length === 0"
-              @click="deleteSelectedRows(api.delete, refreshData)"
-              v-ripple
+            <ElTooltip
+              :disabled="selectedRows.length > 0"
+              content="先勾选要删除的项"
+              placement="top"
             >
-              <template #icon>
-                <ArtSvgIcon icon="ri:delete-bin-5-line" />
-              </template>
-              删除
-            </ElButton>
+              <span>
+                <ElButton
+                  v-permission="'core:post:destroy'"
+                  :disabled="selectedRows.length === 0"
+                  @click="deleteSelectedRows(api.delete, refreshData)"
+                  v-ripple
+                >
+                  <template #icon>
+                    <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                  </template>
+                  删除
+                </ElButton>
+              </span>
+            </ElTooltip>
             <SaImport
               v-permission="'core:post:import'"
               download-url="/core/post/downloadTemplate"
@@ -60,7 +68,7 @@
             <SaButton
               v-permission="'core:post:destroy'"
               type="error"
-              @click="deleteRow(row, api.delete, refreshData)"
+              @click="deleteRow(row, api.delete, refreshData, row.name)"
             />
           </div>
         </template>

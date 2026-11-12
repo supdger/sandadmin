@@ -22,7 +22,9 @@ return [
             'dirname' => function () {
                 return date('Ymd');
             },
-            'domain' => 'http://127.0.0.1:8787',
+            // 域名不写死：优先 SANDADMIN_STORAGE_DOMAIN，否则按服务监听端口推导本机地址，
+            // 避免实例端口不是 8787 时附件预览/外链全部连接拒绝。
+            'domain' => env('SANDADMIN_STORAGE_DOMAIN') ?: 'http://127.0.0.1:' . env('SANDADMIN_SERVER_PORT', '8787'),
             'uri' => '/runtime', // 如果 domain + uri 不在 public 目录下，请做好软链接，否则生成的url无法访问
             'algo' => 'sha1',
         ],

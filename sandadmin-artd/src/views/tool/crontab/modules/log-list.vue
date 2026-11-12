@@ -38,17 +38,25 @@
       <ElCard class="art-table-card" shadow="never">
         <div>
           <ElSpace wrap>
-            <ElButton
-              v-permission="'tool:crontab:edit'"
-              :disabled="selectedRows.length === 0"
-              @click="handleLoadTable"
-              v-ripple
+            <ElTooltip
+              :disabled="selectedRows.length > 0"
+              content="先勾选要删除的项"
+              placement="top"
             >
-              <template #icon>
-                <ArtSvgIcon icon="ri:delete-bin-5-line" />
-              </template>
-              删除
-            </ElButton>
+              <span>
+                <ElButton
+                  v-permission="'tool:crontab:edit'"
+                  :disabled="selectedRows.length === 0"
+                  @click="handleLoadTable"
+                  v-ripple
+                >
+                  <template #icon>
+                    <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                  </template>
+                  删除
+                </ElButton>
+              </span>
+            </ElTooltip>
           </ElSpace>
         </div>
         <!-- 表格 -->
@@ -170,16 +178,18 @@
       return
     }
     ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 条数据吗？`,
+      `确定要删除选中的 ${selectedRows.value.length} 项吗？删除后不能恢复。`,
       '删除选中数据',
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'error'
+        confirmButtonText: '删除',
+        cancelButtonText: '再想想',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
       }
     ).then(() => {
+      const count = selectedRows.value.length
       api.deleteCrontabLog({ ids: selectedRows.value.map((row) => row.id) }).then(() => {
-        ElMessage.success('删除成功')
+        ElMessage.success(`已删除 ${count} 项`)
         refreshData()
       })
     })

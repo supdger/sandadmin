@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增配置' : '编辑配置'"
+    :title="dialogType === 'add' ? '新建配置' : '编辑配置'"
     width="600px"
     align-center
     :close-on-click-modal="false"
@@ -213,11 +213,14 @@
     try {
       await formRef.value.validate()
       if (props.dialogType === 'add') {
-        await api.configSave(formData)
-        ElMessage.success('新增成功')
+        // 新建不传 id；编辑请求才带 id。
+        const payload: Record<string, unknown> = { ...formData }
+        delete payload.id
+        await api.configSave(payload)
+        ElMessage.success(`已新建「${formData.name}」`)
       } else {
         await api.configUpdate(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.name}」`)
       }
       emit('success')
       handleClose()

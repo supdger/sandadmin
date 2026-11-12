@@ -137,6 +137,7 @@
   import { MenuTypeEnum, MenuWidth } from '@/enums/appEnum'
   import { useMenuStore } from '@/store/modules/menu'
   import { isIframe } from '@/utils/navigation'
+  import { devSurfaceOpen, hideDevMenus } from '@/utils/devSurface'
   import { handleMenuJump } from '@/utils/navigation'
   import SidebarSubmenu from './widget/SidebarSubmenu.vue'
   import { useCommon } from '@/hooks/core/useCommon'
@@ -184,7 +185,7 @@
 
   // 菜单数据
   const firstLevelMenus = computed(() => {
-    return useMenuStore().menuList.filter((menu) => !menu.meta.isHide)
+    return hideDevMenus(useMenuStore().menuList, devSurfaceOpen(route.query)).filter((menu) => !menu.meta.isHide)
   })
 
   const menuList = computed(() => {
@@ -192,13 +193,14 @@
     const allMenus = menuStore.menuList
 
     // 如果不是顶部左侧菜单或双列菜单，直接返回完整菜单列表
+    const shown = hideDevMenus(allMenus, devSurfaceOpen(route.query))
     if (!isTopLeftMenu.value && !isDualMenu.value) {
-      return allMenus
+      return shown
     }
 
     // 处理 iframe 路径
     if (isIframe(route.path)) {
-      return findIframeMenuList(route.path, allMenus)
+      return findIframeMenuList(route.path, shown)
     }
 
     // 处理一级菜单
@@ -208,7 +210,7 @@
 
     // 返回当前顶级路径对应的子菜单
     const currentTopPath = `/${route.path.split('/')[1]}`
-    const currentMenu = allMenus.find((menu) => menu.path === currentTopPath)
+    const currentMenu = shown.find((menu) => menu.path === currentTopPath)
     return currentMenu?.children ?? []
   })
 

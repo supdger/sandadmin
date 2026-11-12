@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增用户' : '编辑用户'"
+    :title="dialogType === 'add' ? '新建用户' : '编辑用户'"
     width="800px"
     align-center
     :close-on-click-modal="false"
@@ -97,7 +97,10 @@
       <el-row>
         <el-col :span="24">
           <el-form-item label="状态" prop="status">
-            <sa-radio v-model="formData.status" dict="data_status" />
+            <el-radio-group v-model="formData.status">
+              <el-radio :value="1">启用</el-radio>
+              <el-radio :value="2">停用</el-radio>
+            </el-radio-group>
           </el-form-item>
         </el-col>
       </el-row>
@@ -118,7 +121,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">提交</el-button>
+        <el-button type="primary" @click="handleSubmit">保存</el-button>
       </div>
     </template>
   </el-dialog>
@@ -286,11 +289,14 @@
     try {
       await formRef.value.validate()
       if (props.dialogType === 'add') {
-        await api.save(formData)
-        ElMessage.success('新增成功')
+        // 新建不传 id；编辑请求才带 id。
+        const payload: Record<string, unknown> = { ...formData }
+        delete payload.id
+        await api.save(payload)
+        ElMessage.success(`已新建「${formData.username}」`)
       } else {
         await api.update(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.username}」`)
       }
       emit('success')
       handleClose()

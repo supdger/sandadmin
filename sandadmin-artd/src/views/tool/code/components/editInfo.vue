@@ -456,7 +456,7 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-line" />
               </template>
-              新增关联
+              新建关联
             </el-button>
 
             <div v-for="(item, index) in formOptions.relations" :key="index">

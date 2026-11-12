@@ -12,7 +12,7 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
-              新增
+              新建
             </ElButton>
             <ElButton @click="toggleExpand" v-ripple>
               <template #icon>
@@ -48,7 +48,7 @@
             <SaButton
               v-permission="'core:dept:destroy'"
               type="error"
-              @click="deleteRow(row, api.delete, refreshData)"
+              @click="deleteRow(row, api.delete, refreshData, row.name)"
             />
           </div>
         </template>

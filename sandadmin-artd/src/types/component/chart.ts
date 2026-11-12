@@ -170,6 +170,8 @@ export interface LineChartProps extends BaseChartProps, AxisDisplayProps, Intera
   symbolSize?: number
   /** 多数据动画延迟间隔（毫秒） */
   animationDelay?: number
+  /** 是否启用入场动画；false 时数据到位直接画终值 */
+  animated?: boolean
 }
 
 // 雷达图数据项接口

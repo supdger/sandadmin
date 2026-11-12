@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增角色' : '编辑角色'"
+    :title="dialogType === 'add' ? '新建角色' : '编辑角色'"
     width="600px"
     align-center
     @close="handleClose"
@@ -30,13 +30,16 @@
       <el-form-item label="排序" prop="sort">
         <el-input-number v-model="formData.sort" placeholder="请输入排序" />
       </el-form-item>
-      <el-form-item label="启用" prop="status">
-        <sa-radio v-model="formData.status" dict="data_status" />
+      <el-form-item label="状态" prop="status">
+        <el-radio-group v-model="formData.status">
+          <el-radio :value="1">启用</el-radio>
+          <el-radio :value="2">停用</el-radio>
+        </el-radio-group>
       </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">提交</el-button>
+      <el-button type="primary" @click="handleSubmit">保存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -156,11 +159,14 @@
     try {
       await formRef.value.validate()
       if (props.dialogType === 'add') {
-        await api.save(formData)
-        ElMessage.success('新增成功')
+        // 新建不传 id；编辑请求才带 id。
+        const payload: Record<string, unknown> = { ...formData }
+        delete payload.id
+        await api.save(payload)
+        ElMessage.success(`已新建「${formData.name}」`)
       } else {
         await api.update(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.name}」`)
       }
       emit('success')
       handleClose()

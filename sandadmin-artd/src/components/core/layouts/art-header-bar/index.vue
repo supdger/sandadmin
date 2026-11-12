@@ -35,13 +35,15 @@
         />
 
         <!-- 刷新按钮 -->
-        <ArtIconButton
-          v-if="shouldShowRefreshButton"
-          icon="ri:refresh-line"
-          class="!ml-3 refresh-btn max-sm:!hidden"
-          :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
-          @click="reload"
-        />
+        <ElTooltip :content="$t('topBar.tips.refresh')" placement="bottom">
+          <ArtIconButton
+            v-if="shouldShowRefreshButton"
+            icon="ri:refresh-line"
+            class="!ml-3 refresh-btn max-sm:!hidden"
+            :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
+            @click="reload"
+          />
+        </ElTooltip>
 
         <!-- 快速入口 -->
         <!-- <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
@@ -54,10 +56,10 @@
         />
 
         <!-- 顶部菜单 -->
-        <ArtHorizontalMenu v-if="isTopMenu" :list="menuList" />
+        <ArtHorizontalMenu v-if="isTopMenu" :list="visibleMenus" />
 
         <!-- 混合菜单-顶部 -->
-        <ArtMixedMenu v-if="isTopLeftMenu" :list="menuList" />
+        <ArtMixedMenu v-if="isTopLeftMenu" :list="visibleMenus" />
       </div>
 
       <div class="flex-c gap-2.5">
@@ -79,13 +81,20 @@
         </div>
 
         <!-- 全屏按钮 -->
-        <ArtIconButton
-          v-if="shouldShowFullscreen"
-          :icon="isFullscreen ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-fill'"
-          :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn', 'ml-3']"
-          class="max-md:!hidden"
-          @click="toggleFullScreen"
-        />
+        <ElTooltip
+          :content="
+            isFullscreen ? $t('topBar.tips.exitFullscreen') : $t('topBar.tips.fullscreen')
+          "
+          placement="bottom"
+        >
+          <ArtIconButton
+            v-if="shouldShowFullscreen"
+            :icon="isFullscreen ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-fill'"
+            :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn', 'ml-3']"
+            class="max-md:!hidden"
+            @click="toggleFullScreen"
+          />
+        </ElTooltip>
 
         <!-- 国际化按钮 -->
         <ElDropdown
@@ -93,7 +102,9 @@
           popper-class="langDropDownStyle"
           v-if="shouldShowLanguage"
         >
-          <ArtIconButton icon="ri:translate-2" class="language-btn text-[19px]" />
+          <ElTooltip :content="$t('topBar.tips.language')" placement="bottom">
+            <ArtIconButton icon="ri:translate-2" class="language-btn text-[19px]" />
+          </ElTooltip>
           <template #dropdown>
             <ElDropdownMenu>
               <div v-for="item in languageOptions" :key="item.value" class="lang-btn-item">
@@ -134,7 +145,9 @@
           <ElPopover placement="bottom-start" :width="190" :offset="0">
             <template #reference>
               <div class="flex-cc">
-                <ArtIconButton icon="ri:settings-line" class="setting-btn" @click="openSetting" />
+                <ElTooltip :content="$t('topBar.tips.settings')" placement="bottom">
+                  <ArtIconButton icon="ri:settings-line" class="setting-btn" @click="openSetting" />
+                </ElTooltip>
               </div>
             </template>
             <template #default>
@@ -149,11 +162,16 @@
         </div>
 
         <!-- 主题切换按钮 -->
-        <ArtIconButton
-          v-if="shouldShowThemeToggle"
-          @click="themeAnimation"
-          :icon="isDark ? 'ri:sun-fill' : 'ri:moon-line'"
-        />
+        <ElTooltip
+          :content="isDark ? $t('topBar.tips.lightMode') : $t('topBar.tips.darkMode')"
+          placement="bottom"
+        >
+            <ArtIconButton
+            v-if="shouldShowThemeToggle"
+            @click="themeAnimation"
+            :icon="isDark ? 'ri:sun-fill' : 'ri:moon-line'"
+          />
+        </ElTooltip>
 
         <!-- 用户头像、菜单 -->
         <ArtUserMenu />
@@ -170,7 +188,8 @@
 
 <script setup lang="ts">
   import { useI18n } from 'vue-i18n'
-  import { useRouter } from 'vue-router'
+  import { useRoute, useRouter } from 'vue-router'
+  import { devSurfaceOpen, hideDevMenus } from '@/utils/devSurface'
   import { useFullscreen, useWindowSize } from '@vueuse/core'
   import { LanguageEnum, MenuTypeEnum } from '@/enums/appEnum'
   import { useSettingStore } from '@/store/modules/setting'
@@ -189,6 +208,7 @@
   // 检测操作系统类型
   const isWindows = navigator.userAgent.includes('Windows')
 
+  const route = useRoute()
   const router = useRouter()
   const { locale } = useI18n()
   const { width } = useWindowSize()
@@ -213,7 +233,8 @@
     storeToRefs(settingStore)
 
   const { language } = storeToRefs(userStore)
-  const { menuList } = storeToRefs(menuStore)
+  const { menuList: rawMenus } = storeToRefs(menuStore)
+  const visibleMenus = computed(() => hideDevMenus(rawMenus.value, devSurfaceOpen(route.query)))
 
   const showNotice = ref(false)
   const notice = ref(null)

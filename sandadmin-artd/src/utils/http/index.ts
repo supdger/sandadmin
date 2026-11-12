@@ -17,7 +17,7 @@
 import axios, { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useUserStore } from '@/store/modules/user'
 import { ApiStatus } from './status'
-import { HttpError, handleError, showError, showSuccess } from './error'
+import { HttpError, handleError, hideRawDatabaseMessage, showError, showSuccess } from './error'
 import { $t } from '@/locales'
 import { BaseResponse } from '@/types'
 
@@ -88,7 +88,7 @@ axiosInstance.interceptors.response.use(
     if (code === ApiStatus.success) return response
     if (code === ApiStatus.unauthorized) handleUnauthorizedError(message)
     // 业务负载（BaseResponse.data）随错误透传，供 egressBlockedDetails 等结构化消费方读取
-    throw createHttpError(message || $t('httpMsg.requestFailed'), code, data)
+    throw createHttpError(hideRawDatabaseMessage(message || $t('httpMsg.requestFailed')), code, data)
   },
   (error) => {
     if (error.response?.status === ApiStatus.unauthorized) handleUnauthorizedError()
