@@ -28,7 +28,7 @@ final class DeptService
     public function tree(?string $keyword, ?int $status): array
     {
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT d.id, d.parent_id, d.name, d.leader_id, d.phone, d.sort, d.status,'
+            'SELECT d.id, d.parent_id, d.name, d.leader_id, d.phone, d.sort, d.status, d.update_time,'
             . ' CASE WHEN u.id IS NULL OR u.delete_time IS NOT NULL THEN NULL ELSE u.nickname END AS leader_name,'
             . ' CASE WHEN u.id IS NULL OR u.delete_time IS NOT NULL THEN NULL'
             . '      WHEN u.status = 2 THEN \'disabled\' ELSE \'enabled\' END AS leader_status,'
@@ -100,6 +100,7 @@ final class DeptService
     public function update(int $id, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
     {
         $before = $this->requireRow($id);
+        $base = $this->readBaseVersion($body);
         $draft = $this->draft($body);
         $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         if ($draft['parent_id'] === $id) {
@@ -109,22 +110,28 @@ final class DeptService
         $this->assertNotDescendant($id, $draft['parent_id']);
         $this->assertLeader($draft['leader_id']);
         try {
-            $this->connection->transactional(function () use ($id, $draft, $actor, $before, $requestId, $ip, $device): void {
-                $this->connection->executeStatement(
-                    'UPDATE sand_system_dept SET parent_id = :parent_id, name = :name, leader_id = :leader_id,'
+            $this->connection->transactional(function () use ($id, $base, $draft, $actor, $before, $requestId, $ip, $device): void {
+                $sql = 'UPDATE sand_system_dept SET parent_id = :parent_id, name = :name, leader_id = :leader_id,'
                     . ' phone = :phone, sort = :sort, status = :status, updated_by = :by, update_time = CURRENT_TIMESTAMP'
-                    . ' WHERE id = :id',
-                    [
-                        'parent_id' => $draft['parent_id'],
-                        'name' => $draft['name'],
-                        'leader_id' => $draft['leader_id'],
-                        'phone' => $draft['phone'],
-                        'sort' => $draft['sort'],
-                        'status' => $draft['status'],
-                        'by' => $actor->writerId(),
-                        'id' => $id,
-                    ],
-                );
+                    . ' WHERE id = :id';
+                $params = [
+                    'parent_id' => $draft['parent_id'],
+                    'name' => $draft['name'],
+                    'leader_id' => $draft['leader_id'],
+                    'phone' => $draft['phone'],
+                    'sort' => $draft['sort'],
+                    'status' => $draft['status'],
+                    'by' => $actor->writerId(),
+                    'id' => $id,
+                ];
+                if ($base !== null) {
+                    $sql .= ' AND update_time = :base_version';
+                    $params['base_version'] = $base;
+                }
+                $affected = $this->connection->executeStatement($sql, $params);
+                if ($base !== null && $affected !== 1) {
+                    throw OrgException::stale();
+                }
                 $this->audit->record(
                     $actor,
                     'dept',
@@ -226,6 +233,30 @@ final class DeptService
             'sort' => OrgInput::sort($body),
             'status' => OrgInput::status($body, 1),
         ];
+    }
+
+    /**
+     * base_version 是该行 update_time 的原样回传，解析不出来的按版本不匹配处理。
+     * 归一成 PG 接受的带时区字面量，交给 UPDATE 的 WHERE 做原子比较。
+     *
+     * @param array<string, mixed> $body
+     */
+    private function readBaseVersion(array $body): ?string
+    {
+        if (!array_key_exists('base_version', $body) || $body['base_version'] === null || $body['base_version'] === '') {
+            return null;
+        }
+        $raw = $body['base_version'];
+        if (!is_string($raw)) {
+            throw OrgException::stale();
+        }
+        try {
+            $at = new \DateTimeImmutable($raw);
+        } catch (\Exception) {
+            throw OrgException::stale();
+        }
+
+        return $at->format('Y-m-d H:i:sP');
     }
 
     private function assertParent(?int $parentId): void
@@ -352,6 +383,7 @@ final class DeptService
             'sort' => OrgSql::int($row['sort'] ?? 0),
             'status' => OrgSql::statusName(OrgSql::int($row['status'] ?? 1)),
             'user_count' => OrgSql::int($row['user_count'] ?? 0),
+            'update_time' => OrgSql::time($row['update_time'] ?? null) ?? '',
             'children' => [],
         ];
     }

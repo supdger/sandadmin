@@ -153,6 +153,51 @@ final class OrgFlowTest extends TestCase
         }
     }
 
+    public function testDeptUpdateChecksBaseVersion(): void
+    {
+        $dept = self::$kernel->depts->create(['name' => '甲测并发部门'], $this->actor, 'req-cv-d1', '127.0.0.1', null);
+        $deptId = OrgSql::int($dept['id']);
+        $seen = OrgSql::str($dept['update_time'] ?? null);
+        $this->assertNotSame('', $seen);
+
+        $renamed = self::$kernel->depts->update($deptId, [
+            'name' => '甲测并发部门改',
+            'base_version' => $seen,
+        ], $this->actor, 'req-cv-d2', '127.0.0.1', null);
+        $this->assertSame('甲测并发部门改', $renamed['name']);
+
+        // 模拟另一个人先保存：直接把 update_time 改到新值
+        self::$conn->executeStatement(
+            "UPDATE sand_system_dept SET update_time = '2030-01-01 00:00:00+00' WHERE id = ?",
+            [$deptId],
+        );
+        try {
+            self::$kernel->depts->update($deptId, [
+                'name' => '甲测并发部门再改',
+                'base_version' => OrgSql::str($renamed['update_time'] ?? null),
+            ], $this->actor, 'req-cv-d3', '127.0.0.1', null);
+            $this->fail('旧版本保存应被拒绝');
+        } catch (OrgException $error) {
+            $this->assertSame(409, $error->status);
+            $this->assertSame('STALE_VERSION', $error->errorCode);
+        }
+        $this->assertSame('甲测并发部门改', OrgSql::str(self::$conn->fetchOne(
+            'SELECT name FROM sand_system_dept WHERE id = ?',
+            [$deptId],
+        )));
+
+        try {
+            self::$kernel->depts->update($deptId, [
+                'name' => '甲测并发部门坏值',
+                'base_version' => 'not-a-time',
+            ], $this->actor, 'req-cv-d4', '127.0.0.1', null);
+            $this->fail('解析不出的版本应被拒绝');
+        } catch (OrgException $error) {
+            $this->assertSame(409, $error->status);
+            $this->assertSame('STALE_VERSION', $error->errorCode);
+        }
+    }
+
     public function testRoleRenameDuplicateAndStalePermission(): void
     {
         $role = self::$kernel->roles->create(['name' => '甲测角色'], $this->actor, 'req-r1', '127.0.0.1', null);

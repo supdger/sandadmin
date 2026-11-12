@@ -44,9 +44,7 @@ final class MenuController
     public function update(Request $request, string $menu_key): Response
     {
         return $this->run($request, 'system:menu:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($menu_key): array {
-            $kernel->menus->updateNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
-
-            return ApiOutcome::ok(new \stdClass(), $requestId);
+            return ApiOutcome::ok($kernel->menus->updateNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId);
         });
     }
 

@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconMore, IconSearch, IconUpload } from '@douyinfe/semi-icons';
+import { IllustrationNoAccess } from '@douyinfe/semi-illustrations';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -138,6 +139,8 @@ export function PluginsPage() {
   const [tab, setTab] = useState<PluginTab>('all');
   const [keyword, setKeyword] = useState('');
   const [detailCode, setDetailCode] = useState<string | null>(null);
+  // 详情抽屉里的「更多」下拉受控：点卸载先收起再进确认流程。
+  const [detailMoreOpen, setDetailMoreOpen] = useState(false);
   const [uninstallTarget, setUninstallTarget] = useState<UninstallTarget | null>(null);
   const [purge, setPurge] = useState(false);
   const [requestId, setRequestId] = useState<string | null>(null);
@@ -591,12 +594,18 @@ export function PluginsPage() {
             ) : (
               <Empty title={t('empty.noResult')} />
             )
-          ) : (
+          ) : canInstall ? (
             <Empty title={t('empty.installed')} description={t('empty.installedDesc')}>
               <Button size="small" theme="solid" onClick={() => setTab('all')}>
                 {t('empty.goMarket')}
               </Button>
             </Empty>
+          ) : (
+            <Empty
+              image={<IllustrationNoAccess />}
+              title={t('empty.installed')}
+              description={t('empty.installedReadonlyDesc')}
+            />
           )}
         </Card>
       ) : (
@@ -653,11 +662,14 @@ export function PluginsPage() {
               {canUninstall && (detailMarket?.installed ?? detailItem.state === 'installed') ? (
                 <Dropdown
                   trigger="click"
+                  visible={detailMoreOpen}
+                  onVisibleChange={setDetailMoreOpen}
                   render={
                     <Dropdown.Menu>
                       <Dropdown.Item
                         type="danger"
                         onClick={() => {
+                          setDetailMoreOpen(false);
                           setDetailCode(null);
                           setPurge(false);
                           setUninstallTarget({ code: detailItem.code, name: detailItem.name });

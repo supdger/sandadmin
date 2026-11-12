@@ -34,8 +34,10 @@ export interface MenuFormSheetProps {
   node: MenuNode | null;
   /** 完整菜单树——用于上级下拉和重名校验。 */
   items: MenuNode[];
+  /** 打开时的 menu_version，PATCH 写操作要带回去拦并发。 */
+  menuVersion: number;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (result?: { menu_version?: number }) => void;
 }
 
 const TITLE_MAX = 6;
@@ -66,6 +68,7 @@ export function MenuFormSheet({
   mode,
   node,
   items,
+  menuVersion,
   onClose,
   onSaved,
 }: MenuFormSheetProps) {
@@ -87,6 +90,8 @@ export function MenuFormSheet({
   const [iconKeyword, setIconKeyword] = useState('');
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<unknown>(null);
+  // 409 冲突时表单保留填写内容，提示后台已刷新成最新菜单。
+  const [conflict, setConflict] = useState(false);
 
   const groupOptions = useMemo(
     () => items.filter((n) => n.type === 'group'),
@@ -194,10 +199,12 @@ export function MenuFormSheet({
     }
     setPending(true);
     setSubmitError(null);
+    setConflict(false);
     try {
       if (mode === 'group') {
         await createMenuGroup({ title: title.trim(), icon: iconKey });
         Toast.success(t('menus.toast.groupAdded', { name: title.trim() }));
+        onSaved();
       } else if (mode === 'link') {
         await createMenuLink({
           title: title.trim(),
@@ -206,17 +213,25 @@ export function MenuFormSheet({
           parent_key: parentKey || null,
         });
         Toast.success(t('menus.toast.linkAdded', { name: title.trim() }));
+        onSaved();
       } else if (node) {
-        await updateMenu(node.key, {
+        const result = await updateMenu(node.key, {
           title: title.trim(),
           icon: iconKey,
           visible: visibleFlag,
+          base_version: menuVersion,
         });
         Toast.success(t('menus.toast.saved', { name: title.trim() }));
+        onSaved(result);
       }
-      onSaved();
       onClose();
     } catch (error) {
+      // 并发冲突：刷新到最新版本，表单内容保留让用户决定要不要重试。
+      if (isAdminApiError(error) && error.code === 'STALE_VERSION') {
+        setConflict(true);
+        onSaved();
+        return;
+      }
       // 字段级原因留在各自输入框下；其余的内联展示。
       if (isAdminApiError(error)) {
         const titleMessage = error.fields?.title?.[0];
@@ -244,14 +259,20 @@ export function MenuFormSheet({
     try {
       // `icon: null` 让后端丢掉图标覆盖；标题回填 `original_title`，
       // 后端把它当作默认值。
-      await updateMenu(node.key, {
+      const result = await updateMenu(node.key, {
         ...(node.original_title ? { title: node.original_title } : {}),
         icon: null,
+        base_version: menuVersion,
       });
       Toast.success(t('menus.toast.saved', { name: node.original_title || node.title }));
-      onSaved();
+      onSaved(result);
       onClose();
     } catch (error) {
+      if (isAdminApiError(error) && error.code === 'STALE_VERSION') {
+        setConflict(true);
+        onSaved();
+        return;
+      }
       setSubmitError(error);
     } finally {
       setPending(false);
@@ -300,13 +321,20 @@ export function MenuFormSheet({
               loading={pending}
               onClick={() => void submit()}
             >
-              {pending ? t('menus.form.saving') : t('menus.form.save')}
+              {pending
+                ? t('menus.form.saving')
+                : isEdit
+                  ? t('menus.form.save')
+                  : t('common:create')}
             </Button>
           </div>
         </div>
       }
     >
       <div className="flex flex-col gap-4">
+        {conflict ? (
+          <Typography.Text type="warning">{t('menus.toast.staleVersion')}</Typography.Text>
+        ) : null}
         {submitError ? (
           <AdminErrorNotice
             error={submitError}
@@ -381,9 +409,13 @@ export function MenuFormSheet({
 
         {mode === 'link' && !isEdit ? (
           <div>
-            <Typography.Text strong>{t('menus.form.url')}</Typography.Text>
+            <div className="mb-1">
+              <Typography.Text strong>
+                {t('menus.form.url')}
+                <Typography.Text type="danger"> *</Typography.Text>
+              </Typography.Text>
+            </div>
             <Input
-              className="mt-1"
               value={url}
               placeholder={t('menus.form.urlPlaceholder')}
               onChange={(v) => {
@@ -391,6 +423,9 @@ export function MenuFormSheet({
                 setErrors((prev) => ({ ...prev, url: undefined }));
               }}
             />
+            <Typography.Text type="secondary" size="small">
+              {t('menus.form.urlImmutableHint')}
+            </Typography.Text>
             {errors.url ? (
               <Typography.Text type="danger" size="small">
                 {errors.url}
@@ -422,7 +457,9 @@ export function MenuFormSheet({
             aria-label={t('menus.form.visible')}
           />
           <Typography.Text type="secondary" size="small">
-            {t('menus.form.visibleHint')}
+            {isLinkEdit || mode === 'link'
+              ? t('menus.form.visibleHintLink')
+              : t('menus.form.visibleHint')}
           </Typography.Text>
         </div>
       </div>

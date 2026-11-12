@@ -192,15 +192,19 @@ export function PasswordChangeModal({ visible, onClose }: PasswordChangeModalPro
               placeholder={t('passwordModal.confirmPasswordPlaceholder')}
               rules={[{ required: true, message: t('passwordModal.required') }]}
             />
-            <Button
-              htmlType="submit"
-              type="primary"
-              theme="solid"
-              block
-              loading={submitting}
-            >
-              {t('passwordModal.submit')}
-            </Button>
+            <div className="mt-1 flex justify-end gap-2">
+              <Button onClick={handleClose} disabled={submitting}>
+                {t('common:actions.cancel')}
+              </Button>
+              <Button
+                htmlType="submit"
+                type="primary"
+                theme="solid"
+                loading={submitting}
+              >
+                {t('passwordModal.submit')}
+              </Button>
+            </div>
           </Form>
         </>
       )}

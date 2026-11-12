@@ -22,7 +22,6 @@ import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
 import {
   IconDownload,
   IconEyeOpened,
-  IconMore,
   IconSearch,
   IconUpload,
 } from '@douyinfe/semi-icons';
@@ -112,6 +111,8 @@ export function FilesPage() {
   const [dragActive, setDragActive] = useState(false);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const [cleanupRunning, setCleanupRunning] = useState(false);
+  // 「更多」下拉受控：点删除先收起菜单再弹确认框。
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepth = useRef(0);
 
@@ -516,15 +517,25 @@ export function FilesPage() {
             <Dropdown
               trigger="click"
               position="bottomRight"
+              visible={moreOpenId === record.id}
+              onVisibleChange={(v) => setMoreOpenId(v ? record.id : null)}
               render={
                 <Dropdown.Menu>
-                  <Dropdown.Item type="danger" onClick={() => requestDelete([record])}>
+                  <Dropdown.Item
+                    type="danger"
+                    onClick={() => {
+                      setMoreOpenId(null);
+                      requestDelete([record]);
+                    }}
+                  >
                     {t('table.delete')}
                   </Dropdown.Item>
                 </Dropdown.Menu>
               }
             >
-              <Button theme="borderless" size="small" icon={<IconMore />} aria-label={t('table.more')} />
+              <Button type="primary" theme="borderless" size="small">
+                {t('table.more')}
+              </Button>
             </Dropdown>
           ) : null}
         </div>
@@ -805,18 +816,25 @@ export function FilesPage() {
                       <Dropdown
                         trigger="click"
                         position="bottomRight"
+                        visible={moreOpenId === file.id}
+                        onVisibleChange={(v) => setMoreOpenId(v ? file.id : null)}
                         render={
                           <Dropdown.Menu>
                             <Dropdown.Item
                               type="danger"
-                              onClick={() => requestDelete([file])}
+                              onClick={() => {
+                                setMoreOpenId(null);
+                                requestDelete([file]);
+                              }}
                             >
                               {t('table.delete')}
                             </Dropdown.Item>
                           </Dropdown.Menu>
                         }
                       >
-                        <Button theme="borderless" size="small" icon={<IconMore />} aria-label={t('table.more')} />
+                        <Button type="primary" theme="borderless" size="small">
+                          {t('table.more')}
+                        </Button>
                       </Dropdown>
                     ) : null}
                   </div>

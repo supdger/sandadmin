@@ -101,7 +101,7 @@ describe('SystemUpdatePage', () => {
     expect(screen.getByText('备份好了')).toBeInTheDocument();
     expect(screen.getByText('下载好了')).toBeInTheDocument();
     expect(screen.getAllByText('正在切换').length).toBeGreaterThan(0);
-    expect(screen.getByText('正在检查结果')).toBeInTheDocument();
+    expect(screen.getByText('检查结果')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /取消/ })).not.toBeInTheDocument();
 
     expect(await screen.findByText(/已升级到 1\.6\.0/, {}, { timeout: 8000 })).toBeInTheDocument();
@@ -155,7 +155,7 @@ describe('SystemUpdatePage', () => {
       ),
     );
     renderPage();
-    expect(await screen.findByText('没做完，已自动恢复')).toBeInTheDocument();
+    expect(await screen.findByText('上次升级没做完，已自动恢复')).toBeInTheDocument();
     expect(screen.getByText('原因：下载新版本时网络断了')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '再试一次' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '复制问题信息' })).toBeInTheDocument();
@@ -206,7 +206,7 @@ describe('SystemUpdatePage', () => {
       ),
     );
     renderPage();
-    expect(await screen.findByText('没做完，已自动恢复')).toBeInTheDocument();
+    expect(await screen.findByText('上次升级没做完，已自动恢复')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '再试一次' })).toBeInTheDocument();
   });
 

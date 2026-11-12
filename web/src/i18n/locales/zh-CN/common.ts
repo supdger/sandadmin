@@ -1,5 +1,6 @@
 export default {
   loading: '加载中…',
+  create: '创建',
 
   actions: {
     confirm: '确认',

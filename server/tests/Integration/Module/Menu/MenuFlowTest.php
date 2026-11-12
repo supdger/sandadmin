@@ -113,6 +113,49 @@ final class MenuFlowTest extends TestCase
         )));
     }
 
+    public function testRenameChecksBaseVersion(): void
+    {
+        $group = self::$kernel->menus->createGroup(
+            ['title' => '测并发组'],
+            $this->actor,
+            'req-v1',
+            '127.0.0.1',
+            null,
+            null,
+        );
+        $version = OrgSql::int(self::$kernel->menus->loadTree(null, null)['menu_version']);
+        $this->assertGreaterThan(0, $version);
+
+        $saved = self::$kernel->menus->updateNode(
+            $group['key'],
+            ['title' => '测并发组改', 'base_version' => $version],
+            $this->actor,
+            'req-v2',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame($version + 1, $saved['menu_version']);
+
+        try {
+            self::$kernel->menus->updateNode(
+                $group['key'],
+                ['title' => '测并发再改', 'base_version' => $version],
+                $this->actor,
+                'req-v3',
+                '127.0.0.1',
+                null,
+            );
+            $this->fail('旧菜单版本保存应被拒绝');
+        } catch (MenuException $error) {
+            $this->assertSame(409, $error->status);
+            $this->assertSame('STALE_VERSION', $error->errorCode);
+        }
+        $this->assertSame('测并发组改', OrgSql::str(self::$conn->fetchOne(
+            'SELECT title FROM sand_system_menu_custom WHERE menu_key = ?',
+            [$group['key']],
+        )));
+    }
+
     public function testInvalidUrlAndSystemDeleteAreNotSuccess(): void
     {
         try {

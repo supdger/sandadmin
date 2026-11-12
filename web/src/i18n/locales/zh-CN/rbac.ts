@@ -1,6 +1,6 @@
 export default {
   roles: {
-    title: '角色与权限',
+    title: '角色管理',
     subtitle: '角色决定一个人能看到哪些页面、能做哪些操作',
     add: '添加角色',
     searchPlaceholder: '搜角色名称',
@@ -59,6 +59,8 @@ export default {
       reassignBody: '还有 {{count}} 个人在用这个角色，先给他们换一个：',
       reassignOk: '换好并删除',
       reassignPlaceholder: '选择角色',
+      superTag: '超级管理员',
+      reassignSuperWarning: '换成超级管理员后，他们将拥有全部权限',
       thinkAgain: '再想想',
     },
     toast: {
@@ -171,8 +173,10 @@ export default {
       urlPlaceholder: 'https://example.com',
       urlInvalid: '链接地址要以 http:// 或 https:// 开头，例如 https://example.com',
       urlReadonlyHint: '链接地址创建后不能修改',
+      urlImmutableHint: '保存后不能改',
       visible: '显示',
       visibleHint: '关掉后所有人的左侧菜单里都不显示，页面本身还在，有权限的人仍可从地址打开',
+      visibleHintLink: '关掉后所有人的左侧菜单里都不显示，链接本身不受影响，知道地址的人仍能打开',
       restoreDefault: '恢复这个菜单的默认名称和图标',
       save: '保存',
       saving: '保存中…',
@@ -200,7 +204,7 @@ export default {
       saved: '已保存「{{name}}」',
       orderAdjusted: '已调整顺序',
       movedTo: '已移到“{{name}}”',
-      hidden: '已停用「{{name}}」，所有人的菜单里都不再显示',
+      hidden: '已隐藏「{{name}}」，所有人的菜单里都不再显示',
       shown: '已启用「{{name}}」',
       deleted: '已删除「{{name}}」',
       resetDone: '菜单已恢复默认',

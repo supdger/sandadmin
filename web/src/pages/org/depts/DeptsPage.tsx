@@ -46,7 +46,12 @@ import {
   relocateDept,
 } from '../shared/deptTree';
 import { DeptFormSheet } from './DeptFormSheet';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
+
+/** 版本并发冲突：后端 409 或 STALE_VERSION 都按「刚被别人改过」处理。 */
+function isStaleWriteError(error: unknown): boolean {
+  return isAdminApiError(error) && (error.httpStatus === 409 || error.code === 'STALE_VERSION');
+}
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -177,6 +182,7 @@ export function DeptsPage() {
         phone: dept.phone,
         sort: newSort,
         status: dept.status,
+        base_version: dept.update_time,
       });
       const moved = targetParentId !== prevParentId;
       Toast.success({
@@ -202,7 +208,12 @@ export function DeptsPage() {
       if (previous) {
         queryClient.setQueryData(treeKey, previous);
       }
-      toastAdminError(error, t('depts.form.moveFailed'));
+      if (isStaleWriteError(error)) {
+        Toast.warning(t('depts.staleVersion'));
+        invalidateDepts();
+      } else {
+        toastAdminError(error, t('depts.form.moveFailed'));
+      }
     } finally {
       setMoving(false);
       setDragId(null);
@@ -225,18 +236,25 @@ export function DeptsPage() {
         phone: dept.phone,
         sort,
         status: dept.status,
+        base_version: dept.update_time,
       });
       Toast.success(t('depts.form.undoDone'));
       invalidateDepts();
     } catch (error) {
-      toastAdminError(error, t('depts.form.moveFailed'));
+      if (isStaleWriteError(error)) {
+        Toast.warning(t('depts.staleVersion'));
+        invalidateDepts();
+      } else {
+        toastAdminError(error, t('depts.form.moveFailed'));
+      }
     }
   };
 
   const toggleStatus = (dept: Dept) => {
     const next = dept.status === 'enabled' ? 'disabled' : 'enabled';
     const isDisable = next === 'disabled';
-    confirmAction({
+    const confirm = isDisable ? confirmDanger : confirmAction;
+    confirm({
       title: t(isDisable ? 'depts.danger.disableTitle' : 'depts.danger.enableTitle', { name: dept.name }),
       content: t(isDisable ? 'depts.danger.disableContent' : 'depts.danger.enableContent'),
       okText: isDisable ? t('depts.danger.disableOk') : t('common.enable'),
@@ -251,6 +269,7 @@ export function DeptsPage() {
             phone: dept.phone,
             sort: dept.sort,
             status: next,
+            base_version: dept.update_time,
           });
           Toast.success(
             isDisable
@@ -259,6 +278,11 @@ export function DeptsPage() {
           );
           invalidateDepts();
         } catch (error) {
+          if (isStaleWriteError(error)) {
+            Toast.warning(t('depts.staleVersion'));
+            invalidateDepts();
+            return;
+          }
           toastAdminError(error, t('common:errors.system.message'));
         }
       },
@@ -306,7 +330,7 @@ export function DeptsPage() {
       return;
     }
     const roleNames = check.affected_roles.map((role) => role.name).join('、');
-    confirmAction({
+    confirmDanger({
       title: t('depts.danger.deleteTitle', { name: dept.name }),
       content: (
         <div>
@@ -338,11 +362,18 @@ export function DeptsPage() {
             showDeleteBlocked(dept, check, adminErrorMessage(error, t('depts.danger.deleteBlockedContent')));
             return;
           }
+          if (isStaleWriteError(error)) {
+            Toast.warning(t('depts.staleVersion'));
+            invalidateDepts();
+            return;
+          }
           toastAdminError(error, t('common:errors.system.message'));
         }
       },
     });
   };
+
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   const columns: ColumnProps<Dept>[] = [
     {
@@ -459,7 +490,7 @@ export function DeptsPage() {
     },
     {
       title: t('depts.table.actions'),
-      width: 248,
+      width: 180,
       fixed: 'right',
       render: (_: unknown, record: Dept) => {
         const hasChildren = (record.children?.length ?? 0) > 0;
@@ -471,6 +502,13 @@ export function DeptsPage() {
           hint?: string;
           onClick: () => void;
         }[] = [
+          canCreate
+            ? {
+                key: 'child',
+                name: t('depts.addChild'),
+                onClick: () => setSheetState({ open: true, mode: 'child', dept: record }),
+              }
+            : null,
           canUpdate
             ? {
                 key: 'toggle',
@@ -491,19 +529,11 @@ export function DeptsPage() {
         ].filter((i): i is NonNullable<typeof i> => i !== null);
         return (
           <Space spacing={4} style={{ whiteSpace: 'nowrap' }}>
-            {canCreate ? (
-              <Button
-                type="tertiary"
-                size="small"
-                onClick={() => setSheetState({ open: true, mode: 'child', dept: record })}
-              >
-                {t('depts.addChild')}
-              </Button>
-            ) : null}
             {canUpdate ? (
               <Button
-                type="tertiary"
+                type="primary"
                 size="small"
+                theme="borderless"
                 onClick={() => setSheetState({ open: true, mode: 'edit', dept: record })}
               >
                 {t('common.edit')}
@@ -513,6 +543,8 @@ export function DeptsPage() {
               <Dropdown
                 trigger="click"
                 position="bottomRight"
+                visible={moreOpenId === record.id}
+                onVisibleChange={(v) => setMoreOpenId(v ? record.id : null)}
                 render={
                   <Dropdown.Menu>
                     {menuItems.map((item) => {
@@ -520,7 +552,14 @@ export function DeptsPage() {
                         <Dropdown.Item
                           disabled={item.disabled}
                           type={item.danger && !item.disabled ? 'danger' : undefined}
-                          onClick={item.disabled ? undefined : item.onClick}
+                          onClick={
+                            item.disabled
+                              ? undefined
+                              : () => {
+                                  setMoreOpenId(null);
+                                  item.onClick();
+                                }
+                          }
                         >
                           {item.name}
                         </Dropdown.Item>
@@ -537,7 +576,7 @@ export function DeptsPage() {
                   </Dropdown.Menu>
                 }
               >
-                <Button type="tertiary" size="small">
+                <Button type="primary" size="small" theme="borderless">
                   {t('common.more')}
                 </Button>
               </Dropdown>

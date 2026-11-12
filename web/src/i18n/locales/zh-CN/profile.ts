@@ -1,6 +1,6 @@
 export default {
   title: '个人设置',
-  subtitle: '管理你自己的资料、密码和登录情况',
+  subtitle: '管理你自己的资料和密码',
 
   tabs: {
     basic: '基本资料',

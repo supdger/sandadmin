@@ -13,7 +13,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
-import { IconMore, IconPlus, IconSearch } from '@douyinfe/semi-icons';
+import { IconPlus, IconSearch } from '@douyinfe/semi-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
@@ -35,7 +35,7 @@ import { AnnouncementEditor } from './AnnouncementEditor';
 import { formatDateTime } from './format';
 import { ReadStatsDrawer } from './ReadStatsDrawer';
 import { useDebouncedValue } from './useDebouncedValue';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
 
 const ANNOUNCEMENTS_QUERY_KEY = ['announcements'] as const;
 const PAGE_SIZE = 20;
@@ -73,6 +73,8 @@ export function AnnouncementsPage() {
     announcement: null,
   });
   const [statsTarget, setStatsTarget] = useState<Announcement | null>(null);
+  // 「更多」下拉受控：点菜单项先收起再弹确认框。
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   // 输入防抖后写回 URL；关键词变化回第一页。
   const prevKeyword = useRef(debouncedKeyword);
@@ -169,7 +171,7 @@ export function AnnouncementsPage() {
   };
 
   const requestRevoke = (a: Announcement) => {
-    confirmAction({
+    confirmDanger({
       title: t('confirm.revokeTitle', { name: a.title }),
       content: t('confirm.revokeContent'),
       okText: t('confirm.revokeOk'),
@@ -180,7 +182,7 @@ export function AnnouncementsPage() {
   };
 
   const requestDelete = (a: Announcement) => {
-    confirmAction({
+    confirmDanger({
       title: t('confirm.deleteTitle', { name: a.title }),
       content: t('confirm.deleteContent'),
       okText: t('confirm.deleteOk'),
@@ -258,7 +260,7 @@ export function AnnouncementsPage() {
       render: (_text, record) => (
         <div className="flex items-center gap-1">
           {canUpdate ? (
-            <Button theme="borderless" size="small" onClick={() => setEditor({ open: true, announcement: record })}>
+            <Button type="primary" theme="borderless" size="small" onClick={() => setEditor({ open: true, announcement: record })}>
               {t('table.edit')}
             </Button>
           ) : null}
@@ -266,25 +268,47 @@ export function AnnouncementsPage() {
             <Dropdown
               trigger="click"
               position="bottomRight"
+              visible={moreOpenId === record.id}
+              onVisibleChange={(v) => setMoreOpenId(v ? record.id : null)}
               render={
                 <Dropdown.Menu>
                   {canPublish && (record.state === 'draft' || record.state === 'withdrawn') ? (
-                    <Dropdown.Item onClick={() => requestPublish(record)}>
+                    <Dropdown.Item
+                      onClick={() => {
+                        setMoreOpenId(null);
+                        requestPublish(record);
+                      }}
+                    >
                       {record.state === 'withdrawn' ? t('table.republish') : t('table.publish')}
                     </Dropdown.Item>
                   ) : null}
                   {canRevoke && record.state === 'published' ? (
-                    <Dropdown.Item onClick={() => requestRevoke(record)}>{t('table.revoke')}</Dropdown.Item>
+                    <Dropdown.Item
+                      onClick={() => {
+                        setMoreOpenId(null);
+                        requestRevoke(record);
+                      }}
+                    >
+                      {t('table.revoke')}
+                    </Dropdown.Item>
                   ) : null}
                   {canDelete ? (
-                    <Dropdown.Item type="danger" onClick={() => requestDelete(record)}>
+                    <Dropdown.Item
+                      type="danger"
+                      onClick={() => {
+                        setMoreOpenId(null);
+                        requestDelete(record);
+                      }}
+                    >
                       {t('table.delete')}
                     </Dropdown.Item>
                   ) : null}
                 </Dropdown.Menu>
               }
             >
-              <Button theme="borderless" size="small" icon={<IconMore />} aria-label={t('table.more')} />
+              <Button type="primary" theme="borderless" size="small">
+                {t('table.more')}
+              </Button>
             </Dropdown>
           ) : null}
         </div>
@@ -386,14 +410,6 @@ export function AnnouncementsPage() {
                     }}
                   >
                     {t('clearFilters')}
-                  </Button>
-                ) : canCreate ? (
-                  <Button
-                    size="small"
-                    theme="solid"
-                    onClick={() => setEditor({ open: true, announcement: null })}
-                  >
-                    {t('write')}
                   </Button>
                 ) : null}
               </Empty>

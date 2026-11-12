@@ -13,6 +13,8 @@ export interface Dept {
   sort: number;
   status: UserStatus;
   user_count: number;
+  /** 乐观锁版本：编辑提交时按原值回传 base_version。 */
+  update_time: string;
   children: Dept[];
 }
 
@@ -23,6 +25,8 @@ export interface DeptWrite {
   phone?: string | null;
   sort?: number;
   status?: UserStatus;
+  /** 编辑读到的 update_time 原样回传；不一致返回 409 STALE_VERSION。 */
+  base_version?: string;
 }
 
 export interface DeptTreeQuery extends AdminQuery {

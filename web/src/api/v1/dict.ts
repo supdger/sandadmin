@@ -1,6 +1,12 @@
 import { adminDelete, adminGet, adminPost, adminPut, type AdminQuery } from '@/lib/adminClient';
 import type { Id, UserStatus } from './types';
 
+/** 选项组来源：系统自带 / 插件提供 / 用户自建；plugin 时带插件中文名。 */
+export interface DictTypeSource {
+  kind: 'system' | 'plugin' | 'custom';
+  plugin_label: string | null;
+}
+
 export interface DictType {
   id: Id;
   name: string;
@@ -10,6 +16,8 @@ export interface DictType {
   is_system: boolean;
   extension_key: string | null;
   item_count: number;
+  /** 老接口可能不带该字段，缺省时前端按 is_system 推导。 */
+  source?: DictTypeSource;
 }
 
 export interface DictTypeDetail extends DictType {

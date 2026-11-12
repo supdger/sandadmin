@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { Banner, Button, Form, SideSheet, Space, Toast, withField } from '@douyinfe/semi-ui';
+import { Banner, Button, Form, SideSheet, Toast, withField } from '@douyinfe/semi-ui';
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createDept, updateDept, type Dept, type DeptWrite } from '@/api/v1/depts';
@@ -114,7 +114,11 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     };
     try {
       const saved = isEdit && dept
-        ? await updateDept(dept.id, { ...body, sort: dept.sort })
+        ? await updateDept(dept.id, {
+            ...body,
+            sort: dept.sort,
+            base_version: dept.update_time,
+          })
         : await createDept(body, submitKey);
       Toast.success(t(isEdit ? 'depts.form.saved' : 'depts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
@@ -130,6 +134,12 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
           formApiRef.current?.setError('name', nameErr);
         } else if (phoneErr) {
           formApiRef.current?.setError('phone', phoneErr);
+        } else if (error.code === 'STALE_VERSION') {
+          // 编辑期间被别人改过：刷新成最新数据并关掉抽屉，避免覆盖提交。
+          Toast.warning(t('depts.staleVersion'));
+          void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
+          onSaved();
+          onClose();
         } else {
           setSubmitError(adminErrorMessage(error, t('common:errors.system.message')));
         }
@@ -154,14 +164,14 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
       }
       onCancel={onClose}
       footer={
-        <Space>
+        <div className="flex justify-end gap-2">
           <Button onClick={onClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApiRef.current?.submitForm()}>
             {isEdit ? t('common.save') : t('depts.form.create')}
           </Button>
-        </Space>
+        </div>
       }
     >
       {systemError ? (

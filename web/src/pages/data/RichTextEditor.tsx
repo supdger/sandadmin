@@ -12,10 +12,31 @@ export interface RichTextEditorProps {
   disabled?: boolean;
 }
 
+// 工具栏白名单：只留公告常用的排版项；「上传图片」不在列——附件接口只回
+// file_id，没有可直接给 <img> 用的访问地址契约，配图只支持插入网络图片地址。
+const TOOLBAR_KEYS = [
+  'headerSelect',
+  'bold',
+  'italic',
+  'underline',
+  'color',
+  '|',
+  'justifyLeft',
+  'justifyCenter',
+  'justifyRight',
+  'bulletedList',
+  'numberedList',
+  'blockquote',
+  '|',
+  'insertLink',
+  'clearStyle',
+  '|',
+  'undo',
+  'redo',
+] as const;
+
 /**
- * 正文编辑器（WangEditor 5，MIT）。
- * 工具栏排除「上传图片」：附件接口只回 file_id，没有可直接给 <img> 用的
- * 访问地址契约，正文配图暂只支持插入网络图片地址。
+ * 正文编辑器（WangEditor 5，MIT）。工具栏用 toolbarKeys 白名单收敛到常用项。
  */
 export function RichTextEditor({ defaultHtml, onChange, placeholder, disabled }: RichTextEditorProps) {
   const [editor, setEditor] = useState<IDomEditor | null>(null);
@@ -44,7 +65,7 @@ export function RichTextEditor({ defaultHtml, onChange, placeholder, disabled }:
   };
 
   const toolbarConfig: Partial<IToolbarConfig> = {
-    excludeKeys: ['uploadImage'],
+    toolbarKeys: [...TOOLBAR_KEYS],
   };
 
   return (

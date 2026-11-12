@@ -36,7 +36,7 @@ import { OrgErrorState } from '../shared/OrgErrorState';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
 import { PostFormModal } from './PostFormModal';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -96,6 +96,7 @@ export function PostsPage() {
     open: false,
     post: null,
   });
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   const invalidatePosts = () => {
     void queryClient.invalidateQueries({ queryKey: ['v1', 'posts'] });
@@ -119,7 +120,8 @@ export function PostsPage() {
 
   const toggleStatus = (post: Post) => {
     const next: UserStatus = post.status === 'enabled' ? 'disabled' : 'enabled';
-    confirmAction({
+    const confirm = next === 'disabled' ? confirmDanger : confirmAction;
+    confirm({
       title: t(next === 'disabled' ? 'posts.danger.disableTitle' : 'posts.danger.enableTitle', {
         name: post.name,
       }),
@@ -149,9 +151,12 @@ export function PostsPage() {
   };
 
   const removePost = (post: Post) => {
-    confirmAction({
+    confirmDanger({
       title: t('posts.danger.deleteTitle', { name: post.name }),
-      content: t('posts.danger.deleteContent', { count: post.user_count }),
+      content:
+        post.user_count === 0
+          ? t('posts.danger.deleteNone')
+          : t('posts.danger.deleteContent', { count: post.user_count }),
       okText: t('posts.danger.deleteOk'),
       cancelText: t('common.thinkAgain'),
       okType: 'danger',
@@ -232,8 +237,9 @@ export function PostsPage() {
           <Space spacing={4}>
             {canUpdate ? (
               <Button
-                type="tertiary"
+                type="primary"
                 size="small"
+                theme="borderless"
                 onClick={() => setFormState({ open: true, post: record })}
               >
                 {t('common.edit')}
@@ -243,17 +249,25 @@ export function PostsPage() {
               <Dropdown
                 trigger="click"
                 position="bottomRight"
+                visible={moreOpenId === record.id}
+                onVisibleChange={(v) => setMoreOpenId(v ? record.id : null)}
                 render={
                   <Dropdown.Menu>
                     {menuItems.map((item) => (
-                      <Dropdown.Item key={item.key} onClick={item.onClick}>
+                      <Dropdown.Item
+                        key={item.key}
+                        onClick={() => {
+                          setMoreOpenId(null);
+                          item.onClick();
+                        }}
+                      >
                         {item.name}
                       </Dropdown.Item>
                     ))}
                   </Dropdown.Menu>
                 }
               >
-                <Button type="tertiary" size="small">
+                <Button type="primary" size="small" theme="borderless">
                   {t('common.more')}
                 </Button>
               </Dropdown>
@@ -335,10 +349,6 @@ export function PostsPage() {
         >
           {hasFilter ? (
             <Button onClick={clearFilters}>{t('common.clearFilters')}</Button>
-          ) : canCreate ? (
-            <Button theme="solid" onClick={() => setFormState({ open: true, post: null })}>
-              {t('posts.addPost')}
-            </Button>
           ) : null}
         </Empty>
       ) : (

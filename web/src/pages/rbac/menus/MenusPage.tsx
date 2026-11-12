@@ -21,7 +21,6 @@ import {
   IconEdit,
   IconHandle,
   IconLink,
-  IconMore,
   IconPlus,
   IconRestore,
   IconSearch,
@@ -56,7 +55,7 @@ import {
 } from '@/pages/rbac/lib/menuTree';
 import { MenuFormSheet, type MenuFormMode } from './MenuFormSheet';
 import { MenuPreview } from './MenuPreview';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmDanger } from '@/lib/confirmAction';
 
 const QUERY_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -138,6 +137,8 @@ export function MenusPage() {
   const [dropTarget, setDropTarget] = useState<{ key: string; zone: DropZone } | null>(null);
   const [undo, setUndo] = useState<UndoState | null>(null);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  // 「更多」下拉受控：点菜单项先收起再弹确认框。
+  const [moreOpenKey, setMoreOpenKey] = useState<string | null>(null);
   const undoTimer = useRef<number | undefined>(undefined);
   // 撤销触发的移动不能重新武装撤销条。
   const suppressUndo = useRef(false);
@@ -172,6 +173,16 @@ export function MenusPage() {
 
   const items = useMemo(() => tree.data?.items ?? [], [tree.data]);
   const menuVersion = tree.data?.menu_version ?? 0;
+
+  // 写操作返回的新 menu_version 先写回缓存，避免连续两次写用旧版本被 409。
+  const applyMenuVersion = (result: { menu_version?: number }) => {
+    if (result.menu_version === undefined) return;
+    queryClient.setQueryData(
+      ['rbac', 'menu-tree', { keyword, source }],
+      (old: { items: MenuNode[]; menu_version: number } | undefined) =>
+        old ? { ...old, menu_version: result.menu_version ?? old.menu_version } : old,
+    );
+  };
 
   const groupKeys = useMemo(
     () => items.filter((n) => n.type === 'group').map((n) => n.key),
@@ -238,7 +249,8 @@ export function MenusPage() {
         index: args.index,
         base_version: menuVersion,
       }),
-    onSuccess: (_result, args) => {
+    onSuccess: (result, args) => {
+      applyMenuVersion(result);
       refreshTree();
       if (suppressUndo.current) {
         suppressUndo.current = false;
@@ -280,7 +292,8 @@ export function MenusPage() {
   const visibleMutation = useMutation({
     mutationFn: ({ node, next }: { node: MenuNode; next: boolean }) =>
       setMenuVisible(node.key, { visible: next, base_version: menuVersion }),
-    onSuccess: (_result, { node, next }) => {
+    onSuccess: (result, { node, next }) => {
+      applyMenuVersion(result);
       refreshTree();
       Toast.success(
         next
@@ -302,7 +315,8 @@ export function MenusPage() {
 
   const resetMutation = useMutation({
     mutationFn: resetMenus,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      applyMenuVersion(result);
       refreshTree();
       Toast.success(t('menus.toast.resetDone'));
     },
@@ -310,7 +324,7 @@ export function MenusPage() {
   });
 
   const confirmDelete = (node: MenuNode) => {
-    confirmAction({
+    confirmDanger({
       title:
         node.type === 'group'
           ? t('menus.confirm.deleteGroupTitle', { name: node.title })
@@ -331,12 +345,12 @@ export function MenusPage() {
   };
 
   const confirmReset = () => {
-    confirmAction({
+    confirmDanger({
       title: t('menus.confirm.resetTitle'),
       content: t('menus.confirm.resetBody'),
       okText: t('menus.confirm.resetOk'),
       cancelText: t('menus.confirm.thinkAgain'),
-      okButtonProps: { type: 'primary' },
+      okButtonProps: { type: 'danger' },
       onOk: () => resetMutation.mutate(),
     });
   };
@@ -517,11 +531,14 @@ export function MenusPage() {
               <Dropdown
                 trigger="click"
                 position="bottomRight"
+                visible={moreOpenKey === node.key}
+                onVisibleChange={(v) => setMoreOpenKey(v ? node.key : null)}
                 render={
                   <Dropdown.Menu>
                     {canUpdate && node.type !== 'group' ? (
                       <Dropdown.Item
                         onClick={() => {
+                          setMoreOpenKey(null);
                           setMoveNode(node);
                           setMoveParent('');
                         }}
@@ -535,6 +552,7 @@ export function MenusPage() {
                           icon={<IconArrowUp />}
                           disabled={!siblingMoveIndex(items, row, -1)}
                           onClick={() => {
+                            setMoreOpenKey(null);
                             const target = siblingMoveIndex(items, row, -1);
                             if (target) requestMove(node.key, target.parent_key, target.index);
                           }}
@@ -545,6 +563,7 @@ export function MenusPage() {
                           icon={<IconArrowDown />}
                           disabled={!siblingMoveIndex(items, row, 1)}
                           onClick={() => {
+                            setMoreOpenKey(null);
                             const target = siblingMoveIndex(items, row, 1);
                             if (target) requestMove(node.key, target.parent_key, target.index);
                           }}
@@ -557,7 +576,10 @@ export function MenusPage() {
                       <Dropdown.Item
                         icon={<IconDelete />}
                         type="danger"
-                        onClick={() => confirmDelete(node)}
+                        onClick={() => {
+                          setMoreOpenKey(null);
+                          confirmDelete(node);
+                        }}
                       >
                         {t('menus.delete')}
                       </Dropdown.Item>
@@ -565,12 +587,9 @@ export function MenusPage() {
                   </Dropdown.Menu>
                 }
               >
-                <Button
-                  size="small"
-                  theme="borderless"
-                  icon={<IconMore />}
-                  aria-label={t('menus.more')}
-                />
+                <Button size="small" type="primary" theme="borderless">
+                  {t('menus.more')}
+                </Button>
               </Dropdown>
             </div>
           );
@@ -735,8 +754,12 @@ export function MenusPage() {
           mode={sheet.mode}
           node={sheet.node}
           items={items}
+          menuVersion={menuVersion}
           onClose={() => setSheet(null)}
-          onSaved={refreshTree}
+          onSaved={(result) => {
+            if (result) applyMenuVersion(result);
+            refreshTree();
+          }}
         />
       ) : null}
 

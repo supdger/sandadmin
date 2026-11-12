@@ -53,6 +53,7 @@ interface DictTypeRecord {
   code: string;
   remark: string | null;
   is_system: boolean;
+  source?: { kind: 'system' | 'plugin' | 'custom'; plugin_label: string | null };
 }
 
 interface DictItemRecord {
@@ -70,12 +71,14 @@ interface DictItemRecord {
 }
 
 const dictTypes: DictTypeRecord[] = [
-  { id: 'dict-type-1', name: '客户来源', code: 'customer_source', remark: '客户从哪里知道我们', is_system: true },
-  { id: 'dict-type-2', name: '用户状态', code: 'user_state', remark: null, is_system: true },
-  { id: 'dict-type-3', name: '请假类型', code: 'leave_type', remark: '员工请假时可选的类型', is_system: false },
-  { id: 'dict-type-4', name: '快递公司', code: 'express_company', remark: null, is_system: false },
-  { id: 'dict-type-5', name: '备用选项组', code: 'reserved_group', remark: '预留给后续业务使用', is_system: false },
-  { id: 'dict-type-6', name: '会员等级', code: 'member_level', remark: null, is_system: false },
+  { id: 'dict-type-1', name: '客户来源', code: 'customer_source', remark: '客户从哪里知道我们', is_system: true, source: { kind: 'system', plugin_label: null } },
+  { id: 'dict-type-2', name: '用户状态', code: 'user_state', remark: null, is_system: true, source: { kind: 'system', plugin_label: null } },
+  { id: 'dict-type-3', name: '请假类型', code: 'leave_type', remark: '员工请假时可选的类型', is_system: false, source: { kind: 'custom', plugin_label: null } },
+  { id: 'dict-type-4', name: '快递公司', code: 'express_company', remark: null, is_system: false, source: { kind: 'custom', plugin_label: null } },
+  { id: 'dict-type-5', name: '备用选项组', code: 'reserved_group', remark: '预留给后续业务使用', is_system: false, source: { kind: 'custom', plugin_label: null } },
+  { id: 'dict-type-6', name: '会员等级', code: 'member_level', remark: null, is_system: false, source: { kind: 'custom', plugin_label: null } },
+  // 插件带进来的组：is_system 也为 true（后端同样不给删），用 source 区分显示。
+  { id: 'dict-type-7', name: '审批状态', code: 'approval_state', remark: null, is_system: true, source: { kind: 'plugin', plugin_label: '流程审批' } },
 ];
 
 function dictItem(
@@ -599,6 +602,7 @@ export default [
       code: `custom_${dictTypeSeq}`,
       remark: body.remark?.trim() || null,
       is_system: false,
+      source: { kind: 'custom', plugin_label: null },
     };
     dictTypes.push(created);
     return okV1(dictTypeView(created));
