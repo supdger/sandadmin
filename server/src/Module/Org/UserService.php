@@ -219,6 +219,83 @@ final class UserService
         ];
     }
 
+    /** @return array<string, mixed> */
+    public function passwordPolicy(int $id): array
+    {
+        $this->requireAlive($id);
+        $admin = $this->holdsAdminTier($id);
+
+        return [
+            'tier' => $admin ? 'admin' : 'normal',
+            'min_length' => $admin ? 10 : 8,
+            'require_letter' => true,
+            'require_digit' => true,
+            'forbid_weak' => true,
+            'forbid_same_as_username' => true,
+            'forbid_same_as_previous' => 0,
+        ];
+    }
+
+    /**
+     * 校验旧口令后换新哈希。明文只用于校验，不写日志、不进返回值。
+     *
+     * @return array{changed: true}
+     */
+    public function changePassword(int $id, string $oldPassword, string $newPassword): array
+    {
+        $row = $this->requireAlive($id);
+        $stored = $this->connection->fetchOne(
+            'SELECT password_hash FROM sand_system_user WHERE id = :id AND delete_time IS NULL',
+            ['id' => $id],
+        );
+        $hash = is_string($stored) ? $stored : '';
+        if ($hash === '' || !password_verify($oldPassword, $hash)) {
+            throw OrgException::invalid(
+                ['old_password' => ['当前密码不对，请再输一遍']],
+                '当前密码不对，请再输一遍',
+            );
+        }
+        $policy = $this->passwordPolicy($id);
+        $minLength = is_int($policy['min_length']) ? $policy['min_length'] : 8;
+        if (strlen($newPassword) < $minLength) {
+            throw OrgException::invalid(
+                ['new_password' => ["密码太短了，至少要 {$minLength} 位"]],
+                '密码太短了',
+            );
+        }
+        if (preg_match('/[A-Za-z]/', $newPassword) !== 1 || preg_match('/\d/', $newPassword) !== 1) {
+            throw OrgException::invalid(
+                ['new_password' => ['密码里要有字母和数字']],
+                '密码里要有字母和数字',
+            );
+        }
+        $username = is_string($row['username'] ?? null) ? $row['username'] : '';
+        if ($username !== '' && strcasecmp($newPassword, $username) === 0) {
+            throw OrgException::invalid(
+                ['new_password' => ['密码不能和账号一样，请换一个']],
+                '密码不能和账号一样，请换一个',
+            );
+        }
+        $this->connection->executeStatement(
+            'UPDATE sand_system_user SET password_hash = :hash, password_changed_time = CURRENT_TIMESTAMP WHERE id = :id',
+            ['hash' => $this->hashPassword($newPassword), 'id' => $id],
+        );
+
+        return ['changed' => true];
+    }
+
+    private function holdsAdminTier(int $id): bool
+    {
+        $found = $this->connection->fetchOne(
+            'SELECT 1 FROM sand_system_user_role ur'
+            . ' JOIN sand_system_role r ON r.id = ur.role_id'
+            . ' WHERE ur.user_id = :id AND r.is_super = true',
+            ['id' => $id],
+        );
+
+        return $found !== false && $found !== null;
+    }
+
     /**
      * 只改本人能改的资料。部门、岗位、角色和启停状态保持原样。
      *

@@ -480,7 +480,7 @@ final class PackageOps
                 'check' => ['done' => false, 'stage' => '正在备份数据', 'stage_key' => 'backup', 'progress' => 40],
                 'backup' => ['done' => false, 'stage' => '正在下载新版本', 'stage_key' => 'download', 'progress' => 60],
                 'download' => ['done' => false, 'stage' => '正在切换到新版本', 'stage_key' => 'switch', 'progress' => 80],
-                'switch' => ['done' => false, 'stage' => '正在确认能正常用', 'stage_key' => 'verify', 'progress' => 90],
+                'switch' => ['done' => false, 'stage' => '正在确认能正常用', 'stage_key' => 'verify', 'progress' => 100],
                 'verify' => ['done' => true, 'stage' => '已完成', 'stage_key' => 'verify', 'progress' => 100],
             ];
 
@@ -557,7 +557,24 @@ final class PackageOps
             'compiled' => PackageGate::compiled(),
             'package_ops_enabled' => $ops,
             'running_request' => $running,
+            'last_failed_request' => $running === null ? $this->latestFailedUpdate() : null,
         ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function latestFailedUpdate(): ?array
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT public_id::text AS public_id, kind, target_code, source, from_version, to_version, purge_data,'
+            . ' state, stage, stage_key, progress, rolled_back, error_code, error_message, create_time, start_time, finish_time'
+            . ' FROM sand_system_lifecycle_request WHERE kind = \'system_upgrade\' AND state = \'failed\''
+            . ' ORDER BY id DESC LIMIT 1',
+        );
+        if ($row === false) {
+            return null;
+        }
+
+        return $this->requestBody($row);
     }
 
     /** @return array<string, mixed>|null */
@@ -573,6 +590,16 @@ final class PackageOps
             return null;
         }
 
+        return $this->requestBody($row);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    private function requestBody(array $row): array
+    {
         return [
             'id' => $row['public_id'],
             'kind' => $row['kind'],
@@ -586,7 +613,7 @@ final class PackageOps
             'stage' => $row['stage'],
             'stage_key' => $row['stage_key'],
             'progress' => OrgSql::int($row['progress'] ?? 0),
-            'rolled_back' => ($row['rolled_back'] ?? null) === true || ($row['rolled_back'] ?? null) === 't',
+            'rolled_back' => ($row['rolled_back'] ?? null) === true || ($row['rolled_back'] ?? null) === 't' || ($row['rolled_back'] ?? null) === '1',
             'error_code' => $row['error_code'],
             'error_message' => $row['error_message'],
             'create_time' => is_string($row['create_time'] ?? null) ? $row['create_time'] : '',

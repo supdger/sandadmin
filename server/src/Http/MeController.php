@@ -41,6 +41,33 @@ final class MeController
         });
     }
 
+    public function passwordPolicy(Request $request): Response
+    {
+        return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
+                throw OrgException::unauthenticated();
+            }
+
+            return ApiOutcome::ok($kernel->users->passwordPolicy($actor->userId), $requestId);
+        });
+    }
+
+    public function changePassword(Request $request): Response
+    {
+        return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
+                throw OrgException::unauthenticated();
+            }
+            $body = $this->body($request);
+            $oldPassword = is_string($body['old_password'] ?? null) ? $body['old_password'] : '';
+            $newPassword = is_string($body['new_password'] ?? null) ? $body['new_password'] : '';
+
+            return ApiOutcome::ok($kernel->users->changePassword($actor->userId, $oldPassword, $newPassword), $requestId);
+        });
+    }
+
     public function updateProfile(Request $request): Response
     {
         return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {

@@ -13,11 +13,11 @@ namespace Sandadmin\Module\Package;
  */
 final class PackageGate
 {
-    public const COMPILED_MESSAGE = '这是编译版，不能在网页上安装或升级插件。请让负责部署的人在开发环境装好后重新打包上传。';
+    public const COMPILED_MESSAGE = '这个后台不能在网页上安装或升级插件，要加插件请找负责部署的人。';
 
-    public const UPDATE_COMPILED_MESSAGE = '这是编译版，不能在网页上升级。请让负责部署的人在开发环境升级后重新打包上传。';
+    public const UPDATE_COMPILED_MESSAGE = '这个后台不能在网页上升级，要升级请找负责部署的人。';
 
-    public const COMPILED_PLUGIN_MESSAGE = '不能在网页上安装编译过的插件。请让负责部署的人在开发环境装好后重新打包上传。';
+    public const COMPILED_PLUGIN_MESSAGE = '这个后台不能在网页上安装或升级插件，要加插件请找负责部署的人。';
 
     public static function production(): bool
     {

@@ -22,6 +22,7 @@ use Sandadmin\Http\LifecycleController;
 use Sandadmin\Http\PackageController;
 use Sandadmin\Http\MeController;
 use Sandadmin\Http\MenuController;
+use Sandadmin\Http\NotificationController;
 use Sandadmin\Http\OrgController;
 use Sandadmin\Http\TaskController;
 use Webman\Route;
@@ -68,10 +69,18 @@ Route::post('/api/admin/v1/announcements/{announcement_id}/revoke', [Announcemen
 Route::post('/api/admin/v1/announcements/{announcement_id}/read', [AnnouncementController::class, 'markRead']);
 Route::get('/api/admin/v1/announcements/{announcement_id}/read-stats', [AnnouncementController::class, 'readStats']);
 
+// 消息中心：未读数 = 本人未读通知 + 当前可见未读公告。静态路径先于带编号的路径。
+Route::get('/api/admin/v1/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+Route::post('/api/admin/v1/notifications/read-all', [NotificationController::class, 'markAllRead']);
+Route::get('/api/admin/v1/notifications', [NotificationController::class, 'index']);
+Route::post('/api/admin/v1/notifications/{notification_id}/read', [NotificationController::class, 'markRead']);
+
 // 生命周期申请详情：对外编号为 public_id（uuid）；契约无取消端点。
 Route::get('/api/admin/v1/lifecycle-requests/{request_id}', [LifecycleController::class, 'show']);
 
 // 当前登录人与侧栏。开发本机登录的令牌在 MeController 内解析。
+Route::get('/api/admin/v1/auth/password-policy', [MeController::class, 'passwordPolicy']);
+Route::post('/api/admin/v1/auth/password/change', [MeController::class, 'changePassword']);
 Route::get('/api/admin/v1/me', [MeController::class, 'me']);
 Route::get('/api/admin/v1/me/profile', [MeController::class, 'profile']);
 Route::put('/api/admin/v1/me/profile', [MeController::class, 'updateProfile']);
