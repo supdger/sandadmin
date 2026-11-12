@@ -138,11 +138,14 @@ final class SearchService
         $items = [];
         foreach ($rows as $row) {
             $nickname = OrgSql::str($row['nickname'] ?? null);
+            $username = OrgSql::str($row['username'] ?? null);
+            // UsersPage 按 keyword 过滤参数回填搜索框（与 mock/前端一致）
+            $keyword = $username !== '' ? $username : $nickname;
             $items[] = [
                 'id' => (string) OrgSql::int($row['id'] ?? null),
-                'title' => $nickname !== '' ? $nickname : OrgSql::str($row['username'] ?? null),
+                'title' => $nickname !== '' ? $nickname : $username,
                 'subtitle' => OrgSql::str($row['dept_name'] ?? '') !== '' ? OrgSql::str($row['dept_name']) : null,
-                'link' => '/system/user?user_id=' . OrgSql::int($row['id'] ?? null),
+                'link' => '/system/user?keyword=' . rawurlencode($keyword),
             ];
         }
 
