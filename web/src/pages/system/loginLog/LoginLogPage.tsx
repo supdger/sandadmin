@@ -314,7 +314,8 @@ export function LoginLogPage() {
         onCancel={() => setDetailId(null)}
         title={t('detail.title')}
         footer={
-          <div className="flex justify-between w-full">
+          // 规格：底部按钮固定右下，主按钮（查看用户）在最右。
+          <div className="flex justify-end gap-2 w-full">
             <Button onClick={() => setDetailId(null)}>{t('detail.close')}</Button>
             {detail?.user_id ? (
               <Button
@@ -327,9 +328,7 @@ export function LoginLogPage() {
               >
                 {t('detail.viewUser')}
               </Button>
-            ) : (
-              <span />
-            )}
+            ) : null}
           </div>
         }
       >

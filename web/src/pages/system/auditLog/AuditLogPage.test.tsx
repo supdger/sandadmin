@@ -45,6 +45,19 @@ describe('AuditLogPage', () => {
     expect(screen.queryByText(/\*\*\*/)).not.toBeInTheDocument();
   });
 
+  it('详情按规格字段集展示：有对象行，不显示地址与请求编号', async () => {
+    renderPage();
+    await userEvent.click(await screen.findByText('重置了用户李四的密码'));
+    // 「对象」行渲染 target_label（李四）。
+    const target = await screen.findByText('对象');
+    expect(target.closest('tr')).toHaveTextContent('李四');
+    // 来源地址/ip 数字、请求编号/request_id 不上屏。
+    expect(screen.queryByText('来源地址')).toBeNull();
+    expect(screen.queryByText('请求编号')).toBeNull();
+    expect(screen.queryByText('req-audit-4')).toBeNull();
+    expect(screen.queryByText(/10\.0\.0\./)).toBeNull();
+  });
+
   it('更多条件展开功能与结果筛选', async () => {
     renderPage();
     await userEvent.click(await screen.findByRole('button', { name: '更多条件' }));

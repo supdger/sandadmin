@@ -377,18 +377,17 @@ export function AuditLogPage() {
       >
         {detail ? (
           <div className="flex flex-col gap-4">
+            {/* 规格字段集：谁/时间/功能/做了什么/对象 → 改了什么 → 结果/地点/设备。
+                ip 与 request_id 不上屏——规格明文不显示地址数字，排查信息
+                不单独成行。 */}
             <Descriptions
               align="left"
               data={[
                 { key: t('columns.actor'), value: detail.actor_name },
-                { key: t('columns.action'), value: detail.action_text },
-                { key: t('columns.module'), value: detail.module_label ?? '' },
-                { key: t('columns.result'), value: detail.succeeded ? t('result.ok') : t('result.failed') },
                 { key: t('columns.time'), value: formatDateTime(detail.create_time) },
-                ...(detail.location ? [{ key: t('columns.location'), value: detail.location }] : []),
-                ...(detail.device_label ? [{ key: t('detail.device'), value: detail.device_label }] : []),
-                ...(detail.ip ? [{ key: t('detail.source'), value: detail.ip }] : []),
-                { key: t('detail.request'), value: detail.request_id },
+                { key: t('columns.module'), value: detail.module_label ?? '' },
+                { key: t('columns.action'), value: detail.action_text },
+                ...(detail.target_label ? [{ key: t('detail.target'), value: detail.target_label }] : []),
               ]}
             />
             <div>
@@ -416,6 +415,14 @@ export function AuditLogPage() {
                 />
               )}
             </div>
+            <Descriptions
+              align="left"
+              data={[
+                { key: t('columns.result'), value: detail.succeeded ? t('result.ok') : t('result.failed') },
+                ...(detail.location ? [{ key: t('columns.location'), value: detail.location }] : []),
+                ...(detail.device_label ? [{ key: t('detail.device'), value: detail.device_label }] : []),
+              ]}
+            />
           </div>
         ) : null}
       </SideSheet>

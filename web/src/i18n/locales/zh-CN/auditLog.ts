@@ -42,14 +42,13 @@ export default {
 
   detail: {
     title: '操作详情',
+    target: '对象',
     changes: '改动内容',
     before: '改前',
     after: '改后',
     masked: '已修改',
     noChanges: '这次操作没有可展示的改动明细',
-    source: '来源地址',
     device: '设备',
-    request: '请求编号',
     close: '关闭',
   },
 
