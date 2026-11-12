@@ -31,7 +31,34 @@ export class MenuProcessor {
     }
 
     // 规范化路径（将相对路径转换为完整路径）
-    return this.normalizeMenuPaths(menuList)
+    return this.normalizeMenuPaths(this.hideDevPages(menuList))
+  }
+
+  /**
+   * 费用核对、应用试用、AI 工作流、任务排障、材料整理只在开发登录里出现。
+   * 路由仍注册，普通构建不放进侧栏。
+   */
+  private hideDevPages(menuList: AppRouteRecord[]): AppRouteRecord[] {
+    if (import.meta.env.VITE_SAND_DEV_LOGIN === '1') {
+      return menuList
+    }
+    const hidden = new Set([
+      '/sand-ai/usage-review',
+      '/sand-ai/app-trial',
+      '/sand-ai/ai-workflows',
+      '/sand-ai/task',
+      '/sand-ai/material-config'
+    ])
+    const walk = (items: AppRouteRecord[]): AppRouteRecord[] =>
+      items.flatMap((item) => {
+        const path = item.path || ''
+        if (hidden.has(path)) {
+          return []
+        }
+        const children = item.children ? walk(item.children) : item.children
+        return [{ ...item, children }]
+      })
+    return walk(menuList)
   }
 
   /**
