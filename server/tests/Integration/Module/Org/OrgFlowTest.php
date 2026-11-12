@@ -700,6 +700,55 @@ final class OrgFlowTest extends TestCase
         });
     }
 
+    public function testUninstallWithoutPurgeSuspendsResidueAndReinstallResumes(): void
+    {
+        $this->withPackageEnv('development', '0', '1', function (): void {
+            $owner = $this->ownerActor('13700009072', 'pkgsusp', '甲测停用人');
+            $ops = new PackageOps(self::$conn);
+            $accepted = $ops->install('flow', $owner, 'req-pkg-sus');
+            $this->assertSame(200, $accepted['status']);
+            $data = $accepted['body']['data'] ?? null;
+            $this->assertIsArray($data);
+            $requestId = $data['request_id'] ?? '';
+            $this->assertIsString($requestId);
+            $this->finishPackageRequest($ops, $requestId);
+            self::$conn->executeStatement(
+                "INSERT INTO sand_system_plugin_extension (plugin_code, kind, extension_key, enabled, sort)"
+                . " VALUES ('flow', 'workbench_card', 'flow.pending', false, 3)",
+            );
+            self::$conn->executeStatement(
+                "INSERT INTO sand_system_schedule (code, plugin_code, enabled, next_run_time)"
+                . " VALUES ('flow.tick', 'flow', true, CURRENT_TIMESTAMP)",
+            );
+            $removed = $ops->uninstall('flow', false, $owner, 'req-pkg-sus-off');
+            $this->assertSame(200, $removed['status']);
+            $off = $removed['body']['data'] ?? null;
+            $this->assertIsArray($off);
+            $offId = $off['request_id'] ?? '';
+            $this->assertIsString($offId);
+            $this->finishPackageRequest($ops, $offId);
+            $this->assertSame(1, $this->rowsMatching(
+                "SELECT COUNT(*) FROM sand_system_plugin_extension WHERE plugin_code = 'flow' AND suspend_time IS NOT NULL",
+            ));
+            $this->assertSame(1, $this->rowsMatching(
+                "SELECT COUNT(*) FROM sand_system_schedule WHERE code = 'flow.tick' AND suspend_time IS NOT NULL",
+            ));
+            $again = $ops->install('flow', $owner, 'req-pkg-sus-back');
+            $this->assertSame(200, $again['status']);
+            $back = $again['body']['data'] ?? null;
+            $this->assertIsArray($back);
+            $backId = $back['request_id'] ?? '';
+            $this->assertIsString($backId);
+            $this->finishPackageRequest($ops, $backId);
+            $this->assertSame(1, $this->rowsMatching(
+                "SELECT COUNT(*) FROM sand_system_plugin_extension WHERE plugin_code = 'flow' AND suspend_time IS NULL",
+            ));
+            $this->assertSame(1, $this->rowsMatching(
+                "SELECT COUNT(*) FROM sand_system_schedule WHERE code = 'flow.tick' AND suspend_time IS NULL",
+            ));
+        });
+    }
+
     private function finishPackageRequest(PackageOps $ops, string $requestId): void
     {
         for ($step = 0; $step < 6; $step++) {
