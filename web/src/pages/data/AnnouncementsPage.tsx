@@ -411,14 +411,6 @@ export function AnnouncementsPage() {
                   >
                     {t('clearFilters')}
                   </Button>
-                ) : canCreate ? (
-                  <Button
-                    size="small"
-                    theme="solid"
-                    onClick={() => setEditor({ open: true, announcement: null })}
-                  >
-                    {t('write')}
-                  </Button>
                 ) : null}
               </Empty>
             }
