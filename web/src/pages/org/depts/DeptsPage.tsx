@@ -13,6 +13,7 @@ import {
   Space,
   Table,
   Toast,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconPlus, IconSearch } from '@douyinfe/semi-icons';
@@ -460,7 +461,15 @@ export function DeptsPage() {
       width: 200,
       fixed: 'right',
       render: (_: unknown, record: Dept) => {
-        const menuItems: { key: string; name: string; danger?: boolean; onClick: () => void }[] = [
+        const hasChildren = (record.children?.length ?? 0) > 0;
+        const menuItems: {
+          key: string;
+          name: string;
+          danger?: boolean;
+          disabled?: boolean;
+          hint?: string;
+          onClick: () => void;
+        }[] = [
           canUpdate
             ? {
                 key: 'toggle',
@@ -473,6 +482,8 @@ export function DeptsPage() {
                 key: 'delete',
                 name: t('common.delete'),
                 danger: true,
+                disabled: hasChildren,
+                hint: hasChildren ? t('depts.danger.deleteChildHint') : undefined,
                 onClick: () => void removeDept(record),
               }
             : null,
@@ -503,15 +514,25 @@ export function DeptsPage() {
                 position="bottomRight"
                 render={
                   <Dropdown.Menu>
-                    {menuItems.map((item) => (
-                      <Dropdown.Item
-                        key={item.key}
-                        type={item.danger ? 'danger' : undefined}
-                        onClick={item.onClick}
-                      >
-                        {item.name}
-                      </Dropdown.Item>
-                    ))}
+                    {menuItems.map((item) => {
+                      const entry = (
+                        <Dropdown.Item
+                          disabled={item.disabled}
+                          type={item.danger && !item.disabled ? 'danger' : undefined}
+                          onClick={item.disabled ? undefined : item.onClick}
+                        >
+                          {item.name}
+                        </Dropdown.Item>
+                      );
+                      if (item.disabled && item.hint) {
+                        return (
+                          <Tooltip key={item.key} content={item.hint} position="left">
+                            <span style={{ display: 'block' }}>{entry}</span>
+                          </Tooltip>
+                        );
+                      }
+                      return <span key={item.key}>{entry}</span>;
+                    })}
                   </Dropdown.Menu>
                 }
               >

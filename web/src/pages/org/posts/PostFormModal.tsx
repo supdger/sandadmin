@@ -8,7 +8,6 @@ import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createPost, updatePost, type Post, type PostWrite } from '@/api/v1/posts';
 import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
-import type { UserStatus } from '@/api/v1/types';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
@@ -63,10 +62,11 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
     setSaving(true);
     setSystemError(null);
     setSubmitError('');
+    const status = values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
     const body: PostWrite = {
       name: (values.name ?? '').trim(),
       remark: values.remark?.trim() || null,
-      status: (values.status === false ? 'disabled' : 'enabled') as UserStatus,
+      ...(status !== undefined ? { status } : {}),
     };
     try {
       const saved = isEdit && post

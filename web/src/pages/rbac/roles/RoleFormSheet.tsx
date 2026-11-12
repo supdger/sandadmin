@@ -117,9 +117,15 @@ export function RoleFormSheet({ role, onClose, onSaved }: RoleFormSheetProps) {
             }}
           />
           {nameError ? (
-            <Typography.Text type="danger" size="small">
-              {nameError}
-            </Typography.Text>
+            <div className="mt-1 w-full">
+              <Typography.Text
+                type="danger"
+                size="small"
+                style={{ display: 'block', whiteSpace: 'nowrap' }}
+              >
+                {nameError}
+              </Typography.Text>
+            </div>
           ) : null}
         </div>
         <div>

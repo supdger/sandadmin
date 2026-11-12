@@ -33,6 +33,11 @@ final class RoleService
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
             ['action' => 'permission:update', 'label' => '设置权限'],
         ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:menu', 'title' => '菜单管理', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
+            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
+            ['action' => 'reset', 'label' => '恢复默认'],
+        ]],
         ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:dict', 'title' => '选项管理', 'actions' => [
             ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
@@ -138,6 +143,7 @@ final class RoleService
         $before = $this->requireRow($id);
         $this->assertWritable($before);
         $draft = $this->draft($body);
+        $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         try {
             $this->connection->transactional(function () use ($id, $draft, $actor, $before, $requestId, $ip, $device): void {
                 $this->connection->executeStatement(

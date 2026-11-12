@@ -144,6 +144,7 @@ final class UserService
     {
         $before = $this->requireAlive($id);
         $draft = $this->draft($body, false);
+        $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         $this->assertRefs($draft['dept_id'], $draft['post_id'], $draft['role_ids']);
         $flags = $this->flagsForRoles($draft['role_ids']);
         $this->guardLastAdmin($id, $draft['status'] === 1 && $flags['is_super']);
@@ -194,6 +195,83 @@ final class UserService
         }
 
         return $this->show($id);
+    }
+
+    /** @return array<string, mixed> */
+    public function profile(int $id): array
+    {
+        $row = $this->requireAlive($id);
+        $roles = $this->rolesForUsers([$id]);
+        $pair = $roles[$id] ?? ['ids' => [], 'names' => []];
+
+        return [
+            'id' => (string) OrgSql::int($row['id'] ?? null),
+            'username' => ($row['username'] ?? null) === null ? null : OrgSql::str($row['username']),
+            'nickname' => OrgSql::str($row['nickname'] ?? null),
+            'avatar' => null,
+            'avatar_file_id' => ($row['avatar_file_id'] ?? null) === null ? null : (string) OrgSql::int($row['avatar_file_id']),
+            'phone' => OrgSql::str($row['phone'] ?? null),
+            'email' => ($row['email'] ?? null) === null ? null : OrgSql::str($row['email']),
+            'dept_name' => ($row['dept_name'] ?? null) === null ? null : OrgSql::str($row['dept_name']),
+            'post_name' => ($row['post_name'] ?? null) === null ? null : OrgSql::str($row['post_name']),
+            'role_names' => $pair['names'],
+            'password_changed_time' => OrgSql::time($row['password_changed_time'] ?? null) ?? '',
+        ];
+    }
+
+    /**
+     * 只改本人能改的资料。部门、岗位、角色和启停状态保持原样。
+     *
+     * @param array<string, mixed> $body
+     *
+     * @return array<string, mixed>
+     */
+    public function updateProfile(int $id, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
+    {
+        $before = $this->requireAlive($id);
+        $nickname = OrgInput::requiredText($body, 'nickname');
+        if (mb_strlen($nickname) > 20) {
+            throw OrgException::invalid(['nickname' => ['姓名最多 20 个字']]);
+        }
+        $phone = OrgInput::requiredText($body, 'phone');
+        if (preg_match('/^1[0-9]{10}$/', $phone) !== 1) {
+            throw OrgException::invalid(['phone' => ['手机号要 11 位数字，请检查后再填']]);
+        }
+        $email = OrgInput::optionalText($body, 'email');
+        if ($email !== null && preg_match('/^[^@\s]+@[^@\s]+\.[^@\s]+$/', $email) !== 1) {
+            throw OrgException::invalid(['email' => ['邮箱格式不对，例如 name@company.com']]);
+        }
+        $avatarId = array_key_exists('avatar_file_id', $body)
+            ? OrgInput::optionalId($body, 'avatar_file_id')
+            : (($before['avatar_file_id'] ?? null) === null ? null : OrgSql::int($before['avatar_file_id']));
+        if ($avatarId !== null) {
+            $found = OrgSql::int($this->connection->fetchOne('SELECT COUNT(*) FROM sand_system_file WHERE id = ?', [$avatarId]));
+            if ($found !== 1) {
+                throw OrgException::invalid(['avatar_file_id' => ['头像文件不存在']]);
+            }
+        }
+        try {
+            $this->connection->transactional(function () use ($id, $nickname, $phone, $email, $avatarId, $actor, $requestId, $ip, $device): void {
+                $this->connection->executeStatement(
+                    'UPDATE sand_system_user SET nickname = :nickname, phone = :phone, email = :email,'
+                    . ' avatar_file_id = :avatar, updated_by = :by, update_time = CURRENT_TIMESTAMP'
+                    . ' WHERE id = :id AND delete_time IS NULL',
+                    [
+                        'nickname' => $nickname,
+                        'phone' => $phone,
+                        'email' => $email,
+                        'avatar' => $avatarId,
+                        'by' => $actor->writerId(),
+                        'id' => $id,
+                    ],
+                );
+                $this->audit->record($actor, 'user', 'update', '保存了个人资料' . $nickname, 'user', (string) $id, $nickname, $requestId, $ip, $device);
+            });
+        } catch (\Throwable $error) {
+            OrgDbMap::map($error);
+        }
+
+        return $this->profile($id);
     }
 
     /** @return array<string, mixed> */
@@ -612,7 +690,7 @@ final class UserService
         $row = $this->connection->fetchAssociative(
             'SELECT u.id, u.username, u.nickname, u.phone, u.email, u.avatar_file_id, u.dept_id,'
             . ' d.name AS dept_name, u.post_id, p.name AS post_name, u.status, u.is_admin, u.is_super,'
-            . ' u.must_change_password, u.last_login_time, u.create_time'
+            . ' u.must_change_password, u.last_login_time, u.create_time, u.password_changed_time'
             . ' FROM sand_system_user u'
             . ' LEFT JOIN sand_system_dept d ON d.id = u.dept_id'
             . ' LEFT JOIN sand_system_post p ON p.id = u.post_id'

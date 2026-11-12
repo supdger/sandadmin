@@ -101,6 +101,7 @@ final class DeptService
     {
         $before = $this->requireRow($id);
         $draft = $this->draft($body);
+        $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         if ($draft['parent_id'] === $id) {
             throw OrgException::invalid(['parent_id' => ['不能把部门挪到它自己下面']]);
         }
@@ -173,8 +174,8 @@ final class DeptService
             $this->deletion->delete($id);
         } catch (DeptNotFoundException) {
             throw OrgException::deptNotFound();
-        } catch (DeptNotEmptyException) {
-            throw OrgException::deptNotEmpty($name . '现在还不能删除');
+        } catch (DeptNotEmptyException $error) {
+            throw OrgException::deptNotEmpty($error->getMessage());
         }
         $this->audit->record($actor, 'dept', 'delete', '删除了部门' . $name, 'dept', (string) $id, $name, $requestId, $ip, $device);
     }
@@ -272,7 +273,7 @@ final class DeptService
     /** @return array<string, mixed> */
     private function requireRow(int $id): array
     {
-        $row = $this->connection->fetchAssociative('SELECT id, name FROM sand_system_dept WHERE id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT id, name, status FROM sand_system_dept WHERE id = ?', [$id]);
         if ($row === false) {
             throw OrgException::deptNotFound();
         }

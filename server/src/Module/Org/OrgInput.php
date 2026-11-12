@@ -103,6 +103,21 @@ final class OrgInput
         throw OrgException::invalid(['status' => ['状态不正确']]);
     }
 
+    /**
+     * 更新时请求没带状态，就沿用库里的值。
+     * 缺省不能当成启用，否则只改名字会把已停用覆盖回去。
+     *
+     * @param array<string, mixed> $body
+     */
+    public static function keptStatus(array $body, int $current): int
+    {
+        if (!array_key_exists('status', $body) || $body['status'] === null || $body['status'] === '') {
+            return $current;
+        }
+
+        return self::status($body);
+    }
+
     /** @param array<string, mixed> $body */
     public static function sort(array $body): int
     {

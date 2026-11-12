@@ -29,6 +29,33 @@ final class MeController
         });
     }
 
+    public function profile(Request $request): Response
+    {
+        return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
+                throw OrgException::unauthenticated();
+            }
+
+            return ApiOutcome::ok($kernel->users->profile($actor->userId), $requestId);
+        });
+    }
+
+    public function updateProfile(Request $request): Response
+    {
+        return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
+                throw OrgException::unauthenticated();
+            }
+
+            return ApiOutcome::ok(
+                $kernel->users->updateProfile($actor->userId, $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $requestId,
+            );
+        });
+    }
+
     public function menus(Request $request): Response
     {
         return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
@@ -37,8 +64,8 @@ final class MeController
             }
 
             return ApiOutcome::ok([
-                'menu_version' => 1,
-                'items' => $this->items($kernel),
+                'menu_version' => $kernel->menus->loadTree(null, null)['menu_version'],
+                'items' => $kernel->menus->mergeSidebar($this->items($kernel)),
             ], $requestId);
         });
     }
@@ -53,6 +80,7 @@ final class MeController
             self::page('system:role', '角色管理', 'role', '/system/role'),
             self::page('system:dict', '选项管理', 'dict', '/data/dict'),
             self::page('system:announcement', '公告管理', 'notice', '/data/notice'),
+            self::page('system:menu', '菜单管理', 'menu', '/system/menu'),
             self::page('system:plugin', '插件管理', 'plugin', '/system/plugins'),
             self::page('system:update', '系统更新', 'refresh', '/system/update'),
         ];
@@ -110,6 +138,47 @@ final class MeController
 
             return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function body(Request $request): array
+    {
+        $posted = $request->post();
+        $fromPost = is_array($posted) ? $this->stringKeys($posted) : [];
+        if ($fromPost !== []) {
+            return $fromPost;
+        }
+        $raw = $request->rawBody();
+        if ($raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $this->stringKeys($decoded) : [];
+    }
+
+    /**
+     * @param array<mixed> $raw
+     *
+     * @return array<string, mixed>
+     */
+    private function stringKeys(array $raw): array
+    {
+        $result = [];
+        foreach ($raw as $key => $value) {
+            if (is_string($key)) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    private function device(Request $request): ?string
+    {
+        $agent = $request->header('user-agent');
+
+        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

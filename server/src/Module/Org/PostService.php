@@ -100,6 +100,7 @@ final class PostService
     {
         $before = $this->requireRow($id);
         $draft = $this->draft($body);
+        $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         try {
             $this->connection->transactional(function () use ($id, $draft, $actor, $before, $requestId, $ip, $device): void {
                 $this->connection->executeStatement(

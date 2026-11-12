@@ -205,6 +205,7 @@ final class DictService
     {
         $before = $this->requireItem($id);
         $draft = $this->itemDraft($body);
+        $draft['status'] = OrgInput::keptStatus($body, OrgSql::int($before['status'] ?? 1));
         $typeId = OrgSql::int($before['type_id'] ?? 0);
         try {
             $this->connection->transactional(function () use ($id, $typeId, $draft, $actor, $before, $requestId, $ip, $device): void {

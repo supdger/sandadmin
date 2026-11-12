@@ -11,6 +11,7 @@ use Doctrine\DBAL\Connection;
 use Sandadmin\Infra\Db\DbalConnection;
 use Sandadmin\Infra\Idempotency\ConnectionIdempotencyStore;
 use Sandadmin\Module\Dict\DictService;
+use Sandadmin\Module\Menu\MenuService;
 use Sandadmin\Module\Org\DeptDeletion;
 use Sandadmin\Module\Org\DeptRepository;
 use Sandadmin\Module\Org\DeptService;
@@ -32,6 +33,7 @@ final readonly class BizKernel
         public RoleService $roles,
         public PostService $posts,
         public DictService $dicts,
+        public MenuService $menus,
         public DevPrincipal $principal,
     ) {
     }
@@ -74,6 +76,7 @@ final readonly class BizKernel
             new RoleService($connection, $audit, $keys),
             new PostService($connection, $audit, $keys),
             new DictService($connection, $audit, $keys),
+            new MenuService($connection, $audit, $keys),
             new DevPrincipal($connection),
         );
     }

@@ -586,6 +586,7 @@ export function DictPage() {
       </div>
 
       <DictTypeModal
+        key={typeModal.open ? `type-${typeModal.type?.id ?? 'new'}` : 'type-closed'}
         visible={typeModal.open}
         type={typeModal.type}
         onClose={() => setTypeModal({ open: false, type: null })}
@@ -594,6 +595,7 @@ export function DictPage() {
         }}
       />
       <DictItemModal
+        key={itemModal.open ? `item-${itemModal.item?.id ?? 'new'}` : 'item-closed'}
         visible={itemModal.open}
         typeId={selectedTypeId ?? ''}
         items={items}

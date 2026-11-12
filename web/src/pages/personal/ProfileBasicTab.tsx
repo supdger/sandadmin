@@ -103,7 +103,12 @@ export function ProfileBasicTab({ onDirtyChange }: ProfileBasicTabProps) {
   };
 
   const handleSubmit = async (values: Record<string, unknown>) => {
-    const parsed = schema.safeParse(values);
+    // 空邮箱在 Semi 表单里是缺字段，不能交给校验器生成英文报错。
+    const parsed = schema.safeParse({
+      nickname: typeof values.nickname === 'string' ? values.nickname : '',
+      phone: typeof values.phone === 'string' ? values.phone : '',
+      email: typeof values.email === 'string' ? values.email : '',
+    });
     if (!parsed.success) {
       const shown = new Set<string>();
       for (const issue of parsed.error.issues) {

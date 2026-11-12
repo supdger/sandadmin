@@ -4,10 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
+import { restorePhoneConsultItem } from '@/mocks/handlers/data';
 import { DictPage } from './DictPage';
 
 function renderPage() {
@@ -51,8 +52,13 @@ async function clickDialogButton(text: string) {
 }
 
 describe('DictPage', () => {
+  beforeEach(() => {
+    restorePhoneConsultItem();
+  });
+
   afterEach(() => {
     clearToken();
+    restorePhoneConsultItem();
   });
 
   it('loads option groups and shows items after selecting a group', async () => {
@@ -116,6 +122,32 @@ describe('DictPage', () => {
     // 停用后状态列变为「已停用」。
     await waitFor(() =>
       expect(within(rowOf('电话咨询')).getByText('已停用')).toBeInTheDocument(),
+    );
+  });
+
+  it('keeps a disabled option disabled when only the name changes', async () => {
+    setToken('mock-admin-token');
+    renderPage();
+
+    await userEvent.click(await screen.findByText('客户来源'));
+    await screen.findByText('电话咨询');
+    await userEvent.click(within(rowOf('电话咨询')).getByLabelText('更多'));
+    await userEvent.click(await screen.findByText('删除'));
+    await userEvent.click(await screen.findByRole('button', { name: '改为停用' }));
+    await waitFor(() =>
+      expect(within(rowOf('电话咨询')).getByText('已停用')).toBeInTheDocument(),
+    );
+
+    await userEvent.click(within(rowOf('电话咨询')).getByRole('button', { name: '编辑' }));
+    const name = await screen.findByPlaceholderText('例如：展会');
+    expect(screen.getByRole('switch', { name: '可用' })).not.toBeChecked();
+    await userEvent.clear(name);
+    await userEvent.type(name, '来电咨询');
+    await clickDialogButton('保存');
+
+    expect(await screen.findByText('已保存「来电咨询」')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(rowOf('来电咨询')).getByText('已停用')).toBeInTheDocument(),
     );
   });
 

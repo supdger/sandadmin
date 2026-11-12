@@ -193,7 +193,7 @@ export function DictItemModal({
 
         <div className="flex items-center justify-between gap-4">
           <Typography.Text strong>{t('itemModal.available')}</Typography.Text>
-          <Switch checked={available} onChange={setAvailable} />
+          <Switch checked={available} onChange={setAvailable} aria-label={t('itemModal.available')} />
         </div>
       </div>
     </Modal>

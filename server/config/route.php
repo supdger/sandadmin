@@ -21,6 +21,7 @@ use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
 use Sandadmin\Http\PackageController;
 use Sandadmin\Http\MeController;
+use Sandadmin\Http\MenuController;
 use Sandadmin\Http\OrgController;
 use Sandadmin\Http\TaskController;
 use Webman\Route;
@@ -72,7 +73,19 @@ Route::get('/api/admin/v1/lifecycle-requests/{request_id}', [LifecycleController
 
 // 当前登录人与侧栏。开发本机登录的令牌在 MeController 内解析。
 Route::get('/api/admin/v1/me', [MeController::class, 'me']);
+Route::get('/api/admin/v1/me/profile', [MeController::class, 'profile']);
+Route::put('/api/admin/v1/me/profile', [MeController::class, 'updateProfile']);
 Route::get('/api/admin/v1/me/menus', [MeController::class, 'menus']);
+
+// 菜单管理。静态路径先于带键的路径。失败由 MenuController 按 4xx/5xx 返回。
+Route::get('/api/admin/v1/menus/tree', [MenuController::class, 'tree']);
+Route::post('/api/admin/v1/menus/groups', [MenuController::class, 'storeGroup']);
+Route::post('/api/admin/v1/menus/links', [MenuController::class, 'storeLink']);
+Route::post('/api/admin/v1/menus/reset', [MenuController::class, 'reset']);
+Route::patch('/api/admin/v1/menus/{menu_key}', [MenuController::class, 'update']);
+Route::delete('/api/admin/v1/menus/{menu_key}', [MenuController::class, 'destroy']);
+Route::post('/api/admin/v1/menus/{menu_key}/move', [MenuController::class, 'move']);
+Route::put('/api/admin/v1/menus/{menu_key}/visible', [MenuController::class, 'visible']);
 
 // 工作台：没有待办、动态、提示时返回空列表，页面画空状态而不是报错。
 Route::get('/api/admin/v1/dashboard/onboarding', [DashboardController::class, 'onboarding']);

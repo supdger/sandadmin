@@ -113,7 +113,8 @@ final class DeptDeletionTest extends OrgCase
         try {
             $this->deletion->delete($deptId);
             self::fail('部门有下级时应当抛 DeptNotEmptyException');
-        } catch (DeptNotEmptyException) {
+        } catch (DeptNotEmptyException $error) {
+            self::assertSame('先删掉或移走下级部门', $error->getMessage());
         }
 
         self::assertNotNull($this->depts->find($deptId));

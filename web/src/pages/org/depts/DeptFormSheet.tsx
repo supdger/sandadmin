@@ -104,12 +104,13 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     setSystemError(null);
     setSubmitError('');
     const parentId = values.parent_id || null;
+    const status = values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
     const body: DeptWrite = {
       parent_id: parentId,
       name: (values.name ?? '').trim(),
       leader_id: values.leader_id || null,
       phone: values.phone?.trim() || null,
-      status: values.status === false ? 'disabled' : 'enabled',
+      ...(status !== undefined ? { status } : {}),
     };
     try {
       const saved = isEdit && dept

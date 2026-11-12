@@ -211,6 +211,145 @@ final class OrgFlowTest extends TestCase
         }
     }
 
+    public function testRenameKeepsDisabledStatus(): void
+    {
+        $dept = self::$kernel->depts->create(
+            ['name' => '甲测停用部门', 'status' => 'disabled'],
+            $this->actor,
+            'req-st-d1',
+            '127.0.0.1',
+            null,
+        );
+        $deptKept = self::$kernel->depts->update(
+            OrgSql::int($dept['id']),
+            ['name' => '甲测停用部门改'],
+            $this->actor,
+            'req-st-d2',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('disabled', $deptKept['status']);
+
+        $role = self::$kernel->roles->create(
+            ['name' => '甲测停用角色', 'status' => 'disabled'],
+            $this->actor,
+            'req-st-r1',
+            '127.0.0.1',
+            null,
+        );
+        $roleKept = self::$kernel->roles->update(
+            OrgSql::int($role['id']),
+            ['name' => '甲测停用角色改'],
+            $this->actor,
+            'req-st-r2',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('disabled', $roleKept['status']);
+
+        $post = self::$kernel->posts->create(
+            ['name' => '甲测停用岗位', 'status' => 'disabled'],
+            $this->actor,
+            'req-st-p1',
+            '127.0.0.1',
+            null,
+        );
+        $postKept = self::$kernel->posts->update(
+            OrgSql::int($post['id']),
+            ['name' => '甲测停用岗位改'],
+            $this->actor,
+            'req-st-p2',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('disabled', $postKept['status']);
+
+        $user = self::$kernel->users->create([
+            'nickname' => '甲测停用用户',
+            'phone' => '13700009021',
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+            'status' => 'disabled',
+        ], $this->actor, 'req-st-u1', '127.0.0.1', null);
+        $userKept = self::$kernel->users->update(OrgSql::int($user['id']), [
+            'nickname' => '甲测停用用户改',
+            'phone' => '13700009021',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ], $this->actor, 'req-st-u2', '127.0.0.1', null);
+        $this->assertSame('disabled', $userKept['status']);
+
+        $type = self::$kernel->dicts->createType(['name' => '甲测停用组'], $this->actor, 'req-st-t1', '127.0.0.1', null);
+        $item = self::$kernel->dicts->createItem(
+            OrgSql::int($type['id']),
+            ['label' => '甲测停用项', 'status' => 'disabled'],
+            $this->actor,
+            'req-st-i1',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('disabled', $item['status']);
+        $itemKept = self::$kernel->dicts->updateItem(
+            OrgSql::int($item['id']),
+            ['label' => '甲测停用项改'],
+            $this->actor,
+            'req-st-i2',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('甲测停用项改', $itemKept['label']);
+        $this->assertSame('disabled', $itemKept['status']);
+
+        $enabled = self::$kernel->dicts->updateItem(
+            OrgSql::int($item['id']),
+            ['label' => '甲测停用项改', 'status' => 'enabled'],
+            $this->actor,
+            'req-st-i3',
+            '127.0.0.1',
+            null,
+        );
+        $this->assertSame('enabled', $enabled['status']);
+    }
+
+    public function testProfileReadsNamePhoneAndDept(): void
+    {
+        $dept = self::$kernel->depts->create(['name' => '甲测资料部门'], $this->actor, 'req-pf-d', '127.0.0.1', null);
+        $role = self::$kernel->roles->create(['name' => '甲测资料角色'], $this->actor, 'req-pf-r', '127.0.0.1', null);
+        $user = self::$kernel->users->create([
+            'nickname' => '甲测资料人',
+            'phone' => '13700009022',
+            'username' => 'pfuser',
+            'password' => 'temp-pass-1',
+            'dept_id' => $dept['id'],
+            'role_ids' => [$role['id']],
+        ], $this->actor, 'req-pf-u', '127.0.0.1', null);
+        $profile = self::$kernel->users->profile(OrgSql::int($user['id']));
+        $this->assertSame('甲测资料人', $profile['nickname']);
+        $this->assertSame('13700009022', $profile['phone']);
+        $this->assertSame('甲测资料部门', $profile['dept_name']);
+        $this->assertSame('pfuser', $profile['username']);
+        $roleNames = [];
+        $rawNames = $profile['role_names'];
+        if (is_array($rawNames)) {
+            foreach ($rawNames as $name) {
+                if (is_string($name)) {
+                    $roleNames[] = $name;
+                }
+            }
+        }
+        $this->assertContains('甲测资料角色', $roleNames);
+
+        $saved = self::$kernel->users->updateProfile(OrgSql::int($user['id']), [
+            'nickname' => '甲测资料改',
+            'phone' => '13700009022',
+        ], $this->actor, 'req-pf-up', '127.0.0.1', null);
+        $this->assertSame('甲测资料改', $saved['nickname']);
+        $this->assertSame('甲测资料部门', $saved['dept_name']);
+        $again = self::$kernel->users->show(OrgSql::int($user['id']));
+        $this->assertSame('enabled', $again['status']);
+    }
+
     public function testCreateSameKeyInsertsOnce(): void
     {
         $dept = self::$kernel->depts->create(['name' => '幂等底部门'], $this->actor, 'req-base-dept', '127.0.0.1', null);

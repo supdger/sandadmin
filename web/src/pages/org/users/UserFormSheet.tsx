@@ -23,6 +23,7 @@ import {
   type UserUpdate,
   type UserWrite,
 } from '@/api/v1/users';
+import type { UserStatus } from '@/api/v1/types';
 import { isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
@@ -245,6 +246,8 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
     setSaving(true);
     setSystemError(null);
     try {
+      const status: UserStatus | undefined =
+        values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
       const payload = {
         nickname: (values.nickname ?? '').trim(),
         phone: (values.phone ?? '').trim(),
@@ -253,7 +256,7 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         dept_id: values.dept_id as string,
         post_id: values.post_id || null,
         role_ids: values.role_ids ?? [],
-        status: values.status ? ('enabled' as const) : ('disabled' as const),
+        ...(status !== undefined ? { status } : {}),
       };
       if (isEdit && user) {
         const body: UserUpdate = { ...payload };

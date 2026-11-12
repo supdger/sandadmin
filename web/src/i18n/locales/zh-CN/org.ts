@@ -245,6 +245,7 @@ export default {
       deleteBlockedContent: '该部门下还有成员或下级部门，不能删除。先把人调到别的部门、把下级挪走，再来删除。',
       deleteBlockedUsers: '里面还有 {{count}} 个人。先把人调到别的部门，再来删除。',
       deleteBlockedChildren: '里面还有 {{count}} 个下级部门。先把下级挪走，再来删除。',
+      deleteChildHint: '先删掉或移走下级部门',
       deleteBlockedBoth: '里面还有 {{users}} 个人和 {{children}} 个下级部门。先把人调到别的部门、把下级挪走，再来删除。',
       viewUsers: '去看这 {{count}} 个人',
       gotIt: '知道了',
