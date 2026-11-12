@@ -16,7 +16,7 @@ use Sandadmin\Module\Org\OrgInput;
 use Sandadmin\Module\Org\OrgSql;
 
 /**
- * 选项组与选项。系统自带的组不能删。
+ * 选项组与选项。系统自带与插件在用的组不能删。
  * used 查 sand_system_dict_item_ref：有引用为 true，管理员自建组没有引用为 false。
  * 插件组（extension_key 非空）没有引用行时为 null，前端按可能已使用提醒。
  */
@@ -146,8 +146,9 @@ final class DictService
     {
         $row = $this->requireType($id);
         $isSystem = ($row['is_system'] ?? null) === true || ($row['is_system'] ?? null) === 't' || ($row['is_system'] ?? null) === 1 || ($row['is_system'] ?? null) === '1';
-        if ($isSystem) {
-            throw DictException::invalid([], '系统自带的组不能删除');
+        $extensionKey = $row['extension_key'] ?? null;
+        if ($isSystem || (is_string($extensionKey) && $extensionKey !== '')) {
+            throw DictException::invalid([], '系统或插件在用，不能删除');
         }
         $name = OrgSql::str($row['name'] ?? null);
         $this->connection->transactional(function () use ($id, $actor, $name, $requestId, $ip, $device): void {
