@@ -96,6 +96,18 @@ final class SettingService
         return ['group' => $group, 'items' => $this->items($group, $stored)];
     }
 
+    /** 设置项键 → 中文显示名（审计 change_labels 用）；不是设置项键返回 null。 */
+    public static function fieldLabel(string $key): ?string
+    {
+        foreach (self::ITEMS as $defs) {
+            if (isset($defs[$key])) {
+                return $defs[$key]['label'];
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @param array<string, mixed> $values
      *
@@ -243,6 +255,7 @@ final class SettingService
                 'type' => $def['type'],
                 'value' => $this->masked($def, $value),
                 'has_value' => $value !== null && $value !== '',
+                'default_value' => $this->masked($def, $def['default'] ?? null),
                 'options' => $this->options($def),
                 'remark' => $def['remark'],
             ];
@@ -260,8 +273,9 @@ final class SettingService
     private function options(array $def): ?array
     {
         if (($def['options_dynamic'] ?? null) === 'role') {
+            // 角色是硬删表（无 delete_time）；默认角色只列启用中的
             $rows = $this->connection->fetchAllAssociative(
-                'SELECT id, name FROM sand_system_role WHERE delete_time IS NULL ORDER BY id',
+                'SELECT id, name FROM sand_system_role WHERE status = 1 ORDER BY id',
             );
             $out = [];
             foreach ($rows as $row) {
@@ -389,8 +403,9 @@ final class SettingService
 
     private function roleExists(int $roleId): bool
     {
+        // 角色是硬删表，不存在即删除；启用的才收（与 options 同口径）
         return $this->connection->fetchOne(
-            'SELECT 1 FROM sand_system_role WHERE id = ? AND delete_time IS NULL',
+            'SELECT 1 FROM sand_system_role WHERE id = ? AND status = 1',
             [$roleId],
         ) !== false;
     }

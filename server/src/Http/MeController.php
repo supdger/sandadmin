@@ -111,8 +111,13 @@ final class MeController
             self::page('system:dict', '选项管理', 'dict', '/data/dict'),
             self::page('system:announcement', '公告管理', 'notice', '/data/notice'),
             self::page('system:menu', '菜单管理', 'menu', '/system/menu'),
+            self::page('system:monitor', '运行状态', 'pulse', '/system/monitor'),
+            self::page('system:login-log', '登录日志', 'clock', '/system/login-log'),
+            self::page('system:audit-log', '操作日志', 'list', '/system/oper-log'),
+            self::page('system:cron', '定时任务', 'timer', '/system/cron'),
             self::page('system:plugin', '插件管理', 'plugin', '/system/plugins'),
             self::page('system:update', '系统更新', 'refresh', '/system/update'),
+            self::page('system:config', '系统设置', 'setting', '/system/settings'),
         ];
         $rows = $kernel->connection->fetchAllAssociative(
             'SELECT code, name FROM sand_system_plugin WHERE state = \'installed\' ORDER BY name',

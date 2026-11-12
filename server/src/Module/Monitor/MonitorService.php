@@ -29,6 +29,14 @@ final class MonitorService
         '24h' => '-24 hours',
         '7d' => '-7 days',
     ];
+
+    /** login 指标分桶秒数：range 越大桶越粗，点数保持在十几到几十。 */
+    private const LOGIN_BUCKET_SECONDS = [
+        '1h' => 300,
+        '6h' => 1800,
+        '24h' => 3600,
+        '7d' => 86400,
+    ];
     private const DEFAULT_VERSION = '1.1.0';
 
     public function __construct(private readonly Connection $connection)
@@ -70,11 +78,14 @@ final class MonitorService
         ];
     }
 
-    /** @return array{points: list<array{collected_time: string, value: float}>} */
+    /** @return array{points: list<array{collected_time: string, value: float|int}>} */
     public function series(string $metric, string $range): array
     {
+        if ($metric === 'login') {
+            return $this->loginSeries($range);
+        }
         $column = self::METRIC_SQL[$metric]
-            ?? throw OrgException::invalid(['metric' => ['metric 只支持 cpu、memory、disk']]);
+            ?? throw OrgException::invalid(['metric' => ['metric 只支持 cpu、memory、disk、login']]);
         $interval = self::RANGE_SQL[$range]
             ?? throw OrgException::invalid(['range' => ['range 只支持 1h、6h、24h、7d']]);
         $from = (new \DateTimeImmutable($interval))->format('Y-m-d H:i:sP');
@@ -91,6 +102,34 @@ final class MonitorService
             $points[] = [
                 'collected_time' => (new \DateTimeImmutable(OrgSql::str($row['collected_time'])))->format(\DateTimeInterface::ATOM),
                 'value' => round(is_numeric($row['value']) ? (float) $row['value'] : 0.0, 2),
+            ];
+        }
+
+        return ['points' => $points];
+    }
+
+    /**
+     * login 指标：按 range 从 sand_system_login_log 分桶统计登录次数，
+     * value 为该桶次数（成功失败都算）。
+     *
+     * @return array{points: list<array{collected_time: string, value: int}>}
+     */
+    private function loginSeries(string $range): array
+    {
+        $bucket = self::LOGIN_BUCKET_SECONDS[$range]
+            ?? throw OrgException::invalid(['range' => ['range 只支持 1h、6h、24h、7d']]);
+        $from = (new \DateTimeImmutable(self::RANGE_SQL[$range]))->format('Y-m-d H:i:sP');
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT to_timestamp(floor(extract(epoch from login_time) / :bucket) * :bucket) AS bucket_time,'
+            . ' COUNT(*) AS value FROM sand_system_login_log'
+            . ' WHERE login_time >= :from GROUP BY bucket_time ORDER BY bucket_time ASC',
+            ['bucket' => $bucket, 'from' => $from],
+        );
+        $points = [];
+        foreach ($rows as $row) {
+            $points[] = [
+                'collected_time' => (new \DateTimeImmutable(OrgSql::str($row['bucket_time'])))->format(\DateTimeInterface::ATOM),
+                'value' => OrgSql::int($row['value']),
             ];
         }
 

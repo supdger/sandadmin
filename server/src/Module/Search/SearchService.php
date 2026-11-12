@@ -33,11 +33,11 @@ final class SearchService
         'system:menu' => ['菜单管理', '/system/menu', 'system:menu:index', '系统'],
         'system:plugin' => ['插件管理', '/system/plugins', 'system:plugin:index', '系统'],
         'system:update' => ['系统更新', '/system/update', 'system:update:index', '系统'],
-        'system:file' => ['文件管理', '/system/file', 'system:file:index', '系统'],
+        'system:file' => ['文件管理', '/data/file', 'system:file:index', '系统'],
         'system:monitor' => ['运行状态', '/system/monitor', 'system:monitor:index', '系统'],
-        'system:cron' => ['定时任务', '/system/schedule', 'system:cron:index', '系统'],
+        'system:cron' => ['定时任务', '/system/cron', 'system:cron:index', '系统'],
         'system:login-log' => ['登录日志', '/system/login-log', 'system:login-log:index', '系统'],
-        'system:audit-log' => ['操作日志', '/system/audit-log', 'system:audit-log:index', '系统'],
+        'system:audit-log' => ['操作日志', '/system/oper-log', 'system:audit-log:index', '系统'],
         'system:config' => ['系统设置', '/system/settings', 'system:config:index', '系统'],
     ];
 

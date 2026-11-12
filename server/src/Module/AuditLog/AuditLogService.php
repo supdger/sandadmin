@@ -14,6 +14,7 @@ use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgAudit;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Org\OrgSql;
+use Sandadmin\Module\Setting\SettingService;
 
 /**
  * J10 操作日志：只读列表/详情/功能选项/导出。
@@ -23,6 +24,22 @@ final class AuditLogService
 {
     private const MAX_PAGE_SIZE = 100;
     private const EXPORT_LIMIT = 10000;
+
+    /** changes 通用键 → 中文显示名；设置项键另走 SettingService::fieldLabel。 */
+    private const CHANGE_LABELS = [
+        'schedule' => '时间',
+        'status' => '状态',
+        'state' => '状态',
+        'name' => '名称',
+        'nickname' => '姓名',
+        'title' => '标题',
+        'scope' => '可见范围',
+        'level' => '级别',
+        'pinned' => '置顶',
+        'label' => '显示名',
+        'password' => '密码',
+        'enabled' => '启停',
+    ];
 
     public function __construct(
         private readonly Connection $connection,
@@ -142,12 +159,35 @@ final class AuditLogService
                 $changes = is_array($decoded) ? $decoded : null;
             }
             $item['changes'] = $changes;
+            $item['change_labels'] = $changes === null ? null : $this->changeLabels($changes);
             $item['ip'] = ($row['ip'] ?? null) === null ? null : OrgSql::str($row['ip']);
             $item['device_label'] = OrgSql::str($row['device_label'] ?? null);
             $item['request_id'] = OrgSql::str($row['request_id'] ?? null);
         }
 
         return $item;
+    }
+
+    /**
+     * changes 顶层键 → 中文显示名。通用键查 CHANGE_LABELS，设置项键查
+     * SettingService::fieldLabel；都不认识就回显原键，页面不至于空。
+     * 键为整数等非字符串时跳过。
+     *
+     * @param array<array-key, mixed> $changes
+     *
+     * @return array<string, string>|object 空表给空对象，JSON 里保持 {}
+     */
+    private function changeLabels(array $changes): array|object
+    {
+        $labels = [];
+        foreach ($changes as $key => $_) {
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+            $labels[$key] = self::CHANGE_LABELS[$key] ?? SettingService::fieldLabel($key) ?? $key;
+        }
+
+        return $labels === [] ? new \stdClass() : $labels;
     }
 
     /** @return array<string, string> 模块键 → 中文名，module_label 派生字段用 */

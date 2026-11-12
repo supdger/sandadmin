@@ -304,8 +304,13 @@ final class MenuService
             $this->catalogNode('system:dict', 'page', '选项管理', 'dict', '/data/dict'),
             $this->catalogNode('system:announcement', 'page', '公告管理', 'notice', '/data/notice'),
             $this->catalogNode('system:menu', 'page', '菜单管理', 'menu', '/system/menu'),
+            $this->catalogNode('system:monitor', 'page', '运行状态', 'pulse', '/system/monitor'),
+            $this->catalogNode('system:login-log', 'page', '登录日志', 'clock', '/system/login-log'),
+            $this->catalogNode('system:audit-log', 'page', '操作日志', 'list', '/system/oper-log'),
+            $this->catalogNode('system:cron', 'page', '定时任务', 'timer', '/system/cron'),
             $this->catalogNode('system:plugin', 'page', '插件管理', 'plugin', '/system/plugins'),
             $this->catalogNode('system:update', 'page', '系统更新', 'refresh', '/system/update'),
+            $this->catalogNode('system:config', 'page', '系统设置', 'setting', '/system/settings'),
         ];
         foreach ($this->pluginPages() as $page) {
             $children[] = $page;

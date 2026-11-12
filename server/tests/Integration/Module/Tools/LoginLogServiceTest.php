@@ -67,6 +67,25 @@ final class LoginLogServiceTest extends ToolsCase
         self::assertSame('Mac 上的 Chrome', $detail['device_label']);
     }
 
+    public function testDetailUserIdFromRowAndUsernameFallback(): void
+    {
+        $actor = $this->userActor();
+        $service = new LoginLogService($this->conn, $this->audit);
+
+        // 行里直接存了 user_id
+        $stored = $this->addRow(['user_id' => $actor->userId]);
+        self::assertSame($actor->userId, $service->detail($stored)['user_id']);
+
+        // 行里没存但输入账号能对上用户：详情补出 user_id
+        $this->conn->executeStatement('UPDATE sand_system_user SET username = ? WHERE id = ?', ['admin', $actor->userId]);
+        $resolved = $this->addRow(['username_input' => 'admin']);
+        self::assertSame($actor->userId, $service->detail($resolved)['user_id']);
+
+        // 账号对不上任何人：null
+        $ghost = $this->addRow(['username_input' => 'ghost_xx']);
+        self::assertNull($service->detail($ghost)['user_id']);
+    }
+
     public function testKeywordAndStatusFilter(): void
     {
         $this->addRow(['username_input' => 'admin']);

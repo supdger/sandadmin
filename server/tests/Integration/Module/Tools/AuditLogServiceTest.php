@@ -63,6 +63,28 @@ final class AuditLogServiceTest extends ToolsCase
         self::assertIsArray($detail['changes']);
     }
 
+    public function testDetailChangeLabelsAreChinese(): void
+    {
+        $changes = json_encode([
+            'schedule' => ['before' => null, 'after' => ['freq' => 'daily']],
+            'status' => ['before' => 'enabled', 'after' => 'disabled'],
+            'site_name' => ['before' => '旧名字', 'after' => '新名字'],
+            'password' => ['before' => '已修改', 'after' => '已修改'],
+        ], JSON_UNESCAPED_UNICODE);
+        $id = $this->addRow(['changes' => is_string($changes) ? $changes : '{}']);
+        $service = new AuditLogService($this->conn, $this->audit);
+        $detail = $service->detail($id);
+
+        self::assertIsArray($detail['change_labels']);
+        self::assertSame('时间', $detail['change_labels']['schedule']);
+        self::assertSame('状态', $detail['change_labels']['status']);
+        self::assertSame('系统名称', $detail['change_labels']['site_name']);
+        self::assertSame('密码', $detail['change_labels']['password']);
+
+        $empty = $this->addRow(['changes' => null]);
+        self::assertNull($service->detail($empty)['change_labels']);
+    }
+
     public function testDetailMissingThrowsNotFound(): void
     {
         $service = new AuditLogService($this->conn, $this->audit);

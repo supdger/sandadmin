@@ -32,6 +32,14 @@ final class SettingServiceTest extends ToolsCase
         $tz = array_values(array_filter($basic['items'], static fn (array $item): bool => $item['key'] === 'timezone'))[0];
         self::assertSame('Asia/Shanghai', $tz['value']);
         self::assertIsArray($tz['options']);
+        // 默认值回显：有默认值概念的下拉给出，role 选择器默认 null
+        self::assertSame('Asia/Shanghai', $tz['default_value']);
+        $login = $service->read('login');
+        $days = array_values(array_filter($login['items'], static fn (array $item): bool => $item['key'] === 'session_days'))[0];
+        self::assertSame(7, $days['default_value']);
+        $users = $service->read('users');
+        $role = array_values(array_filter($users['items'], static fn (array $item): bool => $item['key'] === 'default_role_id'))[0];
+        self::assertNull($role['default_value']);
     }
 
     public function testUpdatePersistsAndAudits(): void

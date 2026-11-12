@@ -38,9 +38,41 @@ final class RoleService
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
             ['action' => 'reset', 'label' => '恢复默认'],
         ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:task', 'title' => '任务中心', 'actions' => [
+            ['action' => 'index', 'label' => '查看'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:monitor', 'title' => '运行状态', 'actions' => [
+            ['action' => 'index', 'label' => '查看'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:login-log', 'title' => '登录日志', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'export', 'label' => '导出'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:audit-log', 'title' => '操作日志', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'export', 'label' => '导出'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:cron', 'title' => '定时任务', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'update', 'label' => '编辑'],
+            ['action' => 'run', 'label' => '立即执行'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:plugin', 'title' => '插件管理', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'install', 'label' => '安装'],
+            ['action' => 'upgrade', 'label' => '升级'], ['action' => 'uninstall', 'label' => '卸载'],
+            ['action' => 'upload', 'label' => '上传'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:update', 'title' => '系统更新', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'check', 'label' => '检查更新'],
+            ['action' => 'start', 'label' => '开始升级'], ['action' => 'upload', 'label' => '上传升级包'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:config', 'title' => '系统设置', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'update', 'label' => '修改'],
+        ]],
         ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:dict', 'title' => '选项管理', 'actions' => [
             ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
+        ]],
+        ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:file', 'title' => '文件管理', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'delete', 'label' => '删除'],
+            ['action' => 'cleanup', 'label' => '清理'],
         ]],
         ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:announcement', 'title' => '公告管理', 'actions' => [
             ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],

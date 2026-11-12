@@ -46,6 +46,10 @@ final class ScheduleHttpTest extends ToolsCase
             if (!is_array($item)) {
                 continue;
             }
+            // schedule 总是回显生效结构（宿主任务来自清单默认），不是库存覆盖
+            self::assertIsArray($item['schedule']);
+            self::assertSame('daily', $item['schedule']['freq']);
+            self::assertFalse($item['schedule_overridden']);
             if (($item['status'] ?? null) === 'enabled' && ($item['next_run_time'] ?? null) !== null) {
                 self::assertIsArray($item['next_run_times']);
                 self::assertCount(3, $item['next_run_times']);
@@ -70,6 +74,11 @@ final class ScheduleHttpTest extends ToolsCase
         self::assertNotNull($item['next_run_time']);
         self::assertIsArray($item['next_run_times']);
         self::assertCount(3, $item['next_run_times']);
+        // 改完时间回显覆盖值并标记被改过
+        self::assertIsArray($item['schedule']);
+        self::assertSame('daily', $item['schedule']['freq']);
+        self::assertSame('04:30', $item['schedule']['time']);
+        self::assertTrue($item['schedule_overridden']);
         $stored = $this->conn->fetchOne('SELECT schedule::text FROM sand_system_schedule WHERE code = ?', ['host.message-cleanup']);
         self::assertStringContainsString('daily', is_string($stored) ? $stored : '');
         // 改了时间要落审计
@@ -88,6 +97,33 @@ final class ScheduleHttpTest extends ToolsCase
         self::assertSame('TASK_SCHEDULE_INVALID', $result['body']['code']);
         self::assertIsArray($result['body']['fields']);
         self::assertArrayHasKey('interval', $result['body']['fields']);
+    }
+
+    public function testIndexFiltersByStatusAndLastFailed(): void
+    {
+        $this->http()->index([], 'req-seed');
+        $this->http()->update('host.backup', ['status' => 'disabled'], 'req-dis');
+
+        $enabled = self::itemsOf($this->http()->index(['status' => 'enabled'], 'req-f1'));
+        self::assertIsArray($enabled);
+        self::assertCount(2, $enabled);
+        $disabled = self::itemsOf($this->http()->index(['status' => 'disabled'], 'req-f2'));
+        self::assertIsArray($disabled);
+        self::assertCount(1, $disabled);
+        self::assertSame('host.backup', is_array($disabled[0]) ? $disabled[0]['code'] : null);
+
+        // 全部成功时 last_failed 过滤为空；把一条标记成失败再查
+        $none = self::itemsOf($this->http()->index(['last_failed' => 'true'], 'req-f3'));
+        self::assertIsArray($none);
+        self::assertCount(0, $none);
+        $this->conn->executeStatement(
+            'UPDATE sand_system_schedule SET last_run_time = CURRENT_TIMESTAMP, last_run_succeeded = false WHERE code = ?',
+            ['host.log-cleanup'],
+        );
+        $failed = self::itemsOf($this->http()->index(['last_failed' => 'true'], 'req-f4'));
+        self::assertIsArray($failed);
+        self::assertCount(1, $failed);
+        self::assertSame('host.log-cleanup', is_array($failed[0]) ? $failed[0]['code'] : null);
     }
 
     public function testMissingTaskGives404(): void

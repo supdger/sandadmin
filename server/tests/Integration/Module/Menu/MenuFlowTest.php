@@ -262,6 +262,32 @@ final class MenuFlowTest extends TestCase
         return $titles;
     }
 
+    public function testCatalogContainsMonitorAndToolPages(): void
+    {
+        $tree = self::$kernel->menus->loadTree(null, null);
+        $keys = [];
+        foreach ($tree['items'] as $item) {
+            if (($item['key'] ?? null) !== 'system') {
+                continue;
+            }
+            $children = $item['children'] ?? [];
+            if (!is_array($children)) {
+                continue;
+            }
+            foreach ($children as $child) {
+                if (is_array($child) && is_string($child['key'] ?? null)) {
+                    $keys[$child['key']] = $child['path'] ?? null;
+                }
+            }
+        }
+        // 监控和工具批次的五个页面必须在系统组目录里，路径与前端路由一致
+        self::assertSame('/system/monitor', $keys['system:monitor'] ?? null);
+        self::assertSame('/system/login-log', $keys['system:login-log'] ?? null);
+        self::assertSame('/system/oper-log', $keys['system:audit-log'] ?? null);
+        self::assertSame('/system/cron', $keys['system:cron'] ?? null);
+        self::assertSame('/system/settings', $keys['system:config'] ?? null);
+    }
+
     private static function wipe(): void
     {
         self::$conn->executeStatement("DELETE FROM sand_system_menu_custom WHERE menu_key LIKE 'custom:%' OR title LIKE '测%' OR title LIKE '坏%'");

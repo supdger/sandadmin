@@ -63,7 +63,10 @@ final class LoginLogService
     {
         $row = $this->connection->fetchAssociative(
             'SELECT l.id, l.user_id, l.username_input, l.succeeded, l.reason, l.ip, l.location,'
-            . ' l.device_label, l.user_agent, l.login_time, u.nickname'
+            . ' l.device_label, l.user_agent, l.login_time, u.nickname,'
+            // 记录时没关联到人（账号不存在/写库时 user_id 为空）时，按输入账号再补一次
+            . ' COALESCE(l.user_id, (SELECT u2.id FROM sand_system_user u2'
+            . ' WHERE u2.username = l.username_input AND u2.delete_time IS NULL LIMIT 1)) AS resolved_user_id'
             . ' FROM sand_system_login_log l LEFT JOIN sand_system_user u ON u.id = l.user_id'
             . ' WHERE l.id = :id',
             ['id' => $logId],
@@ -119,6 +122,8 @@ final class LoginLogService
             'login_time' => self::time($row['login_time'] ?? null),
         ];
         if ($detailed) {
+            $resolved = $row['resolved_user_id'] ?? $row['user_id'] ?? null;
+            $item['user_id'] = ($resolved === null || $resolved === '') ? null : OrgSql::int($resolved);
             $item['ip'] = OrgSql::str($row['ip'] ?? null);
             $item['user_agent'] = OrgSql::str($row['user_agent'] ?? null);
         }

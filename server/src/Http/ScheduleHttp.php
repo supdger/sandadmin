@@ -392,7 +392,9 @@ final class ScheduleHttp
             'source_label' => $pluginName !== null && $pluginName !== '' ? $pluginName : $meta['source_label'],
             'is_critical' => $meta['is_critical'],
             'plugin_code' => $pluginCode,
-            'schedule' => $override?->jsonSerialize(),
+            // 回显的是生效时间结构：页面覆盖或清单默认解析后的值，不只存库的覆盖
+            'schedule' => $effective?->jsonSerialize(),
+            'schedule_overridden' => $this->hasScheduleOverride($row),
             'status' => $enabled ? 'enabled' : 'disabled',
             'schedule_locked' => $meta['schedule_locked'],
             'last_run_time' => self::atom($row['last_run_time'] ?? null),
@@ -424,6 +426,26 @@ final class ScheduleHttp
         } catch (InvalidExtensionException) {
             return null;
         }
+    }
+
+    /**
+     * 库里是否存过时间覆盖（schedule 列非空且解得出内容）。
+     * 与 scheduleOf 的区别：这里只要页面写过就算，内容失效也算。
+     *
+     * @param array<string, mixed> $row
+     */
+    private function hasScheduleOverride(array $row): bool
+    {
+        $raw = $row['schedule'] ?? null;
+        if (is_array($raw)) {
+            return $raw !== [];
+        }
+        if (!is_string($raw) || trim($raw) === '') {
+            return false;
+        }
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) && $decoded !== [];
     }
 
     private function nameOf(string $code): string

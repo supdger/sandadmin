@@ -69,4 +69,45 @@ final class MonitorServiceTest extends ToolsCase
         self::assertNotEmpty($points);
         self::assertSame(12.5, $points[0]['value']);
     }
+
+    public function testSeriesLoginBucketsLoginCounts(): void
+    {
+        $now = new \DateTimeImmutable();
+        foreach ([$now->modify('-1 minute'), $now->modify('-2 minutes')] as $time) {
+            $this->conn->insert('sand_system_login_log', [
+                'username_input' => 'admin',
+                'succeeded' => 'true',
+                'ip' => '127.0.0.1',
+                'location' => '内部网络',
+                'device_label' => 'Mac',
+                'user_agent' => 'UA',
+                'login_time' => $time->format('Y-m-d H:i:sP'),
+            ]);
+        }
+        // 两天前的一条不该进 1h 曲线
+        $this->conn->insert('sand_system_login_log', [
+            'username_input' => 'admin',
+            'succeeded' => 'true',
+            'ip' => '127.0.0.1',
+            'location' => '内部网络',
+            'device_label' => 'Mac',
+            'user_agent' => 'UA',
+            'login_time' => $now->modify('-2 days')->format('Y-m-d H:i:sP'),
+        ]);
+
+        $service = new MonitorService($this->conn);
+        $points = $service->series('login', '1h')['points'];
+        self::assertNotEmpty($points);
+        $total = 0;
+        foreach ($points as $point) {
+            $total += OrgSql::int($point['value']);
+        }
+        self::assertSame(2, $total);
+        // 7d 曲线把两天前那次也算上
+        $week = 0;
+        foreach ($service->series('login', '7d')['points'] as $point) {
+            $week += OrgSql::int($point['value']);
+        }
+        self::assertSame(3, $week);
+    }
 }
