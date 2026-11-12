@@ -156,7 +156,7 @@ final class RoleService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'role', 'create', '添加了角色' . $draft['name'], 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'role', 'create', '添加了角色「' . $draft['name'] . '」', 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
                 return $this->show($createdId);
             });
@@ -186,7 +186,7 @@ final class RoleService
                     $actor,
                     'role',
                     'update',
-                    '保存了角色' . $draft['name'],
+                    '保存了角色「' . $draft['name'] . '」',
                     'role',
                     (string) $id,
                     $draft['name'],
@@ -257,7 +257,7 @@ final class RoleService
                 );
             }
             $this->connection->executeStatement('DELETE FROM sand_system_role WHERE id = ?', [$id]);
-            $detail = $replacementName === null ? '删除了角色' . $name : '删除了角色' . $name . '，' . $moved . '个人换成了' . $replacementName;
+            $detail = $replacementName === null ? '删除了角色「' . $name . '」' : '删除了角色「' . $name . '」，' . $moved . '个人换成了「' . $replacementName . '」';
             $this->audit->record($actor, 'role', 'delete', $detail, 'role', (string) $id, $name, $requestId, $ip, $device);
         });
 
@@ -299,7 +299,7 @@ final class RoleService
                     . ' SELECT :new_id, dept_id FROM sand_system_role_dept WHERE role_id = :old_id',
                     ['new_id' => $created, 'old_id' => $id],
                 );
-                $this->audit->record($actor, 'role', 'create', '复制了角色' . $name, 'role', (string) $created, $name, $requestId, $ip, $device);
+                $this->audit->record($actor, 'role', 'create', '复制了角色「' . $name . '」', 'role', (string) $created, $name, $requestId, $ip, $device);
 
                 return $this->show($created);
             });
@@ -319,7 +319,7 @@ final class RoleService
                 ['status' => $status, 'id' => $id],
             );
             $verb = $status === 2 ? '停用了角色' : '启用了角色';
-            $this->audit->record($actor, 'role', 'update', $verb . $name, 'role', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'role', 'update', $verb . '「' . $name . '」', 'role', (string) $id, $name, $requestId, $ip, $device);
         });
     }
 
@@ -406,7 +406,7 @@ final class RoleService
                 'SELECT COUNT(*) FROM sand_system_user_role ur JOIN sand_system_user u ON u.id = ur.user_id AND u.delete_time IS NULL WHERE ur.role_id = ?',
                 [$id],
             ));
-            $this->audit->record($actor, 'role', 'update', '保存了角色' . $name . '的权限', 'role', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'role', 'update', '保存了角色「' . $name . '」的权限', 'role', (string) $id, $name, $requestId, $ip, $device);
         });
 
         return ['affected_users' => $affected];

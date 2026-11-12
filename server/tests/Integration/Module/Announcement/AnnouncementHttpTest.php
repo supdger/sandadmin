@@ -162,7 +162,7 @@ final class AnnouncementHttpTest extends TestCase
         self::assertSame(0, $this->data($list)['total']);
 
         $audit = self::$conn->fetchOne("SELECT action_text FROM sand_system_audit_log WHERE module='announcement' AND action='create'");
-        self::assertSame('新建了公告《版本更新》', $audit);
+        self::assertSame('新建了公告「版本更新」', $audit);
     }
 
     public function testCreateValidationErrors(): void
@@ -349,6 +349,6 @@ final class AnnouncementHttpTest extends TestCase
         self::assertStringNotContainsString('script', strtolower($content));
         self::assertStringContainsString('新', $content);
         $audit = self::$conn->fetchOne("SELECT action_text FROM sand_system_audit_log WHERE module='announcement' AND action='update'");
-        self::assertSame('更新了公告《改名》', $audit);
+        self::assertSame('更新了公告「改名」', $audit);
     }
 }

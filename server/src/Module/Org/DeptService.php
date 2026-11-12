@@ -83,7 +83,7 @@ final class DeptService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dept', 'create', '添加了部门' . $draft['name'], 'dept', (string) $createdId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dept', 'create', '添加了部门「' . $draft['name'] . '」', 'dept', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
                 return $this->one($createdId);
             });
@@ -136,7 +136,7 @@ final class DeptService
                     $actor,
                     'dept',
                     'update',
-                    '保存了部门' . $draft['name'],
+                    '保存了部门「' . $draft['name'] . '」',
                     'dept',
                     (string) $id,
                     $draft['name'],
@@ -184,7 +184,7 @@ final class DeptService
         } catch (DeptNotEmptyException $error) {
             throw OrgException::deptNotEmpty($error->getMessage());
         }
-        $this->audit->record($actor, 'dept', 'delete', '删除了部门' . $name, 'dept', (string) $id, $name, $requestId, $ip, $device);
+        $this->audit->record($actor, 'dept', 'delete', '删除了部门「' . $name . '」', 'dept', (string) $id, $name, $requestId, $ip, $device);
     }
 
     /**

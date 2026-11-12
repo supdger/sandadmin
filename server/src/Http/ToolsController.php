@@ -66,7 +66,7 @@ final class ToolsController
     {
         return $this->run($request, 'system:login-log:export', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             return ApiOutcome::ok(
-                $this->loginLogService($kernel)->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $this->loginLogService($kernel)->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -97,7 +97,7 @@ final class ToolsController
     {
         return $this->run($request, 'system:audit-log:export', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             return ApiOutcome::ok(
-                $this->auditLogService($kernel)->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $this->auditLogService($kernel)->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -113,14 +113,14 @@ final class ToolsController
     public function scheduledTaskUpdate(Request $request, string $code): Response
     {
         return $this->run($request, 'system:cron:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($code): array {
-            return (new ScheduleHttp($kernel->connection))->update($code, $this->body($request), $requestId, $actor, $request->getRemoteIp(), $this->device($request));
+            return (new ScheduleHttp($kernel->connection))->update($code, $this->body($request), $requestId, $actor, $request->getRemoteIp(), RequestDevice::label($request));
         });
     }
 
     public function scheduledTaskRun(Request $request, string $code): Response
     {
         return $this->run($request, 'system:cron:run', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($code): array {
-            return (new ScheduleHttp($kernel->connection))->run($code, $requestId, $actor, $request->getRemoteIp(), $this->device($request));
+            return (new ScheduleHttp($kernel->connection))->run($code, $requestId, $actor, $request->getRemoteIp(), RequestDevice::label($request));
         });
     }
 
@@ -154,7 +154,7 @@ final class ToolsController
             }
 
             return ApiOutcome::ok(
-                $this->settingService($kernel)->update($group, $this->stringKeys($values), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $this->settingService($kernel)->update($group, $this->stringKeys($values), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -176,7 +176,7 @@ final class ToolsController
             ];
 
             return ApiOutcome::ok(
-                $this->settingService($kernel)->uploadLogo($upload, $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $this->settingService($kernel)->uploadLogo($upload, $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -282,13 +282,6 @@ final class ToolsController
         }
 
         return $result;
-    }
-
-    private function device(Request $request): ?string
-    {
-        $agent = $request->header('user-agent');
-
-        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

@@ -10,7 +10,7 @@ namespace Sandadmin\Tests\Unit\Module\LoginLog;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Module\LoginLog\DeviceLabel;
 
-/** M2 登录设备名：User-Agent 折成「系统上的浏览器」，认不出时给「未知设备」。 */
+/** M2 登录设备名：User-Agent 折成「系统上的浏览器」，命令行工具给「用工具访问」，认不出给「其他设备」。 */
 final class DeviceLabelTest extends TestCase
 {
     public function testDesktopChromeOnWindows(): void
@@ -36,9 +36,18 @@ final class DeviceLabelTest extends TestCase
 
     public function testUnrecognizedAgentGivesFallback(): void
     {
-        self::assertSame('未知设备', DeviceLabel::of(null));
-        self::assertSame('未知设备', DeviceLabel::of(''));
+        self::assertSame('其他设备', DeviceLabel::of(null));
+        self::assertSame('其他设备', DeviceLabel::of(''));
+        self::assertSame('其他设备', DeviceLabel::of('###乱串###'));
         // 只认出系统或只认出浏览器时也拼得出来
         self::assertSame('Linux 电脑', DeviceLabel::of('CustomAgent Linux'));
+    }
+
+    public function testCommandLineToolsGiveToolLabel(): void
+    {
+        self::assertSame('用工具访问', DeviceLabel::of('curl/8.4.0'));
+        self::assertSame('用工具访问', DeviceLabel::of('Wget/1.21.4'));
+        self::assertSame('用工具访问', DeviceLabel::of('python-requests/2.31.0'));
+        self::assertSame('用工具访问', DeviceLabel::of('HTTPie/3.2.2'));
     }
 }

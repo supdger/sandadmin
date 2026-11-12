@@ -191,28 +191,43 @@ final class MetricSampler
         return round($bytes / self::GIGABYTE, 2);
     }
 
-    /** 当前进程运行秒数；读不到 /proc 时返回 null。 */
+    /** 当前进程运行秒数；读不到进程启动时刻时退回整机已运行时长，都读不到返回 null。 */
     private function uptimeSeconds(): ?int
     {
-        $stat = self::statFields('/proc/self/stat');
         $bootAge = $this->bootUptimeSeconds();
-        if ($stat === null || $bootAge === null) {
+        $stat = self::statFields('/proc/self/stat');
+        if ($stat === null) {
+            // macOS 没有 /proc，进程启动时刻拿不到，用整机已运行时长近似
+            return $bootAge === null ? null : (int) $bootAge;
+        }
+        if ($bootAge === null) {
             return null;
         }
 
         return (int) max(0, $bootAge - (int) $stat[21] / self::clockTick());
     }
 
-    /** /proc/uptime 第一段，系统启动至今秒数。 */
+    /** 系统启动至今秒数：Linux 读 /proc/uptime，macOS 用 kern.boottime 反推。 */
     private function bootUptimeSeconds(): ?float
     {
         $raw = @file_get_contents('/proc/uptime');
-        if (!is_string($raw)) {
-            return null;
+        if (is_string($raw)) {
+            $parts = preg_split('/\s+/', trim($raw));
+            if (is_array($parts) && isset($parts[0]) && is_numeric($parts[0])) {
+                return (float) $parts[0];
+            }
         }
-        $parts = preg_split('/\s+/', trim($raw));
+        if (function_exists('shell_exec')) {
+            $out = @shell_exec('sysctl -n kern.boottime 2>/dev/null');
+            if (is_string($out) && preg_match('/sec\s*=\s*(\d+)/', $out, $match) === 1) {
+                return max(0.0, microtime(true) - (float) $match[1]);
+            }
+            if (is_string($out) && is_numeric(trim($out))) {
+                return max(0.0, microtime(true) - (float) trim($out));
+            }
+        }
 
-        return is_array($parts) && isset($parts[0]) && is_numeric($parts[0]) ? (float) $parts[0] : null;
+        return null;
     }
 
     /**

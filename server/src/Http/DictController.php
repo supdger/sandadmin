@@ -37,18 +37,18 @@ final class DictController
 
     public function store(Request $request): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function update(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function destroy(Request $request, string $type_id): Response
     {
         return $this->run($request, 'system:dict:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($type_id): array {
-            $kernel->dicts->removeType(OrgInput::pathId($type_id, 'type_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->removeType(OrgInput::pathId($type_id, 'type_id'), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -56,18 +56,18 @@ final class DictController
 
     public function storeItem(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function updateItem(Request $request, string $item_id): Response
     {
-        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function destroyItem(Request $request, string $item_id): Response
     {
         return $this->run($request, 'system:dict:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
-            $kernel->dicts->removeItem(OrgInput::pathId($item_id, 'item_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->removeItem(OrgInput::pathId($item_id, 'item_id'), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -76,7 +76,7 @@ final class DictController
     public function itemStatus(Request $request, string $item_id): Response
     {
         return $this->run($request, 'system:dict:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
-            $kernel->dicts->setItemStatus(OrgInput::pathId($item_id, 'item_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->setItemStatus(OrgInput::pathId($item_id, 'item_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -87,7 +87,7 @@ final class DictController
         return $this->run($request, 'system:dict:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             $body = $this->body($request);
             $typeId = OrgInput::requiredId($body, 'type_id');
-            $kernel->dicts->sortItems($typeId, OrgInput::idList($body, 'item_ids', true), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->sortItems($typeId, OrgInput::idList($body, 'item_ids', true), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -162,13 +162,6 @@ final class DictController
         $key = $request->header('idempotency-key');
 
         return is_string($key) ? $key : null;
-    }
-
-    private function device(Request $request): ?string
-    {
-        $agent = $request->header('user-agent');
-
-        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

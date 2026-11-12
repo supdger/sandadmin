@@ -55,7 +55,7 @@ final class AnnouncementService
                 $id = $this->announcements->create($draft, $actor->userId);
                 $this->announcements->replaceDepts($id, $draft->deptIds);
                 $this->announcements->replaceImageUsages($id, $draft->imageFileIds, $draft->title);
-                $this->audit->record($actor, 'create', '新建了公告《' . $draft->title . '》', $id, $draft->title, $requestId, $ip, $deviceLabel, $this->draftChanges(null, $draft));
+                $this->audit->record($actor, 'create', '新建了公告「' . $draft->title . '」', $id, $draft->title, $requestId, $ip, $deviceLabel, $this->draftChanges(null, $draft));
 
                 return $id;
             });
@@ -78,7 +78,7 @@ final class AnnouncementService
                 $this->announcements->update($id, $draft, $actor->userId);
                 $this->announcements->replaceDepts($id, $draft->deptIds);
                 $this->announcements->replaceImageUsages($id, $draft->imageFileIds, $draft->title);
-                $this->audit->record($actor, 'update', '更新了公告《' . $draft->title . '》', $id, $draft->title, $requestId, $ip, $deviceLabel, $this->draftChanges($before, $draft));
+                $this->audit->record($actor, 'update', '更新了公告「' . $draft->title . '」', $id, $draft->title, $requestId, $ip, $deviceLabel, $this->draftChanges($before, $draft));
             });
 
             return $this->detail($id);
@@ -92,7 +92,7 @@ final class AnnouncementService
             if ($item->state !== AnnouncementState::Published) {
                 $this->announcements->connection()->transactional(function () use ($id, $item, $actor, $requestId, $ip, $deviceLabel): void {
                     $this->announcements->publish($id, $actor->userId);
-                    $this->audit->record($actor, 'publish', '发布了公告《' . $item->title . '》', $id, $item->title, $requestId, $ip, $deviceLabel);
+                    $this->audit->record($actor, 'publish', '发布了公告「' . $item->title . '」', $id, $item->title, $requestId, $ip, $deviceLabel);
                 });
             }
 
@@ -107,7 +107,7 @@ final class AnnouncementService
             if ($item->state === AnnouncementState::Published) {
                 $this->announcements->connection()->transactional(function () use ($id, $item, $actor, $requestId, $ip, $deviceLabel): void {
                     $this->announcements->withdraw($id, $actor->userId);
-                    $this->audit->record($actor, 'revoke', '收回了公告《' . $item->title . '》', $id, $item->title, $requestId, $ip, $deviceLabel);
+                    $this->audit->record($actor, 'revoke', '收回了公告「' . $item->title . '」', $id, $item->title, $requestId, $ip, $deviceLabel);
                 });
             }
 
@@ -127,7 +127,7 @@ final class AnnouncementService
                 }
                 $this->announcements->removeImageUsages($id);
                 $this->announcements->remove($id);
-                $this->audit->record($actor, 'delete', '删除了公告《' . $item->title . '》', $id, $item->title, $requestId, $ip, $deviceLabel);
+                $this->audit->record($actor, 'delete', '删除了公告「' . $item->title . '」', $id, $item->title, $requestId, $ip, $deviceLabel);
             });
 
             return null;

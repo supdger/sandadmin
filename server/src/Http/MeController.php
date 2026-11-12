@@ -65,7 +65,7 @@ final class MeController
             $newPassword = is_string($body['new_password'] ?? null) ? $body['new_password'] : '';
 
             return ApiOutcome::ok(
-                $kernel->users->changePassword($actor->userId, $oldPassword, $newPassword, $request->getRemoteIp(), $this->device($request)),
+                $kernel->users->changePassword($actor->userId, $oldPassword, $newPassword, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -80,7 +80,7 @@ final class MeController
             }
 
             return ApiOutcome::ok(
-                $kernel->users->updateProfile($actor->userId, $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $kernel->users->updateProfile($actor->userId, $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)),
                 $requestId,
             );
         });
@@ -207,13 +207,6 @@ final class MeController
         }
 
         return $result;
-    }
-
-    private function device(Request $request): ?string
-    {
-        $agent = $request->header('user-agent');
-
-        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

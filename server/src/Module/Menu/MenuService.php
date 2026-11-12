@@ -81,7 +81,7 @@ final class MenuService
                 ],
             );
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'create', '添加了菜单分组' . $title, 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'create', '添加了菜单分组「' . $title . '」', 'menu', $key, $title, $requestId, $ip, $device);
 
             return ['key' => $key];
         });
@@ -119,7 +119,7 @@ final class MenuService
                 ],
             );
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'create', '添加了外部链接' . $title, 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'create', '添加了外部链接「' . $title . '」', 'menu', $key, $title, $requestId, $ip, $device);
 
             return ['key' => $key];
         });
@@ -169,7 +169,7 @@ final class MenuService
         $this->connection->transactional(function () use ($key, $actor, $title, $requestId, $ip, $device): void {
             $this->connection->executeStatement('DELETE FROM sand_system_menu_custom WHERE menu_key = ?', [$key]);
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'delete', '删除了菜单' . $title, 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'delete', '删除了菜单「' . $title . '」', 'menu', $key, $title, $requestId, $ip, $device);
         });
     }
 
@@ -205,7 +205,7 @@ final class MenuService
                 ['parent_key' => $parentKey, 'sort' => $index, 'by' => $actor->writerId(), 'menu_key' => $key],
             );
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'update', '调整了菜单' . $title . '的位置', 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'update', '调整了菜单「' . $title . '」的位置', 'menu', $key, $title, $requestId, $ip, $device);
         });
     }
 
@@ -259,7 +259,7 @@ final class MenuService
                 ],
             );
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'update', '保存了菜单' . $title, 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'update', '保存了菜单「' . $title . '」', 'menu', $key, $title, $requestId, $ip, $device);
         });
     }
 
@@ -286,7 +286,7 @@ final class MenuService
                 ],
             );
             $this->bumpVersion();
-            $this->audit->record($actor, 'menu', 'update', '保存了菜单' . $title, 'menu', $key, $title, $requestId, $ip, $device);
+            $this->audit->record($actor, 'menu', 'update', '保存了菜单「' . $title . '」', 'menu', $key, $title, $requestId, $ip, $device);
         });
     }
 

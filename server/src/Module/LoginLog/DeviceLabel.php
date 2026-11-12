@@ -10,13 +10,23 @@ namespace Sandadmin\Module\LoginLog;
 /** user_agent 合成「Mac 上的 Chrome」一类人话设备名；原文不上页面。 */
 final class DeviceLabel
 {
+    /** 命令行与脚本类 UA 的识别词，命中即归为「用工具访问」。 */
+    private const TOOL_KEYWORDS = [
+        'curl/', 'wget/', 'python-requests/', 'python-urllib/', 'aiohttp/',
+        'httpie/', 'guzzlehttp/', 'go-http-client/', 'okhttp/', 'apache-httpclient/',
+        'java/', 'postmanruntime/', 'insomnia/', 'node-fetch/', 'axios/',
+    ];
+
     public static function of(?string $userAgent): string
     {
         $ua = is_string($userAgent) ? $userAgent : '';
+        if (self::tool($ua)) {
+            return '用工具访问';
+        }
         $os = self::os($ua);
         $browser = self::browser($ua);
         if ($os === null && $browser === null) {
-            return '未知设备';
+            return '其他设备';
         }
         if ($os === null) {
             return (string) $browser;
@@ -26,6 +36,19 @@ final class DeviceLabel
         }
 
         return $os . ' 上的 ' . $browser;
+    }
+
+    /** curl、wget、脚本库这类非浏览器 UA。 */
+    private static function tool(string $ua): bool
+    {
+        $lower = strtolower($ua);
+        foreach (self::TOOL_KEYWORDS as $keyword) {
+            if (str_contains($lower, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function os(string $ua): ?string
