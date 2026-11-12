@@ -13,8 +13,10 @@ import {
   Toast,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
+import { IllustrationNoResult } from '@douyinfe/semi-illustrations';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import {
   exportAuditLogs,
@@ -89,6 +91,8 @@ function changeRows(
 
 export function AuditLogPage() {
   const { t } = useTranslation('auditLog');
+  const { t: tc } = useTranslation();
+  const navigate = useNavigate();
   const canIndex = useCan('system:audit-log:index');
   const canExport = useCan('system:audit-log:export');
 
@@ -164,6 +168,17 @@ export function AuditLogPage() {
 
   const hasFilter = Boolean(keyword || actorId || moduleKey || succeeded || from || to);
 
+  const clearFilters = () =>
+    setValues({
+      keyword: undefined,
+      actor_id: undefined,
+      module: undefined,
+      succeeded: undefined,
+      create_time_from: undefined,
+      create_time_to: undefined,
+      page: 1,
+    });
+
   // 窄屏（<1440）藏「地点」列：契约 location 在条目里有，宽屏再展示。
   const viewportWidth = useViewportWidth();
 
@@ -212,7 +227,11 @@ export function AuditLogPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')} />
+        <Empty title={t('noPermission')}>
+          <Button type="primary" onClick={() => navigate('/')}>
+            {tc('actions.backHome')}
+          </Button>
+        </Empty>
       </div>
     );
   }
@@ -295,21 +314,7 @@ export function AuditLogPage() {
           {moreOpen ? t('filters.collapse') : t('filters.more')}
         </Button>
         {hasFilter ? (
-          <Button
-            onClick={() =>
-              setValues({
-                keyword: undefined,
-                actor_id: undefined,
-                module: undefined,
-                succeeded: undefined,
-                create_time_from: undefined,
-                create_time_to: undefined,
-                page: 1,
-              })
-            }
-          >
-            {t('filters.clear')}
-          </Button>
+          <Button onClick={clearFilters}>{t('filters.clear')}</Button>
         ) : null}
       </div>
 
@@ -346,7 +351,21 @@ export function AuditLogPage() {
         rowKey="id"
         loading={query.isLoading}
         pagination={false}
-        empty={<Empty title={hasFilter ? t('empty.noResult') : t('empty.noData')} />}
+        empty={
+          hasFilter ? (
+            <Empty
+              image={<IllustrationNoResult />}
+              title={t('empty.noResult')}
+              description={t('empty.noResultDesc')}
+            >
+              <Button size="small" onClick={clearFilters}>
+                {t('empty.clearFilters')}
+              </Button>
+            </Empty>
+          ) : (
+            <Empty title={t('empty.noData')} description={t('empty.noDataDesc')} />
+          )
+        }
         scroll={{ x: 860 }}
         onRow={(row) => ({
           onClick: () => row && setDetailId(row.id),

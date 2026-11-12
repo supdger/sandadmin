@@ -45,6 +45,10 @@ describe('SettingsPage', () => {
     await userEvent.clear(input);
     await userEvent.type(input, '新后台');
     const save = await screen.findByRole('button', { name: '保存' });
+    // 实心主按钮（solid primary，不是 light/borderless）。
+    expect(save.className).toContain('semi-button-primary');
+    expect(save.className).not.toContain('semi-button-light');
+    expect(save.className).not.toContain('semi-button-borderless');
     await userEvent.click(save);
     expect(await screen.findByText('已保存「基本信息」')).toBeInTheDocument();
   });

@@ -6,7 +6,7 @@ export default {
     confirm: '确认',
     cancel: '取消',
     retry: '重试',
-    backHome: '返回首页',
+    backHome: '返回工作台',
     search: '搜索',
     reset: '重置',
     create: '新建',

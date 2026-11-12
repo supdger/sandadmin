@@ -13,6 +13,7 @@ import {
   Toast,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
+import { IllustrationNoResult } from '@douyinfe/semi-illustrations';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -130,6 +131,16 @@ export function LoginLogPage() {
   };
 
   const hasFilter = Boolean(keyword || succeeded || values.login_time_from || values.login_time_to);
+
+  const clearFilters = () =>
+    setValues({
+      keyword: undefined,
+      succeeded: undefined,
+      login_time_from: undefined,
+      login_time_to: undefined,
+      day: undefined,
+      page: 1,
+    });
 
   // 窄屏（<1440）藏「设备」列：横向滚动空间先留给结果与原因。
   const viewportWidth = useViewportWidth();
@@ -263,20 +274,7 @@ export function LoginLogPage() {
           }}
         />
         {hasFilter ? (
-          <Button
-            onClick={() =>
-              setValues({
-                keyword: undefined,
-                succeeded: undefined,
-                login_time_from: undefined,
-                login_time_to: undefined,
-                day: undefined,
-                page: 1,
-              })
-            }
-          >
-            {t('filters.clear')}
-          </Button>
+          <Button onClick={clearFilters}>{t('filters.clear')}</Button>
         ) : null}
       </div>
 
@@ -287,9 +285,19 @@ export function LoginLogPage() {
         loading={query.isLoading}
         pagination={false}
         empty={
-          <Empty
-            title={hasFilter ? t('empty.noResult') : t('empty.noData')}
-          />
+          hasFilter ? (
+            <Empty
+              image={<IllustrationNoResult />}
+              title={t('empty.noResult')}
+              description={t('empty.noResultDesc')}
+            >
+              <Button size="small" onClick={clearFilters}>
+                {t('empty.clearFilters')}
+              </Button>
+            </Empty>
+          ) : (
+            <Empty title={t('empty.noData')} description={t('empty.noDataDesc')} />
+          )
         }
         scroll={{ x: 900 }}
         onRow={(row) => ({

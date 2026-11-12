@@ -29,8 +29,11 @@ export default {
   },
 
   empty: {
-    noData: '这段时间还没有登录记录',
-    noResult: '没有找到相关的登录记录',
+    noData: '还没有登录记录',
+    noDataDesc: '有人登录后台后，会记在这里',
+    noResult: '没有找到符合条件的登录记录',
+    noResultDesc: '换个关键词或时间范围试试',
+    clearFilters: '清空筛选条件',
     backHome: '返回工作台',
   },
 

@@ -13,6 +13,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import {
   getSettingGroups,
@@ -56,6 +57,8 @@ function SettingLogoPreview({ fileRef }: { fileRef: string | null }) {
 
 export function SettingsPage() {
   const { t } = useTranslation('settings');
+  const { t: tc } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canIndex = useCan('system:config:index');
   const canUpdate = useCan('system:config:update');
@@ -186,7 +189,11 @@ export function SettingsPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')} />
+        <Empty title={t('noPermission')}>
+          <Button type="primary" onClick={() => navigate('/')}>
+            {tc('actions.backHome')}
+          </Button>
+        </Empty>
       </div>
     );
   }
@@ -366,8 +373,9 @@ export function SettingsPage() {
             <>
               {items.map(renderItem)}
               {canUpdate && dirtyKeys.length > 0 ? (
-                <div className="mt-2">
+                <div className="mt-2 flex justify-end">
                   <Button
+                    theme="solid"
                     type="primary"
                     onClick={saveDrafts}
                     loading={saveMutation.isPending}

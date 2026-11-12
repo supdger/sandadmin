@@ -32,6 +32,8 @@ export interface AuditLog {
   location: string;
   /** 设备描述；空字符串表示没有设备。 */
   device_label: string;
+  /** 原始浏览器串：只进「复制问题信息」，页面不渲染。 */
+  user_agent?: string | null;
   request_id: string;
   create_time: string;
 }

@@ -35,14 +35,14 @@ describe('AuditLogPage', () => {
     expect(await screen.findByPlaceholderText('开始日期')).toBeInTheDocument();
     expect(await screen.findByPlaceholderText('结束日期')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/rangePlaceholder|filters\./i)).toBeNull();
-    expect(await screen.findByText('停用了用户张三')).toBeInTheDocument();
+    expect(await screen.findByText('停用了用户「张三」')).toBeInTheDocument();
     expect(screen.getByText('新建了角色「运营专员」')).toBeInTheDocument();
     expect(screen.queryByText(/PUT|GET|POST|DELETE|http/i)).not.toBeInTheDocument();
   });
 
   it('详情抽屉展示改前改后，密码只显示已修改', async () => {
     renderPage();
-    await userEvent.click(await screen.findByText('重置了用户李四的密码'));
+    await userEvent.click(await screen.findByText('重置了用户「李四」的密码'));
     expect(await screen.findByText('改前')).toBeInTheDocument();
     expect(screen.getByText('改后')).toBeInTheDocument();
     expect(screen.getAllByText('已修改').length).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe('AuditLogPage', () => {
 
   it('详情按规格字段集展示：有对象行，不显示地址与请求编号', async () => {
     renderPage();
-    await userEvent.click(await screen.findByText('重置了用户李四的密码'));
+    await userEvent.click(await screen.findByText('重置了用户「李四」的密码'));
     // 「对象」行渲染 target_label（李四）。
     const target = await screen.findByText('对象');
     expect(target.closest('tr')).toHaveTextContent('李四');

@@ -44,18 +44,18 @@ const serverStatus = {
 
 /* 内存里保留详情字段（ip/user_agent/user_id），列表时剥掉。 */
 const loginLogs: LoginLogDetail[] = [
-  { id: 'll-1', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', location: '公司网络', device_label: 'Mac · Chrome', login_time: '2026-01-10T09:12:00+08:00' },
-  { id: 'll-2', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows · Edge', login_time: '2026-01-10T08:47:00+08:00' },
-  { id: 'll-3', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: false, reason: 'bad_password', reason_text: '密码不对', ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone · Safari', login_time: '2026-01-10T08:15:00+08:00' },
-  { id: 'll-4', user_id: null, username: 'wangwu', nickname: null, succeeded: false, reason: 'user_not_found', reason_text: '没有这个账号', ip: '203.0.113.9', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/119', location: '未知', device_label: 'Windows · Chrome', login_time: '2026-01-09T22:03:00+08:00' },
-  { id: 'll-5', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac · Chrome', login_time: '2026-01-09T09:02:00+08:00' },
-  { id: 'll-6', user_id: 'u-zhaoliu', username: 'zhaoliu', nickname: '赵六', succeeded: false, reason: 'disabled', reason_text: '账号已停用', ip: '10.0.0.55', user_agent: 'Mozilla/5.0 (Android 14) Chrome/120', location: '山东青岛', device_label: 'Android · Chrome', login_time: '2026-01-09T08:30:00+08:00' },
-  { id: 'll-7', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: false, reason: 'rate_limited', reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows · Edge', login_time: '2026-01-08T18:40:00+08:00' },
-  { id: 'll-8', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone · Safari', login_time: '2026-01-08T09:00:00+08:00' },
-  { id: 'll-9', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac · Chrome', login_time: '2026-01-07T09:05:00+08:00' },
-  { id: 'll-10', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows · Edge', login_time: '2026-01-07T08:55:00+08:00' },
-  { id: 'll-11', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac · Chrome', login_time: '2026-01-06T09:10:00+08:00' },
-  { id: 'll-12', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone · Safari', login_time: '2026-01-06T08:58:00+08:00' },
+  { id: 'll-1', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', location: '公司网络', device_label: 'Mac 上的 Chrome', login_time: '2026-01-10T09:12:00+08:00' },
+  { id: 'll-2', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows 上的 Edge', login_time: '2026-01-10T08:47:00+08:00' },
+  { id: 'll-3', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: false, reason: 'bad_password', reason_text: '密码不对', ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone 上的 Safari', login_time: '2026-01-10T08:15:00+08:00' },
+  { id: 'll-4', user_id: null, username: 'wangwu', nickname: null, succeeded: false, reason: 'user_not_found', reason_text: '没有这个账号', ip: '203.0.113.9', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/119', location: '未知', device_label: 'Windows 上的 Chrome', login_time: '2026-01-09T22:03:00+08:00' },
+  { id: 'll-5', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac 上的 Chrome', login_time: '2026-01-09T09:02:00+08:00' },
+  { id: 'll-6', user_id: 'u-zhaoliu', username: 'zhaoliu', nickname: '赵六', succeeded: false, reason: 'disabled', reason_text: '账号已停用', ip: '10.0.0.55', user_agent: 'Mozilla/5.0 (Android 14) Chrome/120', location: '山东青岛', device_label: 'Android 上的 Chrome', login_time: '2026-01-09T08:30:00+08:00' },
+  { id: 'll-7', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: false, reason: 'rate_limited', reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows 上的 Edge', login_time: '2026-01-08T18:40:00+08:00' },
+  { id: 'll-8', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone 上的 Safari', login_time: '2026-01-08T09:00:00+08:00' },
+  { id: 'll-9', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac 上的 Chrome', login_time: '2026-01-07T09:05:00+08:00' },
+  { id: 'll-10', user_id: 'u-zhangsan', username: 'zhangsan', nickname: '张三', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.21', user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', location: '山东青岛', device_label: 'Windows 上的 Edge', login_time: '2026-01-07T08:55:00+08:00' },
+  { id: 'll-11', user_id: 'u-admin', username: 'admin', nickname: '管理员', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.8', user_agent: 'Mozilla/5.0 (Macintosh) Chrome/120', location: '公司网络', device_label: 'Mac 上的 Chrome', login_time: '2026-01-06T09:10:00+08:00' },
+  { id: 'll-12', user_id: 'u-lisi', username: 'lisi', nickname: '李四', succeeded: true, reason: null, reason_text: null, ip: '10.0.0.32', user_agent: 'Mozilla/5.0 (iPhone) Safari/17', location: '山东青岛', device_label: 'iPhone 上的 Safari', login_time: '2026-01-06T08:58:00+08:00' },
 ];
 
 function loginLogView(l: LoginLogDetail) {
@@ -73,12 +73,12 @@ const auditLogs: AuditLog[] = [
   {
     id: 'al-1', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
     module: 'system:user', module_label: '用户管理', action: 'user.disable',
-    action_text: '停用了用户张三', target_type: 'user', target_id: 'u-zhangsan', target_label: '张三',
+    action_text: '停用了用户「张三」', target_type: 'user', target_id: 'u-zhangsan', target_label: '张三',
     succeeded: true,
     changes: { status: { before: '启用', after: '停用' } },
     change_labels: { status: '状态' },
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-1', create_time: '2026-01-10T09:20:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-1', create_time: '2026-01-10T09:20:00+08:00',
   },
   {
     id: 'al-2', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
@@ -87,8 +87,8 @@ const auditLogs: AuditLog[] = [
     succeeded: true,
     changes: { name: '运营专员' },
     change_labels: { name: '名称' },
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-2', create_time: '2026-01-10T09:05:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-2', create_time: '2026-01-10T09:05:00+08:00',
   },
   {
     id: 'al-3', actor_type: 'user', actor_id: 'u-zhangsan', actor_name: '张三',
@@ -97,19 +97,19 @@ const auditLogs: AuditLog[] = [
     succeeded: true,
     changes: { title: { before: '国庆安排', after: '国庆值班安排' } },
     change_labels: { title: '标题' },
-    ip: '10.0.0.21', location: '山东青岛', device_label: 'Windows · Edge',
-    request_id: 'req-audit-3', create_time: '2026-01-09T17:32:00+08:00',
+    ip: '10.0.0.21', location: '山东青岛', device_label: 'Windows 上的 Edge',
+    user_agent: 'Mozilla/5.0 (Windows NT 10.0) Edge/120', request_id: 'req-audit-3', create_time: '2026-01-09T17:32:00+08:00',
   },
   {
     id: 'al-4', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
     module: 'system:user', module_label: '用户管理', action: 'user.reset_password',
-    action_text: '重置了用户李四的密码', target_type: 'user', target_id: 'u-lisi', target_label: '李四',
+    action_text: '重置了用户「李四」的密码', target_type: 'user', target_id: 'u-lisi', target_label: '李四',
     succeeded: true,
     // 口令类值后端直接给「已修改」标记，页面只回显。
     changes: { password: '已修改' },
     change_labels: { password: '密码' },
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-4', create_time: '2026-01-09T15:11:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-4', create_time: '2026-01-09T15:11:00+08:00',
   },
   {
     id: 'al-5', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
@@ -117,8 +117,8 @@ const auditLogs: AuditLog[] = [
     action_text: '删除了选项「测试分类」：这个选项还有地方在用，删不掉',
     target_type: 'dict', target_id: 'd-9', target_label: '测试分类',
     succeeded: false, changes: null, change_labels: null,
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-5', create_time: '2026-01-09T11:40:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-5', create_time: '2026-01-09T11:40:00+08:00',
   },
   {
     id: 'al-6', actor_type: 'user', actor_id: 'u-lisi', actor_name: '李四',
@@ -127,8 +127,8 @@ const auditLogs: AuditLog[] = [
     succeeded: true,
     changes: { original_name: '报表.xlsx' },
     change_labels: { original_name: '文件名' },
-    ip: '10.0.0.32', location: '山东青岛', device_label: 'iPhone · Safari',
-    request_id: 'req-audit-6', create_time: '2026-01-08T14:20:00+08:00',
+    ip: '10.0.0.32', location: '山东青岛', device_label: 'iPhone 上的 Safari',
+    user_agent: 'Mozilla/5.0 (iPhone) Safari/17', request_id: 'req-audit-6', create_time: '2026-01-08T14:20:00+08:00',
   },
   {
     id: 'al-7', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
@@ -137,18 +137,18 @@ const auditLogs: AuditLog[] = [
     succeeded: true,
     changes: { url: { before: 'https://old.example.com', after: 'https://docs.example.com' } },
     change_labels: { url: '地址' },
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-7', create_time: '2026-01-08T10:02:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-7', create_time: '2026-01-08T10:02:00+08:00',
   },
   {
     id: 'al-8', actor_type: 'user', actor_id: 'u-admin', actor_name: '管理员',
     module: 'system:user', module_label: '用户管理', action: 'user.assign_role',
-    action_text: '给张三分配了角色「运营专员」', target_type: 'user', target_id: 'u-zhangsan', target_label: '张三',
+    action_text: '给「张三」分配了角色「运营专员」', target_type: 'user', target_id: 'u-zhangsan', target_label: '张三',
     succeeded: true,
     changes: { role: { before: '无', after: '运营专员' } },
     change_labels: { role: '角色' },
-    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac · Chrome',
-    request_id: 'req-audit-8', create_time: '2026-01-07T16:48:00+08:00',
+    ip: '10.0.0.8', location: '公司网络', device_label: 'Mac 上的 Chrome',
+    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', request_id: 'req-audit-8', create_time: '2026-01-07T16:48:00+08:00',
   },
 ];
 
@@ -504,7 +504,7 @@ export default [
       .filter((t) => (keyword ? t.name.includes(keyword) : true))
       .filter((t) => (status ? t.status === status : true))
       .filter((t) => (failedOnly ? t.last_run_succeeded === false : true));
-    return okV1({ items });
+    return okV1({ items, timezone: 'Asia/Shanghai', timezone_label: '北京时间（东八区）' });
   }),
 
   http.put(`${v1Base}/scheduled-tasks/:code`, async ({ request, params }) => {

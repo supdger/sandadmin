@@ -36,8 +36,11 @@ export default {
   },
 
   empty: {
-    noData: '这段时间还没有操作记录',
-    noResult: '没有找到相关的操作记录',
+    noData: '还没有操作记录',
+    noDataDesc: '有人添加用户、改权限或改设置后，会记在这里',
+    noResult: '没有找到符合条件的操作记录',
+    noResultDesc: '换个关键词或时间范围试试',
+    clearFilters: '清空筛选条件',
   },
 
   detail: {
