@@ -536,6 +536,23 @@ final class PackageOps
         return $items;
     }
 
+    /** @return list<array{key: string, name: string}> 已装且有新版本的插件，随系统升级一起更新（J8） */
+    private function bundledPlugins(): array
+    {
+        $out = [];
+        foreach ($this->marketItems() as $item) {
+            $code = $item['code'] ?? null;
+            $name = $item['name'] ?? null;
+            if (($item['installed'] ?? false) === true
+                && ($item['upgrade_available'] ?? false) === true
+                && is_string($code) && is_string($name)) {
+                $out[] = ['key' => $code, 'name' => $name];
+            }
+        }
+
+        return $out;
+    }
+
     /** @return array<string, mixed> */
     private function statusBody(): array
     {
@@ -555,8 +572,14 @@ final class PackageOps
             'current_version' => $current,
             'latest_version' => $latest,
             'update_available' => $latest !== null,
-            'changes' => $latest === null ? [] : ['人员、公告和选项的提示更清楚了', '系统升级会按五个步骤显示进度'],
-            'bundled_plugins' => [],
+            // 「你会看到的变化」3-5 条大白话（J8）；无可用更新时为空
+            'changes' => $latest === null ? [] : [
+                '人员、公告和选项的提示更清楚了',
+                '系统升级会按五个步骤显示进度',
+                '修了一些界面上的小问题',
+            ],
+            // 随系统升级一起更新的插件：已装且有新版本（J8）
+            'bundled_plugins' => $latest === null ? [] : $this->bundledPlugins(),
             'checked_time' => null,
             'compiled' => PackageGate::compiled(),
             'package_ops_enabled' => $ops,
@@ -604,6 +627,12 @@ final class PackageOps
      */
     private function requestBody(array $row): array
     {
+        $errorMessage = is_string($row['error_message'] ?? null) ? trim($row['error_message']) : '';
+        if (($row['state'] ?? null) === 'failed' && ($errorMessage === '' || $errorMessage === '失败')) {
+            // M3：失败必须是一句具体人话，不允许只回「失败」
+            $errorMessage = '系统出了点问题，请稍后再试';
+        }
+
         return [
             'id' => $row['public_id'],
             'kind' => $row['kind'],
@@ -619,7 +648,7 @@ final class PackageOps
             'progress' => OrgSql::int($row['progress'] ?? 0),
             'rolled_back' => ($row['rolled_back'] ?? null) === true || ($row['rolled_back'] ?? null) === 't' || ($row['rolled_back'] ?? null) === '1',
             'error_code' => $row['error_code'],
-            'error_message' => $row['error_message'],
+            'error_message' => $errorMessage === '' ? null : $errorMessage,
             'create_time' => is_string($row['create_time'] ?? null) ? $row['create_time'] : '',
             'start_time' => $row['start_time'],
             'finish_time' => $row['finish_time'],
