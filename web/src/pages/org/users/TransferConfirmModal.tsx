@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { Button, List, Modal, Space, Typography } from '@douyinfe/semi-ui';
+import { Button, List, Modal, Typography } from '@douyinfe/semi-ui';
 
 import type { DisableCheckItem, User } from '@/api/v1/users';
 import { UserOptionSelect } from '../shared/UserOptionSelect';
@@ -55,7 +55,7 @@ export function TransferConfirmModal({ state, onClose, onConfirm }: TransferConf
       title={t('users.danger.transferTitle', { action, name: state.user.nickname })}
       onCancel={onClose}
       footer={
-        <Space>
+        <div className="flex justify-end gap-2">
           <Button onClick={onClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
@@ -64,7 +64,7 @@ export function TransferConfirmModal({ state, onClose, onConfirm }: TransferConf
               ? t('users.danger.transferOk', { action })
               : action}
           </Button>
-        </Space>
+        </div>
       }
     >
       <Typography.Paragraph type="secondary">{t('users.danger.transferHint')}</Typography.Paragraph>

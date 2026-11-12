@@ -14,6 +14,14 @@ export default {
     verify: '正在检查结果',
     defaultStage: '正在处理',
   },
+  /** 未开始的步骤显示动作原名；进行中才显示「正在…」。 */
+  stagesPending: {
+    check: '检查',
+    backup: '备份',
+    download: '下载',
+    switch: '切换',
+    verify: '检查结果',
+  },
   stagesDone: {
     check: '检查好了',
     backup: '备份好了',

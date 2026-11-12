@@ -74,6 +74,7 @@ export default {
   empty: {
     installed: '还没有安装插件',
     installedDesc: '在「全部插件」里挑一个，点「安装」就能用',
+    installedReadonlyDesc: '要装插件，请联系负责部署的人',
     goMarket: '去看全部插件',
     noResult: '没有找到相关的插件',
   },

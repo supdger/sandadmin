@@ -51,8 +51,12 @@ describe('RolesPage', () => {
     expect(screen.getByText('本部门及下级部门')).toBeInTheDocument();
     expect(screen.getByText('已停用')).toBeInTheDocument();
     expect(screen.getAllByText('系统自带').length).toBeGreaterThan(0);
-    // 内置角色不显示编辑/复制/删除入口。
-    expect(screen.getAllByText('设置权限').length).toBeGreaterThan(0);
+    // 「设置权限」收在「更多」菜单里；打开技术负责人那一行的菜单能看到。
+    const techRow = screen.getByText('技术负责人').closest('tr')!;
+    await userEvent.click(
+      within(techRow).getByRole('button', { name: '更多' }),
+    );
+    expect(await screen.findByText('设置权限')).toBeInTheDocument();
   });
 
   it('honours URL-backed keyword and status filters', async () => {
@@ -105,6 +109,13 @@ describe('RolesPage', () => {
     // viewer 有 system:role:index + permission:index，但没有写权限。
     expect(screen.queryByRole('button', { name: /添加角色/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument();
-    expect(screen.getAllByText('设置权限').length).toBeGreaterThan(0);
+    // 「更多」里只剩「设置权限」，没有复制/停用/删除。
+    const adminRow = screen.getByText('系统管理员').closest('tr')!;
+    await userEvent.click(
+      within(adminRow).getByRole('button', { name: '更多' }),
+    );
+    expect(await screen.findByText('设置权限')).toBeInTheDocument();
+    expect(screen.queryByText('复制')).not.toBeInTheDocument();
+    expect(screen.queryByText('删除')).not.toBeInTheDocument();
   });
 });

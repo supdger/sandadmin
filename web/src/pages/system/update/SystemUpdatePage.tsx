@@ -32,7 +32,18 @@ import { useMe } from '@/hooks/useMe';
 import { AdminApiError, isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { confirmAction } from '@/lib/confirmAction';
+import { formatDateTime } from '@/lib/format';
 import { isBusyError, isPermissionRevoked, showPermissionRevoked } from '../lifecycleShared';
+
+/** 已恢复的描述按「有没有原版本号 / 有没有失败时间」挑白话模板。 */
+function rolledBackDescKey(request: LifecycleRequest): string {
+  const hasVersion = Boolean(request.from_version);
+  const hasTime = Boolean(request.finish_time);
+  if (hasVersion && hasTime) return 'rolledBackDescAt';
+  if (hasVersion) return 'rolledBackDesc';
+  if (hasTime) return 'rolledBackDescAtNoVersion';
+  return 'rolledBackDescNoVersion';
+}
 
 /** 系统升级固定五阶段，顺序即展示顺序（stage_key → 文案）。 */
 const STAGE_KEYS = ['check', 'backup', 'download', 'switch', 'verify'] as const;
@@ -60,7 +71,13 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
         {STAGE_KEYS.map((key, index) => (
           <Steps.Step
             key={key}
-            title={t(index < current ? `stagesDone.${key}` : `stages.${key}`)}
+            title={t(
+              index < current
+                ? `stagesDone.${key}`
+                : index === current
+                  ? `stages.${key}`
+                  : `stagesPending.${key}`,
+            )}
           />
         ))}
       </Steps>
@@ -128,7 +145,14 @@ function UpgradeResult({
             title={t('rolledBackTitle')}
             description={
               <div className="flex flex-col gap-1">
-                <span>{t(canRetry ? 'rolledBackDesc' : 'rolledBackDescReadonly')}</span>
+                <span>
+                  {t(rolledBackDescKey(request), {
+                    version: request.from_version ?? '',
+                    time: request.finish_time
+                      ? formatDateTime(request.finish_time)
+                      : '',
+                  })}
+                </span>
                 {request.error_message ? (
                   <span>{t('failureReason', { reason: request.error_message })}</span>
                 ) : null}
@@ -338,7 +362,11 @@ export function SystemUpdatePage() {
               {t('currentVersion', { version: status?.current_version ?? '' })}
             </Typography.Title>
             {status?.update_available && status.latest_version ? (
-              <Typography.Text>{t('canUpgradeTo', { version: status.latest_version })}</Typography.Text>
+              <Typography.Text>
+                {opsEnabled && !compiled
+                  ? t('canUpgradeTo', { version: status.latest_version })
+                  : t('newVersionReadonly', { version: status.latest_version })}
+              </Typography.Text>
             ) : (
               <div className="flex flex-col gap-1">
                 <Tag color="green">{t('latestTag', { version: status?.current_version ?? '' })}</Tag>

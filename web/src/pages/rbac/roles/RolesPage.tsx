@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import {
   Button,
@@ -12,12 +12,12 @@ import {
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
 import {
-  IconMore,
   IconCopy,
   IconDelete,
   IconEdit,
   IconPlus,
   IconSafe,
+  IconSearch,
 } from '@douyinfe/semi-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -41,7 +41,7 @@ import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { CopyRoleModal } from './CopyRoleModal';
 import { RoleFormSheet } from './RoleFormSheet';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
 
 const QUERY_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -92,6 +92,8 @@ export function RolesPage() {
   const [copyRoleTarget, setCopyRoleTarget] = useState<Role | null>(null);
   const [reassignRole, setReassignRole] = useState<Role | null>(null);
   const [replacementId, setReplacementId] = useState<string | undefined>();
+  // 「更多」下拉受控：点菜单项先收起再弹确认框。
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   // URL 是 keyword 的唯一事实源；外部变化（后退、清空筛选）
   // 在渲染期同步进输入框。
@@ -173,7 +175,7 @@ export function RolesPage() {
   });
 
   const confirmDisable = (role: Role) => {
-    confirmAction({
+    confirmDanger({
       title: t('roles.confirm.disableTitle', { name: role.name }),
       content: t('roles.confirm.disableBody'),
       okText: t('roles.disable'),
@@ -200,7 +202,7 @@ export function RolesPage() {
       setReassignRole(role);
       return;
     }
-    confirmAction({
+    confirmDanger({
       title: t('roles.confirm.deleteTitle', { name: role.name }),
       content: t('roles.confirm.deleteBodyEmpty'),
       okText: t('roles.delete'),
@@ -329,19 +331,54 @@ export function RolesPage() {
         width: 220,
         render: (_value, role) => {
           const locked = isLockedRole(role);
-          const showMore =
-            (canCreate && !locked) || (canUpdate && !locked) || (canDelete && !locked);
+          const menuItems: {
+            key: string;
+            name: string;
+            icon?: ReactNode;
+            danger?: boolean;
+            onClick: () => void;
+          }[] = [
+            canSetPermission
+              ? {
+                  key: 'permission',
+                  name: t('roles.setPermission'),
+                  onClick: () => openPermission(role),
+                }
+              : null,
+            canCreate && !locked
+              ? {
+                  key: 'copy',
+                  name: t('roles.copy'),
+                  icon: <IconCopy />,
+                  onClick: () => setCopyRoleTarget(role),
+                }
+              : null,
+            canUpdate && !locked
+              ? {
+                  key: 'toggle',
+                  name: role.status === 'enabled' ? t('roles.disable') : t('roles.enable'),
+                  icon: <IconSafe />,
+                  onClick: () => toggleStatus(role),
+                }
+              : null,
+            canDelete && !locked
+              ? {
+                  key: 'delete',
+                  name: t('roles.delete'),
+                  icon: <IconDelete />,
+                  danger: true,
+                  onClick: () => confirmDelete(role),
+                }
+              : null,
+          ].filter((i): i is NonNullable<typeof i> => i !== null);
+          const showMore = menuItems.length > 0;
           return (
             <div className="flex items-center gap-1">
-              {canSetPermission ? (
-                <Button size="small" theme="borderless" onClick={() => openPermission(role)}>
-                  {t('roles.setPermission')}
-                </Button>
-              ) : null}
               {canUpdate && !locked ? (
                 <Button
                   size="small"
                   theme="borderless"
+                  type="primary"
                   icon={<IconEdit />}
                   onClick={() => setSheetRole(role)}
                 >
@@ -352,44 +389,29 @@ export function RolesPage() {
                 <Dropdown
                   trigger="click"
                   position="bottomRight"
+                  visible={moreOpenId === role.id}
+                  onVisibleChange={(v) => setMoreOpenId(v ? role.id : null)}
                   render={
                     <Dropdown.Menu>
-                      {canCreate && !locked ? (
+                      {menuItems.map((item) => (
                         <Dropdown.Item
-                          icon={<IconCopy />}
-                          onClick={() => setCopyRoleTarget(role)}
+                          key={item.key}
+                          icon={item.icon}
+                          type={item.danger ? 'danger' : undefined}
+                          onClick={() => {
+                            setMoreOpenId(null);
+                            item.onClick();
+                          }}
                         >
-                          {t('roles.copy')}
+                          {item.name}
                         </Dropdown.Item>
-                      ) : null}
-                      {canUpdate && !locked ? (
-                        <Dropdown.Item
-                          icon={<IconSafe />}
-                          onClick={() => toggleStatus(role)}
-                        >
-                          {role.status === 'enabled'
-                            ? t('roles.disable')
-                            : t('roles.enable')}
-                        </Dropdown.Item>
-                      ) : null}
-                      {canDelete && !locked ? (
-                        <Dropdown.Item
-                          icon={<IconDelete />}
-                          type="danger"
-                          onClick={() => confirmDelete(role)}
-                        >
-                          {t('roles.delete')}
-                        </Dropdown.Item>
-                      ) : null}
+                      ))}
                     </Dropdown.Menu>
                   }
                 >
-                  <Button
-                    size="small"
-                    theme="borderless"
-                    icon={<IconMore />}
-                    aria-label={t('roles.more')}
-                  />
+                  <Button size="small" theme="borderless" type="primary">
+                    {t('roles.more')}
+                  </Button>
                 </Dropdown>
               ) : null}
             </div>
@@ -429,7 +451,7 @@ export function RolesPage() {
         filters={
           <>
             <Input
-              prefix={<IconSafe />}
+              prefix={<IconSearch />}
               placeholder={t('roles.searchPlaceholder')}
               value={keywordInput}
               onChange={setKeywordInput}
@@ -530,9 +552,22 @@ export function RolesPage() {
                 .filter((item) => item.id !== reassignRole.id)
                 .slice()
                 .sort((left, right) => left.name.localeCompare(right.name, 'zh'))
-                .map((item) => ({ value: item.id, label: item.name }))}
+                .map((item) => ({
+                  value: item.id,
+                  label: item.is_super
+                    ? `${item.name}（${t('roles.confirm.superTag')}）`
+                    : item.name,
+                }))}
               onChange={(value) => setReplacementId(typeof value === 'string' ? value : undefined)}
             />
+            {replacementId &&
+            (replacementRoles.data?.items ?? []).find(
+              (item) => item.id === replacementId,
+            )?.is_super ? (
+              <Typography.Text type="warning" size="small">
+                {t('roles.confirm.reassignSuperWarning')}
+              </Typography.Text>
+            ) : null}
           </div>
         </Modal>
       ) : null}

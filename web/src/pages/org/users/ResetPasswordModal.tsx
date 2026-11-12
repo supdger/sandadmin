@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { Banner, Button, Input, Modal, Space, Toast, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Input, Modal, Toast, Typography } from '@douyinfe/semi-ui';
 
 import { resetUserPassword, type User } from '@/api/v1/users';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
@@ -61,14 +61,14 @@ export function ResetPasswordModal({ user, onClose }: ResetPasswordModalProps) {
       title={t('users.reset.title', { name: user?.nickname ?? '' })}
       onCancel={onClose}
       footer={
-        <Space>
+        <div className="flex justify-end gap-2">
           <Button onClick={onClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => void handleSubmit()}>
             {t('users.reset.ok')}
           </Button>
-        </Space>
+        </div>
       }
     >
       {systemError ? (

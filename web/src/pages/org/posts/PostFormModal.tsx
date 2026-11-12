@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { Banner, Button, Form, Modal, Space, Toast } from '@douyinfe/semi-ui';
+import { Banner, Button, Form, Modal, Toast } from '@douyinfe/semi-ui';
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createPost, updatePost, type Post, type PostWrite } from '@/api/v1/posts';
@@ -100,14 +100,14 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
       title={isEdit ? t('posts.form.editTitle') : t('posts.form.addTitle')}
       onCancel={onClose}
       footer={
-        <Space>
+        <div className="flex justify-end gap-2">
           <Button onClick={onClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApiRef.current?.submitForm()}>
             {isEdit ? t('common.save') : t('posts.form.create')}
           </Button>
-        </Space>
+        </div>
       }
     >
       {systemError ? (
