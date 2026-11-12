@@ -334,7 +334,7 @@ export function CronPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, canRun, canUpdate, runningCode, toggleMutation.isPending],
+    [t, canRun, canUpdate, runningCode, toggleMutation.isPending, scheduleZone],
   );
 
   if (!canIndex) {
