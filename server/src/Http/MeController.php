@@ -64,7 +64,10 @@ final class MeController
             $oldPassword = is_string($body['old_password'] ?? null) ? $body['old_password'] : '';
             $newPassword = is_string($body['new_password'] ?? null) ? $body['new_password'] : '';
 
-            return ApiOutcome::ok($kernel->users->changePassword($actor->userId, $oldPassword, $newPassword), $requestId);
+            return ApiOutcome::ok(
+                $kernel->users->changePassword($actor->userId, $oldPassword, $newPassword, $request->getRemoteIp(), $this->device($request)),
+                $requestId,
+            );
         });
     }
 

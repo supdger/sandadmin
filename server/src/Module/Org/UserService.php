@@ -237,11 +237,13 @@ final class UserService
     }
 
     /**
-     * 校验旧口令后换新哈希。明文只用于校验，不写日志、不进返回值。
+     * 校验旧口令后换新哈希。明文只用于校验，不写日志。
+     * 改密成功时同一事务内吊销本人全部会话（含当前），再补发一枚新令牌；
+     * 新令牌只在返回值里出现一次，库里存 SHA-256 哈希。
      *
-     * @return array{changed: true}
+     * @return array{changed: true, token: string}
      */
-    public function changePassword(int $id, string $oldPassword, string $newPassword): array
+    public function changePassword(int $id, string $oldPassword, string $newPassword, ?string $ip = null, ?string $device = null): array
     {
         $row = $this->requireAlive($id);
         $stored = $this->connection->fetchOne(
@@ -276,12 +278,17 @@ final class UserService
                 '密码不能和账号一样，请换一个',
             );
         }
-        $this->connection->executeStatement(
-            'UPDATE sand_system_user SET password_hash = :hash, password_changed_time = CURRENT_TIMESTAMP WHERE id = :id',
-            ['hash' => $this->hashPassword($newPassword), 'id' => $id],
-        );
+        $token = bin2hex(random_bytes(32));
+        $this->connection->transactional(function () use ($id, $newPassword, $token, $ip, $device): void {
+            $this->connection->executeStatement(
+                'UPDATE sand_system_user SET password_hash = :hash, password_changed_time = CURRENT_TIMESTAMP WHERE id = :id',
+                ['hash' => $this->hashPassword($newPassword), 'id' => $id],
+            );
+            $this->revokeSessions($id, 'password_changed');
+            $this->issueSession($id, $token, $ip, $device);
+        });
 
-        return ['changed' => true];
+        return ['changed' => true, 'token' => $token];
     }
 
     private function holdsAdminTier(int $id): bool
@@ -732,6 +739,22 @@ final class UserService
             'UPDATE sand_system_session SET revoked_time = CURRENT_TIMESTAMP, revoked_reason = :reason'
             . ' WHERE user_id = :id AND revoked_time IS NULL',
             ['reason' => $reason, 'id' => $userId],
+        );
+    }
+
+    /** 签发 7 天有效的新会话；ip 取不出合法值时写 0.0.0.0，会话表里不留空。 */
+    private function issueSession(int $userId, string $token, ?string $ip, ?string $device): void
+    {
+        $address = $ip !== null && filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : '0.0.0.0';
+        $this->connection->executeStatement(
+            'INSERT INTO sand_system_session (user_id, token_hash, auth_method, ip, device_label, expire_time)'
+            . ' VALUES (:user, :hash, \'password\', :ip, :device, CURRENT_TIMESTAMP + INTERVAL \'7 days\')',
+            [
+                'user' => $userId,
+                'hash' => hash('sha256', $token),
+                'ip' => $address,
+                'device' => $device === null ? '' : mb_substr($device, 0, 64),
+            ],
         );
     }
 

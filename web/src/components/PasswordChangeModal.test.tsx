@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
+import { __authMock } from '@/mocks/handlers/auth';
 import { PasswordChangeModal } from './PasswordChangeModal';
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
@@ -36,6 +37,8 @@ function renderModal(onClose = vi.fn()) {
 describe('PasswordChangeModal', () => {
   afterEach(() => {
     clearToken();
+    // The mock revokes rotated tokens; restore the seed tokens per case.
+    __authMock.reset();
   });
 
   it('shows the admin-tier policy hints and submits a valid change', async () => {

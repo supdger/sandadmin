@@ -10,9 +10,10 @@ namespace Sandadmin\Tests\Integration\Module\Org;
 use Sandadmin\Module\Org\OrgAudit;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Org\OrgIdempotency;
+use Sandadmin\Module\Org\OrgSql;
 use Sandadmin\Module\Org\UserService;
 
-/** 自己改密码：旧口令不对拒绝，对了才换哈希。 */
+/** 自己改密码：旧口令不对拒绝，对了才换哈希；改完全部会话作废并补发新令牌。 */
 final class PasswordChangeTest extends OrgCase
 {
     public function testWrongOldPasswordStaysOnTheFormField(): void
@@ -46,11 +47,72 @@ final class PasswordChangeTest extends OrgCase
             'username' => 'pw1705b',
         ], ['id' => $userId]);
 
-        $service->changePassword($userId, $old, $next);
+        $result = $service->changePassword($userId, $old, $next);
         $stored = $this->conn->fetchOne('SELECT password_hash FROM sand_system_user WHERE id = ?', [$userId]);
         self::assertIsString($stored);
         self::assertTrue(password_verify($next, $stored));
         self::assertFalse(password_verify($old, $stored));
+        self::assertNotSame('', $result['token']);
+    }
+
+    /** 改密后本人旧会话（含发起端）全部作废，返回的新令牌对应一条有效会话。 */
+    public function testRevokesEverySessionAndReturnsWorkingToken(): void
+    {
+        $service = $this->service();
+        $deptId = $this->addDept('改密部门');
+        $userId = $this->addUser($deptId, '13800017063', '改密用户');
+        $old = $this->secret('old');
+        $next = $this->secret('next');
+        $this->conn->update('sand_system_user', [
+            'password_hash' => password_hash($old, PASSWORD_ARGON2ID),
+            'username' => 'pw1705c',
+        ], ['id' => $userId]);
+        $this->addSession($userId, 'device-a-token');
+        $this->addSession($userId, 'device-b-token');
+        $otherId = $this->addUser($deptId, '13800017064', '同部门用户');
+        $this->addSession($otherId, 'other-user-token');
+
+        $result = $service->changePassword($userId, $old, $next, '127.0.0.1', 'phpunit');
+
+        self::assertSame(
+            2,
+            OrgSql::int($this->conn->fetchOne(
+                "SELECT COUNT(*) FROM sand_system_session WHERE user_id = ? AND revoked_reason = 'password_changed'",
+                [$userId],
+            )),
+        );
+        foreach (['device-a-token', 'device-b-token'] as $plain) {
+            self::assertSame(
+                0,
+                OrgSql::int($this->conn->fetchOne(
+                    'SELECT COUNT(*) FROM sand_system_session WHERE user_id = ? AND revoked_time IS NULL AND token_hash = ?',
+                    [$userId, hash('sha256', $plain)],
+                )),
+            );
+        }
+        self::assertSame(
+            1,
+            OrgSql::int($this->conn->fetchOne(
+                'SELECT COUNT(*) FROM sand_system_session WHERE user_id = ? AND revoked_time IS NULL AND token_hash = ?',
+                [$userId, hash('sha256', $result['token'])],
+            )),
+        );
+        self::assertSame(
+            1,
+            OrgSql::int($this->conn->fetchOne(
+                'SELECT COUNT(*) FROM sand_system_session WHERE user_id = ? AND revoked_time IS NULL',
+                [$otherId],
+            )),
+        );
+    }
+
+    private function addSession(int $userId, string $token): void
+    {
+        $this->conn->executeStatement(
+            'INSERT INTO sand_system_session (user_id, token_hash, auth_method, ip, expire_time)'
+            . ' VALUES (?, ?, \'password\', \'127.0.0.1\', CURRENT_TIMESTAMP + INTERVAL \'1 hour\')',
+            [$userId, hash('sha256', $token)],
+        );
     }
 
     private function service(): UserService
