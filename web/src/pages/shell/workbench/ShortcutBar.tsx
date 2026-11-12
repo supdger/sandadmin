@@ -12,13 +12,12 @@ import {
   saveShortcuts,
   type ShortcutItem,
 } from '@/api/v1/dashboard';
-import { getMyMenus, type MyMenuNode } from '@/api/v1/me';
+import { getMyMenus, MY_MENUS_QUERY_KEY, type MyMenuNode } from '@/api/v1/me';
 import { adminErrorMessage } from '@/lib/adminError';
 import { listOrEmpty } from './listOrEmpty';
 import { LoadError } from './LoadError';
 
 const SHORTCUTS_QUERY_KEY = ['dashboard', 'shortcuts'] as const;
-const MENUS_QUERY_KEY = ['me', 'menus'] as const;
 const MAX_SHORTCUTS = 8;
 
 interface LeafMenu {
@@ -53,7 +52,7 @@ export function ShortcutBar() {
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
   const shortcuts = useQuery({ queryKey: SHORTCUTS_QUERY_KEY, queryFn: getShortcuts });
-  const menus = useQuery({ queryKey: MENUS_QUERY_KEY, queryFn: getMyMenus, staleTime: 60_000 });
+  const menus = useQuery({ queryKey: MY_MENUS_QUERY_KEY, queryFn: getMyMenus, staleTime: 60_000 });
 
   const leafMenus = useMemo(
     () => flattenLeaves(Array.isArray(menus.data?.items) ? menus.data.items : []),

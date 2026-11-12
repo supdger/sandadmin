@@ -44,7 +44,8 @@ final class MenuService
     }
 
     /**
-     * 把已显示的自建分组和外链并进侧栏。隐藏的不出现。
+     * 侧栏 = 覆盖层生效后的清单 ⊕ 可见的自建节点。覆盖层把清单项改名、
+     * 换图标、隐藏都在这里生效；自建节点的显隐在 attachCustom 里处理。
      *
      * @param list<array<string, mixed>> $items
      *
@@ -52,7 +53,7 @@ final class MenuService
      */
     public function mergeSidebar(array $items): array
     {
-        return $this->attachCustom($items, true);
+        return $this->attachCustom($this->pruneHidden($this->applyOverrides($items)), true);
     }
 
     /**
@@ -417,6 +418,31 @@ final class MenuService
         }
 
         return $painted;
+    }
+
+    /**
+     * 被覆盖层隐藏的节点连同子级一起摘掉，visible 键不进侧栏响应。
+     *
+     * @param list<array<string, mixed>> $items
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pruneHidden(array $items): array
+    {
+        $kept = [];
+        foreach ($items as $item) {
+            if (array_key_exists('visible', $item) && !$this->isOn($item['visible'])) {
+                continue;
+            }
+            unset($item['visible']);
+            $children = $item['children'] ?? null;
+            if (is_array($children)) {
+                $item['children'] = $this->pruneHidden($this->stringRows($children));
+            }
+            $kept[] = $item;
+        }
+
+        return $kept;
     }
 
     /**

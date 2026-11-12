@@ -151,9 +151,78 @@ final class MenuFlowTest extends TestCase
         }
     }
 
+    public function testSidebarAppliesRenameAndHide(): void
+    {
+        self::$kernel->menus->updateNode('system:announcement', ['title' => '测公告'], $this->actor, 'req-s1', '127.0.0.1', null);
+        self::$kernel->menus->updateNode('system:plugin', ['visible' => false], $this->actor, 'req-s2', '127.0.0.1', null);
+
+        $items = self::$kernel->menus->mergeSidebar(self::sidebarItems());
+        $titles = self::sidebarTitles($items);
+        $this->assertContains('测公告', $titles);
+        $this->assertNotContains('公告管理', $titles);
+        $this->assertNotContains('插件管理', $titles);
+        $this->assertContains('用户管理', $titles);
+    }
+
+    /**
+     * 与 MeController::items 同构的最小侧栏清单。
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function sidebarItems(): array
+    {
+        return [
+            self::sidebarPage('home', '工作台', '/'),
+            [
+                'key' => 'system',
+                'type' => 'group',
+                'title' => '系统',
+                'icon' => 'setting',
+                'path' => null,
+                'url' => null,
+                'children' => [
+                    self::sidebarPage('system:user', '用户管理', '/system/user'),
+                    self::sidebarPage('system:announcement', '公告管理', '/data/notice'),
+                    self::sidebarPage('system:plugin', '插件管理', '/system/plugins'),
+                ],
+            ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function sidebarPage(string $key, string $title, string $path): array
+    {
+        return ['key' => $key, 'type' => 'page', 'title' => $title, 'icon' => null, 'path' => $path, 'url' => null];
+    }
+
+    /**
+     * @param array<mixed> $items
+     *
+     * @return list<string>
+     */
+    private static function sidebarTitles(array $items): array
+    {
+        $titles = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $titles[] = OrgSql::str($item['title'] ?? null);
+            $children = $item['children'] ?? null;
+            if (is_array($children)) {
+                foreach (self::sidebarTitles($children) as $childTitle) {
+                    $titles[] = $childTitle;
+                }
+            }
+        }
+
+        return $titles;
+    }
+
     private static function wipe(): void
     {
         self::$conn->executeStatement("DELETE FROM sand_system_menu_custom WHERE menu_key LIKE 'custom:%' OR title LIKE '测%' OR title LIKE '坏%'");
+        self::$conn->executeStatement("DELETE FROM sand_system_menu_override WHERE title LIKE '测%' OR menu_key = 'system:plugin'");
         self::$conn->executeStatement("DELETE FROM sand_system_audit_log WHERE module = 'menu' AND actor_name = '测试账号'");
     }
 }

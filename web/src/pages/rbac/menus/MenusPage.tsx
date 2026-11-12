@@ -29,6 +29,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
+import { MY_MENUS_QUERY_KEY } from '@/api/v1/me';
 import {
   deleteMenu,
   getMenuTree,
@@ -199,8 +200,11 @@ export function MenusPage() {
     [],
   );
 
+  // 侧栏（含工作台快捷入口）吃 me/menus，写操作成功后必须一并失效，
+  // 否则它要等 staleTime 或下次挂载才更新。
   const refreshTree = () => {
     void queryClient.invalidateQueries({ queryKey: ['rbac', 'menu-tree'] });
+    void queryClient.invalidateQueries({ queryKey: MY_MENUS_QUERY_KEY });
   };
 
   const scheduleUndo = (state: UndoState | null) => {

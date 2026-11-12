@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
-import { getMyMenus } from '@/api/v1/me';
+import { getMyMenus, MY_MENUS_QUERY_KEY } from '@/api/v1/me';
 import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { useVisitReport } from '@/hooks/useVisitReport';
@@ -24,8 +24,6 @@ import { findMenuChain, toNavItems } from './menuTree';
 import { NotificationBell } from './NotificationBell';
 import { useThemeMode } from './themeMode';
 import { UserMenu } from './UserMenu';
-
-const MENUS_QUERY_KEY = ['me', 'menus'] as const;
 
 const SIDER_WIDTH = 240;
 const SIDER_COLLAPSED_WIDTH = 60;
@@ -50,7 +48,7 @@ export function AppShell() {
   const [manualOpenKeys, setManualOpenKeys] = useState<Array<string | number>>([]);
 
   const menus = useQuery({
-    queryKey: MENUS_QUERY_KEY,
+    queryKey: MY_MENUS_QUERY_KEY,
     queryFn: getMyMenus,
     staleTime: 60_000,
   });
