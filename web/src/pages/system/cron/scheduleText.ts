@@ -1,6 +1,7 @@
 import i18n from '@/i18n/i18n';
 
 import type { TaskSchedule } from '@/api/v1/schedules';
+import { clockInZone, getBrowserZone, utcFromZone, zonePartsAt } from '@/lib/zonedTime';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -18,35 +19,42 @@ export function normalizeTime(raw: string | null | undefined): string | null {
 /**
  * 结构化 schedule → 界面上的人话（「每天 03:00」「每 10 分钟」）。
  * cron/表达式永远不出现；schedule 为 null 表示时间由系统定。
+ * sourceZone 是 schedule 钟点的设置时区：给了就换算成浏览器时区
+ * 再显示，weekly/monthly 换算后星期、几号可能跨到前后一天。
  */
-export function scheduleText(schedule: TaskSchedule | null | undefined): string {
+export function scheduleText(
+  schedule: TaskSchedule | null | undefined,
+  sourceZone?: string | null,
+  targetZone: string = getBrowserZone(),
+): string {
   const t = (key: string, opts?: Record<string, unknown>) => i18n.t(key, { ns: 'cron', ...opts });
   if (!schedule) return t('schedule.bySystem');
+  const clock = sourceZone ? clockInZone(schedule, sourceZone, targetZone) : null;
   switch (schedule.freq) {
     case 'interval': {
       const minutes = schedule.interval;
       return minutes && minutes > 0 ? t('schedule.interval', { count: minutes }) : t('schedule.unread');
     }
     case 'hourly': {
-      const time = normalizeTime(schedule.time);
+      const time = clock?.time ?? normalizeTime(schedule.time);
       const minute = time ? Number(time.slice(3)) : null;
       return minute != null ? t('schedule.hourly', { minute: pad2(minute) }) : t('schedule.unread');
     }
     case 'daily': {
-      const time = normalizeTime(schedule.time);
+      const time = clock?.time ?? normalizeTime(schedule.time);
       return time ? t('schedule.daily', { time }) : t('schedule.unread');
     }
     case 'weekly': {
-      const time = normalizeTime(schedule.time);
-      const weekday = schedule.weekday;
+      const time = clock?.time ?? normalizeTime(schedule.time);
+      const weekday = clock?.weekday ?? schedule.weekday;
       const names = t('schedule.weekdays', { returnObjects: true }) as unknown as string[];
       return time && weekday && weekday >= 1 && weekday <= 7
         ? t('schedule.weekly', { weekday: names[weekday - 1], time })
         : t('schedule.unread');
     }
     case 'monthly': {
-      const time = normalizeTime(schedule.time);
-      const day = schedule.monthday;
+      const time = clock?.time ?? normalizeTime(schedule.time);
+      const day = clock?.monthday ?? schedule.monthday;
       return time && day && day >= 1 && day <= 31
         ? t('schedule.monthly', { day, time })
         : t('schedule.unread');
@@ -59,8 +67,17 @@ export function scheduleText(schedule: TaskSchedule | null | undefined): string 
 /**
  * 按 schedule 估算接下来三次执行时间（页面预览用，与后端无关）。
  * monthly 29–31 号遇短月落到当月最后一天。
+ * sourceZone 是 schedule 钟点的设置时区：给了就按它解释钟面时刻，
+ * 返回的 Date 仍是瞬间，格式化时自动落到浏览器时区。
  */
-export function nextRunTimes(schedule: TaskSchedule, from: Date = new Date()): Date[] {
+export function nextRunTimes(
+  schedule: TaskSchedule,
+  from: Date = new Date(),
+  sourceZone?: string | null,
+): Date[] {
+  if (sourceZone && schedule.freq !== 'interval') {
+    return nextRunInZone(schedule, from, sourceZone);
+  }
   const out: Date[] = [];
 
   const timeOf = (d: Date, hhmm: string | null | undefined) => {
@@ -133,6 +150,46 @@ export function nextRunTimes(schedule: TaskSchedule, from: Date = new Date()): D
       }
       break;
     }
+  }
+  return out;
+}
+
+/** sourceZone 版：候选钟面时刻按设置时区解释成瞬间，逐日/逐小时推进。 */
+function nextRunInZone(schedule: TaskSchedule, from: Date, zone: string): Date[] {
+  const out: Date[] = [];
+  const clock = normalizeTime(schedule.time) ?? '00:00';
+  const hour = Number(clock.slice(0, 2));
+  const minute = Number(clock.slice(3));
+  const start = zonePartsAt(from, zone);
+
+  if (schedule.freq === 'hourly') {
+    for (let i = 0; out.length < 3 && i < 50; i += 1) {
+      const at = utcFromZone(
+        { year: start.year, month: start.month, day: start.day, hour: start.hour + i, minute },
+        zone,
+      );
+      if (at.getTime() > from.getTime()) out.push(at);
+    }
+    return out;
+  }
+
+  for (let i = 0; out.length < 3 && i < 400; i += 1) {
+    const wall = new Date(Date.UTC(start.year, start.month - 1, start.day + i));
+    const year = wall.getUTCFullYear();
+    const month = wall.getUTCMonth() + 1;
+    const day = wall.getUTCDate();
+    const weekday = wall.getUTCDay() === 0 ? 7 : wall.getUTCDay();
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const hit =
+      schedule.freq === 'daily' ||
+      (schedule.freq === 'weekly' && weekday === (schedule.weekday ?? 1)) ||
+      (schedule.freq === 'monthly' &&
+        day === Math.min(schedule.monthday ?? 1, lastDay));
+    if (!hit) continue;
+    const at = utcFromZone({ year, month, day, hour, minute }, zone);
+    if (at.getTime() <= from.getTime()) continue;
+    if (out.some((o) => o.getTime() === at.getTime())) continue;
+    out.push(at);
   }
   return out;
 }

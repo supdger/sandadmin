@@ -72,13 +72,22 @@ export interface TaskRun {
   finish_time: string | null;
 }
 
+/** GET /scheduled-tasks 响应：items 之外带设置时区，行内钟点按它解释。 */
+export interface ScheduledTaskList {
+  items: ScheduledTask[];
+  /** 设置时区（IANA，如 Asia/Shanghai）：schedule 钟点与 next_run_time 按它算。 */
+  timezone: string;
+  /** 设置时区中文名（如「北京时间（东八区）」）。 */
+  timezone_label: string;
+}
+
 export function listScheduledTasks(query?: {
   keyword?: string;
   status?: 'enabled' | 'disabled';
   /** true=只看上次执行没有成功的任务（last_run_succeeded=false）。 */
   failed_only?: boolean;
-}): Promise<{ items: ScheduledTask[] }> {
-  return adminGet<{ items: ScheduledTask[] }>('/scheduled-tasks', { query });
+}): Promise<ScheduledTaskList> {
+  return adminGet<ScheduledTaskList>('/scheduled-tasks', { query });
 }
 
 export function updateScheduledTask(

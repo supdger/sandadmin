@@ -19,6 +19,7 @@ import {
 import { IconSearch } from '@douyinfe/semi-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 
 import {
   listScheduleRuns,
@@ -39,6 +40,7 @@ import { adminErrorMessage } from '@/lib/adminError';
 import { AdminApiError } from '@/lib/adminClient';
 import { confirmDanger } from '@/lib/confirmAction';
 import { formatDateTime } from '@/lib/format';
+import { getBrowserZone } from '@/lib/zonedTime';
 import { nextRunTimes, normalizeTime, scheduleText } from './scheduleText';
 
 const URL_FIELDS = { keyword: {}, status: {}, failed_only: { kind: 'boolean' as const } };
@@ -85,6 +87,8 @@ interface EditState {
 
 export function CronPage() {
   const { t } = useTranslation('cron');
+  const { t: tc } = useTranslation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canIndex = useCan('system:cron:index');
   const canUpdate = useCan('system:cron:update');
@@ -162,7 +166,6 @@ export function CronPage() {
 
   // ---------- 改时间 ----------
   const [editState, setEditState] = useState<EditState | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validateDraft = (s: EditState): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -173,7 +176,7 @@ export function CronPage() {
       errs.monthday = t('edit.monthdayRule');
     }
     if ((s.draft.freq === 'daily' || s.draft.freq === 'weekly' || s.draft.freq === 'monthly') && !normalizeTime(s.draft.time)) {
-      errs.time = t('edit.intervalRule');
+      errs.time = t('edit.timeRule');
     }
     return errs;
   };
@@ -193,21 +196,19 @@ export function CronPage() {
     },
   });
 
+  // 设置时区：列表响应下发；钟点列换算与预览解释都用它。
+  const scheduleZone = query.data?.timezone ?? null;
+  const scheduleZoneLabel = query.data?.timezone_label ?? scheduleZone ?? '';
+  const zoneDiffers = scheduleZone !== null && scheduleZone !== getBrowserZone();
+
   const previewRuns = useMemo(() => {
     if (!editState) return [];
-    const schedule = draftToSchedule({
-      ...editState.draft,
-      // hourly 分钟存独立字段。
-      ...(editState.draft.freq === 'hourly'
-        ? {}
-        : {}),
-    });
-    const fixed =
+    const schedule =
       editState.draft.freq === 'hourly'
         ? { freq: 'hourly' as const, time: `00:${String(editState.minute).padStart(2, '0')}` }
-        : schedule;
-    return nextRunTimes(fixed);
-  }, [editState]);
+        : draftToSchedule(editState.draft);
+    return nextRunTimes(schedule, new Date(), scheduleZone);
+  }, [editState, scheduleZone]);
 
   // ---------- 执行记录 ----------
   const [runsTask, setRunsTask] = useState<ScheduledTask | null>(null);
@@ -244,8 +245,12 @@ export function CronPage() {
         title: t('columns.schedule'),
         dataIndex: 'schedule',
         // 清单锁定写「时间由系统定」；否则渲染生效时间结构（覆盖或清单默认）。
-        render: (_: unknown, row: ScheduledTask) =>
-          row.schedule_locked ? t('schedule.bySystem') : scheduleText(row.schedule),
+        // 钟点按列表下发的设置时区换算成浏览器时区；nowrap 防最后一个字单独折行。
+        render: (_: unknown, row: ScheduledTask) => (
+          <span style={{ whiteSpace: 'nowrap' }}>
+            {row.schedule_locked ? t('schedule.bySystem') : scheduleText(row.schedule, scheduleZone)}
+          </span>
+        ),
       },
       {
         title: t('columns.last'),
@@ -315,7 +320,6 @@ export function CronPage() {
                       draft,
                       minute: row.schedule?.time ? Number(normalizeTime(row.schedule.time)?.slice(3) ?? 0) : 0,
                     });
-                    setFieldErrors({});
                   }}
                 >
                   {t('actions.editTime')}
@@ -337,7 +341,11 @@ export function CronPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')} />
+        <Empty title={t('noPermission')}>
+          <Button type="primary" onClick={() => navigate('/')}>
+            {tc('actions.backHome')}
+          </Button>
+        </Empty>
       </div>
     );
   }
@@ -352,6 +360,8 @@ export function CronPage() {
   }
 
   const edit = editState;
+  const draftErrors = edit ? validateDraft(edit) : {};
+  const hasDraftError = Object.keys(draftErrors).length > 0;
   const monthEndHint = edit?.draft.freq === 'monthly' && edit.draft.monthday >= 29;
 
   return (
@@ -427,9 +437,7 @@ export function CronPage() {
           confirmLoading={saveMutation.isPending}
           onCancel={() => setEditState(null)}
           onOk={() => {
-            const errs = validateDraft(edit);
-            setFieldErrors(errs);
-            if (Object.keys(errs).length > 0) return;
+            if (hasDraftError) return;
             const schedule =
               edit.draft.freq === 'hourly'
                 ? { freq: 'hourly' as const, time: `00:${String(edit.minute).padStart(2, '0')}` }
@@ -438,6 +446,12 @@ export function CronPage() {
           }}
         >
           <div className="flex flex-col gap-3">
+            {zoneDiffers ? (
+              // 浏览器时区 ≠ 设置时区：填的钟点按设置时区算，先讲清楚。
+              <Typography.Text type="tertiary" size="small">
+                {t('edit.timezoneHint', { label: scheduleZoneLabel })}
+              </Typography.Text>
+            ) : null}
             <div>
               <div className="mb-1">{t('edit.freqLabel')}</div>
               <RadioGroup
@@ -462,12 +476,13 @@ export function CronPage() {
                   value={edit.draft.interval}
                   min={1}
                   max={999}
+                  validateStatus={draftErrors.interval ? 'error' : 'default'}
                   onChange={(v) =>
                     setEditState({ ...edit, draft: { ...edit.draft, interval: Number(v) || 0 } })
                   }
                 />
-                {fieldErrors.interval ? (
-                  <Typography.Text type="danger" size="small">{fieldErrors.interval}</Typography.Text>
+                {draftErrors.interval ? (
+                  <Typography.Text type="danger" size="small">{draftErrors.interval}</Typography.Text>
                 ) : null}
               </div>
             ) : null}
@@ -505,12 +520,13 @@ export function CronPage() {
                   value={edit.draft.monthday}
                   min={1}
                   max={31}
+                  validateStatus={draftErrors.monthday ? 'error' : 'default'}
                   onChange={(v) =>
                     setEditState({ ...edit, draft: { ...edit.draft, monthday: Number(v) || 0 } })
                   }
                 />
-                {fieldErrors.monthday ? (
-                  <Typography.Text type="danger" size="small">{fieldErrors.monthday}</Typography.Text>
+                {draftErrors.monthday ? (
+                  <Typography.Text type="danger" size="small">{draftErrors.monthday}</Typography.Text>
                 ) : null}
                 {monthEndHint ? (
                   <Typography.Text type="secondary" size="small" style={{ display: 'block' }}>
@@ -526,25 +542,29 @@ export function CronPage() {
                 <TimePicker
                   value={edit.draft.time}
                   format="HH:mm"
+                  validateStatus={draftErrors.time ? 'error' : 'default'}
                   onChange={(v) => {
                     const text = typeof v === 'string' ? v : v instanceof Date ? `${String(v.getHours()).padStart(2, '0')}:${String(v.getMinutes()).padStart(2, '0')}` : '';
                     setEditState({ ...edit, draft: { ...edit.draft, time: text } });
                   }}
                 />
-                {fieldErrors.time ? (
-                  <Typography.Text type="danger" size="small">{fieldErrors.time}</Typography.Text>
+                {draftErrors.time ? (
+                  <Typography.Text type="danger" size="small">{draftErrors.time}</Typography.Text>
                 ) : null}
               </div>
             ) : null}
 
-            <div>
-              <div className="mb-1">{t('edit.previewTitle')}</div>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {previewRuns.map((d, i) => (
-                  <li key={i}>{formatDateTime(d.toISOString())}</li>
-                ))}
-              </ul>
-            </div>
+            {hasDraftError ? null : (
+              // 任一字段非法时不预览——算出来的时间会误导。
+              <div>
+                <div className="mb-1">{t('edit.previewTitle')}</div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {previewRuns.map((d, i) => (
+                    <li key={i}>{formatDateTime(d.toISOString())}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </Modal>
       ) : null}
