@@ -81,6 +81,30 @@ export class MenuProcessor {
     }, [])
   }
 
+  private isLayoutComponent(component: AppRouteRecord['component']): boolean {
+    return component === undefined || component === '' || component === RoutesAlias.Layout
+  }
+
+  private hasPageChild(item: AppRouteRecord): boolean {
+    return (item.children ?? []).some((child) => {
+      if (child.meta?.isIframe === true || Boolean(child.meta?.link)) return true
+      if (!this.isLayoutComponent(child.component)) return true
+      return this.hasPageChild(child)
+    })
+  }
+
+  /**
+   * 只放按钮权限的目录没有页面。丢掉它会整页 404，继续用目录组件又会把布局嵌进内容区。
+   */
+  private asButtonDirectory(item: AppRouteRecord): AppRouteRecord {
+    if (!item.path || !this.isLayoutComponent(item.component) || this.hasPageChild(item)) {
+      return item
+    }
+    const page = { ...item, component: '/system/button-directory' }
+    delete page.children
+    return page
+  }
+
   /**
    * 递归过滤空菜单项
    */
@@ -88,14 +112,11 @@ export class MenuProcessor {
     return menuList
       .map((item) => {
         // 如果有子菜单，先递归过滤子菜单
-        if (item.children && item.children.length > 0) {
-          const filteredChildren = this.filterEmptyMenus(item.children)
-          return {
-            ...item,
-            children: filteredChildren
-          }
-        }
-        return item
+        const withChildren =
+          item.children && item.children.length > 0
+            ? { ...item, children: this.filterEmptyMenus(item.children) }
+            : item
+        return this.asButtonDirectory(withChildren)
       })
       .filter((item) => {
         // 如果定义了 children 属性（即使是空数组），说明这是一个目录菜单，应该保留
