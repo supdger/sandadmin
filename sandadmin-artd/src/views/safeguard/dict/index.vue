@@ -30,6 +30,10 @@
             @pagination:current-change="handleCurrentChange"
           >
             <!-- 基础列 -->
+            <template #name="{ row }">
+              <div>{{ row.name }}</div>
+              <div class="dict-code">{{ row.code }}</div>
+            </template>
             <template #name-header="{ column }">
               <ElPopover placement="bottom" :width="200" trigger="hover">
                 <template #reference>
@@ -280,8 +284,7 @@
       },
       columnsFactory: () => [
         { prop: 'id', label: '选中', width: 80, align: 'center', useSlot: true },
-        { prop: 'name', label: '字典名称', useHeaderSlot: true, width: 150 },
-        { prop: 'code', label: '字典标识', useHeaderSlot: true, width: 150 },
+        { prop: 'name', label: '字典名称', useSlot: true, useHeaderSlot: true, minWidth: 180 },
         { prop: 'status', label: '状态', saiType: 'dict', saiDict: 'data_status', width: 100 }
       ]
     }
@@ -411,5 +414,12 @@
     flex: 1;
     min-height: 0;
     padding: 10px 2px 10px 10px;
+  }
+
+  .dict-code {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--el-text-color-secondary);
   }
 </style>

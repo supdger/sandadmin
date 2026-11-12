@@ -165,9 +165,17 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
  * @param error 错误对象
  * @param showMessage 是否显示错误消息
  */
+/** 数据库原文不能出现在页面提示里。 */
+export function hideRawDatabaseMessage(message: string): string {
+  if (/SQLSTATE|PDOException|null value in column|duplicate key value/i.test(message)) {
+    return '这次操作没有成功，请稍后再试'
+  }
+  return message
+}
+
 export function showError(error: HttpError, showMessage: boolean = true): void {
   if (showMessage) {
-    ElMessage.error(error.message)
+    ElMessage.error(hideRawDatabaseMessage(error.message))
   }
   // 记录错误日志
   // console.error('[HTTP Error]', error.toLogData())
