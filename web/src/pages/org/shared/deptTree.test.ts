@@ -25,6 +25,7 @@ function makeDept(id: string, parentId: string | null, sort: number, name = id):
     sort,
     status: 'enabled',
     user_count: 0,
+    update_time: '2026-01-01T00:00:00+08:00',
     children: [],
   };
 }

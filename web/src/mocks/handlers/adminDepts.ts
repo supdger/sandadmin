@@ -141,6 +141,7 @@ export default [
       sort: body.sort ?? 0,
       status: body.status ?? 'enabled',
       user_count: 0,
+      update_time: new Date().toISOString(),
       children: [],
     };
     const parent = body.parent_id ? findDept(body.parent_id) : undefined;
@@ -164,6 +165,12 @@ export default [
       return failV1(404, 'DEPT_NOT_FOUND', '要操作的部门不存在或已被删除');
     }
     const body = (await request.json()) as DeptWrite;
+    // 乐观锁：base_version 必须与当前 update_time 一致，否则按并发冲突拦下。
+    if (body.base_version !== undefined && body.base_version !== dept.update_time) {
+      return failV1(409, 'STALE_VERSION', '部门已被他人修改，请刷新后重试', {
+        base_version: ['部门已被他人修改，请刷新后重试'],
+      });
+    }
     const invalid = validate(body);
     if (invalid) {
       return failV1(400, 'VALIDATION_FAILED', '提交的内容有误，请检查后重试', { name: [invalid] });
@@ -205,6 +212,7 @@ export default [
       phone: 'phone' in body ? (body.phone ?? null) : dept.phone,
       sort: body.sort ?? dept.sort,
       status: body.status ?? dept.status,
+      update_time: new Date().toISOString(),
     });
     insertDept(mockDepts, dept);
     return okV1(dept);

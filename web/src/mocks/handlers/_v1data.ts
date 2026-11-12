@@ -36,6 +36,7 @@ export const mockDepts: Dept[] = [
     sort: 0,
     status: 'enabled',
     user_count: 26,
+    update_time: T0,
     children: [
       {
         id: 'dept-tech',
@@ -49,6 +50,7 @@ export const mockDepts: Dept[] = [
         sort: 1,
         status: 'enabled',
         user_count: 11,
+        update_time: T0,
         children: [
           {
             id: 'dept-backend',
@@ -62,6 +64,7 @@ export const mockDepts: Dept[] = [
             sort: 1,
             status: 'enabled',
             user_count: 6,
+            update_time: T0,
             children: [],
           },
           {
@@ -76,6 +79,7 @@ export const mockDepts: Dept[] = [
             sort: 2,
             status: 'enabled',
             user_count: 5,
+            update_time: T0,
             children: [],
           },
         ],
@@ -92,6 +96,7 @@ export const mockDepts: Dept[] = [
         sort: 2,
         status: 'enabled',
         user_count: 8,
+        update_time: T0,
         children: [],
       },
       {
@@ -106,6 +111,7 @@ export const mockDepts: Dept[] = [
         sort: 3,
         status: 'disabled',
         user_count: 1,
+        update_time: T0,
         children: [],
       },
       {
@@ -120,6 +126,7 @@ export const mockDepts: Dept[] = [
         sort: 4,
         status: 'enabled',
         user_count: 2,
+        update_time: T0,
         children: [],
       },
     ],

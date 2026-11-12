@@ -50,6 +50,12 @@ export interface MenuPatchBody {
   title?: string;
   icon?: string | null;
   visible?: boolean | null;
+  /** 读取树时的 menu_version；不一致返回 409 STALE_VERSION。 */
+  base_version?: number;
+}
+
+export interface MenuPatchResult {
+  menu_version?: number;
 }
 
 export interface MenuMoveBody {
@@ -84,8 +90,8 @@ export function getMenuTree(query?: MenuTreeQuery): Promise<MenuTree> {
 }
 
 /** 覆盖层修改：标题/图标/可见性（系统、插件菜单走覆盖层，自建菜单直接改）。 */
-export function updateMenu(menuKey: string, body: MenuPatchBody): Promise<EmptyResult> {
-  return adminPatch<EmptyResult>(menuPath(menuKey), body);
+export function updateMenu(menuKey: string, body: MenuPatchBody): Promise<MenuPatchResult> {
+  return adminPatch<MenuPatchResult>(menuPath(menuKey), body);
 }
 
 /** 只允许删除自建分组/外部链接；系统与插件菜单返回错误。 */
@@ -93,12 +99,12 @@ export function deleteMenu(menuKey: Id): Promise<EmptyResult> {
   return adminDelete<EmptyResult>(menuPath(menuKey));
 }
 
-export function moveMenu(menuKey: string, body: MenuMoveBody): Promise<EmptyResult> {
-  return adminPost<EmptyResult>(`${menuPath(menuKey)}/move`, body);
+export function moveMenu(menuKey: string, body: MenuMoveBody): Promise<MenuPatchResult> {
+  return adminPost<MenuPatchResult>(`${menuPath(menuKey)}/move`, body);
 }
 
-export function setMenuVisible(menuKey: string, body: MenuVisibleBody): Promise<EmptyResult> {
-  return adminPut<EmptyResult>(`${menuPath(menuKey)}/visible`, body);
+export function setMenuVisible(menuKey: string, body: MenuVisibleBody): Promise<MenuPatchResult> {
+  return adminPut<MenuPatchResult>(`${menuPath(menuKey)}/visible`, body);
 }
 
 export function createMenuGroup(body: MenuGroupBody): Promise<{ key: string }> {

@@ -114,7 +114,7 @@ describe('MenusPage', () => {
     );
     const nameInput = await screen.findByPlaceholderText('用同事一看就懂的说法');
     await userEvent.type(nameInput, '新分组');
-    await userEvent.click(screen.getByRole('button', { name: '保存' }));
+    await userEvent.click(screen.getByRole('button', { name: '创建' }));
 
     // 刷新后的树里能看到新分组（抽屉退出动画在 jsdom 下走不完，
     // 所以断言行而不是断言抽屉消失）。
@@ -142,7 +142,7 @@ describe('MenusPage', () => {
     );
     const nameInput = await screen.findByPlaceholderText('用同事一看就懂的说法');
     await userEvent.type(nameInput, '组织与用户');
-    await userEvent.click(screen.getByRole('button', { name: '保存' }));
+    await userEvent.click(screen.getByRole('button', { name: '创建' }));
 
     expect(
       await screen.findByText(/已经有叫“组织与用户”的菜单了/),
