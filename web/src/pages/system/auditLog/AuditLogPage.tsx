@@ -281,7 +281,7 @@ export function AuditLogPage() {
               end: () => new Date(),
             },
           ]}
-          placeholder={t('filters.rangePlaceholder')}
+          placeholder={t('filters.rangePlaceholder', { returnObjects: true }) as string[]}
           onChange={(dates) => {
             if (Array.isArray(dates) && dates.length === 2 && dates[0] && dates[1]) {
               const toDate = (d: Date | string) => fmtDate(typeof d === 'string' ? new Date(d) : d);

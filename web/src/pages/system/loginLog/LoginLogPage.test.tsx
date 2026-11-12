@@ -31,6 +31,10 @@ describe('LoginLogPage', () => {
 
   it('列表不显示地址列，失败原因按后端人话展示', async () => {
     renderPage('/system/login-log?login_time_from=2026-01-01&login_time_to=2026-01-11');
+    // 日期范围占位是中文文案，不是 i18n 键名。
+    expect(await screen.findByPlaceholderText('开始日期')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('结束日期')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/rangePlaceholder|filters\./i)).toBeNull();
     expect(await screen.findByText('密码不对')).toBeInTheDocument();
     expect(screen.getByText('没有这个账号')).toBeInTheDocument();
     // 表头不出现 IP/地址；列表不含地址数字。

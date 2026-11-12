@@ -31,6 +31,10 @@ describe('AuditLogPage', () => {
 
   it('操作列展示人话，不出现 URL/方法/参数', async () => {
     renderPage();
+    // 日期范围占位是中文文案，不是 i18n 键名。
+    expect(await screen.findByPlaceholderText('开始日期')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('结束日期')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/rangePlaceholder|filters\./i)).toBeNull();
     expect(await screen.findByText('停用了用户张三')).toBeInTheDocument();
     expect(screen.getByText('新建了角色「运营专员」')).toBeInTheDocument();
     expect(screen.queryByText(/PUT|GET|POST|DELETE|http/i)).not.toBeInTheDocument();

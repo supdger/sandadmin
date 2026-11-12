@@ -243,7 +243,7 @@ export function LoginLogPage() {
           type="dateRange"
           value={[from, to]}
           disabledDate={disabledDate}
-          placeholder={t('filters.rangePlaceholder')}
+          placeholder={t('filters.rangePlaceholder', { returnObjects: true }) as string[]}
           onChange={(dates) => {
             if (Array.isArray(dates) && dates.length === 2 && dates[0] && dates[1]) {
               const fmt = (d: Date | string) => {
