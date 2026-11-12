@@ -108,7 +108,9 @@ describe('FilesPage', () => {
     await screen.findByText('发票_2026-10.pdf');
 
     // 「发票_2026-10.pdf」usage_state=unused：普通删除确认。
-    await userEvent.click(within(rowOf('发票_2026-10.pdf')).getByLabelText('更多'));
+    await userEvent.click(
+      within(rowOf('发票_2026-10.pdf')).getByRole('button', { name: '更多' }),
+    );
     await userEvent.click(await screen.findByText('删除'));
 
     expect(await screen.findByText('删除这 1 个文件？')).toBeInTheDocument();
@@ -147,7 +149,7 @@ describe('FilesPage', () => {
 
     expect(screen.queryByRole('button', { name: '清理没用的旧文件' })).not.toBeInTheDocument();
     // 行内没有「更多」下拉（删除入口），批量条也不会出现。
-    expect(screen.queryAllByLabelText('更多')).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: '更多' })).toHaveLength(0);
     // 但上传仍对登录用户开放。
     expect(screen.getByRole('button', { name: /上传/ })).toBeInTheDocument();
   });

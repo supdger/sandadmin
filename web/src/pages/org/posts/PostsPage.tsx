@@ -349,6 +349,15 @@ export function PostsPage() {
         >
           {hasFilter ? (
             <Button onClick={clearFilters}>{t('common.clearFilters')}</Button>
+          ) : canCreate ? (
+            <Button
+              size="small"
+              theme="solid"
+              icon={<IconPlus />}
+              onClick={() => setFormState({ open: true, post: null })}
+            >
+              {t('posts.addPost')}
+            </Button>
           ) : null}
         </Empty>
       ) : (

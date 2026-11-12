@@ -409,9 +409,13 @@ export function MenuFormSheet({
 
         {mode === 'link' && !isEdit ? (
           <div>
-            <Typography.Text strong>{t('menus.form.url')}</Typography.Text>
+            <div className="mb-1">
+              <Typography.Text strong>
+                {t('menus.form.url')}
+                <Typography.Text type="danger"> *</Typography.Text>
+              </Typography.Text>
+            </div>
             <Input
-              className="mt-1"
               value={url}
               placeholder={t('menus.form.urlPlaceholder')}
               onChange={(v) => {

@@ -350,6 +350,7 @@ export function MenusPage() {
       content: t('menus.confirm.resetBody'),
       okText: t('menus.confirm.resetOk'),
       cancelText: t('menus.confirm.thinkAgain'),
+      okButtonProps: { type: 'danger' },
       onOk: () => resetMutation.mutate(),
     });
   };

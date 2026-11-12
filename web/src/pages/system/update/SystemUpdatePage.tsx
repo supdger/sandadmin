@@ -32,8 +32,17 @@ import { useMe } from '@/hooks/useMe';
 import { AdminApiError, isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { confirmAction } from '@/lib/confirmAction';
-import { formatDateTime } from '@/lib/format';
 import { isBusyError, isPermissionRevoked, showPermissionRevoked } from '../lifecycleShared';
+
+/** 升级卡片里的时间用「M月D日 HH:mm」，不走列表页的 YYYY-MM-DD 格式。 */
+function formatShortTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  const pad = (n: number) => (n < 10 ? `0${n}` : String(n));
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 /** 已恢复的描述按「有没有原版本号 / 有没有失败时间」挑白话模板。 */
 function rolledBackDescKey(request: LifecycleRequest): string {
@@ -150,7 +159,7 @@ function UpgradeResult({
                   {t(rolledBackDescKey(request), {
                     version: request.from_version ?? '',
                     time: request.finish_time
-                      ? formatDateTime(request.finish_time)
+                      ? formatShortTime(request.finish_time)
                       : '',
                   })}
                 </span>
@@ -349,14 +358,22 @@ export function SystemUpdatePage() {
         ) : showProgress && request ? (
           <UpgradeStepsView request={request} />
         ) : showResult && request ? (
-          <UpgradeResult
-            request={request}
-            canRetry={opsEnabled && !compiled}
-            onAgain={() => {
-              setRequestId(null);
-              start.mutate();
-            }}
-          />
+          <div className="flex flex-col gap-4">
+            {/* 失败（含已恢复）卡片也挂版本标题，与版本卡分支对齐。 */}
+            {request.state === 'failed' ? (
+              <Typography.Title heading={5} style={{ margin: 0 }}>
+                {t('currentVersion', { version: status?.current_version ?? '' })}
+              </Typography.Title>
+            ) : null}
+            <UpgradeResult
+              request={request}
+              canRetry={opsEnabled && !compiled}
+              onAgain={() => {
+                setRequestId(null);
+                start.mutate();
+              }}
+            />
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             <Typography.Title heading={5} style={{ margin: 0 }}>
