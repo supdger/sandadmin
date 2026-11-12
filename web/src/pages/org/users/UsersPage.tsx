@@ -56,7 +56,7 @@ import type { DeptTreeOption } from '../shared/deptTree';
 import { UserFormSheet } from './UserFormSheet';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { TransferConfirmModal } from './TransferConfirmModal';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
 
 const URL_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -312,7 +312,7 @@ export function UsersPage() {
       const items = await getUserDisableCheck(user.id);
       const isDisable = kind === 'disable';
       if (items.length === 0) {
-        confirmAction({
+        confirmDanger({
           title: t(isDisable ? 'users.danger.disableTitle' : 'users.danger.deleteTitle', {
             name: user.nickname,
           }),
@@ -419,7 +419,7 @@ export function UsersPage() {
   const confirmBatch = (kind: 'disable' | 'delete') => {
     const count = selectedKeys.length;
     const isDisable = kind === 'disable';
-    confirmAction({
+    confirmDanger({
       title: t(isDisable ? 'users.batch.disableTitle' : 'users.batch.removeTitle', { count }),
       content: t(isDisable ? 'users.batch.disableContent' : 'users.batch.removeContent'),
       okText: t(isDisable ? 'users.batch.disableOk' : 'users.batch.removeOk'),
@@ -471,14 +471,19 @@ export function UsersPage() {
   };
 
   const showLastLogin = viewportWidth >= 1400;
+  // 岗位列与「最近登录」同档显示：1280 宽放不下，岗位名并进姓名下的灰字行。
+  const showPostColumn = viewportWidth >= 1400;
+  const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   const columns: ColumnProps<User>[] = [
     {
       title: t('users.table.user'),
       width: 220,
       render: (_: unknown, record: User) => {
-        // 1280 宽没有岗位列的位置，岗位并进姓名下的灰字行。
-        const subline = [record.username, record.post_name].filter(Boolean).join(' · ');
+        // 岗位列显示时灰字行只留登录账号，避免同一信息出现两次。
+        const subline = showPostColumn
+          ? (record.username ?? '')
+          : [record.username, record.post_name].filter(Boolean).join(' · ');
         return (
           <div className="flex items-center gap-2">
             <Avatar size="small" src={record.avatar ?? undefined}>
@@ -524,6 +529,19 @@ export function UsersPage() {
         <Typography.Text ellipsis={{ showTooltip: true }}>{record.dept_name ?? '—'}</Typography.Text>
       ),
     },
+    ...(showPostColumn
+      ? [
+          {
+            title: t('users.table.post'),
+            width: 140,
+            render: (_: unknown, record: User) => (
+              <Typography.Text ellipsis={{ showTooltip: true }}>
+                {record.post_name ?? '—'}
+              </Typography.Text>
+            ),
+          } satisfies ColumnProps<User>,
+        ]
+      : []),
     {
       title: t('users.table.roles'),
       width: 170,
@@ -583,6 +601,19 @@ export function UsersPage() {
       render: (_: unknown, record: User) => {
         const isSelf = record.id === selfId;
         const menuItems = [
+          canUpdate && !isSelf
+            ? {
+                key: 'toggle',
+                name:
+                  record.status === 'enabled'
+                    ? t('users.table.disable')
+                    : t('users.table.enable'),
+                onClick: () =>
+                  record.status === 'enabled'
+                    ? void requestDanger(record, 'disable')
+                    : void onEnable(record),
+              }
+            : null,
           canReset
             ? {
                 key: 'reset',
@@ -611,46 +642,35 @@ export function UsersPage() {
                 {t('users.table.edit')}
               </Button>
             ) : null}
-            {canUpdate && !isSelf ? (
-              record.status === 'enabled' ? (
-                <Button
-                  type="primary"
-                  size="small"
-                  theme="borderless"
-                  style={ACTION_BUTTON_STYLE}
-                  loading={pendingRowId === record.id}
-                  onClick={() => void requestDanger(record, 'disable')}
-                >
-                  {t('users.table.disable')}
-                </Button>
-              ) : (
-                <Button
-                  type="primary"
-                  size="small"
-                  theme="borderless"
-                  style={ACTION_BUTTON_STYLE}
-                  loading={pendingRowId === record.id}
-                  onClick={() => void onEnable(record)}
-                >
-                  {t('users.table.enable')}
-                </Button>
-              )
-            ) : null}
             {menuItems.length > 0 ? (
               <Dropdown
                 trigger="click"
                 position="bottomRight"
+                visible={moreOpenId === record.id}
+                onVisibleChange={(v) => setMoreOpenId(v ? record.id : null)}
                 render={
                   <Dropdown.Menu>
                     {menuItems.map((item) => (
-                      <Dropdown.Item key={item.key} onClick={item.onClick}>
+                      <Dropdown.Item
+                        key={item.key}
+                        onClick={() => {
+                          setMoreOpenId(null);
+                          item.onClick();
+                        }}
+                      >
                         {item.name}
                       </Dropdown.Item>
                     ))}
                   </Dropdown.Menu>
                 }
               >
-                <Button type="primary" size="small" theme="borderless" style={ACTION_BUTTON_STYLE}>
+                <Button
+                  type="primary"
+                  size="small"
+                  theme="borderless"
+                  style={ACTION_BUTTON_STYLE}
+                  loading={pendingRowId === record.id}
+                >
                   {t('users.table.more')}
                 </Button>
               </Dropdown>

@@ -8,6 +8,8 @@ export default {
     add: '添加选项组',
     itemCount: '{{count}} 个选项',
     systemTag: '系统自带',
+    pluginTag: '插件：{{name}}',
+    customTag: '自建',
     emptyTitle: '还没有选项组',
     emptyDesc: '添加后，就能在业务页面的下拉框里使用',
     noResult: '没有找到这个选项组',
@@ -21,6 +23,7 @@ export default {
     editType: '编辑选项组',
     more: '更多',
     deleteType: '删除选项组',
+    deleteTypeLockedHint: '系统或插件在用，不能删除',
     itemEmpty: '这个组还没有选项',
   },
 
@@ -87,11 +90,11 @@ export default {
     deleteAnyway: '仍然删除',
 
     deleteItemTitle: '删除「{{label}}」？',
-    deleteItemContent: '删除后不能撤销。',
+    deleteItemContent: '删除后不能撤销，已经选了这个选项的数据会显示为空。',
     deleteOk: '删除',
 
     deleteTypeTitle: '删除「{{name}}」？',
-    deleteTypeContent: '组里的 {{count}} 个选项会一起删除，不能撤销。系统自带的组不能删除。',
+    deleteTypeContent: '组里的 {{count}} 个选项会一起删除，不能撤销。',
 
     added: '已添加「{{name}}」',
     deleted: '已删除「{{name}}」',

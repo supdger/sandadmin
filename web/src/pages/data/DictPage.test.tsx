@@ -107,7 +107,7 @@ describe('DictPage', () => {
     await screen.findByText('电话咨询');
 
     // 「电话咨询」used=true：删除入口走「可能已经有数据在用」自定义弹窗。
-    await userEvent.click(within(rowOf('电话咨询')).getByLabelText('更多'));
+    await userEvent.click(within(rowOf('电话咨询')).getByRole('button', { name: '更多' }));
     await userEvent.click(await screen.findByText('删除'));
 
     expect(await screen.findByText('“电话咨询”可能已经有数据在用')).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('DictPage', () => {
 
     await userEvent.click(await screen.findByText('客户来源'));
     await screen.findByText('电话咨询');
-    await userEvent.click(within(rowOf('电话咨询')).getByLabelText('更多'));
+    await userEvent.click(within(rowOf('电话咨询')).getByRole('button', { name: '更多' }));
     await userEvent.click(await screen.findByText('删除'));
     await userEvent.click(await screen.findByRole('button', { name: '改为停用' }));
     await waitFor(() =>
@@ -159,7 +159,7 @@ describe('DictPage', () => {
     await screen.findByText('网上搜索');
 
     // 「网上搜索」used=false：普通确认弹窗。
-    await userEvent.click(within(rowOf('网上搜索')).getByLabelText('更多'));
+    await userEvent.click(within(rowOf('网上搜索')).getByRole('button', { name: '更多' }));
     await userEvent.click(await screen.findByText('删除'));
 
     expect(await screen.findByText('删除「网上搜索」？')).toBeInTheDocument();
@@ -183,6 +183,6 @@ describe('DictPage', () => {
     expect(screen.queryAllByLabelText('拖动调整顺序')).toHaveLength(0);
     // 行内不出现「编辑」按钮与「更多」下拉。
     expect(within(rowOf('电话咨询')).queryByText('编辑')).not.toBeInTheDocument();
-    expect(within(rowOf('电话咨询')).queryByLabelText('更多')).not.toBeInTheDocument();
+    expect(within(rowOf('电话咨询')).queryByRole('button', { name: '更多' })).not.toBeInTheDocument();
   });
 });

@@ -5,15 +5,15 @@ import {
   Dropdown,
   Input,
   Modal,
-  Popconfirm,
   Skeleton,
   Table,
   Tag,
   Toast,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import type { ColumnProps } from '@douyinfe/semi-ui/lib/es/table/interface';
-import { IconHandle, IconMore, IconPlus, IconSearch } from '@douyinfe/semi-icons';
+import { IconHandle, IconPlus, IconSearch } from '@douyinfe/semi-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
@@ -36,9 +36,14 @@ import { adminErrorMessage } from '@/lib/adminError';
 import { DictItemModal } from './DictItemModal';
 import { DictTypeModal } from './DictTypeModal';
 import { useDebouncedValue } from './useDebouncedValue';
-import { confirmAction } from '@/lib/confirmAction';
+import { confirmAction, confirmDanger } from '@/lib/confirmAction';
 
 const DICT_QUERY_KEY = ['dict'] as const;
+
+/** source 缺省时按 is_system 推导：老数据里没有 plugin 组。 */
+function typeSourceKind(type: DictType): 'system' | 'plugin' | 'custom' {
+  return type.source?.kind ?? (type.is_system ? 'system' : 'custom');
+}
 
 interface ItemSortPayload {
   typeId: string;
@@ -95,6 +100,9 @@ export function DictPage() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   // used===true 或 null 的删除走自定义弹窗：「改为停用」是主按钮，「仍然删除」是文字按钮。
   const [pendingUsedDelete, setPendingUsedDelete] = useState<DictItem | null>(null);
+  // 「更多」下拉受控：点了菜单项先收起菜单再弹确认框。
+  const [itemMoreId, setItemMoreId] = useState<string | null>(null);
+  const [typeMoreOpen, setTypeMoreOpen] = useState(false);
 
   const invalidateAll = () =>
     queryClient.invalidateQueries({ queryKey: DICT_QUERY_KEY });
@@ -209,7 +217,7 @@ export function DictPage() {
     // used === true 或 null（查不了）都按「可能已被使用」提醒；is_system 不给删除入口。
     if (item.is_system) return;
     if (item.used === false) {
-      confirmAction({
+      confirmDanger({
         title: t('confirm.deleteItemTitle', { label: item.label }),
         content: t('confirm.deleteItemContent'),
         okText: t('confirm.deleteOk'),
@@ -224,7 +232,7 @@ export function DictPage() {
   };
 
   const requestDeleteType = (type: DictType) => {
-    confirmAction({
+    confirmDanger({
       title: t('confirm.deleteTypeTitle', { name: type.name }),
       content: t('confirm.deleteTypeContent', { count: type.item_count }),
       okText: t('confirm.deleteOk'),
@@ -325,41 +333,45 @@ export function DictPage() {
             <Dropdown
               trigger="click"
               position="bottomRight"
+              visible={itemMoreId === record.id}
+              onVisibleChange={(v) => setItemMoreId(v ? record.id : null)}
               render={
                 <Dropdown.Menu>
                   {canUpdate ? (
-                    record.status === 'enabled' ? (
-                      <Popconfirm
-                        title={t('confirm.disableTitle', { label: record.label })}
-                        content={t('confirm.disableContent')}
-                        okText={t('confirm.disableOk')}
-                        cancelText={t('confirm.think')}
-                        okType="primary"
-                        onConfirm={() =>
-                          statusItem.mutate({ itemId: record.id, status: 'disabled' })
-                        }
-                      >
-                        <Dropdown.Item>{t('table.disable')}</Dropdown.Item>
-                      </Popconfirm>
-                    ) : (
-                      <Popconfirm
-                        title={t('confirm.enableTitle', { label: record.label })}
-                        content={t('confirm.enableContent')}
-                        okText={t('confirm.enableOk')}
-                        cancelText={t('confirm.think')}
-                        okType="primary"
-                        onConfirm={() =>
-                          statusItem.mutate({ itemId: record.id, status: 'enabled' })
-                        }
-                      >
-                        <Dropdown.Item>{t('table.enable')}</Dropdown.Item>
-                      </Popconfirm>
-                    )
+                    <Dropdown.Item
+                      onClick={() => {
+                        setItemMoreId(null);
+                        const disabling = record.status === 'enabled';
+                        const confirm = disabling ? confirmDanger : confirmAction;
+                        confirm({
+                          title: t(
+                            disabling ? 'confirm.disableTitle' : 'confirm.enableTitle',
+                            { label: record.label },
+                          ),
+                          content: t(
+                            disabling ? 'confirm.disableContent' : 'confirm.enableContent',
+                          ),
+                          okText: t(disabling ? 'confirm.disableOk' : 'confirm.enableOk'),
+                          cancelText: t('confirm.think'),
+                          okType: 'primary',
+                          onOk: () =>
+                            statusItem.mutate({
+                              itemId: record.id,
+                              status: disabling ? 'disabled' : 'enabled',
+                            }),
+                        });
+                      }}
+                    >
+                      {record.status === 'enabled' ? t('table.disable') : t('table.enable')}
+                    </Dropdown.Item>
                   ) : null}
                   {canDelete && !record.is_system ? (
                     <Dropdown.Item
                       type="danger"
-                      onClick={() => requestDeleteItem(record)}
+                      onClick={() => {
+                        setItemMoreId(null);
+                        requestDeleteItem(record);
+                      }}
                     >
                       {t('table.delete')}
                     </Dropdown.Item>
@@ -367,7 +379,9 @@ export function DictPage() {
                 </Dropdown.Menu>
               }
             >
-              <Button theme="borderless" size="small" icon={<IconMore />} aria-label={t('table.more')} />
+              <Button theme="borderless" type="primary" size="small">
+                {t('table.more')}
+              </Button>
             </Dropdown>
           ) : null}
         </div>
@@ -442,11 +456,21 @@ export function DictPage() {
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate">{type.name}</span>
-                    {type.is_system ? (
+                    {typeSourceKind(type) === 'system' ? (
                       <Tag size="small" color="grey">
                         {t('group.systemTag')}
                       </Tag>
-                    ) : null}
+                    ) : typeSourceKind(type) === 'plugin' ? (
+                      <Tag size="small" color="blue">
+                        {t('group.pluginTag', {
+                          name: type.source?.plugin_label ?? '',
+                        })}
+                      </Tag>
+                    ) : (
+                      <Tag size="small" color="green">
+                        {t('group.customTag')}
+                      </Tag>
+                    )}
                   </span>
                   <span className="shrink-0 text-xs text-[var(--semi-color-text-2)]">
                     {t('group.itemCount', { count: type.item_count })}
@@ -495,11 +519,21 @@ export function DictPage() {
                     <Typography.Title heading={5} style={{ margin: 0 }}>
                       {currentType.name}
                     </Typography.Title>
-                    {currentType.is_system ? (
+                    {typeSourceKind(currentType) === 'system' ? (
                       <Tag size="small" color="grey">
                         {t('group.systemTag')}
                       </Tag>
-                    ) : null}
+                    ) : typeSourceKind(currentType) === 'plugin' ? (
+                      <Tag size="small" color="blue">
+                        {t('group.pluginTag', {
+                          name: currentType.source?.plugin_label ?? '',
+                        })}
+                      </Tag>
+                    ) : (
+                      <Tag size="small" color="green">
+                        {t('group.customTag')}
+                      </Tag>
+                    )}
                   </div>
                   {currentType.remark ? (
                     <Typography.Text type="secondary" size="small">
@@ -525,22 +559,47 @@ export function DictPage() {
                       {t('detail.addItem')}
                     </Button>
                   ) : null}
-                  {canDelete && !currentType.is_system ? (
+                  {canDelete ? (
                     <Dropdown
                       trigger="click"
                       position="bottomRight"
+                      visible={typeMoreOpen}
+                      onVisibleChange={setTypeMoreOpen}
                       render={
                         <Dropdown.Menu>
-                          <Dropdown.Item
-                            type="danger"
-                            onClick={() => requestDeleteType(currentType)}
-                          >
-                            {t('detail.deleteType')}
-                          </Dropdown.Item>
+                          {(() => {
+                            const locked = typeSourceKind(currentType) !== 'custom';
+                            const entry = (
+                              <Dropdown.Item
+                                type="danger"
+                                disabled={locked}
+                                onClick={
+                                  locked
+                                    ? undefined
+                                    : () => {
+                                        setTypeMoreOpen(false);
+                                        requestDeleteType(currentType);
+                                      }
+                                }
+                              >
+                                {t('detail.deleteType')}
+                              </Dropdown.Item>
+                            );
+                            return locked ? (
+                              <Tooltip
+                                content={t('detail.deleteTypeLockedHint')}
+                                position="left"
+                              >
+                                <span style={{ display: 'block' }}>{entry}</span>
+                              </Tooltip>
+                            ) : (
+                              entry
+                            );
+                          })()}
                         </Dropdown.Menu>
                       }
                     >
-                      <Button size="small" icon={<IconMore />} aria-label={t('detail.more')} />
+                      <Button size="small">{t('detail.more')}</Button>
                     </Dropdown>
                   ) : null}
                 </div>

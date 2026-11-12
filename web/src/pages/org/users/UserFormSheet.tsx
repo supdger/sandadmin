@@ -8,7 +8,6 @@ import {
   Button,
   Form,
   SideSheet,
-  Space,
   Toast,
   Typography,
 } from '@douyinfe/semi-ui';
@@ -234,7 +233,14 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
       return;
     }
     if (error && typeof error === 'object' && 'fields' in error) {
-      applyFieldErrors((error as { fields?: Record<string, string[]> }).fields);
+      const fields = (error as { fields?: Record<string, string[]> }).fields;
+      const firstField = fields ? Object.keys(fields)[0] : undefined;
+      if (fields && firstField) {
+        // 字段级原因直接写在输入框下并滚过去，不再弹 Toast 遮挡表单。
+        applyFieldErrors(fields);
+        formApi?.scrollToField(firstField as keyof FormValues);
+        return;
+      }
     }
     Toast.error(adminErrorMessage(error, t('common:errors.system.message')));
   };
@@ -268,7 +274,12 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
         const body: UserWrite = { ...payload, password: values.password ?? '' };
         const saved = await createUser(body, submitKey);
         Toast.destroyAll();
-        Toast.success(t('users.form.added', { name: saved.nickname }));
+        // 没填登录账号的人只能用手机号登录，提示口径不一样。
+        Toast.success(
+          t(payload.username ? 'users.form.addedWithAccount' : 'users.form.addedPhoneOnly', {
+            name: saved.nickname,
+          }),
+        );
       }
       onSaved();
       onClose();
@@ -286,14 +297,14 @@ export function UserFormSheet({ visible, mode, user, defaultDeptId, onClose, onS
       size="small"
       onCancel={requestClose}
       footer={
-        <Space>
+        <div className="flex justify-end gap-2">
           <Button onClick={requestClose} disabled={saving}>
             {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApi?.submitForm()}>
-            {saving ? t('common.saving') : t('common.save')}
+            {saving ? t('common.saving') : isEdit ? t('common.save') : t('common:create')}
           </Button>
-        </Space>
+        </div>
       }
     >
       {systemError ? (

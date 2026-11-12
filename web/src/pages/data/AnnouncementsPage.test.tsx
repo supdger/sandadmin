@@ -110,7 +110,7 @@ describe('AnnouncementsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '发布' }));
     // 发布前先保存，确认框带出接口算的应收人数。
     expect(await screen.findByText('发布「关于年会的通知」？')).toBeInTheDocument();
-    expect(screen.getByText(/发布后会发给 \d+ 个人/)).toBeInTheDocument();
+    expect(screen.getByText(/发布后，\d+ 个人马上就能看到/)).toBeInTheDocument();
     await clickDialogButton('发布');
 
     // 成功提示带后端返回的名字；新公告出现在列表里（标题唯一，可精确断言）。
@@ -151,7 +151,9 @@ describe('AnnouncementsPage', () => {
     renderPage();
 
     await screen.findByText('系统维护通知');
-    await userEvent.click(within(rowOf('系统维护通知')).getByLabelText('更多'));
+    await userEvent.click(
+      within(rowOf('系统维护通知')).getByRole('button', { name: '更多' }),
+    );
     await userEvent.click(await screen.findByText('收回'));
 
     expect(await screen.findByText('收回「系统维护通知」？')).toBeInTheDocument();
@@ -188,6 +190,8 @@ describe('AnnouncementsPage', () => {
     expect(screen.queryByRole('button', { name: /写公告/ })).not.toBeInTheDocument();
     // 行内「编辑」按钮与「更多」下拉都不可见。
     expect(within(rowOf('系统维护通知')).queryByText('编辑')).not.toBeInTheDocument();
-    expect(within(rowOf('系统维护通知')).queryByLabelText('更多')).not.toBeInTheDocument();
+    expect(
+      within(rowOf('系统维护通知')).queryByRole('button', { name: '更多' }),
+    ).not.toBeInTheDocument();
   });
 });
