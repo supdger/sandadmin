@@ -97,7 +97,10 @@
       <el-row>
         <el-col :span="24">
           <el-form-item label="状态" prop="status">
-            <sa-radio v-model="formData.status" dict="data_status" />
+            <el-radio-group v-model="formData.status">
+              <el-radio :value="1">启用</el-radio>
+              <el-radio :value="2">停用</el-radio>
+            </el-radio-group>
           </el-form-item>
         </el-col>
       </el-row>
@@ -118,7 +121,7 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">提交</el-button>
+        <el-button type="primary" @click="handleSubmit">保存</el-button>
       </div>
     </template>
   </el-dialog>

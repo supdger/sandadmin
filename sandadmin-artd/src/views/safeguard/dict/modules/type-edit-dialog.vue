@@ -14,7 +14,10 @@
         <el-input v-model="formData.code" placeholder="请输入字典标识" />
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <SaiRadio v-model="formData.status" dict="data_status" />
+        <el-radio-group v-model="formData.status">
+          <el-radio :value="1">启用</el-radio>
+          <el-radio :value="2">停用</el-radio>
+        </el-radio-group>
       </el-form-item>
       <el-form-item label="备注" prop="remark">
         <el-input v-model="formData.remark" type="textarea" :rows="3" placeholder="请输入备注" />
@@ -22,7 +25,7 @@
     </el-form>
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">提交</el-button>
+      <el-button type="primary" @click="handleSubmit">保存</el-button>
     </template>
   </el-dialog>
 </template>
