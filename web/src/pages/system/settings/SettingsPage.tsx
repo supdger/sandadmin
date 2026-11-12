@@ -27,6 +27,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { adminErrorMessage } from '@/lib/adminError';
 import { confirmAction } from '@/lib/confirmAction';
+import { applySiteSettings, settingsItemsToPatch } from '@/lib/siteSettings';
 
 /** 密钥类：has_value=true 且 value 为 null——只说明「已设置」，不给输入框。 */
 function isSecretItem(item: SettingItem): boolean {
@@ -80,9 +81,9 @@ export function SettingsPage() {
         return next;
       });
       Toast.success(t('form.saved', { group: groupTitle }));
-      // 系统名/标志等影响顶栏与标题的设置，通知 shell 重新读取。
-      if (group === 'basic') {
-        window.dispatchEvent(new CustomEvent('sandadmin:settings-changed'));
+      // 系统名/标志/时区/水印保存后本会话立即生效；刷新后由种子查询恢复。
+      if (group === 'basic' || group === 'watermark') {
+        applySiteSettings(settingsItemsToPatch(data.items));
       }
     },
     onError: (error) => {
