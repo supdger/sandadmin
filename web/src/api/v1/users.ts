@@ -78,8 +78,8 @@ export function listUsers(query?: UserListQuery): Promise<Page<User>> {
   return adminGet<Page<User>>('/users', { query });
 }
 
-export function createUser(body: UserWrite): Promise<User> {
-  return adminPost<User>('/users', body);
+export function createUser(body: UserWrite, idempotencyKey?: string): Promise<User> {
+  return adminPost<User>('/users', body, { idempotencyKey });
 }
 
 export function getUser(userId: Id): Promise<UserDetail> {

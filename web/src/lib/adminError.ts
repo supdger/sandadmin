@@ -1,13 +1,32 @@
 import i18n from '@/i18n/i18n';
 
+import { messageForErrorCode } from '@/api/errorMessages';
 import { AdminApiError } from '@/lib/adminClient';
 
 /**
- * 用户可见的错误文案。AdminApiError.message 已经是安全文案：业务错误是后端
- * 的大白话原因，系统错误是统一兜底文案；非 AdminApiError 返回调用方兜底。
+ * 用户可见的错误文案。业务错误用后端的大白话；并发冲突统一成产品定死的那句，
+ * 避免各页各写一套。非 AdminApiError 返回调用方兜底。
  */
 export function adminErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof AdminApiError && error.code === 'STALE_VERSION') {
+    return messageForErrorCode(error.code);
+  }
   return error instanceof AdminApiError ? error.message : fallback;
+}
+
+/**
+ * 写操作的错误文案：并发冲突（STALE_VERSION）用产品定死的口径，
+ * 其余照旧——业务错误展示后端大白话，系统错误展示统一兜底。
+ */
+export function adminSaveErrorMessage(
+  error: unknown,
+  fallback: string,
+  conflict: string,
+): string {
+  if (error instanceof AdminApiError && error.code === 'STALE_VERSION') {
+    return conflict;
+  }
+  return adminErrorMessage(error, fallback);
 }
 
 /**

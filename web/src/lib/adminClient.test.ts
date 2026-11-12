@@ -90,6 +90,8 @@ describe('adminClient', () => {
     const netErr = await adminGet('/test/netfail').catch((e: unknown) => e);
     expect(netErr).toBeInstanceOf(AdminApiError);
     expect((netErr as AdminApiError).system).toBe(true);
+    expect((netErr as AdminApiError).code).toBe('NETWORK_ERROR');
+    expect((netErr as AdminApiError).message).toBe('网络好像断了，请检查网络后再试');
     expect((netErr as AdminApiError).httpStatus).toBe(0);
 
     server.use(http.get(`${base}/test/html`, () => new HttpResponse('<html>nope</html>')));

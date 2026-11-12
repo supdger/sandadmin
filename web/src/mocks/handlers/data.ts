@@ -126,6 +126,16 @@ const dictItems: DictItemRecord[] = [
   dictItem('item-mb-4', 'dict-type-6', '钻石会员', 4, { used: null, color: '#7B61FF' }),
 ];
 
+/** 测试改过「电话咨询」后把它改回，避免后面的用例找不到这一行。 */
+export function restorePhoneConsultItem(): void {
+  const item = dictItems.find((row) => row.id === 'item-src-1');
+  if (!item) {
+    return;
+  }
+  item.label = '电话咨询';
+  item.status = 'enabled';
+}
+
 let dictTypeSeq = 100;
 let dictItemSeq = 100;
 
@@ -753,7 +763,9 @@ export default [
     }
     item.label = label;
     item.color = body.color ?? null;
-    item.status = body.status === 'disabled' ? 'disabled' : 'enabled';
+    if (body.status === 'disabled' || body.status === 'enabled') {
+      item.status = body.status;
+    }
     item.is_default = body.is_default === true;
     if (item.is_default) clearGroupDefaults(item.type_id, item.id);
     return okV1({ ...item });

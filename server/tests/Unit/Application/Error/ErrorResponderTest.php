@@ -12,6 +12,7 @@ use Sandadmin\Application\Error\ErrorResponder;
 use Sandadmin\Domain\Exception\DomainException;
 use Sandadmin\Domain\Exception\SessionExpiredException;
 use Sandadmin\Domain\Exception\UnauthenticatedException;
+use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
 use Sandadmin\Tests\Support\RecordingErrorLogger;
 
@@ -94,6 +95,20 @@ final class ErrorResponderTest extends TestCase
         self::assertSame('UPDATE_CHECK_FAILED', $body->code);
         self::assertSame('更新源暂时不可用', $body->message);
         self::assertCount(1, $this->logger->entries);
+    }
+
+    public function testMapsScheduleOverrideToTaskScheduleInvalid(): void
+    {
+        $body = $this->responder->respond(
+            new InvalidExtensionException('interval 必须为 5-60 分钟', ['schedule.interval' => 'between:5,60']),
+            'req-12345678',
+        );
+
+        self::assertSame(422, $body->status);
+        self::assertSame('TASK_SCHEDULE_INVALID', $body->code);
+        self::assertSame('执行时间填写不正确', $body->message);
+        self::assertSame(['schedule' => ['执行时间填写不正确']], $body->fields);
+        self::assertSame([], $this->logger->entries);
     }
 
     public function testRejectsLowercaseErrorCodes(): void

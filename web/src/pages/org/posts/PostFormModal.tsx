@@ -7,10 +7,11 @@ import { Banner, Button, Form, Modal, Space, Toast } from '@douyinfe/semi-ui';
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createPost, updatePost, type Post, type PostWrite } from '@/api/v1/posts';
-import type { UserStatus } from '@/api/v1/types';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { FIELD_NAME_WIDTH } from '@/components/fieldWidth';
 
 export interface PostFormModalProps {
   visible: boolean;
@@ -34,6 +35,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
   const [submitError, setSubmitError] = useState('');
 
   const isEdit = Boolean(post);
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   useEffect(() => {
     if (!visible) {
@@ -60,19 +62,17 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
     setSaving(true);
     setSystemError(null);
     setSubmitError('');
+    const status = values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
     const body: PostWrite = {
       name: (values.name ?? '').trim(),
       remark: values.remark?.trim() || null,
-      status: (values.status === false ? 'disabled' : 'enabled') as UserStatus,
+      ...(status !== undefined ? { status } : {}),
     };
     try {
-      if (isEdit && post) {
-        await updatePost(post.id, { ...body, sort: post.sort });
-        Toast.success(t('posts.form.saved'));
-      } else {
-        await createPost(body);
-        Toast.success(t('posts.form.added'));
-      }
+      const saved = isEdit && post
+        ? await updatePost(post.id, { ...body, sort: post.sort })
+        : await createPost(body, submitKey);
+      Toast.success(t(isEdit ? 'posts.form.saved' : 'posts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'posts'] });
       onSaved();
       onClose();
@@ -102,7 +102,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
       footer={
         <Space>
           <Button onClick={onClose} disabled={saving}>
-            {t('common.thinkAgain')}
+            {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApiRef.current?.submitForm()}>
             {isEdit ? t('common.save') : t('posts.form.create')}
@@ -135,6 +135,7 @@ export function PostFormModal({ visible, post, onClose, onSaved }: PostFormModal
         <Form.Input
           field="name"
           label={t('posts.form.name')}
+          style={{ width: FIELD_NAME_WIDTH }}
           placeholder={t('posts.form.name')}
           rules={[{ required: true, message: t('posts.form.nameRequired') }]}
           maxLength={30}

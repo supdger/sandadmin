@@ -29,6 +29,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
+import { MY_MENUS_QUERY_KEY } from '@/api/v1/me';
 import {
   deleteMenu,
   getMenuTree,
@@ -43,7 +44,6 @@ import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
 import { useUrlQuery, type UrlQueryFields } from '@/hooks/useUrlQuery';
-import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { isAdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { menuIconNode } from '@/pages/rbac/lib/menuIcons';
@@ -56,6 +56,7 @@ import {
 } from '@/pages/rbac/lib/menuTree';
 import { MenuFormSheet, type MenuFormMode } from './MenuFormSheet';
 import { MenuPreview } from './MenuPreview';
+import { confirmAction } from '@/lib/confirmAction';
 
 const QUERY_FIELDS: UrlQueryFields = {
   keyword: {},
@@ -199,8 +200,11 @@ export function MenusPage() {
     [],
   );
 
+  // 侧栏（含工作台快捷入口）吃 me/menus，写操作成功后必须一并失效，
+  // 否则它要等 staleTime 或下次挂载才更新。
   const refreshTree = () => {
     void queryClient.invalidateQueries({ queryKey: ['rbac', 'menu-tree'] });
+    void queryClient.invalidateQueries({ queryKey: MY_MENUS_QUERY_KEY });
   };
 
   const scheduleUndo = (state: UndoState | null) => {
@@ -306,7 +310,7 @@ export function MenusPage() {
   });
 
   const confirmDelete = (node: MenuNode) => {
-    Modal.confirm({
+    confirmAction({
       title:
         node.type === 'group'
           ? t('menus.confirm.deleteGroupTitle', { name: node.title })
@@ -327,12 +331,12 @@ export function MenusPage() {
   };
 
   const confirmReset = () => {
-    Modal.confirm({
+    confirmAction({
       title: t('menus.confirm.resetTitle'),
       content: t('menus.confirm.resetBody'),
       okText: t('menus.confirm.resetOk'),
       cancelText: t('menus.confirm.thinkAgain'),
-      okButtonProps: { type: 'danger' },
+      okButtonProps: { type: 'primary' },
       onOk: () => resetMutation.mutate(),
     });
   };
@@ -579,7 +583,7 @@ export function MenusPage() {
 
   const hasFilters = Boolean(keyword || source);
 
-  if (tree.isError) {
+  if (tree.isError || tree.isPaused) {
     const forbidden = isAdminApiError(tree.error) && tree.error.httpStatus === 403;
     return (
       <div className="flex flex-col gap-4">
@@ -587,12 +591,12 @@ export function MenusPage() {
         {forbidden ? (
           <ErrorState kind="403" showHome={false} />
         ) : (
-          <AdminErrorNotice
+          <ErrorState
+            kind="error"
             error={tree.error}
+            paused={tree.isPaused}
             onRetry={() => void tree.refetch()}
-            fallback={
-              <ErrorState kind="error" onRetry={() => void tree.refetch()} showHome={false} />
-            }
+            showHome={false}
           />
         )}
       </div>

@@ -56,8 +56,8 @@ export function getDictType(typeId: Id): Promise<DictTypeDetail> {
   return adminGet<DictTypeDetail>(`/dicts/${encodeURIComponent(typeId)}`);
 }
 
-export function createDictType(body: DictTypeWrite): Promise<DictType> {
-  return adminPost<DictType>('/dicts', body);
+export function createDictType(body: DictTypeWrite, idempotencyKey?: string): Promise<DictType> {
+  return adminPost<DictType>('/dicts', body, { idempotencyKey });
 }
 
 export function updateDictType(typeId: Id, body: DictTypeWrite): Promise<DictType> {
@@ -68,8 +68,8 @@ export function deleteDictType(typeId: Id): Promise<unknown> {
   return adminDelete(`/dicts/${encodeURIComponent(typeId)}`);
 }
 
-export function createDictItem(typeId: Id, body: DictItemWrite): Promise<DictItem> {
-  return adminPost<DictItem>(`/dicts/${encodeURIComponent(typeId)}/items`, body);
+export function createDictItem(typeId: Id, body: DictItemWrite, idempotencyKey?: string): Promise<DictItem> {
+  return adminPost<DictItem>(`/dicts/${encodeURIComponent(typeId)}/items`, body, { idempotencyKey });
 }
 
 export function updateDictItem(itemId: Id, body: DictItemWrite): Promise<DictItem> {

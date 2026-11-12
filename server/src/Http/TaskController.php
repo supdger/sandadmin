@@ -9,6 +9,9 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Infra\Db\DbalConnection;
+use Sandadmin\Task\DevTaskActorProvider;
+use Sandadmin\Task\StoredExportResolver;
 use Sandadmin\Task\TaskActor;
 use Sandadmin\Task\TaskActorProvider;
 use Sandadmin\Task\TaskArtifact;
@@ -102,15 +105,38 @@ final class TaskController
 
     private function actorProvider(): TaskActorProvider
     {
-        // B2 的 RequestContext/权限清单合入后，这里改为装配真实实现；
-        // 默认实现一律返回 null（未登录），接口保持拒绝。
-        return new UnavailableTaskActorProvider();
+        $connection = $this->connection();
+        if ($connection === null) {
+            return new UnavailableTaskActorProvider();
+        }
+
+        return new DevTaskActorProvider($connection);
     }
 
     private function artifacts(): TaskArtifactResolver
     {
-        // B6 文件存储合入后改为真实解析器；默认实现恒返回 null。
-        return new UnavailableArtifactResolver();
+        $connection = $this->connection();
+        if ($connection === null) {
+            return new UnavailableArtifactResolver();
+        }
+
+        return new StoredExportResolver($connection);
+    }
+
+    private function connection(): ?\Doctrine\DBAL\Connection
+    {
+        if (!function_exists('config')) {
+            return null;
+        }
+        $database = config('database.connections.pgsql');
+        if (!is_array($database)) {
+            return null;
+        }
+        try {
+            return DbalConnection::connection($database);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

@@ -45,8 +45,8 @@ export function getDeptTree(query?: DeptTreeQuery): Promise<{ items: Dept[] }> {
   return adminGet<{ items: Dept[] }>('/depts/tree', { query });
 }
 
-export function createDept(body: DeptWrite): Promise<Dept> {
-  return adminPost<Dept>('/depts', body);
+export function createDept(body: DeptWrite, idempotencyKey?: string): Promise<Dept> {
+  return adminPost<Dept>('/depts', body, { idempotencyKey });
 }
 
 export function updateDept(deptId: Id, body: DeptWrite): Promise<Dept> {

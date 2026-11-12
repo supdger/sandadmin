@@ -7,9 +7,11 @@ import { Banner, Button, Form, SideSheet, Space, Toast, withField } from '@douyi
 import type { FormApi } from '@douyinfe/semi-ui/lib/es/form/interface';
 
 import { createDept, updateDept, type Dept, type DeptWrite } from '@/api/v1/depts';
+import { useFormIdempotencyKey } from '@/hooks/useFormIdempotencyKey';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { FIELD_CHOICE_WIDTH, FIELD_NAME_WIDTH, FIELD_PHONE_WIDTH } from '@/components/fieldWidth';
 import { collectDescendantIds, deptTreeToOptions } from '../shared/deptTree';
 import { UserOptionSelect } from '../shared/UserOptionSelect';
 import type { DeptTreeOption } from '../shared/deptTree';
@@ -47,6 +49,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
 
   const isEdit = mode === 'edit' && Boolean(dept);
   const isChild = mode === 'child' && Boolean(dept);
+  const submitKey = useFormIdempotencyKey(visible && !isEdit);
 
   // 上级部门选项：编辑时剔除自身与下级，避免成环；不选即顶层。
   const parentOptions = useMemo<DeptTreeOption[]>(() => {
@@ -101,21 +104,19 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
     setSystemError(null);
     setSubmitError('');
     const parentId = values.parent_id || null;
+    const status = values.status === true ? 'enabled' : values.status === false ? 'disabled' : undefined;
     const body: DeptWrite = {
       parent_id: parentId,
       name: (values.name ?? '').trim(),
       leader_id: values.leader_id || null,
       phone: values.phone?.trim() || null,
-      status: values.status === false ? 'disabled' : 'enabled',
+      ...(status !== undefined ? { status } : {}),
     };
     try {
-      if (isEdit && dept) {
-        await updateDept(dept.id, { ...body, sort: dept.sort });
-        Toast.success(t('depts.form.saved'));
-      } else {
-        await createDept(body);
-        Toast.success(t('depts.form.added', { name: body.name }));
-      }
+      const saved = isEdit && dept
+        ? await updateDept(dept.id, { ...body, sort: dept.sort })
+        : await createDept(body, submitKey);
+      Toast.success(t(isEdit ? 'depts.form.saved' : 'depts.form.added', { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ['v1', 'depts'] });
       onSaved();
       onClose();
@@ -155,7 +156,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
       footer={
         <Space>
           <Button onClick={onClose} disabled={saving}>
-            {t('common.thinkAgain')}
+            {t('common.cancel')}
           </Button>
           <Button theme="solid" loading={saving} onClick={() => formApiRef.current?.submitForm()}>
             {isEdit ? t('common.save') : t('depts.form.create')}
@@ -188,6 +189,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.Input
           field="name"
           label={t('depts.form.name')}
+          style={{ width: FIELD_NAME_WIDTH }}
           rules={[{ required: true, message: t('depts.form.nameRequired') }]}
           maxLength={30}
           showClear
@@ -196,6 +198,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.TreeSelect
           field="parent_id"
           label={t('depts.form.parent')}
+          style={{ width: FIELD_CHOICE_WIDTH }}
           treeData={parentOptions}
           filterTreeNode
           showClear
@@ -210,6 +213,7 @@ export function DeptFormSheet({ visible, mode, dept, tree, onClose, onSaved }: D
         <Form.Input
           field="phone"
           label={t('depts.form.phone')}
+          style={{ width: FIELD_PHONE_WIDTH }}
           maxLength={20}
           showClear
           rules={[{ pattern: /^[\d+\-()\s]{5,20}$/, message: t('depts.form.phoneInvalid') }]}

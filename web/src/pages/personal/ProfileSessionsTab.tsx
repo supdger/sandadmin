@@ -34,7 +34,9 @@ export function ProfileSessionsTab() {
   const revokeOthers = useMutation({
     mutationFn: () => deleteOtherSessions(),
     onSuccess: () => {
-      const removed = sessions.data ? sessions.data.items.filter((s) => !s.current).length : 0;
+      const removed = Array.isArray(sessions.data?.items)
+        ? sessions.data.items.filter((item) => !item.current).length
+        : 0;
       Toast.success(t('devices.loggedOutOthers', { count: removed }));
       invalidate();
     },
@@ -54,8 +56,12 @@ export function ProfileSessionsTab() {
     return <ErrorState kind="error" error={sessions.error} onRetry={() => void sessions.refetch()} />;
   }
 
+  // 设备接口缺 items 时按加载失败处理，避免对空值调用 filter 把整页打崩。
+  if (!Array.isArray(sessions.data.items)) {
+    return <ErrorState kind="error" error={sessions.error} onRetry={() => void sessions.refetch()} />;
+  }
   const items = sessions.data.items;
-  const othersCount = items.filter((s) => !s.current).length;
+  const othersCount = items.filter((item) => !item.current).length;
 
   return (
     <Card

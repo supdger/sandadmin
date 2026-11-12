@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 
 import { getWorkbenchTodos, type TodoItem } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
+import { listOrEmpty } from './listOrEmpty';
 
 const TODOS_QUERY_KEY = ['dashboard', 'todos'] as const;
 
@@ -40,6 +42,7 @@ export function TodoPanel() {
   const { t } = useTranslation('workbench');
   const navigate = useNavigate();
   const todos = useQuery({ queryKey: TODOS_QUERY_KEY, queryFn: () => getWorkbenchTodos(5) });
+  const items = listOrEmpty(todos.data?.items);
 
   return (
     <Card
@@ -54,19 +57,17 @@ export function TodoPanel() {
         ) : null
       }
     >
-      {todos.isPending ? (
+      {todos.isPaused || todos.isError ? (
+        <LoadError error={todos.error} paused={todos.isPaused} onRetry={() => void todos.refetch()} />
+      ) : todos.isPending ? (
         <Skeleton loading placeholder={<Skeleton.Paragraph rows={3} />}>
           <div />
         </Skeleton>
-      ) : todos.isError ? (
-        <Typography.Text type="danger" size="small">
-          {t('cards.error')}
-        </Typography.Text>
-      ) : (todos.data?.items.length ?? 0) === 0 ? (
+      ) : items.length === 0 ? (
         <Empty title={t('todosSection.empty')} description={undefined} />
       ) : (
         <div className="flex flex-col">
-          {todos.data!.items.map((item) => (
+          {items.map((item) => (
             <TodoRow key={`${item.source_key}-${item.title}`} item={item} onOpen={() => navigate(item.link)} />
           ))}
         </div>

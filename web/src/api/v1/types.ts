@@ -19,7 +19,7 @@ export type TaskState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancell
 /** 受理回执：task_run 类后台任务（导出、清理等）。 */
 export interface TaskAccepted {
   task_id: string;
-  state: 'queued';
+  state: TaskState;
 }
 
 /** 契约里 data 为 `{type: object}` 的写操作统一返回空对象。 */

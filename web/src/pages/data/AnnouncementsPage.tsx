@@ -4,7 +4,6 @@ import {
   Button,
   Dropdown,
   Input,
-  Modal,
   Pagination,
   Select,
   Skeleton,
@@ -31,11 +30,12 @@ import { Empty } from '@/components/Empty';
 import { ErrorState } from '@/components/ErrorState';
 import { PageHeader } from '@/components/PageHeader';
 import { useCan } from '@/hooks/useCan';
-import { adminErrorMessage } from '@/lib/adminError';
+import { adminSaveErrorMessage } from '@/lib/adminError';
 import { AnnouncementEditor } from './AnnouncementEditor';
 import { formatDateTime } from './format';
 import { ReadStatsDrawer } from './ReadStatsDrawer';
 import { useDebouncedValue } from './useDebouncedValue';
+import { confirmAction } from '@/lib/confirmAction';
 
 const ANNOUNCEMENTS_QUERY_KEY = ['announcements'] as const;
 const PAGE_SIZE = 20;
@@ -109,43 +109,59 @@ export function AnnouncementsPage() {
 
   const items = list.data?.items ?? [];
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+  // 列表超过 10 秒还没出来：骨架屏下面加一句解释和「重新加载」。
+  const [slowLoading, setSlowLoading] = useState(false);
+  useEffect(() => {
+    if (!list.isPending) return;
+    const timer = setTimeout(() => setSlowLoading(true), 10_000);
+    return () => clearTimeout(timer);
+  }, [list.isPending]);
+  const showSlowLoading = list.isPending && slowLoading;
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ANNOUNCEMENTS_QUERY_KEY });
+    // 发布后铃铛未读数要马上变，不等 60 秒轮询。
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  };
+
+  // 写操作失败文案：STALE_VERSION 是产品定死口径，其余用后端大白话/兜底。
+  const actionError = (error: unknown) =>
+    adminSaveErrorMessage(error, t('confirm.publishFailed'), t('conflict'));
 
   const publish = useMutation({
     mutationFn: (a: Announcement) => publishAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.published'));
+    onSuccess: async (saved) => {
+      Toast.success(t('confirm.published', { name: saved.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const revoke = useMutation({
     mutationFn: (a: Announcement) => revokeAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.revoked'));
+    onSuccess: async (saved) => {
+      Toast.success(t('confirm.revoked', { name: saved.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const remove = useMutation({
     mutationFn: (a: Announcement) => deleteAnnouncement(a.id),
-    onSuccess: async () => {
-      Toast.success(t('confirm.deleted'));
+    onSuccess: async (_result, a) => {
+      Toast.success(t('confirm.deleted', { name: a.title }));
       await invalidate();
     },
-    onError: (error) => Toast.error(adminErrorMessage(error, t('confirm.publishFailed'))),
+    onError: (error) => Toast.error(actionError(error)),
   });
 
   const requestPublish = (a: Announcement) => {
-    Modal.confirm({
-      title: t('editor.publishConfirmTitle'),
+    confirmAction({
+      title: t('editor.publishConfirmTitle', { name: a.title }),
       content:
         a.scope === 'dept'
-          ? t('editor.publishDeptContent')
-          : t('editor.publishConfirmContent'),
+          ? t('editor.publishDeptContent', { count: a.recipient_count })
+          : t('editor.publishConfirmContent', { count: a.recipient_count }),
       okText: a.state === 'withdrawn' ? t('table.republish') : t('table.publish'),
       cancelText: t('editor.think'),
       onOk: () => publish.mutateAsync(a).catch(() => undefined),
@@ -153,19 +169,19 @@ export function AnnouncementsPage() {
   };
 
   const requestRevoke = (a: Announcement) => {
-    Modal.confirm({
-      title: t('confirm.revokeTitle'),
+    confirmAction({
+      title: t('confirm.revokeTitle', { name: a.title }),
       content: t('confirm.revokeContent'),
       okText: t('confirm.revokeOk'),
       cancelText: t('confirm.think'),
-      okType: 'danger',
+      okType: 'primary',
       onOk: () => revoke.mutateAsync(a).catch(() => undefined),
     });
   };
 
   const requestDelete = (a: Announcement) => {
-    Modal.confirm({
-      title: t('confirm.deleteTitle'),
+    confirmAction({
+      title: t('confirm.deleteTitle', { name: a.title }),
       content: t('confirm.deleteContent'),
       okText: t('confirm.deleteOk'),
       cancelText: t('confirm.think'),
@@ -324,13 +340,29 @@ export function AnnouncementsPage() {
         ) : null}
       </div>
 
-      {list.isPending ? (
+      {list.isPaused || list.isError ? (
+        <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
+          <ErrorState
+            kind="error"
+            error={list.error}
+            paused={list.isPaused}
+            onRetry={() => void list.refetch()}
+            showHome={false}
+          />
+        </div>
+      ) : list.isPending ? (
         <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
           <Skeleton placeholder={<Skeleton.Paragraph rows={8} />} loading />
-        </div>
-      ) : list.isError ? (
-        <div className="rounded-lg border border-[var(--semi-color-border)] p-4">
-          <ErrorState kind="error" error={list.error} onRetry={() => void list.refetch()} showHome={false} />
+          {showSlowLoading ? (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <Typography.Text type="secondary" size="small">
+                {t('slowLoading')}
+              </Typography.Text>
+              <Button size="small" onClick={() => void list.refetch()}>
+                {t('reload')}
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <>

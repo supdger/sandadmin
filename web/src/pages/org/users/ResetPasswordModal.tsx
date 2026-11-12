@@ -8,6 +8,7 @@ import { resetUserPassword, type User } from '@/api/v1/users';
 import { isAdminApiError, isAdminSystemError, type AdminApiError } from '@/lib/adminClient';
 import { adminErrorMessage } from '@/lib/adminError';
 import { AdminCopyButton } from '@/components/AdminErrorNotice';
+import { FIELD_PASSWORD_WIDTH } from '@/components/fieldWidth';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -92,7 +93,7 @@ export function ResetPasswordModal({ user, onClose }: ResetPasswordModalProps) {
           setFieldError('');
         }}
         placeholder={t('users.reset.password')}
-        style={{ marginTop: 4 }}
+        style={{ marginTop: 4, width: FIELD_PASSWORD_WIDTH }}
       />
       {fieldError ? (
         <Typography.Text type="danger" size="small">

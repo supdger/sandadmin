@@ -1,6 +1,6 @@
 import { http, type HttpHandler } from 'msw';
 
-import { mockUserForToken, type MockUser } from './auth';
+import { mockUserForToken, rotateMockToken, type MockUser } from './auth';
 import { announcementMarkRead, announcementReadTime, inboxAnnouncements } from './data';
 import { failV1, okV1, v1Base } from './_v1';
 
@@ -472,11 +472,23 @@ export default [
         new_password: [`密码太短了，至少要 ${policy.min} 位`],
       });
     }
-    // Success: every other session of this user is revoked; current stays.
-    sessionsByUser.set(auth.user.username, sessionsFor(auth.user).filter((s) => s.current));
+    // Success: every session of this user is revoked and a new token is issued.
+    sessionsByUser.set(auth.user.username, [
+      {
+        id: `sess-${auth.user.username}-renewed`,
+        device_label: '当前设备',
+        location: null,
+        ip: null,
+        user_agent: null,
+        create_time: new Date().toISOString(),
+        last_active_time: new Date().toISOString(),
+        expire_time: null,
+        current: true,
+      },
+    ]);
     const state = profileFor(auth.user);
     state.password_changed_time = new Date().toISOString().slice(0, 10);
-    return okV1({ changed: true });
+    return okV1({ changed: true, token: rotateMockToken(auth.token, auth.user) });
   }),
 
   // 登录设备

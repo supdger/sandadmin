@@ -4,6 +4,7 @@ import { Button, Toast, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 import { isSystemApiError, type ApiError } from '@/lib/apiClient';
+import { isNetworkFailure } from '@/lib/networkFailure';
 import { buildProblemReport } from '@/lib/problemReport';
 
 async function copyText(text: string): Promise<boolean> {
@@ -54,6 +55,19 @@ export interface SystemErrorNoticeProps {
  */
 export function SystemErrorNotice({ error, onRetry, fallback }: SystemErrorNoticeProps) {
   const { t } = useTranslation();
+
+  if (isNetworkFailure(error)) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Typography.Text type="danger">{t('errors.network.message')}</Typography.Text>
+        {onRetry ? (
+          <Button size="small" onClick={onRetry}>
+            {t('actions.retry')}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
 
   if (!isSystemApiError(error)) {
     return <>{fallback ?? null}</>;

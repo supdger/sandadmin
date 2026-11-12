@@ -50,8 +50,14 @@ final readonly class DeptDeletion
                 throw new DeptNotFoundException('部门不存在或已被删除');
             }
             $check = $this->buildCheck($deptId);
-            if ($check->userCount > 0 || $check->childCount > 0) {
-                throw new DeptNotEmptyException('部门下还有用户或下级部门，不能删除');
+            if ($check->childCount > 0 && $check->userCount > 0) {
+                throw new DeptNotEmptyException('里面还有人。先删掉或移走下级部门，再把人调走');
+            }
+            if ($check->childCount > 0) {
+                throw new DeptNotEmptyException('先删掉或移走下级部门');
+            }
+            if ($check->userCount > 0) {
+                throw new DeptNotEmptyException('里面还有人。先把人调到别的部门，再来删除');
             }
             $this->depts->delete($deptId);
             $this->roles->scopeToSelf(array_column($check->affectedRoles, 'id'));

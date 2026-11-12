@@ -3,7 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { getRecentActivities } from '@/api/v1/dashboard';
+import { LoadError } from './LoadError';
 import { formatRelativeTime } from '@/pages/personal/relativeTime';
+import { listOrEmpty } from './listOrEmpty';
 
 const ACTIVITIES_QUERY_KEY = ['dashboard', 'activities'] as const;
 
@@ -14,22 +16,21 @@ export function ActivityFeed() {
     queryKey: ACTIVITIES_QUERY_KEY,
     queryFn: () => getRecentActivities(10),
   });
+  const items = listOrEmpty(activities.data?.items);
 
   return (
     <Card title={t('activities.title')}>
-      {activities.isPending ? (
+      {activities.isPaused || activities.isError ? (
+        <LoadError error={activities.error} paused={activities.isPaused} onRetry={() => void activities.refetch()} />
+      ) : activities.isPending ? (
         <Skeleton loading placeholder={<Skeleton.Paragraph rows={4} />}>
           <div />
         </Skeleton>
-      ) : activities.isError ? (
-        <Typography.Text type="danger" size="small">
-          {t('cards.error')}
-        </Typography.Text>
-      ) : (activities.data?.items.length ?? 0) === 0 ? (
+      ) : items.length === 0 ? (
         <Empty title={t('activities.empty')} description={undefined} />
       ) : (
         <div className="flex flex-col gap-3">
-          {activities.data!.items.map((item, index) => (
+          {items.map((item, index) => (
             <div key={`${item.actor_name}-${item.create_time}-${index}`} className="flex items-start gap-2">
               <Avatar size="extra-small">{item.actor_name.slice(0, 1)}</Avatar>
               <div className="min-w-0 flex-1">

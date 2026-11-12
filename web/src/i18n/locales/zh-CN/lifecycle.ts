@@ -1,0 +1,41 @@
+export default {
+  states: {
+    queued: '排队中',
+    running: '执行中',
+    succeeded: '已完成',
+    failed: '没做完',
+    cancelled: '已取消',
+  },
+  stages: {
+    check: '正在检查',
+    backup: '正在备份',
+    download: '正在下载',
+    switch: '正在切换',
+    verify: '正在检查结果',
+    defaultStage: '正在处理',
+  },
+  stagesDone: {
+    check: '检查好了',
+    backup: '备份好了',
+    download: '下载好了',
+    switch: '切换好了',
+    verify: '检查好了',
+  },
+  cancelled: '已取消，系统没有改动',
+  switching: '正在切换到新版本，马上就好',
+  unreachable: '连不上服务，可刷新页面再看进度',
+  /** PLUGIN_BUSY / UPDATE_IN_PROGRESS 的统一口径 */
+  busy: '刚才已经有别的安装或升级开始了，做完后再试',
+  busyTooltip: '{{doing}}还没做完，做完后再试',
+  busyBanner: '正在{{action}}「{{name}}」，大约 {{percent}}%',
+  watchProgress: '看进度',
+  permissionRevoked: '你现在没有这个权限了，刷新页面后再看看',
+  refresh: '刷新',
+  think: '再想想',
+  actions: {
+    install: '安装',
+    upgrade: '升级',
+    uninstall: '卸载',
+    upgradeSystem: '升级系统',
+  },
+} as const;
