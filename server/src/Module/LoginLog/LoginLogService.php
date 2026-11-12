@@ -150,7 +150,7 @@ final class LoginLogService
                 $this->cell(OrgSql::str($row['username_input'] ?? '')),
                 $this->cell($succeeded ? '成功' : '没有成功'),
                 $this->cell($succeeded ? '' : (LoginLogReason::text($reason === '' ? null : $reason) ?? '')),
-                $this->cell(OrgSql::str($row['login_time'] ?? '')),
+                $this->cell(self::time($row['login_time'] ?? null) ?? ''),
                 $this->cell(OrgSql::str($row['location'] ?? '')),
                 $this->cell(OrgSql::str($row['device_label'] ?? '')),
                 $this->cell(OrgSql::str($row['ip'] ?? '')),

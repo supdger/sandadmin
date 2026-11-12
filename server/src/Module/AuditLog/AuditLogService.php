@@ -215,7 +215,7 @@ final class AuditLogService
         );
         foreach ($rows as $row) {
             $lines[] = implode(',', [
-                $this->cell(OrgSql::str($row['create_time'] ?? '')),
+                $this->cell(self::time($row['create_time'] ?? null) ?? ''),
                 $this->cell(OrgSql::str($row['actor_type'] ?? '') === 'system' ? '系统' : OrgSql::str($row['actor_name'] ?? '')),
                 $this->cell($labels[OrgSql::str($row['module'] ?? '')] ?? OrgSql::str($row['module'] ?? '')),
                 $this->cell(OrgSql::str($row['action_text'] ?? '')),

@@ -649,9 +649,9 @@ final class PackageOps
             'rolled_back' => ($row['rolled_back'] ?? null) === true || ($row['rolled_back'] ?? null) === 't' || ($row['rolled_back'] ?? null) === '1',
             'error_code' => $row['error_code'],
             'error_message' => $errorMessage === '' ? null : $errorMessage,
-            'create_time' => is_string($row['create_time'] ?? null) ? $row['create_time'] : '',
-            'start_time' => $row['start_time'],
-            'finish_time' => $row['finish_time'],
+            'create_time' => OrgSql::time($row['create_time'] ?? null),
+            'start_time' => OrgSql::time($row['start_time'] ?? null),
+            'finish_time' => OrgSql::time($row['finish_time'] ?? null),
         ];
     }
 

@@ -52,6 +52,8 @@ abstract class ToolsCase extends TestCase
         $this->conn->executeStatement('DELETE FROM sand_system_setting');
         $this->conn->executeStatement('DELETE FROM sand_system_file');
         $this->conn->executeStatement('DELETE FROM sand_system_plugin');
+        // 先于用户表清：requested_by 有外键
+        $this->conn->executeStatement('DELETE FROM sand_system_lifecycle_request');
         $this->conn->executeStatement('DELETE FROM sand_system_user');
         $this->conn->executeStatement('DELETE FROM sand_system_dept');
     }
