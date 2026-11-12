@@ -21,6 +21,7 @@ export default {
     uninstalled: '未安装',
     upgradeable: '有新版本',
     rolledBack: '没装好，已自动恢复',
+    busyCard: '「{{name}}」还没做完',
   },
   versionArrow: '{{from}} → {{to}}',
 
@@ -67,9 +68,9 @@ export default {
   },
 
   failed: {
-    rolledBackTitle: '没做完，已自动恢复',
+    rolledBackTitle: '「{{name}}」没做完，已自动恢复',
     rolledBackDesc: '升级没有完成，系统已自动恢复到原来的版本，你的数据没有变化。可以稍后再试。',
-    notRecoveredTitle: '没做完，也没能自动恢复，请马上联系负责部署的人',
+    notRecoveredTitle: '「{{name}}」没做完，也没能自动恢复，请马上联系负责部署的人',
   },
 
   empty: {

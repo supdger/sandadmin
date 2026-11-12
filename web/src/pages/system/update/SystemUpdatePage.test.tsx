@@ -127,7 +127,7 @@ describe('SystemUpdatePage', () => {
       ),
     );
     renderPage();
-    expect(await screen.findByText(/这是编译版，不能在网页上升级/)).toBeInTheDocument();
+    expect(await screen.findByText(/有新版本 1\.6\.0。这台服务器不支持在网页里升级/)).toBeInTheDocument();
     expect(screen.getByText('查看当前版本，有新版本时提醒你')).toBeInTheDocument();
     expect(screen.queryByText('一键升级后台和所有已安装的插件')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();

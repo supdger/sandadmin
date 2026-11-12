@@ -44,8 +44,8 @@ function formatShortTime(iso: string): string {
 }
 
 /** 已恢复的描述按「有没有原版本号 / 有没有失败时间」挑白话模板。 */
-function rolledBackDescKey(request: LifecycleRequest): string {
-  const hasVersion = Boolean(request.from_version);
+function rolledBackDescKey(request: LifecycleRequest, version: string): string {
+  const hasVersion = Boolean(version);
   const hasTime = Boolean(request.finish_time);
   if (hasVersion && hasTime) return 'rolledBackDescAt';
   if (hasVersion) return 'rolledBackDesc';
@@ -105,10 +105,13 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
 /** 结果展示：成功 / 已恢复 / 未能恢复 / 已取消。 */
 function UpgradeResult({
   request,
+  currentVersion,
   canRetry,
   onAgain,
 }: {
   request: LifecycleRequest;
+  /** status.current_version：回滚后=旧版本，与版本卡标题同源。 */
+  currentVersion: string;
   /** 网页不能升级时不给「再试一次」，失败描述也不提再试。 */
   canRetry: boolean;
   onAgain: () => void;
@@ -156,8 +159,8 @@ function UpgradeResult({
             description={
               <div className="flex flex-col gap-1">
                 <span>
-                  {t(rolledBackDescKey(request), {
-                    version: request.from_version ?? '',
+                  {t(rolledBackDescKey(request, currentVersion), {
+                    version: currentVersion,
                     time: request.finish_time
                       ? formatShortTime(request.finish_time)
                       : '',
@@ -237,11 +240,12 @@ export function SystemUpdatePage() {
     queryFn: getUpdateStatus,
   });
   const status = statusQuery.data;
-  // 与提示条同一个判定：拿不到状态时先保留原副标题，拿到后按能力换。
+  // 与提示条同一个判定：能操作（超管+未编译+开关打开）才有完整副标题，
+  // 否则一律只读口径；me/status 还没拿到时先保留原副标题。
+  const canOperate =
+    isSuper && status?.package_ops_enabled === true && status?.compiled !== true;
   const pageSubtitle =
-    status && !(status.package_ops_enabled === true && status.compiled !== true)
-      ? t('subtitleReadonly')
-      : t('subtitle');
+    status && me && !canOperate ? t('subtitleReadonly') : t('subtitle');
 
   const [requestId, setRequestId] = useState<string | null>(null);
   const running = status?.running_request ?? null;
@@ -334,7 +338,16 @@ export function SystemUpdatePage() {
       <PageHeader title={t('title')} subtitle={pageSubtitle} />
 
       {compiled ? (
-        <Banner type="info" fullMode={false} description={t('compiledNotice')} closeIcon={null} />
+        <Banner
+          type="info"
+          fullMode={false}
+          description={
+            status?.update_available && status.latest_version
+              ? t('compiledNoticeUpdate', { version: status.latest_version })
+              : t('compiledNotice')
+          }
+          closeIcon={null}
+        />
       ) : null}
       {!compiled && !opsEnabled ? (
         <Banner type="info" fullMode={false} description={t('opsDisabledNotice')} closeIcon={null} />
@@ -367,6 +380,7 @@ export function SystemUpdatePage() {
             ) : null}
             <UpgradeResult
               request={request}
+              currentVersion={status?.current_version ?? ''}
               canRetry={opsEnabled && !compiled}
               onAgain={() => {
                 setRequestId(null);

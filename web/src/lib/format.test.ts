@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDateTime, formatRelativeTime, maskPhone } from './format';
+import { formatDateTime, formatGb, formatRelativeTime, maskPhone } from './format';
 
 describe('formatDateTime', () => {
   it('formats an ISO timestamp in local time', () => {
@@ -30,6 +30,30 @@ describe('formatRelativeTime', () => {
   it('returns empty string for missing or invalid input', () => {
     expect(formatRelativeTime(null, now)).toBe('');
     expect(formatRelativeTime('garbage', now)).toBe('');
+  });
+});
+
+describe('formatGb', () => {
+  it('不足 1 GB 用 MB，整数 GB 不带小数', () => {
+    expect(formatGb(0.5)).toBe('512 MB');
+    expect(formatGb(1)).toBe('1 GB');
+    expect(formatGb(16)).toBe('16 GB');
+    expect(formatGb(100)).toBe('100 GB');
+  });
+
+  it('1024 进制且 GB 保留一位小数', () => {
+    expect(formatGb(14.5)).toBe('14.5 GB');
+    expect(formatGb(4.24)).toBe('4.2 GB');
+    // 1536 MB = 1.5 GB（1024 进制，不是 1000）。
+    expect(formatGb(1.5)).toBe('1.5 GB');
+    expect(formatGb(0.99)).toBe('1014 MB');
+  });
+
+  it('非法输入返回空串', () => {
+    expect(formatGb(null)).toBe('');
+    expect(formatGb(undefined)).toBe('');
+    expect(formatGb(-1)).toBe('');
+    expect(formatGb(Number.NaN)).toBe('');
   });
 });
 

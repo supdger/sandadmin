@@ -3,7 +3,8 @@ export default {
   subtitle: '一键升级后台和所有已安装的插件',
   subtitleReadonly: '查看当前版本，有新版本时提醒你',
 
-  compiledNotice: '这是编译版，不能在网页上升级。要升级，请让负责部署的人在开发环境升级后重新打包上传。',
+  compiledNotice: '现在已经是最新版，不用做什么；以后有新版本时，请让负责部署的人在开发环境升级后重新打包上传。',
+  compiledNoticeUpdate: '有新版本 {{version}}。这台服务器不支持在网页里升级，请让负责部署的人在开发环境升级后重新打包上传。',
   opsDisabledNotice: '网页上的安装和升级已经关闭，请联系负责部署的人。',
 
   upgradeStages: {

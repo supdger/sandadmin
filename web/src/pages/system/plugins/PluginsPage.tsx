@@ -16,8 +16,8 @@ import {
   Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
-import { IconMore, IconSearch, IconUpload } from '@douyinfe/semi-icons';
-import { IllustrationNoAccess } from '@douyinfe/semi-illustrations';
+import { IconAlertTriangle, IconMore, IconSearch, IconUpload } from '@douyinfe/semi-icons';
+import { IllustrationNoAccess, IllustrationNoResult } from '@douyinfe/semi-illustrations';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -385,12 +385,21 @@ export function PluginsPage() {
     const action = cardAction(item);
     const itemBusy = item.task_state === 'queued' || item.task_state === 'running';
     const disabled = busy.active && !itemBusy;
+    // 卡片本人在被处理：灰按钮旁写明原因，不只灰不说话。
+    const busyReason = itemBusy
+      ? ownRequest &&
+        isLifecycleRunning(ownRequest) &&
+        (ownRequest.target_code === item.code ||
+          (ownRequest.items ?? []).some((i) => i.code === item.code))
+        ? `${busy.doing}，大约 ${ownRequest.progress}%`
+        : t('states.busyCard', { name: item.name })
+      : null;
     const button = action ? (
       <Button
         theme={action.primary ? 'solid' : 'light'}
         size="small"
-        loading={itemBusy || (pendingAction?.code === item.code && (doInstall.isPending || doUpgrade.isPending || doUninstall.isPending))}
-        disabled={disabled}
+        loading={!itemBusy && pendingAction?.code === item.code && (doInstall.isPending || doUpgrade.isPending || doUninstall.isPending)}
+        disabled={disabled || itemBusy}
         onClick={(e) => {
           e.stopPropagation();
           action.run();
@@ -423,7 +432,12 @@ export function PluginsPage() {
                 ? t('versionArrow', { from: item.version, to: item.latest_version })
                 : item.version}
             </Typography.Text>
-            <div onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {busyReason ? (
+                <Typography.Text type="tertiary" size="small">
+                  {busyReason}
+                </Typography.Text>
+              ) : null}
               {disabled ? (
                 <Tooltip content={tl('busyTooltip', { doing: busy.doing })}>{button}</Tooltip>
               ) : (
@@ -462,11 +476,21 @@ export function PluginsPage() {
 
   const finishedFailure = ownRequest && !isLifecycleRunning(ownRequest) && ownRequest.state === 'failed' ? ownRequest : null;
 
+  // 失败标题带插件名：批量申请取失败项的名字。
+  const failedNameOf = (request: LifecycleRequest): string => {
+    if (request.kind === 'plugin_upgrade_batch') {
+      return batchFailedNames(request)
+        .map((code) => nameOfCode(code) ?? code)
+        .join('、');
+    }
+    return targetNameOf(request, nameOfCode, tl);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t('title')}
-        subtitle={opsEnabled && !compiled ? t('subtitle') : t('subtitleReadonly')}
+        subtitle={canOperate ? t('subtitle') : t('subtitleReadonly')}
         extra={
           <div className="flex items-center gap-2">
             {canUpgrade && upgradeableCount > 0 ? (
@@ -526,7 +550,11 @@ export function PluginsPage() {
         <Banner
           type={finishedFailure.rolled_back ? 'warning' : 'danger'}
           fullMode={false}
-          title={finishedFailure.rolled_back ? t('failed.rolledBackTitle') : t('failed.notRecoveredTitle')}
+          title={
+            finishedFailure.rolled_back
+              ? t('failed.rolledBackTitle', { name: failedNameOf(finishedFailure) })
+              : t('failed.notRecoveredTitle', { name: failedNameOf(finishedFailure) })
+          }
           description={
             <div className="flex flex-col gap-1">
               {finishedFailure.rolled_back ? (
@@ -597,13 +625,13 @@ export function PluginsPage() {
         <Card>
           {keyword || tab !== 'installed' ? (
             keyword ? (
-              <Empty title={t('empty.noResult')}>
+              <Empty image={<IllustrationNoResult />} title={t('empty.noResult')} description="">
                 <Button size="small" onClick={() => setKeyword('')}>
                   {t('clearSearch')}
                 </Button>
               </Empty>
             ) : (
-              <Empty title={t('empty.noResult')} />
+              <Empty image={<IllustrationNoResult />} title={t('empty.noResult')} description="" />
             )
           ) : canInstall ? (
             <Empty title={t('empty.installed')} description={t('empty.installedDesc')}>
@@ -701,7 +729,12 @@ export function PluginsPage() {
 
       <Modal
         visible={uninstallTarget !== null}
-        title={t('uninstall.title', { name: uninstallTarget?.name ?? '' })}
+        title={
+          <span className="flex items-center gap-2">
+            <IconAlertTriangle style={{ color: 'var(--semi-color-danger)' }} />
+            {t('uninstall.title', { name: uninstallTarget?.name ?? '' })}
+          </span>
+        }
         okText={purge ? t('uninstall.confirmPurge') : t('uninstall.confirm')}
         cancelText={t('uninstall.cancel')}
         okType="danger"

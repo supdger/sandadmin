@@ -142,8 +142,8 @@ describe('PluginsPage', () => {
     renderPage();
 
     await screen.findByText('数据看板');
-    // 顶部互斥提示条 + 其他卡片按钮禁按
-    expect(await screen.findByText(/「流程审批」还没做完/)).toBeInTheDocument();
+    // 顶部互斥提示条 + 卡片内原因文案都会说「还没做完」，至少一处即可。
+    expect((await screen.findAllByText(/「流程审批」还没做完/)).length).toBeGreaterThan(0);
     await waitFor(() =>
       expect(within(cardOf('数据看板')).getByRole('button', { name: '安装' })).toBeDisabled(),
     );
