@@ -132,7 +132,7 @@ final class PackageOps
     }
 
     /** @return array{status: int, body: array<string, mixed>} */
-    public function uninstall(string $code, bool $purgeData, OrgActor $actor, string $requestId): array
+    public function uninstall(string $code, bool $deletePluginRow, OrgActor $actor, string $requestId): array
     {
         $denied = $this->guard($actor, $requestId, false);
         if ($denied !== null) {
@@ -144,7 +144,7 @@ final class PackageOps
         }
         $current = $this->installedVersion($code);
 
-        return $this->enqueue($actor, 'plugin_uninstall', $code, 'official', $current, null, $purgeData, null, null, $requestId);
+        return $this->enqueue($actor, 'plugin_uninstall', $code, 'official', $current, null, $deletePluginRow, null, null, $requestId);
     }
 
     /** @return array{status: int, body: array<string, mixed>} */
@@ -322,7 +322,7 @@ final class PackageOps
         string $source,
         ?string $fromVersion,
         ?string $toVersion,
-        bool $purgeData,
+        bool $deletePluginRow,
         ?string $items,
         ?int $packageFileId,
         string $requestId,
@@ -334,7 +334,7 @@ final class PackageOps
             'from_version' => $fromVersion,
             'to_version' => $toVersion,
             'source' => $source,
-            'purge' => $purgeData ? 'true' : 'false',
+            'purge' => $deletePluginRow ? 'true' : 'false',
             'by' => $actor->userId,
             'request_id' => $clientKey,
             'executor' => self::EXECUTOR,

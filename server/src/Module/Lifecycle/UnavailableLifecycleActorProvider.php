@@ -9,7 +9,7 @@ namespace Sandadmin\Module\Lifecycle;
 
 /**
  * B2 统一鉴权合入前的默认实现：一律视为未登录。
- * TODO(#B2): 请求上下文合入后改为按会话与权限清单解析。
+ * TODO(#76): 请求上下文在 #76 接入，届时按会话与权限清单解析。
  */
 final class UnavailableLifecycleActorProvider implements LifecycleActorProvider
 {

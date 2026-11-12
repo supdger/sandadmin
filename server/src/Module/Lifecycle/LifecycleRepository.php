@@ -90,7 +90,7 @@ final class LifecycleRepository extends Repository
             source: $row->string('source'),
             fromVersion: $row->isNull('from_version') ? null : $row->string('from_version'),
             toVersion: $row->isNull('to_version') ? null : $row->string('to_version'),
-            purgeData: $row->bool('purge_data'),
+            deletePluginRow: $row->bool('purge_data'),
             items: $items,
             state: TaskState::from($row->string('state')),
             stage: $row->isNull('stage') ? null : $row->string('stage'),

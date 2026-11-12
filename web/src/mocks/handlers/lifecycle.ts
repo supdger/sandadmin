@@ -1,7 +1,7 @@
 import { http, type HttpHandler } from 'msw';
 
 import type { LifecycleRequest, RequestAccepted } from '@/api/v1/lifecycle';
-import type { PluginInfo, PluginMarketItem, PluginsOverview } from '@/api/v1/plugins';
+import type { Plugin, PluginMarketItem, PluginsOverview } from '@/api/v1/plugins';
 import type { UpdateStatus } from '@/api/v1/systemUpdate';
 import { failV1, okV1, requirePermission, requireUser, v1Base } from './_v1';
 import { registerV1Resetter } from './_v1data';
@@ -238,7 +238,7 @@ export function resetLifecycleMock(): void {
 }
 registerV1Resetter(resetLifecycleMock);
 
-function pluginView(item: MockMarketItem): PluginInfo {
+function pluginView(item: MockMarketItem): Plugin {
   return {
     id: item.id,
     code: item.code,

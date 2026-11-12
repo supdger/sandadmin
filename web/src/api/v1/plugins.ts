@@ -11,7 +11,7 @@ export interface PluginsOverview {
   signature_required: boolean;
 }
 
-export interface PluginInfo {
+export interface Plugin {
   id: string;
   /** 插件编码，路径参数 plugin_code 取此值。 */
   code: string;
@@ -29,7 +29,7 @@ export interface PluginInfo {
   install_time: string | null;
 }
 
-export interface PluginMarketItem extends PluginInfo {
+export interface PluginMarketItem extends Plugin {
   latest_version: string;
   installed: boolean;
   upgrade_available: boolean;
@@ -43,12 +43,12 @@ export function listMarketPlugins(): Promise<{ items: PluginMarketItem[] }> {
   return adminGet<{ items: PluginMarketItem[] }>('/plugins/market');
 }
 
-export function listInstalledPlugins(): Promise<{ items: PluginInfo[] }> {
-  return adminGet<{ items: PluginInfo[] }>('/plugins/installed');
+export function listInstalledPlugins(): Promise<{ items: Plugin[] }> {
+  return adminGet<{ items: Plugin[] }>('/plugins/installed');
 }
 
-export function getPlugin(pluginCode: string): Promise<PluginInfo> {
-  return adminGet<PluginInfo>(`/plugins/${encodeURIComponent(pluginCode)}`);
+export function getPlugin(pluginCode: string): Promise<Plugin> {
+  return adminGet<Plugin>(`/plugins/${encodeURIComponent(pluginCode)}`);
 }
 
 export function installPlugin(pluginCode: string): Promise<RequestAccepted> {
