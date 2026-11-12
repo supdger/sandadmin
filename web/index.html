@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Generic placeholder; replaced at runtime from VITE_APP_NAME. -->
+    <title>SandAdmin</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot-fallback">
+      <main>
+        <h1>页面没能打开</h1>
+        <p>网络好像断了。连上以后点重试，或刷新页面再看。</p>
+        <button type="button" onclick="location.reload()">重试</button>
+      </main>
+    </div>
+    <style>
+      #boot-fallback {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        color: #1c1f23;
+        background: #f7f8fa;
+      }
+      #boot-fallback main { max-width: 420px; text-align: center; }
+      #boot-fallback button {
+        margin-top: 16px;
+        padding: 8px 16px;
+        border: 0;
+        border-radius: 6px;
+        background: #0064fa;
+        color: #fff;
+        cursor: pointer;
+      }
+      #root:not(:empty) + #boot-fallback { display: none; }
+    </style>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/offline-sw.js');
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

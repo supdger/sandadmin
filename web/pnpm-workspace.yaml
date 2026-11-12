@@ -1,0 +1,7 @@
+# Resolve only package versions published at least 7 days ago (supply-chain hygiene).
+minimumReleaseAge: 10080
+# Postinstall/build scripts that are allowed to run.
+allowBuilds:
+  "@parcel/watcher": true
+  msw: true
+  "es5-ext": false

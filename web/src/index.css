@@ -1,0 +1,31 @@
+/*
+ * Layer order: Tailwind resets live in `base`, Semi component styles in `semi`
+ * (emitted by @douyinfe/semi-vite-plugin with cssLayer), layout utilities last
+ * so they always win over component defaults. Cascade layers are ordered by
+ * first appearance, so this file must be the first stylesheet the app loads
+ * (main.tsx imports it before any module that pulls in Semi styles).
+ */
+@layer theme, base, semi, components, utilities;
+
+@import 'tailwindcss';
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/*
+ * 侧栏背景铺满整屏高度：sider-children 是 Semi 生成的中间层，默认 block 时
+ * Nav 的 flex:1 不生效、白底只到菜单项下沿；给它 flex 后 Nav 才能撑满侧栏。
+ */
+.semi-layout-sider > .semi-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 提示条靠右，避免盖住页面中间确认框的标题。 */
+.semi-toast-wrapper {
+  justify-content: flex-end;
+  padding-right: 16px;
+}
