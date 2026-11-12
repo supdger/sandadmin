@@ -8,17 +8,17 @@
     @search="handleSearch"
     @expand="handleExpand"
   >
-    <el-col v-bind="setSpan(6)">
+    <el-col v-bind="setSpan(8)">
       <el-form-item label="字典标签" prop="label">
         <el-input v-model="formData.label" placeholder="请输入字典标签" clearable />
       </el-form-item>
     </el-col>
-    <el-col v-bind="setSpan(6)">
+    <el-col v-bind="setSpan(8)">
       <el-form-item label="字典键值" prop="value">
         <el-input v-model="formData.value" placeholder="请输入字典键值" clearable />
       </el-form-item>
     </el-col>
-    <el-col v-bind="setSpan(6)">
+    <el-col v-bind="setSpan(8)">
       <el-form-item label="状态" prop="status">
         <sa-select v-model="formData.status" dict="data_status" clearable />
       </el-form-item>

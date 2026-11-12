@@ -12,7 +12,7 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
-              新增
+              新建
             </ElButton>
           </ElSpace>
         </template>
@@ -55,7 +55,7 @@
             <SaButton
               v-permission="'tool:crontab:edit'"
               type="error"
-              @click="deleteRow(row, api.delete, refreshData)"
+              @click="deleteRow(row, api.delete, refreshData, row.name)"
             />
           </div>
         </template>

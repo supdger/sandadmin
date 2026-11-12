@@ -7,7 +7,7 @@
     </el-form>
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" @click="handleSubmit">提交</el-button>
+      <el-button type="primary" @click="handleSubmit">保存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -121,7 +121,7 @@
       await formRef.value.validate()
       if (props.dialogType === 'edit') {
         await api.setHomePage(formData)
-        ElMessage.success('操作成功')
+        ElMessage.success(`已保存「${props.data?.username}」的首页`)
       }
       emit('success')
       handleClose()

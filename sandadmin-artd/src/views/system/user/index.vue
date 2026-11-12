@@ -32,7 +32,7 @@
                   <template #icon>
                     <ArtSvgIcon icon="ri:add-fill" />
                   </template>
-                  新增
+                  新建
                 </ElButton>
               </ElSpace>
             </template>
@@ -60,7 +60,7 @@
                 <SaButton
                   v-permission="'core:user:destroy'"
                   type="error"
-                  @click="deleteRow(row, api.delete, refreshData)"
+                  @click="deleteRow(row, api.delete, refreshData, row.username)"
                 />
                 <ElDropdown>
                   <ArtIconButton
@@ -103,6 +103,15 @@
                   </template>
                 </ElDropdown>
               </div>
+              <ElTooltip
+                v-else
+                :content="
+                  row.id === 1 ? '超级管理员不能修改或删除' : '不能修改或删除当前登录账号'
+                "
+                placement="left"
+              >
+                <span class="text-xs text-g-500 select-none">不可操作</span>
+              </ElTooltip>
             </template>
           </ArtTable>
         </ElCard>
@@ -184,16 +193,16 @@
         {
           prop: 'avatar',
           label: '用户名',
-          minWidth: 200,
+          minWidth: 180,
           saiType: 'imageAndText',
           saiFirst: 'username',
           saiSecond: 'email'
         },
-        { prop: 'phone', label: '手机号', width: 120 },
-        { prop: 'depts.name', label: '部门', minWidth: 150 },
+        { prop: 'phone', label: '手机号', width: 110 },
+        { prop: 'depts.name', label: '部门', minWidth: 130, showOverflowTooltip: true },
         { prop: 'status', label: '状态', width: 80, saiType: 'dict', saiDict: 'data_status' },
-        { prop: 'dashboard', label: '首页', width: 100, saiType: 'dict', saiDict: 'dashboard' },
-        { prop: 'login_time', label: '上次登录', width: 170, sortable: true },
+        { prop: 'dashboard', label: '首页', width: 90, saiType: 'dict', saiDict: 'dashboard' },
+        { prop: 'login_time', label: '上次登录', width: 160, sortable: true },
         {
           prop: 'operation',
           label: '操作',
@@ -253,7 +262,7 @@
       type: 'warning'
     }).then(({ value }) => {
       api.changePassword({ id: row.id, password: value }).then(() => {
-        ElMessage.success('修改密码成功')
+        ElMessage.success(`已修改「${row.username}」的密码`)
       })
     })
   }
@@ -269,7 +278,7 @@
       type: 'warning'
     }).then(() => {
       api.clearCache({ id: row.id }).then(() => {
-        ElMessage.success('清理缓存成功')
+        ElMessage.success(`已清理「${row.username}」的缓存`)
       })
     })
   }

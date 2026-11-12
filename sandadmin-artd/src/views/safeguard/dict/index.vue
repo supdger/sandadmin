@@ -31,8 +31,9 @@
           >
             <!-- 基础列 -->
             <template #name="{ row }">
-              <div>{{ row.name }}</div>
-              <div class="dict-code">{{ row.code }}</div>
+              <ElTooltip :content="row.code" placement="right">
+                <div>{{ row.name }}</div>
+              </ElTooltip>
             </template>
             <template #name-header="{ column }">
               <ElPopover placement="bottom" :width="200" trigger="hover">
@@ -114,19 +115,27 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
-              新增
+              新建
             </ElButton>
-            <ElButton
-              v-permission="'core:dict:edit'"
-              @click="deleteSelectedRows(api.dataDelete, getDictData)"
-              :disabled="selectedRows.length === 0"
-              v-ripple
+            <ElTooltip
+              :disabled="selectedRows.length > 0"
+              content="先勾选要删除的项"
+              placement="top"
             >
-              <template #icon>
-                <ArtSvgIcon icon="ri:delete-bin-5-line" />
-              </template>
-              删除
-            </ElButton>
+              <span>
+                <ElButton
+                  v-permission="'core:dict:edit'"
+                  @click="deleteSelectedRows(api.dataDelete, getDictData)"
+                  :disabled="selectedRows.length === 0"
+                  v-ripple
+                >
+                  <template #icon>
+                    <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                  </template>
+                  删除
+                </ElButton>
+              </span>
+            </ElTooltip>
           </ElSpace>
           <ArtTable
             rowKey="id"
@@ -162,7 +171,7 @@
                 <SaButton
                   v-permission="'core:dict:edit'"
                   type="error"
-                  @click="deleteRow(row, api.dataDelete, getDictData)"
+                  @click="deleteRow(row, api.dataDelete, getDictData, row.label)"
                 />
               </div>
             </template>
@@ -232,7 +241,12 @@
       ElMessage.error('请选择要删除的数据')
       return
     }
-    typeDeleteRow({ ...selectedRow.value }, api.delete, refreshTypeData)
+    typeDeleteRow(
+      { ...selectedRow.value },
+      api.delete,
+      refreshTypeData,
+      (selectedRow.value as any).name
+    )
   }
 
   /** 字典类型搜索 */
@@ -414,12 +428,5 @@
     flex: 1;
     min-height: 0;
     padding: 10px 2px 10px 10px;
-  }
-
-  .dict-code {
-    margin-top: 2px;
-    font-size: 12px;
-    line-height: 1.3;
-    color: var(--el-text-color-secondary);
   }
 </style>

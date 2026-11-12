@@ -165,18 +165,19 @@
       return
     }
     ElMessageBox.confirm(
-      `确定要销毁选中的 ${selectedRows.value.length} 条数据吗？`,
+      `确定要销毁选中的 ${selectedRows.value.length} 项吗？销毁后不能恢复。`,
       '销毁选中数据',
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'error'
+        confirmButtonText: '销毁',
+        cancelButtonText: '再想想',
+        confirmButtonClass: 'el-button--danger',
+        type: 'warning'
       }
     ).then(() => {
       api
         .delete({ table: searchForm.value.table, ids: selectedRows.value.map((row) => row.id) })
         .then(() => {
-          ElMessage.success('操作成功')
+          ElMessage.success(`已销毁 ${selectedRows.value.length} 项`)
           refreshData()
           selectedRows.value = []
         })

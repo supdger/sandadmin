@@ -137,7 +137,7 @@
         category_id: formData.category_id
       })
 
-      ElMessage.success(`成功移动 ${ids.length} 个文件`)
+      ElMessage.success(`已移动 ${ids.length} 个文件`)
       emit('success')
       handleClose()
     } catch (error) {

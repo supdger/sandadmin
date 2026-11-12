@@ -27,6 +27,9 @@ export * from './storage'
 // HTTP 相关
 export * from './http'
 
+// 人话化展示相关
+export * from './format'
+
 // 表单相关
 export * from './form'
 

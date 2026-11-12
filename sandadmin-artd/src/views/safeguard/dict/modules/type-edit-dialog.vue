@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="dialogType === 'add' ? '新增字典数据' : '编辑字典数据'"
+    :title="dialogType === 'add' ? '新建字典' : '编辑字典'"
     width="600px"
     align-center
     @close="handleClose"
@@ -147,10 +147,10 @@
         const payload: Record<string, unknown> = { ...formData }
         delete payload.id
         await api.save(payload)
-        ElMessage.success('新增成功')
+        ElMessage.success(`已新建「${formData.name}」`)
       } else {
         await api.update(formData)
-        ElMessage.success('修改成功')
+        ElMessage.success(`已保存「${formData.name}」`)
       }
       emit('success')
       handleClose()

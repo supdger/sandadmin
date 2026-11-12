@@ -30,6 +30,15 @@
       "theme": "主题风格",
       "menu": "开启顶栏菜单",
       "description": "等更多配置"
+    },
+    "tips": {
+      "refresh": "刷新页面",
+      "fullscreen": "全屏",
+      "exitFullscreen": "退出全屏",
+      "language": "切换语言",
+      "settings": "系统设置",
+      "darkMode": "深色模式",
+      "lightMode": "浅色模式"
     }
   },
   "common": {

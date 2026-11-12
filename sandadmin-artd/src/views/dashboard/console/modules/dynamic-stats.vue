@@ -3,7 +3,6 @@
     <div class="art-card-header">
       <div class="title">
         <h4>动态</h4>
-        <p>新增<span class="text-success">+6</span></p>
       </div>
     </div>
 

@@ -35,13 +35,15 @@
         />
 
         <!-- 刷新按钮 -->
-        <ArtIconButton
-          v-if="shouldShowRefreshButton"
-          icon="ri:refresh-line"
-          class="!ml-3 refresh-btn max-sm:!hidden"
-          :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
-          @click="reload"
-        />
+        <ElTooltip :content="$t('topBar.tips.refresh')" placement="bottom">
+          <ArtIconButton
+            v-if="shouldShowRefreshButton"
+            icon="ri:refresh-line"
+            class="!ml-3 refresh-btn max-sm:!hidden"
+            :style="{ marginLeft: !isLeftMenu ? '10px' : '0' }"
+            @click="reload"
+          />
+        </ElTooltip>
 
         <!-- 快速入口 -->
         <!-- <ArtFastEnter v-if="shouldShowFastEnter && width >= headerBarFastEnterMinWidth">
@@ -79,13 +81,20 @@
         </div>
 
         <!-- 全屏按钮 -->
-        <ArtIconButton
-          v-if="shouldShowFullscreen"
-          :icon="isFullscreen ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-fill'"
-          :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn', 'ml-3']"
-          class="max-md:!hidden"
-          @click="toggleFullScreen"
-        />
+        <ElTooltip
+          :content="
+            isFullscreen ? $t('topBar.tips.exitFullscreen') : $t('topBar.tips.fullscreen')
+          "
+          placement="bottom"
+        >
+          <ArtIconButton
+            v-if="shouldShowFullscreen"
+            :icon="isFullscreen ? 'ri:fullscreen-exit-line' : 'ri:fullscreen-fill'"
+            :class="[!isFullscreen ? 'full-screen-btn' : 'exit-full-screen-btn', 'ml-3']"
+            class="max-md:!hidden"
+            @click="toggleFullScreen"
+          />
+        </ElTooltip>
 
         <!-- 国际化按钮 -->
         <ElDropdown
@@ -93,7 +102,9 @@
           popper-class="langDropDownStyle"
           v-if="shouldShowLanguage"
         >
-          <ArtIconButton icon="ri:translate-2" class="language-btn text-[19px]" />
+          <ElTooltip :content="$t('topBar.tips.language')" placement="bottom">
+            <ArtIconButton icon="ri:translate-2" class="language-btn text-[19px]" />
+          </ElTooltip>
           <template #dropdown>
             <ElDropdownMenu>
               <div v-for="item in languageOptions" :key="item.value" class="lang-btn-item">
@@ -134,7 +145,9 @@
           <ElPopover placement="bottom-start" :width="190" :offset="0">
             <template #reference>
               <div class="flex-cc">
-                <ArtIconButton icon="ri:settings-line" class="setting-btn" @click="openSetting" />
+                <ElTooltip :content="$t('topBar.tips.settings')" placement="bottom">
+                  <ArtIconButton icon="ri:settings-line" class="setting-btn" @click="openSetting" />
+                </ElTooltip>
               </div>
             </template>
             <template #default>
@@ -149,11 +162,16 @@
         </div>
 
         <!-- 主题切换按钮 -->
-        <ArtIconButton
-          v-if="shouldShowThemeToggle"
-          @click="themeAnimation"
-          :icon="isDark ? 'ri:sun-fill' : 'ri:moon-line'"
-        />
+        <ElTooltip
+          :content="isDark ? $t('topBar.tips.lightMode') : $t('topBar.tips.darkMode')"
+          placement="bottom"
+        >
+            <ArtIconButton
+            v-if="shouldShowThemeToggle"
+            @click="themeAnimation"
+            :icon="isDark ? 'ri:sun-fill' : 'ri:moon-line'"
+          />
+        </ElTooltip>
 
         <!-- 用户头像、菜单 -->
         <ArtUserMenu />

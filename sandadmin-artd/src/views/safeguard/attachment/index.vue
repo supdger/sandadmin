@@ -35,7 +35,14 @@
                     <SaButton
                       v-permission="'core:attachment:edit'"
                       type="error"
-                      @click="categoryDeleteRow(data, categoryApi.delete, getCategoryList)"
+                      @click="
+                        categoryDeleteRow(
+                          data,
+                          categoryApi.delete,
+                          getCategoryList,
+                          data.category_name || data.label
+                        )
+                      "
                     />
                   </div>
                 </div>
@@ -60,28 +67,44 @@
               >
                 <ElButton :icon="UploadFilled">上传图片</ElButton>
               </ElUpload>
-              <ElButton
-                v-permission="'core:attachment:edit'"
-                :disabled="selectedRows.length === 0"
-                @click="deleteSelectedRows(api.delete, refreshData)"
-                v-ripple
+              <ElTooltip
+                :disabled="selectedRows.length > 0"
+                content="先勾选要删除的项"
+                placement="top"
               >
-                <template #icon>
-                  <ArtSvgIcon icon="ri:delete-bin-5-line" />
-                </template>
-                删除
-              </ElButton>
-              <ElButton
-                v-permission="'core:attachment:edit'"
-                :disabled="selectedRows.length === 0"
-                @click="moveDialogVisible = true"
-                v-ripple
+                <span>
+                  <ElButton
+                    v-permission="'core:attachment:edit'"
+                    :disabled="selectedRows.length === 0"
+                    @click="deleteSelectedRows(api.delete, refreshData)"
+                    v-ripple
+                  >
+                    <template #icon>
+                      <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                    </template>
+                    删除
+                  </ElButton>
+                </span>
+              </ElTooltip>
+              <ElTooltip
+                :disabled="selectedRows.length > 0"
+                content="先勾选要移动的项"
+                placement="top"
               >
-                <template #icon>
-                  <ArtSvgIcon icon="ri:swap-box-line" />
-                </template>
-                移动
-              </ElButton>
+                <span>
+                  <ElButton
+                    v-permission="'core:attachment:edit'"
+                    :disabled="selectedRows.length === 0"
+                    @click="moveDialogVisible = true"
+                    v-ripple
+                  >
+                    <template #icon>
+                      <ArtSvgIcon icon="ri:swap-box-line" />
+                    </template>
+                    移动
+                  </ElButton>
+                </span>
+              </ElTooltip>
             </ElSpace>
             <ElSpace wrap>
               <SaSelect
@@ -160,6 +183,7 @@
   import api from '@/api/safeguard/attachment'
   import categoryApi from '@/api/safeguard/category'
   import { uploadImage } from '@/api/auth'
+  import { formatFileSize, formatMinute, mimeTypeText } from '@/utils/format'
   import { useTable } from '@/hooks/core/useTable'
   import { useSandAdmin } from '@/composables/useSandAdmin'
   import { Search, UploadFilled } from '@element-plus/icons-vue'
@@ -253,9 +277,27 @@
           saiType: 'dict',
           saiDict: 'upload_mode'
         },
-        { prop: 'mime_type', label: '文件类型', width: 160, showOverflowTooltip: true },
-        { prop: 'size_info', label: '文件大小', width: 100 },
-        { prop: 'create_time', label: '上传时间', minWidth: 180, sortable: true },
+        {
+          prop: 'mime_type',
+          label: '文件类型',
+          width: 110,
+          showOverflowTooltip: true,
+          formatter: (row: any) => mimeTypeText(row.mime_type)
+        },
+        {
+          prop: 'size_byte',
+          label: '文件大小',
+          width: 100,
+          formatter: (row: any) => formatFileSize(row.size_byte)
+        },
+        {
+          prop: 'create_time',
+          label: '上传时间',
+          width: 150,
+          sortable: true,
+          showOverflowTooltip: true,
+          formatter: (row: any) => formatMinute(row.create_time)
+        },
         { prop: 'operation', label: '操作', width: 100, fixed: 'right', useSlot: true }
       ]
     }

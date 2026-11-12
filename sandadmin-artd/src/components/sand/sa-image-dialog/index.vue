@@ -49,7 +49,7 @@
             <el-image :src="item.url" fit="cover" class="grid-image" />
             <div class="image-info">
               <div class="image-name" :title="item.origin_name">{{ item.origin_name }}</div>
-              <div class="image-size">{{ item.size_info }}</div>
+              <div class="image-size">{{ formatFileSize(item.size_byte) }}</div>
             </div>
             <div v-if="selectedIds.has(item.id)" class="selected-badge">
               <el-icon><Check /></el-icon>
@@ -94,6 +94,7 @@
   import { ElMessage } from 'element-plus'
   import type { UploadRequestOptions, UploadProps } from 'element-plus'
   import { getResourceCategory, getResourceList, uploadImage } from '@/api/auth'
+  import { formatFileSize } from '@/utils/format'
 
   defineOptions({ name: 'SaImageDialog' })
 
@@ -124,6 +125,7 @@
     origin_name: string
     url: string
     size_info: string
+    size_byte?: number
     type?: string
     createTime?: string
   }

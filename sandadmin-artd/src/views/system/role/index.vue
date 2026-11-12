@@ -16,7 +16,7 @@
               <template #icon>
                 <ArtSvgIcon icon="ri:add-fill" />
               </template>
-              新增
+              新建
             </ElButton>
           </ElSpace>
         </template>
@@ -43,7 +43,7 @@
             <SaButton
               v-permission="'core:role:destroy'"
               type="error"
-              @click="deleteRow(row, api.delete, refreshData)"
+              @click="deleteRow(row, api.delete, refreshData, row.name)"
             />
             <ElDropdown>
               <ArtIconButton
@@ -65,6 +65,9 @@
               </template>
             </ElDropdown>
           </div>
+          <ElTooltip v-else content="超级管理员角色不能修改或删除" placement="left">
+            <span class="text-xs text-g-500 select-none">不可操作</span>
+          </ElTooltip>
         </template>
       </ArtTable>
     </ElCard>

@@ -15,19 +15,27 @@
             <template #icon>
               <ArtSvgIcon icon="ri:add-fill" />
             </template>
-            新增
+            新建
           </ElButton>
-          <ElButton
-            v-permission="'core:config:edit'"
-            :disabled="selectedRows.length === 0"
-            @click="deleteSelectedRows(api.configDelete, refreshData)"
-            v-ripple
+          <ElTooltip
+            :disabled="selectedRows.length > 0"
+            content="先勾选要删除的项"
+            placement="top"
           >
-            <template #icon>
-              <ArtSvgIcon icon="ri:delete-bin-5-line" />
-            </template>
-            删除
-          </ElButton>
+            <span>
+              <ElButton
+                v-permission="'core:config:edit'"
+                :disabled="selectedRows.length === 0"
+                @click="deleteSelectedRows(api.configDelete, refreshData)"
+                v-ripple
+              >
+                <template #icon>
+                  <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                </template>
+                删除
+              </ElButton>
+            </span>
+          </ElTooltip>
         </ElSpace>
       </div>
       <!-- 表格 -->
@@ -54,7 +62,7 @@
             <SaButton
               v-permission="'core:config:edit'"
               type="error"
-              @click="deleteRow(row, api.configDelete, refreshData)"
+              @click="deleteRow(row, api.configDelete, refreshData, row.name)"
             />
           </div>
         </template>

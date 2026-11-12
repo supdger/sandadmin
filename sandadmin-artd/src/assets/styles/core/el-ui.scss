@@ -580,3 +580,17 @@ html.dark .el-card {
 .el-drawer-fade-leave-active {
   animation: el-drawer-fade-out 0.2s linear !important;
 }
+
+// 弹窗底部与确认框里的普通按钮回到中性色：主题把默认按钮统一加了主色
+// 边框和主色文字，取消、再想想这类次要动作要回到灰底灰框，只留主动作带色。
+.el-dialog__footer,
+.el-drawer__footer,
+.el-message-box__btns {
+  .el-button--default {
+    --el-button-text-color: var(--el-text-color-regular);
+    --el-button-border-color: var(--el-border-color);
+    --el-button-hover-text-color: var(--el-text-color-primary);
+    --el-button-hover-border-color: var(--el-border-color-hover);
+    --el-button-hover-bg-color: var(--el-fill-color-light);
+  }
+}

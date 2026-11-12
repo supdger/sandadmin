@@ -12,17 +12,25 @@
       <ArtTableHeader v-model:columns="columnChecks" :loading="loading" @refresh="refreshData">
         <template #left>
           <ElSpace wrap>
-            <ElButton
-              v-permission="'core:logs:deleteOper'"
-              :disabled="selectedRows.length === 0"
-              @click="deleteSelectedRows(api.delete, refreshData)"
-              v-ripple
+            <ElTooltip
+              :disabled="selectedRows.length > 0"
+              content="先勾选要删除的项"
+              placement="top"
             >
-              <template #icon>
-                <ArtSvgIcon icon="ri:delete-bin-5-line" />
-              </template>
-              删除
-            </ElButton>
+              <span>
+                <ElButton
+                  v-permission="'core:logs:deleteOper'"
+                  :disabled="selectedRows.length === 0"
+                  @click="deleteSelectedRows(api.delete, refreshData)"
+                  v-ripple
+                >
+                  <template #icon>
+                    <ArtSvgIcon icon="ri:delete-bin-5-line" />
+                  </template>
+                  删除
+                </ElButton>
+              </span>
+            </ElTooltip>
           </ElSpace>
         </template>
       </ArtTableHeader>
