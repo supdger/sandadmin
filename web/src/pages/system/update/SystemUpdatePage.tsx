@@ -78,9 +78,12 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
 /** 结果展示：成功 / 已恢复 / 未能恢复 / 已取消。 */
 function UpgradeResult({
   request,
+  canRetry,
   onAgain,
 }: {
   request: LifecycleRequest;
+  /** 网页不能升级时不给「再试一次」，失败描述也不提再试。 */
+  canRetry: boolean;
   onAgain: () => void;
 }) {
   const { t } = useTranslation('systemUpdate');
@@ -123,13 +126,22 @@ function UpgradeResult({
             type="warning"
             fullMode={false}
             title={t('rolledBackTitle')}
-            description={`${t('rolledBackDesc')}${request.error_message ? ` ${request.error_message}` : ''}`}
+            description={
+              <div className="flex flex-col gap-1">
+                <span>{t(canRetry ? 'rolledBackDesc' : 'rolledBackDescReadonly')}</span>
+                {request.error_message ? (
+                  <span>{t('failureReason', { reason: request.error_message })}</span>
+                ) : null}
+              </div>
+            }
             closeIcon={null}
           />
           <div className="flex items-center gap-2">
-            <Button theme="solid" type="primary" onClick={onAgain}>
-              {t('upgradeAgain')}
-            </Button>
+            {canRetry ? (
+              <Button theme="solid" type="primary" onClick={onAgain}>
+                {t('upgradeAgain')}
+              </Button>
+            ) : null}
             <AdminCopyButton error={problem} />
           </div>
         </div>
@@ -141,13 +153,22 @@ function UpgradeResult({
           type="danger"
           fullMode={false}
           title={t('notRecoveredTitle')}
-          description={t('notRecoveredDesc')}
+          description={
+            <div className="flex flex-col gap-1">
+              <span>{t(canRetry ? 'notRecoveredDesc' : 'notRecoveredDescReadonly')}</span>
+              {request.error_message ? (
+                <span>{t('failureReason', { reason: request.error_message })}</span>
+              ) : null}
+            </div>
+          }
           closeIcon={null}
         />
         <div className="flex flex-wrap items-center gap-2">
-          <Button theme="solid" type="primary" onClick={onAgain}>
-            {t('upgradeAgain')}
-          </Button>
+          {canRetry ? (
+            <Button theme="solid" type="primary" onClick={onAgain}>
+              {t('upgradeAgain')}
+            </Button>
+          ) : null}
           <Button
             onClick={() =>
               Toast.success(t('restoredHint', { version: request.from_version ?? '' }))
@@ -182,6 +203,11 @@ export function SystemUpdatePage() {
     queryFn: getUpdateStatus,
   });
   const status = statusQuery.data;
+  // 与提示条同一个判定：拿不到状态时先保留原副标题，拿到后按能力换。
+  const pageSubtitle =
+    status && !(status.package_ops_enabled === true && status.compiled !== true)
+      ? t('subtitleReadonly')
+      : t('subtitle');
 
   const [requestId, setRequestId] = useState<string | null>(null);
   const running = status?.running_request ?? null;
@@ -238,7 +264,7 @@ export function SystemUpdatePage() {
   if ((statusQuery.isPaused || statusQuery.isError) && !status) {
     return (
       <div className="flex flex-col gap-4">
-        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        <PageHeader title={t('title')} subtitle={pageSubtitle} />
         <Card style={{ maxWidth: 720 }}>
           <ErrorState
             kind="error"
@@ -256,7 +282,7 @@ export function SystemUpdatePage() {
   if (statusQuery.isPending) {
     return (
       <div className="flex flex-col gap-4">
-        <PageHeader title={t('title')} subtitle={t('subtitle')} />
+        <PageHeader title={t('title')} subtitle={pageSubtitle} />
         <Card style={{ maxWidth: 720 }}>
           <Skeleton placeholder={<Skeleton.Paragraph rows={6} />} loading />
         </Card>
@@ -271,7 +297,7 @@ export function SystemUpdatePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={t('title')} subtitle={t('subtitle')} />
+      <PageHeader title={t('title')} subtitle={pageSubtitle} />
 
       {compiled ? (
         <Banner type="info" fullMode={false} description={t('compiledNotice')} closeIcon={null} />
@@ -300,6 +326,7 @@ export function SystemUpdatePage() {
         ) : showResult && request ? (
           <UpgradeResult
             request={request}
+            canRetry={opsEnabled && !compiled}
             onAgain={() => {
               setRequestId(null);
               start.mutate();

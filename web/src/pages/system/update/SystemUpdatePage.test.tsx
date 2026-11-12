@@ -12,7 +12,7 @@ import type { LifecycleRequest } from '@/api/v1/lifecycle';
 import { getLifecycleRequest } from '@/api/v1/lifecycle';
 import { clearToken, setToken } from '@/lib/authToken';
 import { server } from '@/mocks/server';
-import { resetLifecycleMock } from '@/mocks/handlers/lifecycle';
+import { mockUpdateStatus, resetLifecycleMock } from '@/mocks/handlers/lifecycle';
 import { resetV1Mock } from '@/mocks/handlers/_v1data';
 import { SystemUpdatePage } from './SystemUpdatePage';
 
@@ -75,6 +75,7 @@ describe('SystemUpdatePage', () => {
 
   it('显示版本卡：现在的版本、可升级版本、变化与随行插件', async () => {
     renderPage();
+    expect(await screen.findByText('一键升级后台和所有已安装的插件')).toBeInTheDocument();
     expect(await screen.findByText('现在的版本 1.4.2')).toBeInTheDocument();
     expect(await screen.findByText('可以升级到 1.6.0')).toBeInTheDocument();
     expect(screen.getByText('公告可以定时下线了')).toBeInTheDocument();
@@ -128,8 +129,85 @@ describe('SystemUpdatePage', () => {
     );
     renderPage();
     expect(await screen.findByText(/这个后台不能在网页上升级/)).toBeInTheDocument();
+    expect(screen.getByText('查看当前版本，有新版本时提醒你')).toBeInTheDocument();
+    expect(screen.queryByText('一键升级后台和所有已安装的插件')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '上传升级包' })).not.toBeInTheDocument();
+  });
+
+  it('不能网页升级时失败已恢复：原因单独一行，没有再试一次', async () => {
+    server.use(
+      http.get(STATUS_URL, () =>
+        HttpResponse.json({
+          request_id: 'x',
+          data: {
+            ...mockUpdateStatus(),
+            compiled: true,
+            package_ops_enabled: false,
+            running_request: null,
+            last_failed_request: makeRequest({
+              state: 'failed',
+              rolled_back: true,
+              error_message: '下载新版本时网络断了',
+            }),
+          },
+        }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('没做完，已自动恢复')).toBeInTheDocument();
+    expect(screen.getByText('原因：下载新版本时网络断了')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '再试一次' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制问题信息' })).toBeInTheDocument();
+  });
+
+  it('不能网页升级时失败未恢复：没有再试一次，恢复与复制仍在', async () => {
+    server.use(
+      http.get(STATUS_URL, () =>
+        HttpResponse.json({
+          request_id: 'x',
+          data: {
+            ...mockUpdateStatus(),
+            compiled: true,
+            package_ops_enabled: false,
+            running_request: null,
+            last_failed_request: makeRequest({
+              state: 'failed',
+              rolled_back: false,
+              error_message: '下载新版本时网络断了',
+            }),
+          },
+        }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('升级没有完成')).toBeInTheDocument();
+    expect(screen.getByText('原因：下载新版本时网络断了')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '再试一次' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '恢复到原来的版本' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '复制问题信息' })).toBeInTheDocument();
+  });
+
+  it('网页能升级时失败页仍给「再试一次」', async () => {
+    server.use(
+      http.get(STATUS_URL, () =>
+        HttpResponse.json({
+          request_id: 'x',
+          data: {
+            ...mockUpdateStatus(),
+            running_request: null,
+            last_failed_request: makeRequest({
+              state: 'failed',
+              rolled_back: true,
+              error_message: '下载新版本时网络断了',
+            }),
+          },
+        }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('没做完，已自动恢复')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '再试一次' })).toBeInTheDocument();
   });
 
   it('申请已取消时显示「已取消，系统没有改动」', async () => {

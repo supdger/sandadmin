@@ -1,6 +1,7 @@
 export default {
   title: '插件管理',
   subtitle: '给后台加功能，或者升级、卸载已有的功能',
+  subtitleReadonly: '查看已经安装的插件',
 
   compiledNotice: '这个后台不能在网页上安装或升级插件，要加插件请找负责部署的人。',
   opsDisabledNotice: '网页上的安装和升级已关闭，请联系负责部署的人。',

@@ -463,7 +463,7 @@ export function PluginsPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
+        subtitle={opsEnabled && !compiled ? t('subtitle') : t('subtitleReadonly')}
         extra={
           <div className="flex items-center gap-2">
             {canUpgrade && upgradeableCount > 0 ? (

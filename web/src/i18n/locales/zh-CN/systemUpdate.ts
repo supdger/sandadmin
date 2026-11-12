@@ -1,6 +1,7 @@
 export default {
   title: '系统更新',
   subtitle: '一键升级后台和所有已安装的插件',
+  subtitleReadonly: '查看当前版本，有新版本时提醒你',
 
   compiledNotice: '这个后台不能在网页上升级，要升级请找负责部署的人。',
   opsDisabledNotice: '网页上的安装和升级已关闭，请联系负责部署的人。',
@@ -23,8 +24,11 @@ export default {
   refreshPage: '刷新页面',
   rolledBackTitle: '没做完，已自动恢复',
   rolledBackDesc: '升级没有完成，系统已自动恢复到原来的版本，你的数据没有变化。可以稍后再试。',
+  rolledBackDescReadonly: '升级没有完成，系统已自动恢复到原来的版本，你的数据没有变化。',
   notRecoveredTitle: '升级没有完成',
   notRecoveredDesc: '系统还在原来的版本，你的数据没有变化。可以再试一次，或联系负责部署的人。',
+  notRecoveredDescReadonly: '系统还在原来的版本，你的数据没有变化。请联系负责部署的人。',
+  failureReason: '原因：{{reason}}',
   restoreVersion: '恢复到原来的版本',
   restoredHint: '还在原来的版本「{{version}}」，数据没有变化',
   upgradeAgain: '再试一次',

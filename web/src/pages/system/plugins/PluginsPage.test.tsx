@@ -12,7 +12,7 @@ import type { LifecycleRequest } from '@/api/v1/lifecycle';
 import { getLifecycleRequest } from '@/api/v1/lifecycle';
 import { clearToken, setToken } from '@/lib/authToken';
 import { server } from '@/mocks/server';
-import { resetLifecycleMock } from '@/mocks/handlers/lifecycle';
+import { mockPluginsOverview, resetLifecycleMock } from '@/mocks/handlers/lifecycle';
 import { resetV1Mock } from '@/mocks/handlers/_v1data';
 import { PluginsPage } from './PluginsPage';
 
@@ -81,6 +81,7 @@ describe('PluginsPage', () => {
   it('按市场列表渲染卡片并区分安装态', async () => {
     renderPage();
     expect(await screen.findByText('插件管理')).toBeInTheDocument();
+    expect(await screen.findByText('给后台加功能，或者升级、卸载已有的功能')).toBeInTheDocument();
     expect(await screen.findByText('流程审批')).toBeInTheDocument();
     expect(screen.getByText('微信互通')).toBeInTheDocument();
     expect(screen.getByText('数据看板')).toBeInTheDocument();
@@ -147,6 +148,18 @@ describe('PluginsPage', () => {
       expect(within(cardOf('数据看板')).getByRole('button', { name: '安装' })).toBeDisabled(),
     );
     expect(within(cardOf('流程审批')).getByText('执行中')).toBeInTheDocument();
+  });
+
+  it('编译版只读：副标题不提升级卸载，卡片没有操作按钮', async () => {
+    mockPluginsOverview.compiled = true;
+    renderPage();
+    expect(await screen.findByText('查看已经安装的插件')).toBeInTheDocument();
+    expect(await screen.findByText(/不能在网页上安装或升级插件/)).toBeInTheDocument();
+    expect(screen.queryByText('给后台加功能，或者升级、卸载已有的功能')).not.toBeInTheDocument();
+    await screen.findByText('数据看板');
+    expect(within(cardOf('数据看板')).queryByRole('button', { name: '安装' })).not.toBeInTheDocument();
+    expect(within(cardOf('流程审批')).queryByRole('button', { name: '升级' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /全部升级/ })).not.toBeInTheDocument();
   });
 
   it('详情抽屉显示版本与菜单清单', async () => {
