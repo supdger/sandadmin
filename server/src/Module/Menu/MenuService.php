@@ -129,20 +129,24 @@ final class MenuService
 
     /**
      * @param array<string, mixed> $body
+     *
+     * @return array{menu_version: int}
      */
-    public function updateNode(string $key, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): void
+    public function updateNode(string $key, array $body, OrgActor $actor, string $requestId, ?string $ip, ?string $device): array
     {
         $this->assertVersion($body);
         $custom = $this->customByKey($key);
         if ($custom !== null) {
             $this->updateCustom($key, $custom, $body, $actor, $requestId, $ip, $device);
 
-            return;
+            return ['menu_version' => $this->version()];
         }
         if (!$this->isCatalogKey($key)) {
             throw MenuException::notFound();
         }
         $this->updateOverride($key, $body, $actor, $requestId, $ip, $device);
+
+        return ['menu_version' => $this->version()];
     }
 
     public function removeNode(string $key, OrgActor $actor, string $requestId, ?string $ip, ?string $device): void
