@@ -186,4 +186,107 @@ final class ScheduleHttpTest extends ToolsCase
         self::assertSame(404, $result['status']);
         self::assertSame('TASK_NOT_FOUND', $result['body']['code']);
     }
+
+    private function setTimezone(string $name): void
+    {
+        $this->conn->executeStatement(
+            'INSERT INTO sand_system_setting (key, value, group_code) VALUES (\'timezone\', CAST(:value AS jsonb), \'basic\')'
+            . ' ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+            ['value' => json_encode($name)],
+        );
+    }
+
+    /** @return array<mixed> */
+    private function fetchIndex(string $requestId): array
+    {
+        $result = $this->http()->index([], $requestId);
+        self::assertSame(200, $result['status']);
+        $data = self::dataOf($result);
+        self::assertIsArray($data);
+
+        return $data;
+    }
+
+    /**
+     * @param array<mixed> $items
+     *
+     * @return array<mixed>
+     */
+    private static function itemOf(array $items, string $code): array
+    {
+        foreach ($items as $item) {
+            if (is_array($item) && ($item['code'] ?? null) === $code) {
+                return $item;
+            }
+        }
+        self::fail('列表里没有 ' . $code);
+    }
+
+    public function testNextRunTimesFollowConfiguredTimezone(): void
+    {
+        // 「每天 03:00」按系统设置里的时区解释
+        $this->setTimezone('America/Los_Angeles');
+        $data = $this->fetchIndex('req-tz-1');
+        self::assertSame('America/Los_Angeles', $data['timezone']);
+        self::assertSame('洛杉矶时间（西八区）', $data['timezone_label']);
+        self::assertIsArray($data['items']);
+        $backup = self::itemOf($data['items'], 'host.backup');
+        self::assertIsArray($backup['next_run_times']);
+        self::assertCount(3, $backup['next_run_times']);
+        $zone = new \DateTimeZone('America/Los_Angeles');
+        foreach ($backup['next_run_times'] as $text) {
+            self::assertIsString($text);
+            $moment = new \DateTimeImmutable($text);
+            // 字符串带的偏移与该时区一致，钟点落在当地 03:00
+            self::assertSame($zone->getOffset($moment), $moment->getOffset());
+            self::assertSame('03', $moment->format('H'));
+            self::assertSame('00', $moment->format('i'));
+        }
+
+        $this->setTimezone('Asia/Shanghai');
+        $data = $this->fetchIndex('req-tz-2');
+        self::assertSame('Asia/Shanghai', $data['timezone']);
+        self::assertSame('北京时间（东八区）', $data['timezone_label']);
+        self::assertIsArray($data['items']);
+        $backup = self::itemOf($data['items'], 'host.backup');
+        self::assertIsArray($backup['next_run_times']);
+        foreach ($backup['next_run_times'] as $text) {
+            self::assertIsString($text);
+            self::assertStringEndsWith('+08:00', $text);
+            self::assertSame('03', (new \DateTimeImmutable($text))->format('H'));
+        }
+    }
+
+    public function testPluginTaskNameFallsBackWithoutRawCode(): void
+    {
+        $this->conn->insert('sand_system_plugin', [
+            'code' => 'flow',
+            'name' => '流程审批',
+            'version' => '1.0.0',
+            'host_constraint' => '^1.1',
+            'manifest_sha256' => str_repeat('a', 64),
+            'state' => 'installed',
+        ]);
+        $this->conn->insert('sand_system_schedule', [
+            'code' => 'flow.daily-sync',
+            'plugin_code' => 'flow',
+            'enabled' => 'true',
+        ]);
+        // 插件行都没有的任务：插件名也取不到，兜底「系统任务」，不露 code
+        $this->conn->insert('sand_system_schedule', [
+            'code' => 'ghost.nightly',
+            'plugin_code' => null,
+            'enabled' => 'true',
+        ]);
+        $items = self::itemsOf($this->http()->index([], 'req-names'));
+        self::assertIsArray($items);
+
+        $pluginItem = self::itemOf($items, 'flow.daily-sync');
+        self::assertSame('流程审批', $pluginItem['name']);
+        $description = $pluginItem['description'] ?? null;
+        self::assertTrue($description === null || (is_string($description) && !str_contains($description, 'daily-sync')));
+
+        $ghostItem = self::itemOf($items, 'ghost.nightly');
+        self::assertSame('系统任务', $ghostItem['name']);
+    }
 }

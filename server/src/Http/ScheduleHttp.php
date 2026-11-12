@@ -20,6 +20,7 @@ use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgAudit;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Org\OrgSql;
+use Sandadmin\Module\Setting\SettingService;
 
 /**
  * J11 定时任务：列表、改时间/启停、立即执行、执行记录。
@@ -35,6 +36,9 @@ final class ScheduleHttp
     private const PREVIEW_COUNT = 3;
 
     private readonly OrgAudit $audit;
+
+    /** 系统设置的时区缓存，一次列表/保存只查一次库。 */
+    private ?\DateTimeZone $timezone = null;
 
     public function __construct(
         private readonly Connection $connection,
@@ -79,8 +83,13 @@ final class ScheduleHttp
             }
             $items[] = $item;
         }
+        $zoneName = $this->timezone()->getName();
 
-        return ApiOutcome::ok(['items' => $items], $requestId);
+        return ApiOutcome::ok([
+            'items' => $items,
+            'timezone' => $zoneName,
+            'timezone_label' => SettingService::timezoneLabel($zoneName) ?? $zoneName,
+        ], $requestId);
     }
 
     /**
@@ -336,7 +345,7 @@ final class ScheduleHttp
         $schedule = $this->scheduleOf($row) ?? $meta['schedule'];
         $next = null;
         if ($enabled && !$suspended && $schedule !== null) {
-            $next = ScheduleNextRun::next($schedule, new \DateTimeImmutable());
+            $next = ScheduleNextRun::next($schedule, new \DateTimeImmutable('now', $this->timezone()));
         }
         $this->connection->executeStatement(
             'UPDATE sand_system_schedule SET next_run_time = :next, update_time = CURRENT_TIMESTAMP WHERE code = :code',
@@ -351,7 +360,7 @@ final class ScheduleHttp
     private function seedHost(): void
     {
         foreach (HostSchedule::all() as $host) {
-            $next = ScheduleNextRun::next($host->schedule, new \DateTimeImmutable());
+            $next = ScheduleNextRun::next($host->schedule, new \DateTimeImmutable('now', $this->timezone()));
             $this->connection->executeStatement(
                 'INSERT INTO sand_system_schedule (code, enabled, schedule, next_run_time)'
                 . ' VALUES (:code, true, NULL, :next) ON CONFLICT (code) DO NOTHING',
@@ -376,7 +385,7 @@ final class ScheduleHttp
         $effective = $override ?? $meta['schedule'];
         $nextTimes = [];
         if ($enabled && !$suspended && $effective !== null) {
-            $cursor = new \DateTimeImmutable();
+            $cursor = new \DateTimeImmutable('now', $this->timezone());
             for ($i = 0; $i < self::PREVIEW_COUNT; $i++) {
                 $next = ScheduleNextRun::next($effective, $cursor);
                 $nextTimes[] = $next->format(\DateTimeInterface::ATOM);
@@ -387,7 +396,7 @@ final class ScheduleHttp
 
         return [
             'code' => $code,
-            'name' => ScheduleTitle::of($code, $this->catalog),
+            'name' => $this->titleOf($code),
             'description' => $meta['description'],
             'source_label' => $pluginName !== null && $pluginName !== '' ? $pluginName : $meta['source_label'],
             'is_critical' => $meta['is_critical'],
@@ -450,7 +459,37 @@ final class ScheduleHttp
 
     private function nameOf(string $code): string
     {
-        return ScheduleTitle::of($code, $this->catalog);
+        return $this->titleOf($code);
+    }
+
+    /**
+     * 任务名的兜底链：宿主中文名 → 清单 cron_tasks title →
+     * 插件中文名（sand_system_plugin.name）→「系统任务」，任何分支都不回 code。
+     */
+    private function titleOf(string $code): string
+    {
+        $title = ScheduleTitle::of($code, $this->catalog);
+        if ($title !== $code) {
+            return $title;
+        }
+
+        return $this->pluginName($code) ?? '系统任务';
+    }
+
+    /** 系统设置里的时区；取不到或不是合法 IANA 名时回退 PHP 默认时区。 */
+    private function timezone(): \DateTimeZone
+    {
+        if ($this->timezone !== null) {
+            return $this->timezone;
+        }
+        $raw = $this->connection->fetchOne('SELECT value::text FROM sand_system_setting WHERE key = ?', ['timezone']);
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $name = is_string($decoded) && $decoded !== '' ? $decoded : date_default_timezone_get();
+        try {
+            return $this->timezone = new \DateTimeZone($name);
+        } catch (\Throwable) {
+            return $this->timezone = new \DateTimeZone(date_default_timezone_get());
+        }
     }
 
     /** @return array{status: int, body: array<string, mixed>} */

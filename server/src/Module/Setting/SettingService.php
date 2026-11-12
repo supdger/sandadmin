@@ -108,6 +108,14 @@ final class SettingService
         return null;
     }
 
+    /** 时区 IANA 名 → 选项里的中文名；不在选项内返回 null。 */
+    public static function timezoneLabel(string $name): ?string
+    {
+        $label = self::ITEMS['basic']['timezone']['options'][$name] ?? null;
+
+        return is_string($label) ? $label : null;
+    }
+
     /**
      * @param array<string, mixed> $values
      *
