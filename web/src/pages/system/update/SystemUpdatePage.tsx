@@ -82,7 +82,8 @@ function UpgradeStepsView({ request }: { request: LifecycleRequest }) {
         ))}
       </Steps>
       <Progress
-        percent={request.progress}
+        // 还在跑就不显示 100%：进度到顶会让人误以为已升级完。
+        percent={isLifecycleRunning(request) ? Math.min(request.progress, 90) : request.progress}
         showInfo
         motion={false}
         format={(percent) => `${percent}%`}
