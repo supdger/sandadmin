@@ -18,12 +18,14 @@ const routes: RouteObject[] = [
   {
     path: '/system/login-log',
     element: <LoginLogPage />,
-    handle: { title: 'loginLog:title', permission: 'system:login-log:index' },
+    // 页面内有 canIndex 空态（「你还没有查看登录日志的权限」），路由不再拦到通用 403
+    handle: { title: 'loginLog:title' },
   },
   {
     path: '/system/oper-log',
     element: <AuditLogPage />,
-    handle: { title: 'auditLog:title', permission: 'system:audit-log:index' },
+    // 同上：无权限由页面级 Empty 接管
+    handle: { title: 'auditLog:title' },
   },
   {
     path: '/system/cron',
