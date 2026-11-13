@@ -107,6 +107,42 @@ describe('SystemUpdatePage', () => {
     expect(screen.getByRole('button', { name: '刷新页面' })).toBeInTheDocument();
   });
 
+  it('非超管看「有新版本」写联系部署的人，不写「可以升级」', async () => {
+    server.use(
+      http.get('/api/admin/v1/me', () =>
+        HttpResponse.json({
+          request_id: 'x',
+          data: {
+            id: 'u-ops',
+            username: 'ops',
+            nickname: '运维同学',
+            avatar: null,
+            avatar_file_id: null,
+            phone: '',
+            email: null,
+            status: 'enabled',
+            is_admin: true,
+            is_super: false,
+            must_change_password: false,
+            permissions: ['system:update:index'],
+            dept_id: 'dept-root',
+            dept_name: '沙盒网络',
+            post_id: null,
+            post_name: null,
+            role_ids: [],
+            role_names: [],
+            last_login_time: null,
+            create_time: '2026-01-01T00:00:00+08:00',
+          },
+        }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('有新版本 1.6.0，请联系负责部署的人升级')).toBeInTheDocument();
+    expect(screen.queryByText(/可以升级到/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
+  });
+
   it('编译版只读：说明条 + 不显示操作按钮', async () => {
     server.use(
       http.get(STATUS_URL, () =>

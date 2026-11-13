@@ -395,7 +395,7 @@ export function SystemUpdatePage() {
             </Typography.Title>
             {status?.update_available && status.latest_version ? (
               <Typography.Text>
-                {opsEnabled && !compiled
+                {canStart
                   ? t('canUpgradeTo', { version: status.latest_version })
                   : t('newVersionReadonly', { version: status.latest_version })}
               </Typography.Text>
