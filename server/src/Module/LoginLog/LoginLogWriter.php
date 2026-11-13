@@ -11,10 +11,11 @@ use Doctrine\DBAL\Connection;
 use Sandadmin\Infra\Db\DbalConnection;
 
 /**
- * user.login 事件的 1.x 登录日志写库：插件监听器写的是旧版
+ * user.login 事件的登录日志写库：插件自带的监听器组装的是旧版
  * sand_system_login_log 形状（username/ip_location/os/browser），与
- * 1.x 列（username_input/succeeded/reason/device_label…）对不上。
- * 这里按 1.x 列补写一行；写失败只记错误日志，不影响登录本身。
+ * 1.x 列（username_input/succeeded/reason/device_label…）对不上，
+ * 已由 config/plugin/sandadmin/event.php 的标记停掉；这里按 1.x
+ * 列写唯一一行。写失败只记错误日志，不影响登录本身。
  */
 final class LoginLogWriter
 {
