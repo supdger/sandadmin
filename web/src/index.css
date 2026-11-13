@@ -24,6 +24,12 @@ body,
   flex-direction: column;
 }
 
+/* 校验未过的输入框：Semi error 态默认描边太浅（浅红），补一条可见的红描边。 */
+.field-invalid .semi-input-wrapper,
+.field-invalid .semi-datepicker {
+  border-color: var(--semi-color-danger);
+}
+
 /* 提示条靠右，避免盖住页面中间确认框的标题。 */
 .semi-toast-wrapper {
   justify-content: flex-end;

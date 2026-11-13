@@ -17,6 +17,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
+import { IllustrationNoAccess } from '@douyinfe/semi-illustrations';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -40,7 +41,7 @@ import { adminErrorMessage } from '@/lib/adminError';
 import { AdminApiError } from '@/lib/adminClient';
 import { confirmDanger } from '@/lib/confirmAction';
 import { formatDateTime } from '@/lib/format';
-import { getBrowserZone } from '@/lib/zonedTime';
+import { formatInZone, getBrowserZone } from '@/lib/zonedTime';
 import { nextRunTimes, normalizeTime, scheduleText } from './scheduleText';
 
 const URL_FIELDS = { keyword: {}, status: {}, failed_only: { kind: 'boolean' as const } };
@@ -341,7 +342,7 @@ export function CronPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')}>
+        <Empty image={<IllustrationNoAccess />} title={t('noPermission')} description="">
           <Button type="primary" onClick={() => navigate('/')}>
             {tc('actions.backHome')}
           </Button>
@@ -470,7 +471,7 @@ export function CronPage() {
             </div>
 
             {edit.draft.freq === 'interval' ? (
-              <div>
+              <div className={draftErrors.interval ? 'field-invalid' : undefined}>
                 <div className="mb-1">{t('edit.intervalLabel')}</div>
                 <InputNumber
                   value={edit.draft.interval}
@@ -482,7 +483,9 @@ export function CronPage() {
                   }
                 />
                 {draftErrors.interval ? (
-                  <Typography.Text type="danger" size="small">{draftErrors.interval}</Typography.Text>
+                  <Typography.Text type="danger" size="small" style={{ display: 'block' }}>
+                    {draftErrors.interval}
+                  </Typography.Text>
                 ) : null}
               </div>
             ) : null}
@@ -514,7 +517,7 @@ export function CronPage() {
             ) : null}
 
             {edit.draft.freq === 'monthly' ? (
-              <div>
+              <div className={draftErrors.monthday ? 'field-invalid' : undefined}>
                 <div className="mb-1">{t('edit.monthdayLabel')}</div>
                 <InputNumber
                   value={edit.draft.monthday}
@@ -526,7 +529,9 @@ export function CronPage() {
                   }
                 />
                 {draftErrors.monthday ? (
-                  <Typography.Text type="danger" size="small">{draftErrors.monthday}</Typography.Text>
+                  <Typography.Text type="danger" size="small" style={{ display: 'block' }}>
+                    {draftErrors.monthday}
+                  </Typography.Text>
                 ) : null}
                 {monthEndHint ? (
                   <Typography.Text type="secondary" size="small" style={{ display: 'block' }}>
@@ -537,7 +542,7 @@ export function CronPage() {
             ) : null}
 
             {edit.draft.freq === 'daily' || edit.draft.freq === 'weekly' || edit.draft.freq === 'monthly' ? (
-              <div>
+              <div className={draftErrors.time ? 'field-invalid' : undefined}>
                 <div className="mb-1">{t('edit.timeLabel')}</div>
                 <TimePicker
                   value={edit.draft.time}
@@ -549,7 +554,9 @@ export function CronPage() {
                   }}
                 />
                 {draftErrors.time ? (
-                  <Typography.Text type="danger" size="small">{draftErrors.time}</Typography.Text>
+                  <Typography.Text type="danger" size="small" style={{ display: 'block' }}>
+                    {draftErrors.time}
+                  </Typography.Text>
                 ) : null}
               </div>
             ) : null}
@@ -558,9 +565,20 @@ export function CronPage() {
               // 任一字段非法时不预览——算出来的时间会误导。
               <div>
                 <div className="mb-1">{t('edit.previewTitle')}</div>
+                {/* 主行与输入框同一个时区（设置时区）；浏览器时区不同时补一行换算结果。 */}
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {previewRuns.map((d, i) => (
-                    <li key={i}>{formatDateTime(d.toISOString())}</li>
+                    <li key={i}>
+                      {formatInZone(d, scheduleZone ?? getBrowserZone())}
+                      {zoneDiffers ? (
+                        <Typography.Text type="tertiary" size="small">
+                          {' '}
+                          {t('edit.browserLine', {
+                            time: formatInZone(d, getBrowserZone()).slice(5),
+                          })}
+                        </Typography.Text>
+                      ) : null}
+                    </li>
                   ))}
                 </ul>
               </div>

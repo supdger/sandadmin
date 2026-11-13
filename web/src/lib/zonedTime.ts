@@ -95,6 +95,12 @@ export function utcFromZone(
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
+/** 瞬间在 zone 时区读出的 `YYYY-MM-DD HH:mm`；与 formatDateTime 同格式、时区可指定。 */
+export function formatInZone(instant: Date, zone: string): string {
+  const at = zonePartsAt(instant, zone);
+  return `${at.year}-${pad2(at.month)}-${pad2(at.day)} ${pad2(at.hour)}:${pad2(at.minute)}`;
+}
+
 function parseClock(raw: string | null | undefined): { hour: number; minute: number } | null {
   const match = /^(\d{1,2}):(\d{2})/.exec(raw ?? '');
   if (!match) return null;

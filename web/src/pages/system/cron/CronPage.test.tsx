@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import '@/i18n/i18n';
 import { clearToken, setToken } from '@/lib/authToken';
-import { zonePartsAt } from '@/lib/zonedTime';
+import { formatInZone, zonePartsAt } from '@/lib/zonedTime';
 import { resetV1Mock } from '@/mocks/handlers/_v1data';
 import { CronPage } from './CronPage';
 import { nextRunTimes, scheduleText } from './scheduleText';
@@ -74,6 +74,41 @@ describe('scheduleText', () => {
         'America/Los_Angeles',
       ),
     ).toBe('每月 1 号 14:00');
+  });
+
+  it('monthly 月底钳制按系统时区出日期，再换算到浏览器时区', () => {
+    // 系统 Asia/Shanghai + 浏览器 America/Los_Angeles，当前 2026-11-10：
+    // 主行按系统时区读（11-30 / 12-31 / 01-31 这一类），浏览器侧才允许跨日。
+    const from = new Date('2026-11-10T12:00:00+08:00');
+    const cases: Array<[number, string[], string[]]> = [
+      [29, ['2026-11-29', '2026-12-29', '2027-01-29'], ['2026-11-28', '2026-12-28', '2027-01-28']],
+      [30, ['2026-11-30', '2026-12-30', '2027-01-30'], ['2026-11-29', '2026-12-29', '2027-01-29']],
+      [31, ['2026-11-30', '2026-12-31', '2027-01-31'], ['2026-11-29', '2026-12-30', '2027-01-30']],
+    ];
+    for (const [monthday, systemDates, browserDates] of cases) {
+      const runs = nextRunTimes(
+        { freq: 'monthly', monthday, time: '04:00' },
+        from,
+        'Asia/Shanghai',
+      );
+      // 主行（系统时区）：先按北京钟面出日期。
+      expect(runs.map((d) => formatInZone(d, 'Asia/Shanghai').slice(0, 10))).toEqual(systemDates);
+      // 「你这边是」（浏览器时区）：同一瞬间换算后的日期，31 号会落到前一天。
+      expect(runs.map((d) => formatInZone(d, 'America/Los_Angeles').slice(0, 10))).toEqual(browserDates);
+    }
+  });
+
+  it('monthly 预览跨年：12 月之后落到次年 1 月', () => {
+    const runs = nextRunTimes(
+      { freq: 'monthly', monthday: 31, time: '04:00' },
+      new Date('2026-12-15T12:00:00+08:00'),
+      'Asia/Shanghai',
+    );
+    expect(runs.map((d) => formatInZone(d, 'Asia/Shanghai').slice(0, 10))).toEqual([
+      '2026-12-31',
+      '2027-01-31',
+      '2027-02-28',
+    ]);
   });
 
   it('interval 不做时区换算', () => {

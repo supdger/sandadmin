@@ -81,6 +81,7 @@ export default {
     monthEndHint: '选了 29 到 31 号时，没有的月份会在当月最后一天执行',
     previewTitle: '接下来三次会在',
     timezoneHint: '按 {{label}}',
+    browserLine: '你这边是 {{time}}',
     save: '保存',
     cancel: '取消',
     saved: '已保存「{{name}}」的时间，下次执行 {{time}}',
