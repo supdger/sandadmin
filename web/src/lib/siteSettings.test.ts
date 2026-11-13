@@ -7,7 +7,6 @@ import {
   resetSiteSettings,
   settingsItemsToPatch,
   subscribeSiteSettings,
-  zonedNow,
 } from './siteSettings';
 
 describe('siteSettings', () => {
@@ -48,18 +47,4 @@ describe('siteSettings', () => {
     });
   });
 
-  it('zonedNow 按指定时区换算，非法/空时区回退本地', () => {
-    const base = new Date('2026-11-12T23:30:00Z');
-    // UTC+14：23:30 UTC 已是次日 13:30。
-    const kiritimati = zonedNow('Pacific/Kiritimati', base);
-    expect(kiritimati.getDate()).toBe(13);
-    expect(kiritimati.getHours()).toBe(13);
-
-    const utc = zonedNow('UTC', base);
-    expect(utc.getDate()).toBe(12);
-    expect(utc.getHours()).toBe(23);
-
-    expect(zonedNow(null, base)).toBe(base);
-    expect(zonedNow('Not/AZone', base)).toBe(base);
-  });
 });

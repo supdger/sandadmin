@@ -77,17 +77,3 @@ export function settingsItemsToPatch(items: SettingItem[]): SiteSettingsPatch {
   return patch;
 }
 
-/**
- * 指定时区下的「现在」（字段按该时区解释）；时区非法或为空回退本地。
- * 用 en-US 中间格式做时区换算，只用于取年月日/星期/小时。
- */
-export function zonedNow(timezone: string | null | undefined, base: Date = new Date()): Date {
-  if (!timezone) return base;
-  try {
-    const shifted = new Date(base.toLocaleString('en-US', { timeZone: timezone }));
-    if (Number.isNaN(shifted.getTime())) return base;
-    return shifted;
-  } catch {
-    return base;
-  }
-}

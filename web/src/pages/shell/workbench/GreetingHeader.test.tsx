@@ -42,16 +42,16 @@ describe('GreetingHeader', () => {
     resetSiteSettings();
   });
 
-  it('时区保存后「今天」的日期立即按新时区重算', async () => {
+  it('问候语与「今天」按浏览器时区，不随系统设置时区变', async () => {
     setToken('mock-admin-token');
-    applySiteSettings({ timezone: 'UTC' });
+    // 系统设置成 UTC+14（此刻已是 11-13）：日期仍按浏览器本地算。
+    applySiteSettings({ timezone: 'Pacific/Kiritimati' });
     renderHeader();
 
+    const local = new Date();
     expect(await screen.findByText(/好，管理员/)).toBeInTheDocument();
-    expect(screen.getByText(/今天是 11月12日/)).toBeInTheDocument();
-
-    // 保存成 UTC+14：同一时刻在基里巴斯已是 13 号。
-    applySiteSettings({ timezone: 'Pacific/Kiritimati' });
-    expect(await screen.findByText(/今天是 11月13日/)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`今天是 ${local.getMonth() + 1}月${local.getDate()}日`)),
+    ).toBeInTheDocument();
   });
 });

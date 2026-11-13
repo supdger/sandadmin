@@ -2,8 +2,6 @@ import { Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 import { useMe } from '@/hooks/useMe';
-import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { zonedNow } from '@/lib/siteSettings';
 
 type GreetingKey = 'morning' | 'noon' | 'afternoon' | 'evening';
 
@@ -29,9 +27,8 @@ const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export function GreetingHeader() {
   const { t } = useTranslation('workbench');
   const me = useMe();
-  const site = useSiteSettings();
-  // 系统设置里改了时区马上生效，问候语与「今天」都按那个时区算。
-  const now = zonedNow(site.timezone);
+  // 页面时间一律按浏览器时区：问候语与「今天」也是。
+  const now = new Date();
   const name = me.data?.nickname || t('greeting.fallbackName');
   const weekday = WEEKDAY_KEYS[now.getDay()];
 
