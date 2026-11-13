@@ -92,8 +92,11 @@ describe('CronPage', () => {
 
   it('表格显示人话时间，不出现 cron 表达式', async () => {
     renderPage();
-    expect(await screen.findByText('每天 03:00')).toBeInTheDocument();
-    expect(screen.getByText('每周一 09:00')).toBeInTheDocument();
+    // 列按 mock 设置时区（Asia/Shanghai）换算到浏览器时区，断言跟随运行环境
+    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const shown = (s: Parameters<typeof scheduleText>[0]) => scheduleText(s, 'Asia/Shanghai', browserZone);
+    expect(await screen.findByText(shown({ freq: 'daily', time: '03:00' }))).toBeInTheDocument();
+    expect(screen.getByText(shown({ freq: 'weekly', weekday: 1, time: '09:00' }))).toBeInTheDocument();
     expect(screen.getByText('每 10 分钟')).toBeInTheDocument();
     expect(screen.queryByText(/\*\/\d|cron|0 \* \*/i)).not.toBeInTheDocument();
   });
@@ -117,7 +120,7 @@ describe('CronPage', () => {
 
   it('状态筛选有「已启用」选项', async () => {
     const { container } = renderPage();
-    await screen.findByText('每天 03:00');
+    await screen.findByText(/每天 \d{2}:\d{2}/);
     // Semi Select 点开才渲染 optionList；默认显示「全部」。
     await userEvent.click(container.querySelector('.semi-select') as HTMLElement);
     expect(await screen.findByText('已启用')).toBeInTheDocument();
