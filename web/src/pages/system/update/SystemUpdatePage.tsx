@@ -395,7 +395,8 @@ export function SystemUpdatePage() {
             </Typography.Title>
             {status?.update_available && status.latest_version ? (
               <Typography.Text>
-                {canStart
+                {/* 与下方升级按钮同一个开关：三者都满足才算真的能升。 */}
+                {opsEnabled && !compiled && canStart
                   ? t('canUpgradeTo', { version: status.latest_version })
                   : t('newVersionReadonly', { version: status.latest_version })}
               </Typography.Text>
