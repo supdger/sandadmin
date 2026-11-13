@@ -122,7 +122,8 @@ export function GlobalSearch({ menus }: { menus: MyMenuNode[] }) {
       key: `m-${h.key}`,
       group: 'menu',
       title: h.title,
-      subtitle: h.groupTitle,
+      // 与 /search 返回的菜单项副标题同格式（「组织与用户 › 用户管理」）
+      subtitle: h.groupTitle ? `${h.groupTitle} › ${h.title}` : null,
       link: h.path,
     }));
     for (const item of userItems) {

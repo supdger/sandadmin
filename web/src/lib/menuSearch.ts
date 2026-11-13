@@ -28,19 +28,39 @@ export interface MenuSearchHit {
 }
 
 /**
+ * 功能分组名：与后端 SearchService::PAGES 的分组口径一致。
+ * 本地菜单兜底要给出和 /search 相同的副标题（「组织与用户 › 用户管理」），
+ * 导航树的分组（系统）不是功能分组。
+ */
+const FUNCTIONAL_GROUP: Record<string, string> = {
+  'system:user': '组织与用户',
+  'system:dept': '组织与用户',
+  'system:post': '组织与用户',
+  'system:role': '组织与用户',
+  'system:dict': '内容',
+  'system:announcement': '内容',
+};
+
+function functionalGroup(key: string, navGroupTitle: string | null): string | null {
+  if (FUNCTIONAL_GROUP[key]) return FUNCTIONAL_GROUP[key];
+  if (key.startsWith('plugin:')) return '插件';
+  return navGroupTitle;
+}
+
+/**
  * 拉平 /me/menus 的可点击页面节点（已按权限与可见性过滤过）。
  * link 类型走外链，不参与站内搜索。
  */
 export function flattenMenuPages(nodes: MyMenuNode[]): MenuSearchHit[] {
   const out: MenuSearchHit[] = [];
-  const walk = (items: MyMenuNode[], groupTitle: string | null) => {
+  const walk = (items: MyMenuNode[], navGroupTitle: string | null) => {
     for (const item of items) {
       if (item.children && item.children.length > 0) {
         walk(item.children, item.title);
         continue;
       }
       if (item.type === 'page' && item.path) {
-        out.push({ key: item.key, title: item.title, groupTitle, path: item.path });
+        out.push({ key: item.key, title: item.title, groupTitle: functionalGroup(item.key, navGroupTitle), path: item.path });
       }
     }
   };
