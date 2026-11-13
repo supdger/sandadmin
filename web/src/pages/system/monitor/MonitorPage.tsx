@@ -250,11 +250,8 @@ export function MonitorPage() {
                   aria-label={t('cards.memory')}
                 />
               ) : null}
-              {memLevel !== 'ok' ? (
-                <Typography.Text type={memLevel === 'danger' ? 'danger' : 'warning'} size="small">
-                  {t('cards.memoryWarn')}
-                </Typography.Text>
-              ) : memUsed != null && memTotal != null ? (
+              {memUsed != null && memTotal != null ? (
+                // 任何可读状态都写「已用 X，共 Y」；警告建议句放下一行。
                 <Typography.Text type="tertiary" size="small">
                   {t('cards.memoryTotal', {
                     used: formatGb(memUsed / 1024),
@@ -266,6 +263,11 @@ export function MonitorPage() {
                   {t('cards.memorySub')}
                 </Typography.Text>
               )}
+              {memLevel !== 'ok' ? (
+                <Typography.Text type={memLevel === 'danger' ? 'danger' : 'warning'} size="small">
+                  {t('cards.memoryWarn')}
+                </Typography.Text>
+              ) : null}
             </div>
           </Card>
 
@@ -289,14 +291,19 @@ export function MonitorPage() {
                   aria-label={t('cards.disk')}
                 />
               ) : null}
+              {diskFree != null && diskTotal != null ? (
+                <Typography.Text type="tertiary" size="small">
+                  {t('cards.diskUsed', {
+                    used: formatGb(diskTotal - diskFree),
+                    total: formatGb(diskTotal),
+                  })}
+                </Typography.Text>
+              ) : null}
               {diskLevel !== 'ok' ? (
+                // 链接单独一行，不把「共 Y」挤掉。
                 <Link to="/data/file">
                   <Typography.Text link>{t('actions.goFiles')}</Typography.Text>
                 </Link>
-              ) : diskFree != null && diskTotal != null ? (
-                <Typography.Text type="tertiary" size="small">
-                  {t('cards.diskTotal', { total: formatGb(diskTotal) })}
-                </Typography.Text>
               ) : null}
             </div>
           </Card>

@@ -115,10 +115,35 @@ describe('MonitorPage', () => {
 
   it('内存与磁盘容量用人话（GB/MB、共多少）', async () => {
     renderPage();
-    // mock: used_mb 512 / total_mb 1248 → 512 MB，共 1.2 GB；磁盘 42/100 GB → 还剩 42 GB。
+    // mock: used_mb 512 / total_mb 1248 → 已用 512 MB，共 1.2 GB；磁盘 42/100 GB → 已用 58 GB。
     expect(await screen.findByText('512 MB')).toBeInTheDocument();
-    expect(screen.getByText('本系统占用 512 MB（这台服务器共 1.2 GB）')).toBeInTheDocument();
+    expect(screen.getByText('已用 512 MB，共 1.2 GB')).toBeInTheDocument();
     expect(screen.getByText('还剩 42 GB')).toBeInTheDocument();
-    expect(screen.getByText('这台服务器共 100 GB')).toBeInTheDocument();
+    expect(screen.getByText('已用 58 GB，共 100 GB')).toBeInTheDocument();
+  });
+
+  it('警告状态下「已用 X，共 Y」仍在，建议句另起一行', async () => {
+    server.use(
+      http.get(`${v1Base}/monitor/server`, () =>
+        HttpResponse.json({
+          data: {
+            collected_time: '2026-01-10T08:00:00+08:00',
+            db_ok: true,
+            db_checked_time: '2026-01-10T08:00:00+08:00',
+            cpu: { usage_percent: 10 },
+            memory: { usage_percent: 91, used_mb: 14848, total_mb: 16384 },
+            disk: { free_gb: 4.2, total_gb: 100 },
+          },
+          request_id: 'req-1',
+        }),
+      ),
+    );
+    renderPage();
+    // 内存 14.5/16 GB（91% 警告）：总量行与建议句同时存在。
+    expect(await screen.findByText('已用 14.5 GB，共 16 GB')).toBeInTheDocument();
+    expect(screen.getByText('内存快满了，建议清理或扩容')).toBeInTheDocument();
+    // 磁盘 95.8/100 GB（已用 ≥95% 危险）：「共 100 GB」不被链接顶掉。
+    expect(screen.getByText('已用 95.8 GB，共 100 GB')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '去文件管理' })).toBeInTheDocument();
   });
 });
