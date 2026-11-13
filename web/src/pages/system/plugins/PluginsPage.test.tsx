@@ -162,6 +162,31 @@ describe('PluginsPage', () => {
     expect(screen.queryByRole('button', { name: /全部升级/ })).not.toBeInTheDocument();
   });
 
+  it('编译版空列表：还没有安装插件 + 联系部署的人，不写「没有找到」', async () => {
+    mockPluginsOverview.compiled = true;
+    server.use(
+      http.get('/api/admin/v1/plugins/market', () =>
+        HttpResponse.json({ request_id: 'x', data: { items: [] } }),
+      ),
+      http.get('/api/admin/v1/plugins/installed', () =>
+        HttpResponse.json({ request_id: 'x', data: { items: [] } }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('还没有安装插件')).toBeInTheDocument();
+    expect(screen.getByText('要装插件，请联系负责部署的人')).toBeInTheDocument();
+    expect(screen.queryByText('没有找到相关的插件')).not.toBeInTheDocument();
+  });
+
+  it('搜索无结果才显示「没有找到相关的插件」', async () => {
+    renderPage();
+    await screen.findByText('流程审批');
+    const search = screen.getByPlaceholderText('搜插件名或它能做什么');
+    await userEvent.type(search, '不存在的插件');
+    expect(await screen.findByText('没有找到相关的插件')).toBeInTheDocument();
+    expect(screen.queryByText('还没有安装插件')).not.toBeInTheDocument();
+  });
+
   it('详情抽屉显示版本与菜单清单', async () => {
     renderPage();
     await screen.findByText('流程审批');

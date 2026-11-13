@@ -623,21 +623,20 @@ export function PluginsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <Card>
-          {keyword || tab !== 'installed' ? (
-            keyword ? (
-              <Empty image={<IllustrationNoResult />} title={t('empty.noResult')} description="">
-                <Button size="small" onClick={() => setKeyword('')}>
-                  {t('clearSearch')}
-                </Button>
-              </Empty>
-            ) : (
-              <Empty image={<IllustrationNoResult />} title={t('empty.noResult')} description="" />
-            )
+          {keyword ? (
+            // 「没有找到相关的插件」只给搜索后无结果用。
+            <Empty image={<IllustrationNoResult />} title={t('empty.noResult')} description="">
+              <Button size="small" onClick={() => setKeyword('')}>
+                {t('clearSearch')}
+              </Button>
+            </Empty>
           ) : canInstall ? (
             <Empty title={t('empty.installed')} description={t('empty.installedDesc')}>
-              <Button size="small" theme="solid" onClick={() => setTab('all')}>
-                {t('empty.goMarket')}
-              </Button>
+              {tab !== 'all' ? (
+                <Button size="small" theme="solid" onClick={() => setTab('all')}>
+                  {t('empty.goMarket')}
+                </Button>
+              ) : null}
             </Empty>
           ) : (
             <Empty
