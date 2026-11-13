@@ -13,7 +13,7 @@ import {
   Toast,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
-import { IllustrationNoResult } from '@douyinfe/semi-illustrations';
+import { IllustrationNoAccess, IllustrationNoResult } from '@douyinfe/semi-illustrations';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -196,7 +196,7 @@ export function LoginLogPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')}>
+        <Empty image={<IllustrationNoAccess />} title={t('noPermission')} description="">
           <Button type="primary" onClick={() => navigate('/')}>
             {t('empty.backHome')}
           </Button>

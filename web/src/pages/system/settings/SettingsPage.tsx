@@ -11,6 +11,7 @@ import {
   Toast,
   Typography,
 } from '@douyinfe/semi-ui';
+import { IllustrationNoAccess } from '@douyinfe/semi-illustrations';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -189,7 +190,7 @@ export function SettingsPage() {
     return (
       <div className="p-6">
         <PageHeader title={t('title')} subtitle={t('subtitle')} />
-        <Empty title={t('noPermission')}>
+        <Empty image={<IllustrationNoAccess />} title={t('noPermission')} description="">
           <Button type="primary" onClick={() => navigate('/')}>
             {tc('actions.backHome')}
           </Button>
