@@ -8,15 +8,16 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Unit\Module\LoginLog;
 
 use PHPUnit\Framework\TestCase;
-use plugin\sandadmin\app\event\SystemUser;
 use ReflectionMethod;
 use ReflectionProperty;
+use Sandadmin\Module\AuditLog\OperateLogWriter;
 use Sandadmin\Module\LoginLog\LoginLogWriter;
 use Webman\Event\BootStrap;
 
 /**
  * user.login 监听器接线：插件自带的监听器组装旧表形状，必须不注册，
- * 宿主 LoginLogWriter 是唯一登录日志写入方；user.operateLog 要保住。
+ * 宿主 LoginLogWriter 是唯一登录日志写入方；user.operateLog 同样被
+ * 宿主 OperateLogWriter 接管（插件监听器写的旧表 1.x 不存在）。
  * 用真实 event 配置文件复现框架的合并结果，再走 getEvents 断言。
  */
 final class LoginEventWiringTest extends TestCase
@@ -40,13 +41,13 @@ final class LoginEventWiringTest extends TestCase
         self::assertSame('record', $callbacks[0][1]);
     }
 
-    public function testOperateLogKeepsPluginListener(): void
+    public function testOperateLogKeepsHostWriter(): void
     {
         $callbacks = self::callbacksFor('user.operateLog');
 
         self::assertCount(1, $callbacks);
-        self::assertInstanceOf(SystemUser::class, $callbacks[0][0]);
-        self::assertSame('operateLog', $callbacks[0][1]);
+        self::assertInstanceOf(OperateLogWriter::class, $callbacks[0][0]);
+        self::assertSame('record', $callbacks[0][1]);
     }
 
     /**

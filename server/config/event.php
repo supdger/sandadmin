@@ -1,26 +1,21 @@
 <?php
 
 /**
- * 宿主事件监听。user.login 由登录链（插件 SystemUserLogic 与开发登录）
- * 发出；插件自带的登录监听器写旧表形状，已被
- * config/plugin/sandadmin/event.php 的标记停掉，这里按 1.x 的
- * sand_system_login_log 列写唯一一行（M2）。user.operateLog 的插件
- * 监听器也因同一标记停掉，在这里补挂回去，行为与原来一致。
+ * 宿主事件监听。插件自带的 user.login / user.operateLog 监听器都写
+ * 0.x 旧表形状（sand_system_login_log 旧形状、sand_system_oper_log
+ * 整表在 1.x 不存在），已被 config/plugin/sandadmin/event.php 的
+ * 标记整节停掉；这里接管到宿主 LoginLogWriter / OperateLogWriter，
+ * 各按 1.x 列写唯一一行（事件分发吞异常只写日志，缺陷曾静默）。
  */
 
+use Sandadmin\Module\AuditLog\OperateLogWriter;
 use Sandadmin\Module\LoginLog\LoginLogWriter;
 
-$events = [
+return [
     'user.login' => [
         [LoginLogWriter::class, 'record'],
     ],
+    'user.operateLog' => [
+        [OperateLogWriter::class, 'record'],
+    ],
 ];
-
-// 插件卸载时类不存在，框架会对不可调用的监听器打启动告警
-if (class_exists(\plugin\sandadmin\app\event\SystemUser::class)) {
-    $events['user.operateLog'] = [
-        [\plugin\sandadmin\app\event\SystemUser::class, 'operateLog'],
-    ];
-}
-
-return $events;
