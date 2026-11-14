@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import '@/i18n/i18n';
 import { env } from '@/config/env';
 import { clearToken, getToken, setToken } from '@/lib/authToken';
+import { applySiteSettings, resetSiteSettings } from '@/lib/siteSettings';
 import { server } from '@/mocks/server';
 import { AppShell } from './AppShell';
 
@@ -74,6 +75,7 @@ function renderShell(entry = '/') {
     { path: '/preferences', element: <div>偏好页内容</div> },
     { path: '/profile', element: <div>个人设置页</div> },
     { path: '/notifications', element: <div>消息页</div> },
+    { path: '/system/user', element: <div>用户管理页</div> },
   ];
   const router = createMemoryRouter(
     [
@@ -103,8 +105,54 @@ describe('AppShell', () => {
 
   afterEach(() => {
     clearToken();
+    resetSiteSettings();
     localStorage.removeItem('sandadmin.theme');
     document.body.removeAttribute('theme-mode');
+  });
+
+  it('保存系统名后左侧名字和浏览器标题立即更新', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    const { nav } = renderShell('/');
+    await waitFor(() => expect(nav()).toBeTruthy());
+    await screen.findByText('管理员');
+    expect(document.title).toBe(env.appName);
+
+    applySiteSettings({ appName: '焕然一新的后台' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '焕然一新的后台' })).toBeInTheDocument();
+    });
+    expect(document.title).toBe('焕然一新的后台');
+  });
+
+  it('个人信息页默认铺水印，关掉设置立即消失', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    renderShell('/system/user');
+    await screen.findByText('用户管理页');
+    await screen.findByText('管理员');
+
+    // watermark_enabled 默认开：用户管理页铺一层。
+    expect(await screen.findByTestId('watermark')).toBeInTheDocument();
+
+    applySiteSettings({ watermarkEnabled: false });
+    await waitFor(() => {
+      expect(screen.queryByTestId('watermark')).not.toBeInTheDocument();
+    });
+  });
+
+  it('非个人信息页不铺水印', async () => {
+    setToken('mock-admin-token');
+    mockMe();
+
+    renderShell('/');
+    await screen.findByText('首页内容');
+    await screen.findByText('管理员');
+
+    expect(screen.queryByTestId('watermark')).not.toBeInTheDocument();
   });
 
   it('renders the menu, current page and copyright footer', async () => {
@@ -117,7 +165,7 @@ describe('AppShell', () => {
     expect(within(nav()).getByText('工作台')).toBeInTheDocument();
 
     // The nested items live inside collapsed groups — open both.
-    await userEvent.click(within(nav()).getByText('系统设置'));
+    await userEvent.click(within(nav()).getByText('系统'));
     expect(await within(nav()).findByText('偏好设置')).toBeInTheDocument();
     // Data-domain pages are real routes now, so the mock advertises them too.
     await userEvent.click(within(nav()).getByText('数据管理'));

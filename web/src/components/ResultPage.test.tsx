@@ -19,7 +19,7 @@ describe('ResultPage', () => {
 
     expect(screen.getByText('安装完成')).toBeInTheDocument();
     expect(screen.getByText('现在可以登录开始使用了')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '返回首页' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '返回工作台' })).toBeInTheDocument();
   });
 
   it('renders fail status and uses caller-provided extra instead of the default button', () => {
@@ -36,6 +36,6 @@ describe('ResultPage', () => {
 
     expect(screen.getByText('安装失败')).toBeInTheDocument();
     expect(screen.getByText('重新开始')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '返回首页' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '返回工作台' })).not.toBeInTheDocument();
   });
 });

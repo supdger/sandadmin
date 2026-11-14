@@ -58,6 +58,21 @@ export function formatRelativeTime(iso: string | null | undefined, now: Date = n
 }
 
 /**
+ * 容量人话：1024 进制一位小数，不足 1 GB 用 MB；
+ * 整数省掉「.0」。非法输入返回 ''。
+ */
+export function formatGb(gb: number | null | undefined): string {
+  if (gb == null || !Number.isFinite(gb) || gb < 0) {
+    return '';
+  }
+  if (gb < 1) {
+    return `${Math.round(gb * 1024)} MB`;
+  }
+  const rounded = Math.round(gb * 10) / 10;
+  return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)} GB`;
+}
+
+/**
  * 表格展示用的手机号脱敏（`138****8000`）。
  * 非 11 位的号码保留末 4 位可见。
  */

@@ -471,8 +471,8 @@ export function UsersPage() {
   };
 
   const showLastLogin = viewportWidth >= 1400;
-  // 岗位列与「最近登录」同档显示：1280 宽放不下，岗位名并进姓名下的灰字行。
-  const showPostColumn = viewportWidth >= 1400;
+  // 岗位 1280 起就是独立列；放不下时表格横向滚动，固定操作列由 scroll 托管。
+  const showPostColumn = viewportWidth >= 1280;
   const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
 
   const columns: ColumnProps<User>[] = [
@@ -582,7 +582,10 @@ export function UsersPage() {
     ...(showLastLogin
       ? [
           {
-            title: t('users.table.lastLogin'),
+            // 表头四字不换行，1440 宽时也保持一行。
+            title: (
+              <span style={{ whiteSpace: 'nowrap' }}>{t('users.table.lastLogin')}</span>
+            ),
             width: 120,
             render: (_: unknown, record: User) => (
               <Typography.Text type="secondary">
@@ -864,6 +867,8 @@ export function UsersPage() {
                 selectedRowKeys: selectedKeys,
                 onChange: (keys) => setSelectedKeys(keys as (string | number)[]),
               }}
+              // 列加总约 1150：窄屏横向滚动，右侧固定「操作」列不盖其它列。
+              scroll={{ x: 1150 }}
             />
             {total > pageSize || page > 1 ? (
               <div className="flex justify-end">

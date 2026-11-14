@@ -46,6 +46,22 @@ final class OrgException extends \RuntimeException
         return new self(403, 'PERMISSION_DENIED', '你没有权限做这个操作', []);
     }
 
+    /** 通用 404：对象没有专用错误码时用登记过的 NOT_FOUND。 */
+    public static function notFound(string $message = '要找的内容不存在或已被删除'): self
+    {
+        return new self(404, 'NOT_FOUND', $message, []);
+    }
+
+    /**
+     * 通用带码错误：错误码必须是 api-conventions 已登记的码。
+     *
+     * @param array<string, list<string>> $fields
+     */
+    public static function failed(int $status, string $errorCode, string $message, array $fields = []): self
+    {
+        return new self($status, $errorCode, $message, $fields);
+    }
+
     public static function userNotFound(): self
     {
         return new self(404, 'USER_NOT_FOUND', '用户不存在', []);

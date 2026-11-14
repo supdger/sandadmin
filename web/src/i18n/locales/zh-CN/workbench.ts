@@ -92,7 +92,7 @@ export default {
     range7: '最近 7 天',
     range30: '最近 30 天',
     range90: '最近 90 天',
-    empty: '数据会在明天出现',
+    empty: '还没有数据，有了会显示在这里',
     titles: {
       login_trend: '最近登录人数',
       ai_usage: 'AI 使用量',

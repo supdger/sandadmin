@@ -33,7 +33,7 @@ final class OrgController
 
     public function usersStore(Request $request): Response
     {
-        return $this->run($request, 'system:user:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:user:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function usersShow(Request $request, string $user_id): Response
@@ -43,13 +43,13 @@ final class OrgController
 
     public function usersUpdate(Request $request, string $user_id): Response
     {
-        return $this->run($request, 'system:user:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->update(OrgInput::pathId($user_id, 'user_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:user:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->update(OrgInput::pathId($user_id, 'user_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function usersDestroy(Request $request, string $user_id): Response
     {
         return $this->run($request, 'system:user:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
-            $kernel->users->remove(OrgInput::pathId($user_id, 'user_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->remove(OrgInput::pathId($user_id, 'user_id'), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -59,7 +59,7 @@ final class OrgController
     {
         return $this->run($request, 'system:user:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
             $body = $this->body($request);
-            $kernel->users->setStatus(OrgInput::pathId($user_id, 'user_id'), OrgInput::status($body), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->setStatus(OrgInput::pathId($user_id, 'user_id'), OrgInput::status($body), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -87,7 +87,7 @@ final class OrgController
             if (!is_string($password)) {
                 throw OrgException::invalid(['password' => ['请填写临时密码']]);
             }
-            $kernel->users->resetPassword(OrgInput::pathId($user_id, 'user_id'), $password, $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->resetPassword(OrgInput::pathId($user_id, 'user_id'), $password, $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -96,7 +96,7 @@ final class OrgController
     public function usersRoles(Request $request, string $user_id): Response
     {
         return $this->run($request, 'system:user:assign-role', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
-            $kernel->users->assignRoles(OrgInput::pathId($user_id, 'user_id'), OrgInput::idList($this->body($request), 'role_ids', true), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->assignRoles(OrgInput::pathId($user_id, 'user_id'), OrgInput::idList($this->body($request), 'role_ids', true), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -104,7 +104,7 @@ final class OrgController
 
     public function usersExport(Request $request): Response
     {
-        return $this->run($request, 'system:user:export', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:user:export', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function userOptions(Request $request): Response
@@ -144,18 +144,18 @@ final class OrgController
 
     public function deptsStore(Request $request): Response
     {
-        return $this->run($request, 'system:dept:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:dept:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function deptsUpdate(Request $request, string $dept_id): Response
     {
-        return $this->run($request, 'system:dept:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->update(OrgInput::pathId($dept_id, 'dept_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:dept:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->update(OrgInput::pathId($dept_id, 'dept_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function deptsDestroy(Request $request, string $dept_id): Response
     {
         return $this->run($request, 'system:dept:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($dept_id): array {
-            $kernel->depts->remove(OrgInput::pathId($dept_id, 'dept_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->depts->remove(OrgInput::pathId($dept_id, 'dept_id'), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -173,7 +173,7 @@ final class OrgController
 
     public function rolesStore(Request $request): Response
     {
-        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesShow(Request $request, string $role_id): Response
@@ -183,23 +183,23 @@ final class OrgController
 
     public function rolesUpdate(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->update(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->update(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function rolesDestroy(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:delete', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $this->replacementRoleId($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:delete', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $this->replacementRoleId($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function rolesCopy(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:role:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesStatus(Request $request, string $role_id): Response
     {
         return $this->run($request, 'system:role:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($role_id): array {
-            $kernel->roles->setStatus(OrgInput::pathId($role_id, 'role_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->roles->setStatus(OrgInput::pathId($role_id, 'role_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -212,7 +212,7 @@ final class OrgController
 
     public function rolesSavePermissions(Request $request, string $role_id): Response
     {
-        return $this->run($request, 'system:role:permission:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->savePermissions(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:role:permission:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->savePermissions(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function permissionTree(Request $request): Response
@@ -227,18 +227,18 @@ final class OrgController
 
     public function postsStore(Request $request): Response
     {
-        return $this->run($request, 'system:post:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, 'system:post:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function postsUpdate(Request $request, string $post_id): Response
     {
-        return $this->run($request, 'system:post:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->update(OrgInput::pathId($post_id, 'post_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, 'system:post:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->update(OrgInput::pathId($post_id, 'post_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request)), $requestId));
     }
 
     public function postsDestroy(Request $request, string $post_id): Response
     {
         return $this->run($request, 'system:post:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($post_id): array {
-            $kernel->posts->remove(OrgInput::pathId($post_id, 'post_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->posts->remove(OrgInput::pathId($post_id, 'post_id'), $actor, $requestId, $request->getRemoteIp(), RequestDevice::label($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -367,13 +367,6 @@ final class OrgController
         $key = $request->header('idempotency-key');
 
         return is_string($key) ? $key : null;
-    }
-
-    private function device(Request $request): ?string
-    {
-        $agent = $request->header('user-agent');
-
-        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

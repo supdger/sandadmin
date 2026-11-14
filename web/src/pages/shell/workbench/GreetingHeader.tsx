@@ -27,6 +27,7 @@ const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export function GreetingHeader() {
   const { t } = useTranslation('workbench');
   const me = useMe();
+  // 页面时间一律按浏览器时区：问候语与「今天」也是。
   const now = new Date();
   const name = me.data?.nickname || t('greeting.fallbackName');
   const weekday = WEEKDAY_KEYS[now.getDay()];
