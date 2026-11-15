@@ -10,6 +10,7 @@ namespace Sandadmin\Tests\Unit\Module\AuditLog;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Module\AuditLog\OperateLogWriter;
 use support\Request;
+use Webman\Http\Response;
 
 /**
  * OperateLogWriter::rowFor 的请求→audit_log 行映射：
@@ -61,16 +62,16 @@ final class OperateLogWriterTest extends TestCase
     {
         $request = $this->request("GET /api/admin/v1/users HTTP/1.1\r\nHost: localhost\r\n\r\n");
 
-        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin']));
+        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin'], true));
     }
 
     public function testMissingActorReturnsNull(): void
     {
         $request = $this->post('/api/admin/v1/x', '{}');
 
-        self::assertNull(OperateLogWriter::rowFor($request, []));
-        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1]));
-        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1, 'username' => '  ']));
+        self::assertNull(OperateLogWriter::rowFor($request, [], true));
+        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1], true));
+        self::assertNull(OperateLogWriter::rowFor($request, ['id' => 1, 'username' => '  '], true));
     }
 
     public function testRowMapsContractFields(): void
@@ -83,7 +84,7 @@ final class OperateLogWriterTest extends TestCase
             'action' => 'usersStore',
         ]);
 
-        $row = OperateLogWriter::rowFor($request, ['id' => 7, 'username' => 'admin']);
+        $row = OperateLogWriter::rowFor($request, ['id' => 7, 'username' => 'admin'], true);
         self::assertNotNull($row);
         self::assertSame('user', $row['actor_type']);
         self::assertSame(7, $row['actor_id']);
@@ -110,7 +111,7 @@ final class OperateLogWriterTest extends TestCase
             'action' => 'save',
         ]);
 
-        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin']);
+        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin'], true);
         self::assertNotNull($row);
         self::assertIsString($row['changes']);
         $changes = json_decode($row['changes'], true);
@@ -129,7 +130,7 @@ final class OperateLogWriterTest extends TestCase
             'X-Request-Id' => 'not a valid id!',
         ], ['action' => 'save']);
 
-        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin']);
+        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin'], true);
         self::assertNotNull($row);
         self::assertIsString($row['request_id']);
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $row['request_id']);
@@ -143,10 +144,72 @@ final class OperateLogWriterTest extends TestCase
             'action' => 'save',
         ]);
 
-        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin']);
+        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin'], true);
         self::assertNotNull($row);
         self::assertSame('sandadmin', $row['module']);
         self::assertSame('save', $row['action']);
         self::assertSame('SystemUserController::save', $row['target_label']);
+    }
+
+    public function testFailureOutcomeStoredAsFalse(): void
+    {
+        // 业务失败（code≠200）与异常都必须落 succeeded=false，不得伪成功
+        $request = $this->post('/api/admin/v1/x', '{}', [], ['action' => 'save']);
+
+        $row = OperateLogWriter::rowFor($request, ['id' => 1, 'username' => 'admin'], false);
+        self::assertNotNull($row);
+        self::assertFalse($row['succeeded']);
+    }
+
+    public function testOutcomeSuccessJsonCode(): void
+    {
+        $response = new Response(200, ['Content-Type' => 'application/json'], '{"code":200,"message":"success","data":[]}');
+
+        self::assertTrue(OperateLogWriter::resolveSucceeded($response));
+    }
+
+    public function testOutcomeBusinessFailureJsonCode(): void
+    {
+        // 插件 fail/异常壳都是 HTTP 200 + code≠200，必须判失败
+        $response = new Response(200, ['Content-Type' => 'application/json'], '{"code":10501,"message":"Server internal error"}');
+
+        self::assertFalse(OperateLogWriter::resolveSucceeded($response));
+    }
+
+    public function testOutcomeExceptionRenderedResponse(): void
+    {
+        $response = new Response(200, ['Content-Type' => 'application/json'], '{"code":200,"message":"success","data":[]}');
+        $response->exception(new \RuntimeException('qa'));
+
+        self::assertFalse(OperateLogWriter::resolveSucceeded($response));
+    }
+
+    public function testOutcomeNonJsonFallsBackToStatus(): void
+    {
+        self::assertTrue(OperateLogWriter::resolveSucceeded(new Response(200, [], 'plain-body')));
+        self::assertFalse(OperateLogWriter::resolveSucceeded(new Response(500, [], 'plain-body')));
+        self::assertFalse(OperateLogWriter::resolveSucceeded(new Response(403, [], '{"message":"no code key"}')));
+    }
+
+    public function testMarkPendingWithoutRequestIsNoop(): void
+    {
+        // 事件分发在请求上下文之外被触发时只能安静地跳过
+        OperateLogWriter::markPending(true);
+        OperateLogWriter::markPending();
+
+        self::addToAssertionCount(1);
+    }
+
+    public function testRecordOutcomeSkipsUnmarkedRequest(): void
+    {
+        // 未被 user.operateLog 标记的请求不落行（宿主 1.x 路由、
+        // 免登录动作、验签失败的请求都到不了 emit）；此时连配置
+        // 都不读，调用必须是安静的空操作
+        $request = $this->post('/api/admin/v1/x', '{}', [], ['action' => 'save']);
+
+        OperateLogWriter::recordOutcome($request, new Response(200, [], '{}'));
+        OperateLogWriter::recordOutcome($request, null);
+
+        self::assertArrayNotHasKey('operateLogPending', $request->properties);
     }
 }

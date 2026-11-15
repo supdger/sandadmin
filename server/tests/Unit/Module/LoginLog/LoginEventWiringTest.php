@@ -43,11 +43,13 @@ final class LoginEventWiringTest extends TestCase
 
     public function testOperateLogKeepsHostWriter(): void
     {
+        // 事件在业务处理前发出拿不到结果，监听器只打待记录标记，
+        // 落库由 OperateLogMiddleware 在响应后调 recordOutcome 完成
         $callbacks = self::callbacksFor('user.operateLog');
 
         self::assertCount(1, $callbacks);
         self::assertInstanceOf(OperateLogWriter::class, $callbacks[0][0]);
-        self::assertSame('record', $callbacks[0][1]);
+        self::assertSame('markPending', $callbacks[0][1]);
     }
 
     /**

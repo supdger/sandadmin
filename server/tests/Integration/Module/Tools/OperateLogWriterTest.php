@@ -84,6 +84,13 @@ final class OperateLogWriterTest extends ToolsCase
         self::assertMatchesRegularExpression('/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}/', OrgSql::str($row['created']));
     }
 
+    public function testFailureRowPersistsFalse(): void
+    {
+        $this->writeRow(['succeeded' => false]);
+
+        self::assertSame('false', $this->lastRow()['ok']);
+    }
+
     public function testActorIdHonorsForeignKey(): void
     {
         $actor = $this->userActor();

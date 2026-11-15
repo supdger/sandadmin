@@ -13,31 +13,41 @@ use Sandadmin\Infra\Db\DbalConnection;
 use Sandadmin\Module\Org\OrgSql;
 use support\Request;
 use Tinywan\Jwt\JwtToken;
+use Webman\Http\Response;
 
 /**
  * user.operateLog 事件的操作日志写库：插件监听器写的 0.x 旧表
- * sand_system_oper_log 在 1.x 基线不存在，每次写入必抛 undefined
- * table 且被事件分发吞掉（接口仍 200，缺陷静默）。这里按
- * sand_system_audit_log 列写唯一一行；写失败只记错误日志。
- * 事件在请求处理器之前发出拿不到响应结果，succeeded 恒为 true，
- * 行语义是「该操作已受理」而非「成功」。
+ * sand_system_oper_log 在 1.x 基线不存在，且事件在业务处理之前发出，
+ * 在事件里落库只能把「已受理」伪记成 succeeded=true。现在事件只打
+ * 待记录标记，OperateLogMiddleware 在响应后调 recordOutcome 按
+ * 真实结果写 audit_log 唯一一行；写失败只记错误日志。
  */
 final class OperateLogWriter
 {
     /** X-Request-Id 沿用口径：与 src/Http 各控制器一致。 */
     private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
 
-    /**
-     * 事件入口。无请求上下文、GET 或取不到登录操作者按原监听器语义
-     * 跳过不写；写库异常只落 error_log，不抛出、不伪报。
-     */
-    public static function record(mixed $item = null): void
+    /** 事件入口：emit 时还没有结果可记，只给当前请求打待记录标记。 */
+    public static function markPending(mixed $item = null): void
     {
         $request = function_exists('request') ? request() : null;
-        if (!$request instanceof Request) {
+        if ($request instanceof Request) {
+            $request->properties['operateLogPending'] = true;
+        }
+    }
+
+    /**
+     * 响应生成后的落库入口，由 OperateLogMiddleware 调用：只有被事件
+     * 标记的请求才写；$response 为 null 表示下游异常逃逸出链，记为
+     * 失败；写库异常只落 error_log，不抛出、不伪报。
+     */
+    public static function recordOutcome(\Webman\Http\Request $request, ?Response $response): void
+    {
+        if (!$request instanceof Request || !self::hasPendingMark($request)) {
             return;
         }
-        $row = self::rowFor($request, self::actor($request));
+        $succeeded = $response !== null && self::resolveSucceeded($response);
+        $row = self::rowFor($request, self::actor($request), $succeeded);
         if ($row === null) {
             return;
         }
@@ -53,6 +63,25 @@ final class OperateLogWriter
         }
     }
 
+    /** 结果判定：异常渲染必然失败；业务壳按 code===200 判成功；无 code 键的非 JSON 响应按 HTTP 状态判定。 */
+    public static function resolveSucceeded(Response $response): bool
+    {
+        if ($response->exception() !== null) {
+            return false;
+        }
+        $decoded = json_decode($response->rawBody(), true);
+        if (is_array($decoded) && array_key_exists('code', $decoded)) {
+            $code = $decoded['code'];
+            if (is_int($code)) {
+                return $code === 200;
+            }
+
+            return is_string($code) && ctype_digit($code) && (int) $code === 200;
+        }
+
+        return $response->getStatusCode() < 400;
+    }
+
     /**
      * 组装 audit_log 行。GET 或 username 为空时返回 null（与原
      * 监听器跳过条件一致），调用方据此不落行。
@@ -61,7 +90,7 @@ final class OperateLogWriter
      *
      * @return array<string, mixed>|null
      */
-    public static function rowFor(Request $request, array $actor): ?array
+    public static function rowFor(Request $request, array $actor, bool $succeeded): ?array
     {
         if ($request->method() === 'GET') {
             return null;
@@ -90,7 +119,7 @@ final class OperateLogWriter
             'target_type' => 'request',
             'target_id' => mb_substr($request->path(), 0, 64),
             'target_label' => self::targetLabel($request),
-            'succeeded' => true,
+            'succeeded' => $succeeded,
             'changes' => is_string($changes) ? $changes : null,
             'ip' => $ip,
             'location' => $ip === null ? '' : self::ipLocation($ip),
@@ -121,9 +150,17 @@ final class OperateLogWriter
         ]);
     }
 
+    /** 待记录标记：插件 SystemLog emit 时由 markPending 打在请求上。 */
+    private static function hasPendingMark(Request $request): bool
+    {
+        return ($request->properties['operateLogPending'] ?? null) === true;
+    }
+
     /**
-     * 登录上下文：CheckLogin 已把验过的令牌放进 check_admin 请求头；
-     * 缺时按插件 getCurrentInfo 同口径回退解析 JWT，解析失败为空数组。
+     * 登录上下文：到本方法时 CheckLogin 已验签并把令牌覆写进
+     * check_admin 请求头（setHeader 覆盖客户端同名字段，伪造值
+     * 到不了这里）；缺请求头时按插件同口径用 JwtToken 服务端验签，
+     * 验不过返回空、不落行，不做无凭据回退。
      *
      * @return array<array-key, mixed>
      */
