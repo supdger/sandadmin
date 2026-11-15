@@ -186,9 +186,9 @@ describe('MenusPage', () => {
     await waitFor(() => {
       expect(moveBody).not.toBeNull();
     });
-    // 「帮助文档」在「系统设置」下 index 1；上移目标是 index 0。
+    // 「帮助文档」在「系统」下 index 5；上移目标是 index 4。
     expect(moveBody!.parent_key).toBe('system-settings');
-    expect(moveBody!.index).toBe(0);
+    expect(moveBody!.index).toBe(4);
     expect(typeof moveBody!.base_version).toBe('number');
 
     // 移动后出现五秒撤销入口。

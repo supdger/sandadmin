@@ -62,6 +62,60 @@ function renderPage() {
 
 const STATUS_URL = '/api/admin/v1/system/update/status';
 
+/** 非超管运维账号：只有查看权限，拿不到任何 update 操作权限。 */
+function mockNonSuperMe() {
+  server.use(
+    http.get('/api/admin/v1/me', () =>
+      HttpResponse.json({
+        request_id: 'x',
+        data: {
+          id: 'u-ops',
+          username: 'ops',
+          nickname: '运维同学',
+          avatar: null,
+          avatar_file_id: null,
+          phone: '',
+          email: null,
+          status: 'enabled',
+          is_admin: true,
+          is_super: false,
+          must_change_password: false,
+          permissions: ['system:update:index'],
+          dept_id: 'dept-root',
+          dept_name: '沙盒网络',
+          post_id: null,
+          post_name: null,
+          role_ids: [],
+          role_names: [],
+          last_login_time: null,
+          create_time: '2026-01-01T00:00:00+08:00',
+        },
+      }),
+    ),
+  );
+}
+
+function mockCompiledStatus() {
+  server.use(
+    http.get(STATUS_URL, () =>
+      HttpResponse.json({
+        request_id: 'x',
+        data: {
+          current_version: '1.4.2',
+          latest_version: '1.6.0',
+          update_available: true,
+          changes: [],
+          bundled_plugins: [],
+          checked_time: null,
+          compiled: true,
+          package_ops_enabled: false,
+          running_request: null,
+        },
+      }),
+    ),
+  );
+}
+
 describe('SystemUpdatePage', () => {
   beforeEach(() => {
     resetV1Mock();
@@ -90,47 +144,50 @@ describe('SystemUpdatePage', () => {
       .mockResolvedValue(makeRequest({ state: 'succeeded', progress: 100 }));
     renderPage();
 
+    // 点升级不弹确认，直接开始走进度
     await screen.findByRole('button', { name: '升级到 1.6.0' });
     await userEvent.click(screen.getByRole('button', { name: '升级到 1.6.0' }));
-    expect(await screen.findByText('升级到 1.6.0？')).toBeInTheDocument();
-    await userEvent.click(screen.getByText('升级'));
 
     // 进度视图：五阶段步骤条 + 执行中标签，没有取消按钮
     await screen.findByTestId('upgrade-progress');
-    expect(screen.getByText('检查好了')).toBeInTheDocument();
-    expect(screen.getByText('备份好了')).toBeInTheDocument();
-    expect(screen.getByText('下载好了')).toBeInTheDocument();
-    expect(screen.getAllByText('正在切换').length).toBeGreaterThan(0);
-    expect(screen.getByText('检查结果')).toBeInTheDocument();
+    expect(screen.getByText('环境检查好了')).toBeInTheDocument();
+    expect(screen.getByText('数据备份好了')).toBeInTheDocument();
+    expect(screen.getByText('新版本下载好了')).toBeInTheDocument();
+    expect(screen.getAllByText('正在切换到新版本').length).toBeGreaterThan(0);
+    expect(screen.getByText('确认能正常用')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /取消/ })).not.toBeInTheDocument();
 
     expect(await screen.findByText(/已升级到 1\.6\.0/, {}, { timeout: 8000 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '刷新页面' })).toBeInTheDocument();
   });
 
-  it('编译版只读：说明条 + 不显示操作按钮', async () => {
-    server.use(
-      http.get(STATUS_URL, () =>
-        HttpResponse.json({
-          request_id: 'x',
-          data: {
-            current_version: '1.4.2',
-            latest_version: '1.6.0',
-            update_available: true,
-            changes: [],
-            bundled_plugins: [],
-            checked_time: null,
-            compiled: true,
-            package_ops_enabled: false,
-            running_request: null,
-          },
-        }),
-      ),
-    );
+  it('非超管看「有新版本」写联系部署的人，不写「可以升级」', async () => {
+    mockNonSuperMe();
     renderPage();
-    expect(await screen.findByText(/这个后台不能在网页上升级/)).toBeInTheDocument();
+    expect(await screen.findByText('有新版本 1.6.0，请联系负责部署的人升级')).toBeInTheDocument();
+    expect(screen.queryByText(/可以升级到/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
+  });
+
+  it('编译版 + 超管：说明条 + 版本卡写联系部署的人，不显示操作按钮', async () => {
+    // 默认 mock-admin-token 是超管且有全部权限：覆盖「编译版 × 有权限」一格。
+    mockCompiledStatus();
+    renderPage();
+    expect(await screen.findByText(/有新版本 1\.6\.0。这台服务器不支持在网页里升级/)).toBeInTheDocument();
+    expect(screen.getByText('有新版本 1.6.0，请联系负责部署的人升级')).toBeInTheDocument();
+    expect(screen.queryByText(/可以升级到/)).not.toBeInTheDocument();
     expect(screen.getByText('查看当前版本，有新版本时提醒你')).toBeInTheDocument();
     expect(screen.queryByText('一键升级后台和所有已安装的插件')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '上传升级包' })).not.toBeInTheDocument();
+  });
+
+  it('编译版 + 非超管：同样写联系部署的人，不显示操作按钮', async () => {
+    mockNonSuperMe();
+    mockCompiledStatus();
+    renderPage();
+    expect(await screen.findByText('有新版本 1.6.0，请联系负责部署的人升级')).toBeInTheDocument();
+    expect(screen.queryByText(/可以升级到/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /升级到/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '上传升级包' })).not.toBeInTheDocument();
   });

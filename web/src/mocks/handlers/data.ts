@@ -175,7 +175,7 @@ function clearGroupDefaults(typeId: string, exceptId: string): void {
 
 /* 文件 mock */
 
-interface FileRecord {
+export interface FileRecord {
   id: string;
   original_name: string;
   kind: 'image' | 'document' | 'sheet' | 'archive' | 'other';
@@ -304,6 +304,14 @@ function fileRecord(seed: FileSeed, index: number): FileRecord {
 
 const files: FileRecord[] = FILE_SEEDS.map(fileRecord);
 let fileSeq = files.length;
+
+/**
+ * 供其他域 mock（如系统设置上传 Logo）登记一条可查询/可下载的文件
+ * 记录——下载走本文件统一的 /files/:fileId/download 路由。
+ */
+export function registerMockFile(file: FileRecord): void {
+  files.push(file);
+}
 
 const KIND_BY_EXT: Record<string, FileRecord['kind']> = {
   jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image',

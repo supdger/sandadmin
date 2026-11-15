@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { IconLayers, IconMoon, IconSun } from '@douyinfe/semi-icons';
 import {
@@ -16,8 +16,14 @@ import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
 import { getMyMenus, MY_MENUS_QUERY_KEY } from '@/api/v1/me';
+import { GlobalSearch } from '@/components/GlobalSearch';
+import { Watermark } from '@/components/Watermark';
 import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
+import { useCan } from '@/hooks/useCan';
+import { useFileImageUrl } from '@/hooks/useFileImageUrl';
+import { useMe } from '@/hooks/useMe';
+import { useSiteSettings, useSeedSiteSettings } from '@/hooks/useSiteSettings';
 import { useVisitReport } from '@/hooks/useVisitReport';
 import { AnnouncementPopup } from './AnnouncementPopup';
 import { findMenuChain, toNavItems } from './menuTree';
@@ -43,6 +49,27 @@ export function AppShell() {
   const location = useLocation();
   const matches = useMatches();
   const { isDark, setMode } = useThemeMode();
+
+  // 站点设置：系统名/标志/时区/水印。有配置读权限的账号才发种子请求。
+  const canConfig = useCan('system:config:index');
+  useSeedSiteSettings(canConfig);
+  const site = useSiteSettings();
+  const me = useMe();
+  const appName = site.appName || env.appName;
+  // site_logo 存的是 file_id（契约）：经 /files/{id}/download 解析成可显示的地址；
+  // env 配的地址类值直接透传。
+  const appLogoUrl = useFileImageUrl(site.appLogo ?? env.appLogo);
+
+  // 个人信息页才显示水印：淡淡铺当前登录人昵称，关掉设置立即消失。
+  const WATERMARK_PATHS = ['/system/user', '/system/login-log', '/system/oper-log'];
+  const showWatermark =
+    site.watermarkEnabled !== false &&
+    Boolean(me.data?.nickname) &&
+    WATERMARK_PATHS.some((p) => location.pathname.startsWith(p));
+
+  useEffect(() => {
+    document.title = appName;
+  }, [appName]);
 
   const [collapsed, setCollapsed] = useState(false);
   const [manualOpenKeys, setManualOpenKeys] = useState<Array<string | number>>([]);
@@ -115,14 +142,14 @@ export function AppShell() {
         }}
       >
         <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-          {env.appLogo ? (
-            <img src={env.appLogo} alt={env.appName} className="h-7 w-7 shrink-0" />
+          {appLogoUrl ? (
+            <img src={appLogoUrl} alt={appName} className="h-7 w-7 shrink-0" />
           ) : (
             <IconLayers size="large" />
           )}
           {collapsed ? null : (
             <Typography.Title heading={6} ellipsis={{ showTooltip: true }} style={{ margin: 0 }}>
-              {env.appName}
+              {appName}
             </Typography.Title>
           )}
         </div>
@@ -189,6 +216,7 @@ export function AppShell() {
               }}
             />
           ) : null}
+          <GlobalSearch menus={menuTree} />
           <div className="ml-auto flex items-center gap-1">
             <NotificationBell />
             <IconButton
@@ -201,7 +229,8 @@ export function AppShell() {
           </div>
         </Layout.Header>
 
-        <Layout.Content className="p-6">
+        <Layout.Content className="p-6" style={{ position: 'relative' }}>
+          {showWatermark ? <Watermark text={me.data?.nickname ?? ''} /> : null}
           <Outlet />
         </Layout.Content>
 

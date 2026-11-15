@@ -100,7 +100,7 @@ final class DictService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dict', 'create', '添加了选项组' . $draft['name'], 'dict_type', (string) $createdId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dict', 'create', '添加了选项组「' . $draft['name'] . '」', 'dict_type', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
                 return $this->typeItem($this->requireType($createdId));
             });
@@ -128,7 +128,7 @@ final class DictService
                     $actor,
                     'dict',
                     'update',
-                    '保存了选项组' . $draft['name'],
+                    '保存了选项组「' . $draft['name'] . '」',
                     'dict_type',
                     (string) $id,
                     $draft['name'],
@@ -156,7 +156,7 @@ final class DictService
         $name = OrgSql::str($row['name'] ?? null);
         $this->connection->transactional(function () use ($id, $actor, $name, $requestId, $ip, $device): void {
             $this->connection->executeStatement('DELETE FROM sand_system_dict_type WHERE id = ?', [$id]);
-            $this->audit->record($actor, 'dict', 'delete', '删除了选项组' . $name, 'dict_type', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'dict', 'delete', '删除了选项组「' . $name . '」', 'dict_type', (string) $id, $name, $requestId, $ip, $device);
         });
     }
 
@@ -191,7 +191,7 @@ final class DictService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'dict', 'create', '添加了选项' . $draft['label'], 'dict_item', (string) $createdId, $draft['label'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'dict', 'create', '添加了选项「' . $draft['label'] . '」', 'dict_item', (string) $createdId, $draft['label'], $requestId, $ip, $device);
 
                 return $this->item($this->requireItem($createdId));
             });
@@ -235,7 +235,7 @@ final class DictService
                     $actor,
                     'dict',
                     'update',
-                    '保存了选项' . $draft['label'],
+                    '保存了选项「' . $draft['label'] . '」',
                     'dict_item',
                     (string) $id,
                     $draft['label'],
@@ -262,7 +262,7 @@ final class DictService
         $label = OrgSql::str($row['label'] ?? null);
         $this->connection->transactional(function () use ($id, $actor, $label, $requestId, $ip, $device): void {
             $this->connection->executeStatement('DELETE FROM sand_system_dict_item WHERE id = ?', [$id]);
-            $this->audit->record($actor, 'dict', 'delete', '删除了选项' . $label, 'dict_item', (string) $id, $label, $requestId, $ip, $device);
+            $this->audit->record($actor, 'dict', 'delete', '删除了选项「' . $label . '」', 'dict_item', (string) $id, $label, $requestId, $ip, $device);
         });
     }
 
@@ -276,7 +276,7 @@ final class DictService
                 ['status' => $status, 'id' => $id],
             );
             $verb = $status === 2 ? '停用了选项' : '启用了选项';
-            $this->audit->record($actor, 'dict', 'update', $verb . $label, 'dict_item', (string) $id, $label, $requestId, $ip, $device);
+            $this->audit->record($actor, 'dict', 'update', $verb . '「' . $label . '」', 'dict_item', (string) $id, $label, $requestId, $ip, $device);
         });
     }
 

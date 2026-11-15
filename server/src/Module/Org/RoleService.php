@@ -38,9 +38,41 @@ final class RoleService
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
             ['action' => 'reset', 'label' => '恢复默认'],
         ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:task', 'title' => '任务中心', 'actions' => [
+            ['action' => 'index', 'label' => '查看'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:monitor', 'title' => '运行状态', 'actions' => [
+            ['action' => 'index', 'label' => '查看'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:login-log', 'title' => '登录日志', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'export', 'label' => '导出'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:audit-log', 'title' => '操作日志', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'export', 'label' => '导出'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:cron', 'title' => '定时任务', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'update', 'label' => '编辑'],
+            ['action' => 'run', 'label' => '立即执行'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:plugin', 'title' => '插件管理', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'install', 'label' => '安装'],
+            ['action' => 'upgrade', 'label' => '升级'], ['action' => 'uninstall', 'label' => '卸载'],
+            ['action' => 'upload', 'label' => '上传'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:update', 'title' => '系统更新', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'check', 'label' => '检查更新'],
+            ['action' => 'start', 'label' => '开始升级'], ['action' => 'upload', 'label' => '上传升级包'],
+        ]],
+        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:config', 'title' => '系统设置', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'update', 'label' => '修改'],
+        ]],
         ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:dict', 'title' => '选项管理', 'actions' => [
             ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
             ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
+        ]],
+        ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:file', 'title' => '文件管理', 'actions' => [
+            ['action' => 'index', 'label' => '查看'], ['action' => 'delete', 'label' => '删除'],
+            ['action' => 'cleanup', 'label' => '清理'],
         ]],
         ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:announcement', 'title' => '公告管理', 'actions' => [
             ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
@@ -124,7 +156,7 @@ final class RoleService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'role', 'create', '添加了角色' . $draft['name'], 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'role', 'create', '添加了角色「' . $draft['name'] . '」', 'role', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
                 return $this->show($createdId);
             });
@@ -154,7 +186,7 @@ final class RoleService
                     $actor,
                     'role',
                     'update',
-                    '保存了角色' . $draft['name'],
+                    '保存了角色「' . $draft['name'] . '」',
                     'role',
                     (string) $id,
                     $draft['name'],
@@ -225,7 +257,7 @@ final class RoleService
                 );
             }
             $this->connection->executeStatement('DELETE FROM sand_system_role WHERE id = ?', [$id]);
-            $detail = $replacementName === null ? '删除了角色' . $name : '删除了角色' . $name . '，' . $moved . '个人换成了' . $replacementName;
+            $detail = $replacementName === null ? '删除了角色「' . $name . '」' : '删除了角色「' . $name . '」，' . $moved . '个人换成了「' . $replacementName . '」';
             $this->audit->record($actor, 'role', 'delete', $detail, 'role', (string) $id, $name, $requestId, $ip, $device);
         });
 
@@ -267,7 +299,7 @@ final class RoleService
                     . ' SELECT :new_id, dept_id FROM sand_system_role_dept WHERE role_id = :old_id',
                     ['new_id' => $created, 'old_id' => $id],
                 );
-                $this->audit->record($actor, 'role', 'create', '复制了角色' . $name, 'role', (string) $created, $name, $requestId, $ip, $device);
+                $this->audit->record($actor, 'role', 'create', '复制了角色「' . $name . '」', 'role', (string) $created, $name, $requestId, $ip, $device);
 
                 return $this->show($created);
             });
@@ -287,7 +319,7 @@ final class RoleService
                 ['status' => $status, 'id' => $id],
             );
             $verb = $status === 2 ? '停用了角色' : '启用了角色';
-            $this->audit->record($actor, 'role', 'update', $verb . $name, 'role', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'role', 'update', $verb . '「' . $name . '」', 'role', (string) $id, $name, $requestId, $ip, $device);
         });
     }
 
@@ -374,7 +406,7 @@ final class RoleService
                 'SELECT COUNT(*) FROM sand_system_user_role ur JOIN sand_system_user u ON u.id = ur.user_id AND u.delete_time IS NULL WHERE ur.role_id = ?',
                 [$id],
             ));
-            $this->audit->record($actor, 'role', 'update', '保存了角色' . $name . '的权限', 'role', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'role', 'update', '保存了角色「' . $name . '」的权限', 'role', (string) $id, $name, $requestId, $ip, $device);
         });
 
         return ['affected_users' => $affected];

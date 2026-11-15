@@ -51,7 +51,7 @@ final class AnnouncementController
             $this->idempotencyKey($request),
             $requestId,
             $request->getRemoteIp(),
-            $this->deviceLabel($request),
+            RequestDevice::label($request),
         ));
     }
 
@@ -65,7 +65,7 @@ final class AnnouncementController
             $this->idempotencyKey($request),
             $requestId,
             $request->getRemoteIp(),
-            $this->deviceLabel($request),
+            RequestDevice::label($request),
         ));
     }
 
@@ -78,7 +78,7 @@ final class AnnouncementController
             $this->idempotencyKey($request),
             $requestId,
             $request->getRemoteIp(),
-            $this->deviceLabel($request),
+            RequestDevice::label($request),
         ));
     }
 
@@ -91,7 +91,7 @@ final class AnnouncementController
             $this->idempotencyKey($request),
             $requestId,
             $request->getRemoteIp(),
-            $this->deviceLabel($request),
+            RequestDevice::label($request),
         ));
     }
 
@@ -104,7 +104,7 @@ final class AnnouncementController
             $this->idempotencyKey($request),
             $requestId,
             $request->getRemoteIp(),
-            $this->deviceLabel($request),
+            RequestDevice::label($request),
         ));
     }
 
@@ -174,13 +174,6 @@ final class AnnouncementController
         $key = $request->header('idempotency-key');
 
         return is_string($key) ? $key : null;
-    }
-
-    private function deviceLabel(Request $request): ?string
-    {
-        $agent = $request->header('user-agent');
-
-        return is_string($agent) ? mb_substr($agent, 0, 64) : null;
     }
 
     private function requestId(Request $request): string

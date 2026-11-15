@@ -323,6 +323,36 @@ export const mockPermissionTree: PermissionGroup[] = [
         actions: [{ code: 'system:task:index', action: 'index', label: '查看' }],
       },
       {
+        menu_key: 'system:monitor',
+        title: '运行状态',
+        actions: [{ code: 'system:monitor:index', action: 'index', label: '查看' }],
+      },
+      {
+        menu_key: 'system:login-log',
+        title: '登录日志',
+        actions: [
+          { code: 'system:login-log:index', action: 'index', label: '查看' },
+          { code: 'system:login-log:export', action: 'export', label: '导出' },
+        ],
+      },
+      {
+        menu_key: 'system:audit-log',
+        title: '操作日志',
+        actions: [
+          { code: 'system:audit-log:index', action: 'index', label: '查看' },
+          { code: 'system:audit-log:export', action: 'export', label: '导出' },
+        ],
+      },
+      {
+        menu_key: 'system:cron',
+        title: '定时任务',
+        actions: [
+          { code: 'system:cron:index', action: 'index', label: '查看' },
+          { code: 'system:cron:update', action: 'update', label: '编辑' },
+          { code: 'system:cron:run', action: 'run', label: '立即执行' },
+        ],
+      },
+      {
         menu_key: 'system:plugin',
         title: '插件管理',
         actions: [
@@ -341,6 +371,14 @@ export const mockPermissionTree: PermissionGroup[] = [
           { code: 'system:update:check', action: 'check', label: '检查更新' },
           { code: 'system:update:start', action: 'start', label: '开始升级' },
           { code: 'system:update:upload', action: 'upload', label: '上传升级包' },
+        ],
+      },
+      {
+        menu_key: 'system:config',
+        title: '系统设置',
+        actions: [
+          { code: 'system:config:index', action: 'index', label: '查看' },
+          { code: 'system:config:update', action: 'update', label: '修改' },
         ],
       },
     ],
@@ -394,16 +432,21 @@ export function buildMenuTree(): MenuTree {
       {
         key: 'system-settings',
         type: 'group',
-        title: '系统设置',
+        title: '系统',
         icon: 'setting',
         source: { kind: 'system' },
         visible: true,
         locked: { move: false, hide: false },
         children: [
+          { key: 'system:monitor', type: 'page', title: '运行状态', icon: 'pulse', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/monitor' },
+          { key: 'system:login-log', type: 'page', title: '登录日志', icon: 'clock', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/login-log' },
+          { key: 'system:audit-log', type: 'page', title: '操作日志', icon: 'list', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/oper-log' },
+          { key: 'system:cron', type: 'page', title: '定时任务', icon: 'timer', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/cron' },
           { key: 'preferences', type: 'page', title: '偏好设置', icon: 'setting', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/preferences' },
           { key: 'custom:docs', type: 'link', title: '帮助文档', icon: null, source: { kind: 'custom' }, visible: true, locked: { move: false, hide: false }, url: 'https://docs.example.com' },
           { key: 'system:plugin', type: 'page', title: '插件管理', icon: 'layers', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/plugins' },
           { key: 'system:update', type: 'page', title: '系统更新', icon: 'refresh', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/update' },
+          { key: 'system:config', type: 'page', title: '系统设置', icon: 'setting', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/settings' },
         ],
       },
       {

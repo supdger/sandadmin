@@ -111,7 +111,7 @@ describe('WorkbenchPage', () => {
 
     expect(await screen.findByText(/好，管理员/)).toBeInTheDocument();
     expect(await screen.findByText('都处理完了，没有要你处理的事')).toBeInTheDocument();
-    expect(screen.getByText('数据会在明天出现')).toBeInTheDocument();
+    expect(screen.getByText('还没有数据，有了会显示在这里')).toBeInTheDocument();
     expect(screen.getByText('还没有动态，有人操作后会显示在这里')).toBeInTheDocument();
     expect(screen.getByText('还没有快捷入口')).toBeInTheDocument();
     expect(screen.queryByText('这张卡没能加载出来')).not.toBeInTheDocument();

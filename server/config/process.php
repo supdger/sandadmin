@@ -67,4 +67,10 @@ return [
         'count' => max(1, (int) env('SANDADMIN_TASK_WORKERS', 1)),
         'constructor' => [],
     ],
+    // Custom process: 运行状态周期采样，/monitor/series 的数据源（M1）。
+    'metric_sampler' => [
+        'handler' => app\process\MetricSampler::class,
+        'count' => 1,
+        'constructor' => [],
+    ],
 ];

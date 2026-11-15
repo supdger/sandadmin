@@ -25,6 +25,7 @@ use Sandadmin\Http\MenuController;
 use Sandadmin\Http\NotificationController;
 use Sandadmin\Http\OrgController;
 use Sandadmin\Http\TaskController;
+use Sandadmin\Http\ToolsController;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
@@ -164,4 +165,24 @@ Route::post('/api/admin/v1/plugins/{plugin_code}/uninstall', [PackageController:
 Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'updateStatus']);
 Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
 Route::post('/api/admin/v1/system/update/start', [PackageController::class, 'startUpdate']);
-Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);
+
+// 监控和工具批次（M1/M2/J10/J11、系统设置、全局搜索）。
+// 静态段（module-options、export、groups）必须排在 {log_id}/{group} 参数段前面。
+Route::get('/api/admin/v1/monitor/server', [ToolsController::class, 'monitorServer']);
+Route::get('/api/admin/v1/monitor/series', [ToolsController::class, 'monitorSeries']);
+Route::post('/api/admin/v1/login-logs/export', [ToolsController::class, 'loginLogExport']);
+Route::get('/api/admin/v1/login-logs', [ToolsController::class, 'loginLogs']);
+Route::get('/api/admin/v1/login-logs/{log_id}', [ToolsController::class, 'loginLogShow']);
+Route::post('/api/admin/v1/audit-logs/export', [ToolsController::class, 'auditLogExport']);
+Route::get('/api/admin/v1/audit-logs/module-options', [ToolsController::class, 'auditLogModuleOptions']);
+Route::get('/api/admin/v1/audit-logs', [ToolsController::class, 'auditLogs']);
+Route::get('/api/admin/v1/audit-logs/{log_id}', [ToolsController::class, 'auditLogShow']);
+Route::get('/api/admin/v1/scheduled-tasks', [ToolsController::class, 'scheduledTasks']);
+Route::put('/api/admin/v1/scheduled-tasks/{code}', [ToolsController::class, 'scheduledTaskUpdate']);
+Route::post('/api/admin/v1/scheduled-tasks/{code}/run', [ToolsController::class, 'scheduledTaskRun']);
+Route::get('/api/admin/v1/scheduled-tasks/{code}/runs', [ToolsController::class, 'scheduledTaskRuns']);
+Route::get('/api/admin/v1/settings/groups', [ToolsController::class, 'settingGroups']);
+Route::post('/api/admin/v1/settings/logo', [ToolsController::class, 'settingLogo']);
+Route::get('/api/admin/v1/settings/{group}', [ToolsController::class, 'settingShow']);
+Route::put('/api/admin/v1/settings/{group}', [ToolsController::class, 'settingUpdate']);
+Route::get('/api/admin/v1/search', [ToolsController::class, 'search']);

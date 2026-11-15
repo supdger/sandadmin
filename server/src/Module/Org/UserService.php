@@ -119,7 +119,7 @@ final class UserService
                     $actor,
                     'user',
                     'create',
-                    '添加了用户' . $draft['nickname'],
+                    '添加了用户「' . $draft['nickname'] . '」',
                     'user',
                     (string) $createdId,
                     $draft['nickname'],
@@ -180,7 +180,7 @@ final class UserService
                     $actor,
                     'user',
                     'update',
-                    '保存了用户' . $draft['nickname'],
+                    '保存了用户「' . $draft['nickname'] . '」',
                     'user',
                     (string) $id,
                     $draft['nickname'],
@@ -349,7 +349,7 @@ final class UserService
                         'id' => $id,
                     ],
                 );
-                $this->audit->record($actor, 'user', 'update', '保存了个人资料' . $nickname, 'user', (string) $id, $nickname, $requestId, $ip, $device);
+                $this->audit->record($actor, 'user', 'update', '保存了个人资料「' . $nickname . '」', 'user', (string) $id, $nickname, $requestId, $ip, $device);
             });
         } catch (\Throwable $error) {
             OrgDbMap::map($error);
@@ -402,7 +402,7 @@ final class UserService
                 [$id],
             );
             $this->revokeSessions($id, 'user_deleted');
-            $this->audit->record($actor, 'user', 'delete', '删除了用户' . $nickname, 'user', (string) $id, $nickname, $requestId, $ip, $device);
+            $this->audit->record($actor, 'user', 'delete', '删除了用户「' . $nickname . '」', 'user', (string) $id, $nickname, $requestId, $ip, $device);
         });
     }
 
@@ -425,7 +425,7 @@ final class UserService
                 $this->revokeSessions($id, 'user_disabled');
             }
             $verb = $status === 2 ? '停用了用户' : '启用了用户';
-            $this->audit->record($actor, 'user', 'update', $verb . $nickname, 'user', (string) $id, $nickname, $requestId, $ip, $device);
+            $this->audit->record($actor, 'user', 'update', $verb . '「' . $nickname . '」', 'user', (string) $id, $nickname, $requestId, $ip, $device);
         });
     }
 
@@ -453,7 +453,7 @@ final class UserService
                 ['hash' => $hash, 'by' => $actor->writerId(), 'id' => $id],
             );
             $this->revokeSessions($id, 'password_reset');
-            $this->audit->record($actor, 'user', 'reset-password', '重置了用户' . $nickname . '的密码', 'user', (string) $id, $nickname, $requestId, $ip, $device);
+            $this->audit->record($actor, 'user', 'reset-password', '重置了用户「' . $nickname . '」的密码', 'user', (string) $id, $nickname, $requestId, $ip, $device);
         });
     }
 
@@ -480,7 +480,7 @@ final class UserService
                     'id' => $id,
                 ],
             );
-            $this->audit->record($actor, 'user', 'assign-role', '调整了用户' . $nickname . '的角色', 'user', (string) $id, $nickname, $requestId, $ip, $device);
+            $this->audit->record($actor, 'user', 'assign-role', '调整了用户「' . $nickname . '」的角色', 'user', (string) $id, $nickname, $requestId, $ip, $device);
         });
     }
 

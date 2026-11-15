@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
 import { dismissNotice, getWorkbenchNotices, type DashboardNotice } from '@/api/v1/dashboard';
+import { useCan } from '@/hooks/useCan';
 import { adminErrorMessage } from '@/lib/adminError';
 import { isNetworkFailure } from '@/lib/networkFailure';
 import { listOrEmpty } from './listOrEmpty';
@@ -40,14 +41,24 @@ function actionLabel(t: (key: string) => string, notice: DashboardNotice): strin
   }
 }
 
+/** 升级类提示：文案或动作跳插件/系统更新的都算，无权用户看不到。 */
+function isUpgradeNotice(notice: DashboardNotice): boolean {
+  if (notice.text_key === 'pluginUpgrade') return true;
+  const link = notice.action?.link ?? '';
+  return link.startsWith('/system/update') || link.startsWith('/system/plugin');
+}
+
 /**
  * Workbench notice strip: only the first (highest priority) notice shows as
  * a banner; 「先不提醒」 dismisses it server-side for 7 days.
  */
+
 export function NoticeBanner() {
   const { t } = useTranslation('workbench');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // 升级类提示只对超管或有 system:update 权限的账号展示（前端再挡一层）。
+  const canSeeUpgrade = useCan('system:update:index');
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
   const notices = useQuery({ queryKey: NOTICES_QUERY_KEY, queryFn: getWorkbenchNotices });
@@ -73,7 +84,9 @@ export function NoticeBanner() {
   if (notices.isPending || !notices.data) {
     return null;
   }
-  const visible = listOrEmpty(notices.data.items).filter((n) => n.notice_key !== dismissedKey);
+  const visible = listOrEmpty(notices.data.items).filter(
+    (n) => n.notice_key !== dismissedKey && (canSeeUpgrade || !isUpgradeNotice(n)),
+  );
   if (visible.length === 0) {
     return null;
   }

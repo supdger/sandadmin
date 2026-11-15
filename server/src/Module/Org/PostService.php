@@ -82,7 +82,7 @@ final class PostService
                         'by' => $actor->writerId(),
                     ],
                 ));
-                $this->audit->record($actor, 'post', 'create', '添加了岗位' . $draft['name'], 'post', (string) $createdId, $draft['name'], $requestId, $ip, $device);
+                $this->audit->record($actor, 'post', 'create', '添加了岗位「' . $draft['name'] . '」', 'post', (string) $createdId, $draft['name'], $requestId, $ip, $device);
 
                 return $this->show($createdId);
             });
@@ -119,7 +119,7 @@ final class PostService
                     $actor,
                     'post',
                     'update',
-                    '保存了岗位' . $draft['name'],
+                    '保存了岗位「' . $draft['name'] . '」',
                     'post',
                     (string) $id,
                     $draft['name'],
@@ -142,7 +142,7 @@ final class PostService
         $name = OrgSql::str($row['name'] ?? null);
         $this->connection->transactional(function () use ($id, $actor, $name, $requestId, $ip, $device): void {
             $this->connection->executeStatement('DELETE FROM sand_system_post WHERE id = ?', [$id]);
-            $this->audit->record($actor, 'post', 'delete', '删除了岗位' . $name, 'post', (string) $id, $name, $requestId, $ip, $device);
+            $this->audit->record($actor, 'post', 'delete', '删除了岗位「' . $name . '」', 'post', (string) $id, $name, $requestId, $ip, $device);
         });
     }
 

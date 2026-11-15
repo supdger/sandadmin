@@ -94,8 +94,9 @@ final class RegistrySourceConstraintsTest extends TestCase
             }
         }
         // 合并 #75（33 个）与 #76（新增 PluginResidue、ScheduleClaim 两个 Infra 源文件）后为 35 个；
-        // 重算依据：find src/Domain/Plugin src/Infra/Plugin -name '*.php'，29 + 6 = 35。
-        self::assertCount(35, $files);
+        // J11 再加 Domain/Plugin/HostSchedule.php 为 36 个；
+        // 重算依据：find src/Domain/Plugin src/Infra/Plugin -name '*.php'，30 + 6 = 36。
+        self::assertCount(36, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {

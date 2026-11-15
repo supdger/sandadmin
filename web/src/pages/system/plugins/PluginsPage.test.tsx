@@ -142,8 +142,8 @@ describe('PluginsPage', () => {
     renderPage();
 
     await screen.findByText('数据看板');
-    // 顶部互斥提示条 + 其他卡片按钮禁按
-    expect(await screen.findByText(/「流程审批」还没做完/)).toBeInTheDocument();
+    // 顶部互斥提示条 + 卡片内原因文案都会说「还没做完」，至少一处即可。
+    expect((await screen.findAllByText(/「流程审批」还没做完/)).length).toBeGreaterThan(0);
     await waitFor(() =>
       expect(within(cardOf('数据看板')).getByRole('button', { name: '安装' })).toBeDisabled(),
     );
@@ -153,13 +153,38 @@ describe('PluginsPage', () => {
   it('编译版只读：副标题不提升级卸载，卡片没有操作按钮', async () => {
     mockPluginsOverview.compiled = true;
     renderPage();
-    expect(await screen.findByText('查看已经安装的插件')).toBeInTheDocument();
+    expect(await screen.findByText('查看已安装的插件和版本，有新版本时提醒你')).toBeInTheDocument();
     expect(await screen.findByText(/不能在网页上安装或升级插件/)).toBeInTheDocument();
     expect(screen.queryByText('给后台加功能，或者升级、卸载已有的功能')).not.toBeInTheDocument();
     await screen.findByText('数据看板');
     expect(within(cardOf('数据看板')).queryByRole('button', { name: '安装' })).not.toBeInTheDocument();
     expect(within(cardOf('流程审批')).queryByRole('button', { name: '升级' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /全部升级/ })).not.toBeInTheDocument();
+  });
+
+  it('编译版空列表：还没有安装插件 + 联系部署的人，不写「没有找到」', async () => {
+    mockPluginsOverview.compiled = true;
+    server.use(
+      http.get('/api/admin/v1/plugins/market', () =>
+        HttpResponse.json({ request_id: 'x', data: { items: [] } }),
+      ),
+      http.get('/api/admin/v1/plugins/installed', () =>
+        HttpResponse.json({ request_id: 'x', data: { items: [] } }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText('还没有安装插件')).toBeInTheDocument();
+    expect(screen.getByText('要装插件，请联系负责部署的人')).toBeInTheDocument();
+    expect(screen.queryByText('没有找到相关的插件')).not.toBeInTheDocument();
+  });
+
+  it('搜索无结果才显示「没有找到相关的插件」', async () => {
+    renderPage();
+    await screen.findByText('流程审批');
+    const search = screen.getByPlaceholderText('搜插件名或它能做什么');
+    await userEvent.type(search, '不存在的插件');
+    expect(await screen.findByText('没有找到相关的插件')).toBeInTheDocument();
+    expect(screen.queryByText('还没有安装插件')).not.toBeInTheDocument();
   });
 
   it('详情抽屉显示版本与菜单清单', async () => {

@@ -554,9 +554,11 @@ export function RolesPage() {
                 .sort((left, right) => left.name.localeCompare(right.name, 'zh'))
                 .map((item) => ({
                   value: item.id,
-                  label: item.is_super
-                    ? `${item.name}（${t('roles.confirm.superTag')}）`
-                    : item.name,
+                  // 名字本身已是「超级管理员」时不再加括号，避免重复。
+                  label:
+                    item.is_super && item.name !== t('roles.confirm.superTag')
+                      ? `${item.name}（${t('roles.confirm.superTag')}）`
+                      : item.name,
                 }))}
               onChange={(value) => setReplacementId(typeof value === 'string' ? value : undefined)}
             />

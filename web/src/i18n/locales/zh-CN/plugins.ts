@@ -1,15 +1,16 @@
 export default {
   title: '插件管理',
   subtitle: '给后台加功能，或者升级、卸载已有的功能',
-  subtitleReadonly: '查看已经安装的插件',
+  subtitleReadonly: '查看已安装的插件和版本，有新版本时提醒你',
 
-  compiledNotice: '这个后台不能在网页上安装或升级插件，要加插件请找负责部署的人。',
-  opsDisabledNotice: '网页上的安装和升级已关闭，请联系负责部署的人。',
+  compiledNotice: '这是编译版，不能在网页上安装或升级插件。要加插件，请让负责部署的人在开发环境装好后重新打包上传。',
+  opsDisabledNotice: '网页上的安装和升级已经关闭，请联系负责部署的人。',
   marketDown: '暂时看不到可以安装的新插件，请稍后再试。已安装的插件不受影响。',
 
   tabs: {
     all: '全部插件',
     installed: '已安装（{{count}}）',
+    installedEmpty: '已安装',
     upgradeable: '有新版本（{{count}}）',
   },
   searchPlaceholder: '搜插件名或它能做什么',
@@ -20,6 +21,7 @@ export default {
     uninstalled: '未安装',
     upgradeable: '有新版本',
     rolledBack: '没装好，已自动恢复',
+    busyCard: '「{{name}}」还没做完',
   },
   versionArrow: '{{from}} → {{to}}',
 
@@ -66,9 +68,9 @@ export default {
   },
 
   failed: {
-    rolledBackTitle: '没做完，已自动恢复',
+    rolledBackTitle: '「{{name}}」没做完，已自动恢复',
     rolledBackDesc: '升级没有完成，系统已自动恢复到原来的版本，你的数据没有变化。可以稍后再试。',
-    notRecoveredTitle: '没做完，也没能自动恢复，请马上联系负责部署的人',
+    notRecoveredTitle: '「{{name}}」没做完，也没能自动恢复，请马上联系负责部署的人',
   },
 
   empty: {

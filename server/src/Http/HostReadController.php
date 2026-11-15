@@ -7,14 +7,13 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
-use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Package\PackageOps;
 use support\Request;
 use support\Response;
 use Throwable;
 
-/** 插件概览、系统更新状态和定时任务。安装入口在 PackageController。 */
+/** 插件概览与系统更新状态。安装入口在 PackageController，定时任务在 ToolsController。 */
 final class HostReadController
 {
     private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
@@ -42,32 +41,6 @@ final class HostReadController
     public function updateCheck(Request $request): Response
     {
         return $this->run($request, fn (string $requestId): array => $this->packages()->updateStatus($requestId));
-    }
-
-    public function scheduledTaskUpdate(Request $request, string $code): Response
-    {
-        $requestId = $this->requestId($request);
-        try {
-            $kernel = BizKernel::fromWebman();
-            if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
-            }
-            if ($kernel->principal->resolve($request) === null) {
-                throw OrgException::unauthenticated();
-            }
-            $body = $request->post();
-            $payload = is_array($body) ? $this->stringKeys($body) : [];
-
-            return $this->send((new ScheduleHttp($kernel->connection))->update($code, $payload, $requestId));
-        } catch (OrgException $error) {
-            return $this->send(ApiOutcome::fail($error->status, $error->errorCode, $error->getMessage(), $error->fields, $requestId));
-        } catch (InvalidExtensionException) {
-            return $this->send(ApiOutcome::fail(422, 'TASK_SCHEDULE_INVALID', '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId));
-        } catch (Throwable $error) {
-            error_log('HostReadController 异常 ' . $error::class . ': ' . $error->getMessage());
-
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
-        }
     }
 
     private function packages(): PackageOps
@@ -103,23 +76,6 @@ final class HostReadController
 
             return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
         }
-    }
-
-    /**
-     * @param array<mixed> $raw
-     *
-     * @return array<string, mixed>
-     */
-    private function stringKeys(array $raw): array
-    {
-        $result = [];
-        foreach ($raw as $key => $value) {
-            if (is_string($key)) {
-                $result[$key] = $value;
-            }
-        }
-
-        return $result;
     }
 
     private function requestId(Request $request): string
