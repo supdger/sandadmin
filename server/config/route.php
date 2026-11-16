@@ -46,9 +46,9 @@ Route::get('/api/admin/v1/tasks', [TaskController::class, 'index']);
 Route::get('/api/admin/v1/tasks/{task_id}', [TaskController::class, 'show']);
 Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'download']);
 
-// 开发模式本机一键登录：与 /core/login 同前缀，是否放行由控制器按
-// SAND_DEV_LOGIN 与真实回环对端 IP 判定，不满足时返回 404 等同路由不存在。
-Route::post('/core/dev-login', [DevLoginController::class, 'login']);
+// /core/dev-login 由 sandadmin 插件自身注册（sand-core ≥0.2.10），宿主再挂
+// 同名路由会在启动时冲突；该端点开关为插件配置 dev_login.*。
+
 // 1.x 前端按 /api/auth 与 /api/admin/v1/auth 两种前缀访问同一开发登录；
 // 两条映射共用 DevLoginGate，拒绝转发头伪装的非本机请求。
 Route::post('/api/auth/dev-login', [DevLoginController::class, 'devLogin']);
