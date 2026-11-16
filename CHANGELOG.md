@@ -1,8 +1,15 @@
 # CHANGELOG
 
-## 未发布
+## 0.2.4（2026-11-16）
 
+- 安全发布，对应 GHSA-vq7f-m265-jf3w（根因公告 GHSA-pr9j-xpm5-jprg）：依赖下限提升为 Sand Core ^0.2.10、SandPackage ^0.2.26（含网页终端修复与安装路由收口 GHSA-g7rv-6hmp-476c）；升级后须按发行说明更换 JWT 密钥并排查访问日志。
+- 宿主 debug 默认关闭、生产环境拒绝开启；后台移除 HTTP 终端入口并加执行函数门控；新增 `SAND_DEV_LOGIN` 本机开发一键登录；修改密码后吊销该账号全部会话；新增依赖审计工作流。
+- 新增 `server/src` 1.x 模块层（`/api/admin/v1`）：公告、组织域、选项组、通知、菜单、工作台、个人域、插件包等接口；组织创建幂等键、`base_version` 乐观锁、`dict_item_ref` 引用追踪、插件卸载停用扩展（`suspend_time`）。
+- 附带宿主迁移 0004–0007（release_version 1.1.0），由迁移执行器逐迁移事务自动执行：0004–0006 兼容；0007 为破坏性迁移，只改 `sand_system_metric_sample`（列改名并把字节列换算为 MB/GB，丢精度、不能逆向）。升级前须备份数据库，回退须程序代码与数据库一起回到备份。
+- 管理端 `sandadmin-artd` 交互收口（操作列与确认弹窗统一、空状态、升级进度封顶 90%、`dev=1` 门控等）；新增开发中预览工程 `web/`（React 19 + Semi Design），本版本的安装与发布仍以 `sandadmin-artd` 为准，受管载荷与 SandPackage 0.2.26 对齐。
 - 修复 macOS 下 libpq 建立 PostgreSQL 连接时的 GSSAPI 加密协商与 webman worker fork 叠加、导致 worker 以 SIGSEGV（exit status 11）崩溃的问题：进程引导在用户未显式设置 `PGGSSENCMODE`（真实环境变量或 `.env`）时默认置为 `disable`，用户显式设置一律尊重、不覆盖；think-orm 连接在上述默认场景同时在 DSN 写入 `gssencmode=disable`，webman/database（illuminate）路径因 PostgresConnector 不支持自定义 DSN 参数仍由环境变量统一生效。
+- 工程治理：新增依赖审计 CI、AGENTS.md、`RELEASE-CHECKLIST.md` 与 `tests/` 宿主验证脚本，require-dev 引入 PHPUnit 与 PHPStan，LICENSE/NOTICE 补齐双版权行；插件目录跟进 SandIAM 0.9.5、SandAI 0.4.8、sandworkflow 1.0.8、SandLicense 0.1.2。
+- 从低于 Sand Core 0.2.7 升级的实例仍须在目标库手动执行一次幂等的 `server/plugin/sandadmin/db/update-0.2.7.pgsql`；本发行不自动升级已有部署，已有实例需更新依赖并重新构建、发布管理端。
 
 ## 0.2.3（2026-10-05）
 
