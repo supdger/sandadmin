@@ -33,18 +33,7 @@ final class DevLoginController extends OpenController
     /**
      * 与插件 LoginController 同机制：插件全局中间件按该属性放行本方法。
      */
-    protected array $noNeedLogin = ['login', 'devLogin', 'available'];
-
-    /** 旧宿主路径 /core/dev-login */
-    public function login(Request $request): Response
-    {
-        // 抛与路由不存在相同的异常，响应逐字节一致以消除可探测指纹
-        if (!DevLoginGate::allowed($request)) {
-            throw new PageNotFoundException();
-        }
-
-        return $this->issueToken($request);
-    }
+    protected array $noNeedLogin = ['devLogin', 'available'];
 
     /** 1.x 前端开发登录 /api/auth/dev-login（亦挂 /api/admin/v1/auth/dev-login） */
     public function devLogin(Request $request): Response

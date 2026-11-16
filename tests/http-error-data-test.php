@@ -47,8 +47,8 @@ namespace {
     // 1. 业务错误路径透传信封内层 data（BaseResponse.data），而非整个信封。
     $assert($has($index, 'const { code, message, data } = response.data'),
         '响应拦截器解构出响应信封的 data 字段');
-    $assert($has($index, "throw createHttpError(message || \$t('httpMsg.requestFailed'), code, data)"),
-        '业务错误路径把业务负载作为第三参传入 createHttpError');
+    $assert($has($index, "throw createHttpError(hideRawDatabaseMessage(message || \$t('httpMsg.requestFailed')), code, data)"),
+        '业务错误路径把过滤后的 message 与业务负载传入 createHttpError');
     $assert(!$has($index, "createHttpError(message || \$t('httpMsg.requestFailed'), code, response.data)"),
         '业务错误路径不透传整个响应信封');
 

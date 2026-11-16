@@ -1,7 +1,7 @@
 {
     "schema": 1,
     "package": "supdger/sand-core",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "files": {
         ".env.example": "4682171067165791ecc33092fb98b55fcf8480fe25db8ebdefcd0bcc1b8b44f1",
         ".gitignore": "8f4b7f32ce67e8686e54350137609867e4b5e15f01fddf3f85d7d9d7d59ce6f7",
@@ -175,7 +175,7 @@
         "src/components/core/text-effect/art-festival-text-scroll/index.vue": "5383155c578e7212f19bd5c748f6360e2d7794cc4fccf9a5db6a49b083b6baba",
         "src/components/core/text-effect/art-text-scroll/index.vue": "f37b3710af85085265125a6f581d934c92161ae5631ec1851ea3880ccb605c29",
         "src/components/core/theme/theme-svg/index.vue": "4977abfcb54238dca42538770075781537fc511fe0d42dbcb53244c5069d9f3d",
-        "src/components/core/views/exception/ArtException.vue": "45b43b6075562debf546ca83e4aa8eed5e30a73dcc4e6ac374b88b3a23a4b999",
+        "src/components/core/views/exception/ArtException.vue": "2e82d318de8fff62121edc2de66924490b64cc1a0f30069fa6fef8309c6cdb05",
         "src/components/core/views/login/AuthTopBar.vue": "381f1351a1acde2d2712430716d206586f763dc66b67f281657c6372bdc03650",
         "src/components/core/views/login/LoginAppearancePicker.vue": "63f610c42bd39d3977ad8ec120dc82bf19052d29c436c2d7a66293be241b3daa",
         "src/components/core/views/login/LoginLeftView.vue": "27958976a5dc5948e9796147bea3bac3fc50c34ba2385a3b469515ff36741e62",
@@ -250,7 +250,7 @@
         "src/router/core/RouteValidator.ts": "6115bd1ad58c248f717474affc494ab42e23d0efc3156570f6c9f3da805f7333",
         "src/router/core/index.ts": "30cbff450bd7934355f37ad58c2cc4de2049bd2231baabe0543801c1a12a494d",
         "src/router/guards/afterEach.ts": "887f3b492dbdf036841e1528eecdefe179a79f17d8b5ce78891d4ed2ee5a2494",
-        "src/router/guards/beforeEach.ts": "b3ec20474ce2161fbdcfb4fd3d1f428bd85374793021d7670a5fb9a4d1306a99",
+        "src/router/guards/beforeEach.ts": "099f59b2a1a008aecaf9fa8208f4a136b95be9f1001903ed036d215eb3039915",
         "src/router/index.ts": "40d9a23692f2df3370e3466f5028622102b493ee588827f6d76ed9cc7f6d5b61",
         "src/router/modules/dashboard.ts": "bca6e971152ba38fc4c6fd668a59337588e86299197d40ec76e620b1d80e792b",
         "src/router/modules/exception.ts": "45ccfe77dc8d5bf605d023a57ac243d11cbad7bcb9cd0c29dc288c5709523287",
