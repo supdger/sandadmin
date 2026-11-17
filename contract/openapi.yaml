@@ -53,6 +53,7 @@ x-error-catalog:
   PLUGIN_VERSION_INCOMPATIBLE: {http_status: 409, summary: 不能装比现在更旧的版本}
   PLUGIN_BUSY:         {http_status: 409, summary: 已有别的安装或升级在进行}
   PLUGIN_PACKAGE_INVALID: {http_status: 422, summary: 这个文件不是能用的安装包}
+  PLUGIN_CONTRACT_CONFLICT: {http_status: 409, summary: 插件契约与现有声明冲突，本次安装或升级没有生效}
   PLUGIN_OPERATION_FORBIDDEN: {http_status: 403, summary: 只有超级管理员能安装和升级；编译版拒绝}
   SYSTEM_UPDATE_OPERATION_FORBIDDEN: {http_status: 403, summary: 系统更新被禁（编译版或开关关闭）}
   UPDATE_NOT_AVAILABLE: {http_status: 409, summary: 没有可升级项或已是最新}
