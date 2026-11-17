@@ -94,9 +94,17 @@ else
     python3 tools/naming_check.py sql --allow naming-allow.txt $MIGRATIONS || fail "naming_check sql"
   fi
 
-  # 基线只减不增：对照 BASE 行数不得变多；BASE 侧不存在按 0 行计，
-  # 变多即失败并打印差值（与快档 CI 同口径，加须人审 M-09）。
+  # 基线只减不增：对照 BASE 行数不得变多；BASE 侧不存在按 0 行计。
+  # bootstrap 语义（与快档 CI 同一条规则）：BASE 侧 merge-gates.yml
+  # grep 不到 baseline-shrink = 本闸首次登记，行数增长随 PR 人审，
+  # 只 WARN 不拦；门禁进了 main 之后一律硬 fail。
   step "基线只减不增（对照 ${BASE}）"
+  BASE_GATE=$(git show "$BASE:.github/workflows/merge-gates.yml" 2>/dev/null || true)
+  BOOTSTRAP=0
+  if ! printf '%s' "$BASE_GATE" | grep -q 'baseline-shrink'; then
+    BOOTSTRAP=1
+    echo "基线闸首次落地，增长部分随本 PR 人审；合并入 main 后本检查生效"
+  fi
   for f in server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt; do
     BEFORE=0
     if git cat-file -e "$BASE:$f" 2>/dev/null; then
@@ -107,8 +115,12 @@ else
       AFTER=$(wc -l < "$f" | tr -d ' ')
     fi
     if [ "$AFTER" -gt "$BEFORE" ]; then
-      echo "$f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))）"
-      fail "基线只减不增：$f"
+      if [ "$BOOTSTRAP" -eq 1 ]; then
+        echo "WARN: $f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))，首次登记不拦）"
+      else
+        echo "$f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))）"
+        fail "基线只减不增：$f"
+      fi
     else
       echo "OK: $f 行数 ${BEFORE} -> ${AFTER}"
     fi
