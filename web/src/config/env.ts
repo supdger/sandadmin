@@ -26,12 +26,15 @@ function readString(value: string | undefined, fallback: string): string {
   return trimmed ? trimmed : fallback;
 }
 
+// SAND-DEV-BEGIN
+// 只有 mock 账号块在读布尔环境变量；生产剔除后该函数无消费方。
 function readBool(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value.trim() === '') {
     return fallback;
   }
   return value === 'true' || value === '1';
 }
+// SAND-DEV-END
 
 export const env: AppEnv = {
   apiBaseUrl: readString(import.meta.env.VITE_API_BASE_URL, '/api'),
