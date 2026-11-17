@@ -21,6 +21,7 @@ use Sandadmin\Http\DictController;
 use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
 use Sandadmin\Http\PackageController;
+use Sandadmin\Http\McpController;
 use Sandadmin\Http\MeController;
 use Sandadmin\Http\MenuController;
 use Sandadmin\Http\NotificationController;
@@ -58,6 +59,10 @@ if (DevBuild::enabled()) {
     Route::post('/api/admin/v1/auth/dev-login', [DevLoginController::class, 'devLogin']);
     Route::get('/api/auth/dev-login/available', [DevLoginController::class, 'available']);
     Route::get('/api/admin/v1/auth/dev-login/available', [DevLoginController::class, 'available']);
+
+    // 开发构建 MCP 端点（无状态 Streamable HTTP）：路由只按构建标记挂出，
+    // 令牌、回环、Origin 三道门槛在 McpController 内收口，缺一按 404 处理。
+    Route::post('/api/admin/mcp', [McpController::class, 'handle']);
 }
 
 // 公告：管理与收件人侧端点；权限码（system:announcement:* / authenticated）

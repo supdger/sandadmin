@@ -41,10 +41,11 @@ final class ProductionDebugGuard implements Bootstrap
 
     /**
      * @param mixed $devLogin SAND_DEV_LOGIN 环境变量原值
+     * @param mixed $mcpToken SAND_MCP_DEV_TOKEN 环境变量原值（开发 MCP 令牌）
      *
      * @throws RuntimeException
      */
-    public static function assertDevChainOff(mixed $appEnv, bool $devBuild, mixed $devLogin): void
+    public static function assertDevChainOff(mixed $appEnv, bool $devBuild, mixed $devLogin, mixed $mcpToken = null): void
     {
         if (!self::isProduction($appEnv)) {
             return;
@@ -54,6 +55,9 @@ final class ProductionDebugGuard implements Bootstrap
         }
         if (is_string($devLogin) && trim($devLogin) === '1') {
             throw new RuntimeException('生产环境（APP_ENV=production）禁止开启 SAND_DEV_LOGIN，请移除该环境变量后再启动');
+        }
+        if (is_string($mcpToken) && trim($mcpToken) !== '') {
+            throw new RuntimeException('生产环境（APP_ENV=production）禁止配置 SAND_MCP_DEV_TOKEN（开发 MCP 令牌），请移除该环境变量后再启动');
         }
     }
 
@@ -69,7 +73,7 @@ final class ProductionDebugGuard implements Bootstrap
             self::assertSafe($appEnv, config('app.debug', false));
             // 无自动加载的独立脚本里 DevBuild 不存在按未启用算；真实进程必有 autoload
             $devBuild = class_exists(DevBuild::class) && DevBuild::enabled();
-            self::assertDevChainOff($appEnv, $devBuild, getenv('SAND_DEV_LOGIN'));
+            self::assertDevChainOff($appEnv, $devBuild, getenv('SAND_DEV_LOGIN'), getenv('SAND_MCP_DEV_TOKEN'));
         } catch (RuntimeException $error) {
             fwrite(STDERR, '[sandadmin] ' . $error->getMessage() . PHP_EOL);
             if ($worker !== null) {

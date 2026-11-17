@@ -32,16 +32,25 @@ final class DevBuildTest extends TestCase
         ProductionDebugGuard::assertDevChainOff('production', false, '1');
     }
 
+    public function testProductionGuardRejectsMcpDevToken(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        ProductionDebugGuard::assertDevChainOff('production', false, null, 'any-token');
+    }
+
     public function testProductionGuardPassesCleanProd(): void
     {
         ProductionDebugGuard::assertDevChainOff('production', false, null);
         ProductionDebugGuard::assertDevChainOff('production', false, '0');
+        ProductionDebugGuard::assertDevChainOff('production', false, null, '');
+        ProductionDebugGuard::assertDevChainOff('production', false, null, false);
         $this->addToAssertionCount(1);
     }
 
     public function testGuardSkipsNonProduction(): void
     {
         ProductionDebugGuard::assertDevChainOff('development', true, '1');
+        ProductionDebugGuard::assertDevChainOff('development', false, null, 'any-token');
         $this->addToAssertionCount(1);
     }
 }
