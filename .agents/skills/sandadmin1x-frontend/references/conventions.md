@@ -49,7 +49,7 @@ web/src/
 - 禁止 `as any`、显式 `: any`、 `@ts-ignore`/`@ts-nocheck`、用 eslint-disable 关 `no-explicit-any`；`Record<string, any>` 仅在范围极小且注释说明时允许，接口参数/响应一律给准确类型。
 - 外部数据（接口响应、本地存储、URL 参数）按 `unknown` 进、类型守卫或 schema 校验收窄后用。
 - 接口字段类型与契约 snake_case 字段同名同形，不做驼峰转换；`id` 是 `string`，时间字段是 `string`（`*_time` datetime 文本）。
-- **接口类型防漂移（S-14）**：TypeScript 类型从 `openapi.yaml` 构建期生成（机械派生的构建产物，不写业务逻辑【待老板确认 R-2】）；未接生成管线前，至少要有「类型与契约比对」门禁——手写类型与契约不一致即 CI 失败。前端不许出现与契约字段名/类型漂移的本地类型。
+- **接口类型防漂移（S-14）**：TypeScript 类型从 `openapi.yaml` 构建期生成（机械派生的构建产物，不写业务逻辑【老板 2026-11-17 已定 R-2】）；未接生成管线前，至少要有「类型与契约比对」门禁——手写类型与契约不一致即 CI 失败。前端不许出现与契约字段名/类型漂移的本地类型。
 - 组件 props 用 `Props` 类型声明，不用 `as any` 绕过；第三方库缺类型时补最小 `interface` 或 `*.d.ts`。
 
 ## 四、API 封装层

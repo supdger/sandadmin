@@ -35,7 +35,7 @@
 
 组织上下文约定（已定，总监 11-17）：`OrgContext`/`ShardResolver`/`ConnectionResolver` 三接口是框架给将来多租户版本留的约定，1.x 单租户下恒返回固定值；业务代码不自己拼"属于谁"的条件、统一走仓储入口，**不把它当多租户能力用**（T-1）。
 
-租户作用域注入口（M-06）【待老板确认 R-7】：框架定义 `TenantContextProviderInterface`——框架中间件调用它取租户号、校验后写 `RequestContext`；宿主实现恒返回 `'default'`；产品侧租户号由 SandIAM SDK 实现同一接口注入。**插件不能自造租户上下文**，谁注入租户号归框架管；「框架不做多租户功能，但租户作用域机制是框架能力」的措辞待老板确认。
+租户作用域注入口（M-06）【老板 2026-11-17 已定 R-7】：框架定义 `TenantContextProviderInterface`——框架中间件调用它取租户号、校验后写 `RequestContext`；宿主实现恒返回 `'default'`；产品侧租户号由 SandIAM SDK 实现同一接口注入。**插件不能自造租户上下文**，谁注入租户号归框架管；措辞定稿：「框架不做多租户功能，但租户作用域机制是框架能力」。
 
 旧面边界：sand-core 是旧兼容层（legacy）只退役不加功能，sand-package 已下线（能力由 PackageOps 承接）。新代码**禁止**依赖 sand-core 的 `BaseModel`/`BaseLogic`/`BaseController`/`BaseValidate`、`CheckLogin`/`CheckAuth` 中间件、`service\Permission` 注解、`ApiException`、`UserAuthCache`/`UserInfoCache`、`SystemLog` 等。
 

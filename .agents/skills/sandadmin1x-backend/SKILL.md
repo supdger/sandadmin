@@ -27,7 +27,7 @@ description: 在 SandAdmin 1.x（PHP/Webman + Doctrine DBAL，PostgreSQL/MySQL �
 7. **鉴权只认内核会话 + v1 权限码**：身份一律走 `IdentityProvider`/`RequestContext`，代码里不自己解析令牌、不构造身份；RBAC、数据范围、审计、sudo 高危操作规则见 [references/security-auth.md](references/security-auth.md)。
 8. **安全开关口径固定**：日志留存可配置——安全日志（登录、操作、审计、找回/双因素事件、权限变更）下限 183 天、界面不许调低，普通日志默认 183 天、可下调到 30 天；TOTP 双因素和密码定期更换是后台开关、默认关（等保三级部署必须开双因素）；开发免登录整条链只在开发构建存在、生产包编译期剔除；机器令牌走 `sand_system_api_token`（摘要 + scope + 过期 + authz_version 联动），MCP 高危写只生成待确认请求由人 sudo 批准，见 [references/security-auth.md](references/security-auth.md)。
 9. **部署形态**：生产环境 = CI 构建的编译制品，不安装、不编译、无网页安装器；生产上插件动作只有查看/启用/停用，见 [references/backend-structure.md](references/backend-structure.md)。
-10. **不做代码生成器**——网页版、命令行脚手架都不做（生成业务代码的工具才算；从 OpenAPI 机械派生的路由表/权限注册表/MCP 工具表/TS 类型/测试骨架是构建产物【待老板确认 R-2】）；新模块和大方案先做能力对照表（对照 saiadmin 6.x、若依、Laravel、ThinkPHP 生态、webman 官方插件），没有对照表不通过。
+10. **不做代码生成器**——网页版、命令行脚手架都不做（生成业务代码的工具才算；从 OpenAPI 机械派生的路由表/权限注册表/MCP 工具表/TS 类型/测试骨架是构建产物【老板 2026-11-17 已定 R-2】）；新模块和大方案先做能力对照表（对照 saiadmin 6.x、若依、Laravel、ThinkPHP 生态、webman 官方插件），没有对照表不通过。
 
 ## 与其他 1.x skill 的分工
 
