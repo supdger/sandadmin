@@ -64,7 +64,7 @@ final class McpController
         $transport = (new McpServerFactory(
             'sandadmin',
             '1.x',
-            \support\Log::channel('default'),
+            new \Sandadmin\Infra\Log\SdkQuietLogger(\support\Log::channel('default')),
         ))->build(new ToolCatalog($this->devSpecs()), $kernel);
 
         return McpHttpBridge::fromPsr7(
