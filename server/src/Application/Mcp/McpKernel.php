@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Application\Mcp;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Mcp\AuditSink;
 use Sandadmin\Domain\Mcp\McpCall;
 use Sandadmin\Domain\Mcp\McpIdentity;
@@ -63,21 +64,21 @@ final class McpKernel
     private function invoke(ToolSpec $spec, array $arguments, ?string $idempotencyKey): ToolOutcome
     {
         if (!$this->identity->can($spec->permission)) {
-            return ToolOutcome::fail('MCP_FORBIDDEN', ['message' => '该凭据没有这个工具需要的权限码', 'permission' => $spec->permission]);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_FORBIDDEN, ['message' => '该凭据没有这个工具需要的权限码', 'permission' => $spec->permission]);
         }
         if ($spec->tier === ToolTier::HighRisk) {
             // 高危写永不直接执行（M-02）：只给「待确认请求」形状，本期未开放。
-            return ToolOutcome::fail('MCP_HIGH_RISK_NOT_OPEN', [
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_HIGH_RISK_NOT_OPEN, [
                 'message' => '高危写工具本期未开放，只能生成待确认请求',
                 'pending_request' => new PendingRequest($spec->name, McpCall::digestOf($arguments), PendingState::Pending),
             ]);
         }
         if ($spec->tier === ToolTier::Write && $idempotencyKey === null) {
-            return ToolOutcome::fail('MCP_IDEMPOTENCY_REQUIRED', ['message' => '普通写工具必须带幂等键 idempotency_key']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_IDEMPOTENCY_REQUIRED, ['message' => '普通写工具必须带幂等键 idempotency_key']);
         }
         $bucket = 'mcp:tool:' . $this->identity->credential . ':' . $spec->name;
         if (!$this->limiter->hit($bucket, $this->toolLimit, $this->windowSeconds)) {
-            return ToolOutcome::fail('MCP_RATE_LIMITED', ['message' => '这个工具的调用频率超限，稍后再试']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_RATE_LIMITED, ['message' => '这个工具的调用频率超限，稍后再试']);
         }
         $dryRun = ($arguments['dry_run'] ?? false) === true;
         if ($spec->tier === ToolTier::Write && $dryRun) {
@@ -88,7 +89,7 @@ final class McpKernel
         try {
             return $spec->runner->run($this->identity, $arguments);
         } catch (\Throwable) {
-            return ToolOutcome::fail('MCP_TOOL_FAILED', ['message' => '工具执行失败，详情见服务端日志']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_TOOL_FAILED, ['message' => '工具执行失败，详情见服务端日志']);
         }
     }
 

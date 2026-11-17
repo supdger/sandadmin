@@ -11,6 +11,7 @@ use Sandadmin\Application\Mcp\McpHttpBridge;
 use Sandadmin\Application\Mcp\McpKernel;
 use Sandadmin\Application\Mcp\McpServerFactory;
 use Sandadmin\Application\Mcp\ToolCatalog;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Infra\Mcp\Dev\DevCatalog;
 use Sandadmin\Infra\Mcp\DevTokenVerifier;
 use Sandadmin\Infra\Mcp\LogAuditSink;
@@ -36,13 +37,13 @@ final class McpController
         }
         $origin = $request->header('origin');
         if (!McpGate::originAllowed(is_string($origin) ? $origin : null)) {
-            return $this->json(403, 'MCP_ORIGIN_REJECTED', 'Origin 不在本机白名单');
+            return $this->json(403, ErrorCodeRegistry::MCP_ORIGIN_REJECTED, 'Origin 不在本机白名单');
         }
         $authorization = $request->header('authorization');
         $token = $this->bearerToken(is_string($authorization) ? $authorization : null);
         $identity = $token !== null ? (new DevTokenVerifier())->verify($token) : null;
         if ($identity === null) {
-            return $this->json(401, 'MCP_UNAUTHORIZED', '凭据无效或未配置')
+            return $this->json(401, ErrorCodeRegistry::MCP_UNAUTHORIZED, '凭据无效或未配置')
                 ->withHeader('WWW-Authenticate', 'Bearer realm="mcp"');
         }
         $incomingId = $request->header('x-request-id');
@@ -50,7 +51,7 @@ final class McpController
         $limiter = new WindowRateLimiter();
         $window = self::intConfig('mcp.dev.window_seconds', 60);
         if (!$limiter->hit('mcp:credential:' . $identity->credential, self::intConfig('mcp.dev.credential_limit', 60), $window)) {
-            return $this->json(429, 'MCP_RATE_LIMITED', '调用频率超限，稍后再试');
+            return $this->json(429, ErrorCodeRegistry::MCP_RATE_LIMITED, '调用频率超限，稍后再试');
         }
         $kernel = new McpKernel(
             $identity,

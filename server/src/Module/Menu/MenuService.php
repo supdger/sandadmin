@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Menu;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Domain\Plugin\PluginMenuEntry;
 use Sandadmin\Application\Plugin\PluginManifestLoader;
 use Sandadmin\Module\Org\OrgActor;
@@ -72,17 +73,11 @@ final class MenuService
      */
     public function sidebarItems(?OrgActor $actor): array
     {
-        $children = [
-            self::sidebarPage('system:user', '用户管理', 'user', '/system/user'),
-            self::sidebarPage('system:dept', '部门管理', 'dept', '/system/dept'),
-            self::sidebarPage('system:post', '岗位管理', 'post', '/system/post'),
-            self::sidebarPage('system:role', '角色管理', 'role', '/system/role'),
-            self::sidebarPage('system:dict', '选项管理', 'dict', '/data/dict'),
-            self::sidebarPage('system:announcement', '公告管理', 'notice', '/data/notice'),
-            self::sidebarPage('system:menu', '菜单管理', 'menu', '/system/menu'),
-            self::sidebarPage('system:plugin', '插件管理', 'plugin', '/system/plugins'),
-            self::sidebarPage('system:update', '系统更新', 'refresh', '/system/update'),
-        ];
+        // 侧栏基础项由契约 x-sidebar-menus 派生（PermissionRegistry::SIDEBAR）
+        $children = [];
+        foreach (PermissionRegistry::SIDEBAR as $menu) {
+            $children[] = self::sidebarPage($menu['key'], $menu['title'], $menu['icon'], $menu['path']);
+        }
         foreach ($this->pluginItems($actor, false) as $node) {
             $children[] = $node;
         }
@@ -341,17 +336,11 @@ final class MenuService
     private function assemble(): array
     {
         $home = $this->catalogNode('home', 'page', '工作台', 'home', '/');
-        $children = [
-            $this->catalogNode('system:user', 'page', '用户管理', 'user', '/system/user'),
-            $this->catalogNode('system:dept', 'page', '部门管理', 'dept', '/system/dept'),
-            $this->catalogNode('system:post', 'page', '岗位管理', 'post', '/system/post'),
-            $this->catalogNode('system:role', 'page', '角色管理', 'role', '/system/role'),
-            $this->catalogNode('system:dict', 'page', '选项管理', 'dict', '/data/dict'),
-            $this->catalogNode('system:announcement', 'page', '公告管理', 'notice', '/data/notice'),
-            $this->catalogNode('system:menu', 'page', '菜单管理', 'menu', '/system/menu'),
-            $this->catalogNode('system:plugin', 'page', '插件管理', 'plugin', '/system/plugins'),
-            $this->catalogNode('system:update', 'page', '系统更新', 'refresh', '/system/update'),
-        ];
+        // 目录树同一份侧栏契约派生，与 sidebarItems 保持同序同集
+        $children = [];
+        foreach (PermissionRegistry::SIDEBAR as $menu) {
+            $children[] = $this->catalogNode($menu['key'], 'page', $menu['title'], $menu['icon'], $menu['path']);
+        }
         foreach ($this->pluginItems(null, true) as $node) {
             $children[] = $node;
         }

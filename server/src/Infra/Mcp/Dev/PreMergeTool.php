@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Infra\Mcp\Dev;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
@@ -38,7 +39,7 @@ final class PreMergeTool implements ToolRunner
     {
         $script = $this->repoRoot . '/tools/pre-merge.sh';
         if (!is_file($script)) {
-            return ToolOutcome::fail('MCP_GATE_MISSING', ['message' => 'tools/pre-merge.sh 不存在']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_GATE_MISSING, ['message' => 'tools/pre-merge.sh 不存在']);
         }
         $outcome = ($this->runner)(
             ['bash', 'tools/pre-merge.sh', '--fast'],

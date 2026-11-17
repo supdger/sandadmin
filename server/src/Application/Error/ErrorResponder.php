@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Application\Error;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Error\ErrorLogger;
 use Sandadmin\Domain\Exception\DomainException;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
@@ -25,10 +26,10 @@ final class ErrorResponder
             throw new \InvalidArgumentException('request_id 不能为空');
         }
         if ($error instanceof InvalidQueryException) {
-            return new ErrorBody(422, 'VALIDATION_FAILED', $error->getMessage(), self::fieldMessages($error->fields), $requestId);
+            return new ErrorBody(422, ErrorCodeRegistry::VALIDATION_FAILED, $error->getMessage(), self::fieldMessages($error->fields), $requestId);
         }
         if ($error instanceof InvalidExtensionException && self::isScheduleError($error->fields)) {
-            return new ErrorBody(422, 'TASK_SCHEDULE_INVALID', '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId);
+            return new ErrorBody(422, ErrorCodeRegistry::TASK_SCHEDULE_INVALID, '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId);
         }
         if ($error instanceof DomainException) {
             if ($error->httpStatus() >= 500) {
@@ -46,7 +47,7 @@ final class ErrorResponder
 
         $this->logger->unexpected($error, $requestId);
 
-        return new ErrorBody(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+        return new ErrorBody(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
     }
 
     /**

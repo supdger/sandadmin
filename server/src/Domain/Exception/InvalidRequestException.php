@@ -7,12 +7,14 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Exception;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 /** 请求头或请求元数据非法。映射为契约错误码 VALIDATION_FAILED。 */
 final class InvalidRequestException extends DomainException
 {
     /** @param array<string, string> $fields */
     public function __construct(string $message, array $fields, ?\Throwable $previous = null)
     {
-        parent::__construct($message, 'VALIDATION_FAILED', $fields, 400, $previous);
+        parent::__construct($message, ErrorCodeRegistry::VALIDATION_FAILED, $fields, 400, $previous);
     }
 }

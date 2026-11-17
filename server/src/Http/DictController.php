@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Module\Dict\DictException;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgException;
@@ -22,7 +24,7 @@ final class DictController
 
     public function index(Request $request): Response
     {
-        return $this->run($request, 'system:dict:index', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
+        return $this->run($request, PermissionRegistry::DICT_INDEX, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             unset($actor);
             $keyword = $this->query($request)['keyword'] ?? null;
 
@@ -32,22 +34,22 @@ final class DictController
 
     public function show(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:index', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->showType(OrgInput::pathId($type_id, 'type_id')), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_INDEX, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->showType(OrgInput::pathId($type_id, 'type_id')), $requestId));
     }
 
     public function store(Request $request): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function update(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
     }
 
     public function destroy(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($type_id): array {
+        return $this->run($request, PermissionRegistry::DICT_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($type_id): array {
             $kernel->dicts->removeType(OrgInput::pathId($type_id, 'type_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
@@ -56,17 +58,17 @@ final class DictController
 
     public function storeItem(Request $request, string $type_id): Response
     {
-        return $this->run($request, 'system:dict:create', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function updateItem(Request $request, string $item_id): Response
     {
-        return $this->run($request, 'system:dict:update', fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
     }
 
     public function destroyItem(Request $request, string $item_id): Response
     {
-        return $this->run($request, 'system:dict:delete', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
+        return $this->run($request, PermissionRegistry::DICT_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
             $kernel->dicts->removeItem(OrgInput::pathId($item_id, 'item_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
@@ -75,7 +77,7 @@ final class DictController
 
     public function itemStatus(Request $request, string $item_id): Response
     {
-        return $this->run($request, 'system:dict:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
             $kernel->dicts->setItemStatus(OrgInput::pathId($item_id, 'item_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
@@ -84,7 +86,7 @@ final class DictController
 
     public function sortItems(Request $request): Response
     {
-        return $this->run($request, 'system:dict:update', function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             $body = $this->body($request);
             $typeId = OrgInput::requiredId($body, 'type_id');
             $kernel->dicts->sortItems($typeId, OrgInput::idList($body, 'item_ids', true), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
@@ -102,7 +104,7 @@ final class DictController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             $actor = $kernel->principal->resolve($request);
             if ($actor === null) {
@@ -120,7 +122,7 @@ final class DictController
         } catch (Throwable $error) {
             error_log('DictController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 

@@ -7,10 +7,12 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Exception;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 final class UnauthenticatedException extends DomainException
 {
     public function __construct(string $message = '请先登录', ?\Throwable $previous = null)
     {
-        parent::__construct($message, 'UNAUTHENTICATED', [], 401, $previous);
+        parent::__construct($message, ErrorCodeRegistry::UNAUTHENTICATED, [], 401, $previous);
     }
 }

@@ -7,8 +7,10 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Org\Exception;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 /** 部门下还有未删除用户或下级部门，删除被拒绝。由上层错误处理映射为 409 DEPT_NOT_EMPTY。 */
 final class DeptNotEmptyException extends \DomainException
 {
-    public const CODE = 'DEPT_NOT_EMPTY';
+    public const CODE = ErrorCodeRegistry::DEPT_NOT_EMPTY;
 }

@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Org\OrgException;
 use support\Request;
 use support\Response;
@@ -66,7 +67,7 @@ final class DashboardController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             if ($kernel->principal->resolve($request) === null) {
                 throw OrgException::unauthenticated();
@@ -78,7 +79,7 @@ final class DashboardController
         } catch (Throwable $error) {
             error_log('DashboardController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 

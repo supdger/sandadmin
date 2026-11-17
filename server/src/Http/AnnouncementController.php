@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Announcement\AnnouncementException;
 use Sandadmin\Module\Announcement\AnnouncementHttp;
 use Sandadmin\Module\Announcement\AnnouncementRuntime;
@@ -138,7 +139,7 @@ final class AnnouncementController
         try {
             $runtime = AnnouncementRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $outcome = $work($runtime, $request, $requestId);
 
@@ -148,7 +149,7 @@ final class AnnouncementController
         } catch (Throwable $error) {
             error_log('AnnouncementController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
         }
     }
 

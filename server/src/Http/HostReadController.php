@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Package\PackageOps;
@@ -50,7 +51,7 @@ final class HostReadController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             if ($kernel->principal->resolve($request) === null) {
                 throw OrgException::unauthenticated();
@@ -62,11 +63,11 @@ final class HostReadController
         } catch (OrgException $error) {
             return $this->send(ApiOutcome::fail($error->status, $error->errorCode, $error->getMessage(), $error->fields, $requestId));
         } catch (InvalidExtensionException) {
-            return $this->send(ApiOutcome::fail(422, 'TASK_SCHEDULE_INVALID', '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId));
+            return $this->send(ApiOutcome::fail(422, ErrorCodeRegistry::TASK_SCHEDULE_INVALID, '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId));
         } catch (Throwable $error) {
             error_log('HostReadController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 
@@ -89,7 +90,7 @@ final class HostReadController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             if ($kernel->principal->resolve($request) === null) {
                 throw OrgException::unauthenticated();
@@ -101,7 +102,7 @@ final class HostReadController
         } catch (Throwable $error) {
             error_log('HostReadController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 
