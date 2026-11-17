@@ -38,7 +38,9 @@ if find "$SRC" -name '.sand-dev-build' | grep -q .; then
     echo "FAIL 产物含 .sand-dev-build 标记" >&2
     exit 1
 fi
-if find "$SRC" -name '.env' -o -name '*.key' -o -name '*.pem' | grep -q .; then
+# sandadmin-artd/.env 由 vendor FrontendPublisher 发布时生成，只含 VITE_*
+# 浏览器公开变量（源自已剔除哨兵的 .env.example），豁免；其余 .env 与密钥文件不得残留
+if find "$SRC" \( -name '.env' -not -path '*/sandadmin-artd/.env' \) -o -name '*.key' -o -name '*.pem' | grep -q .; then
     echo "FAIL 产物含 .env/密钥类文件" >&2
     exit 1
 fi
