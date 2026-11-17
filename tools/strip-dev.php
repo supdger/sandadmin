@@ -4,9 +4,11 @@
 declare(strict_types=1);
 
 // 把开发专用代码清单应用到一份源码导出树上。
-//   php tools/strip-dev.php <导出根目录>
+//   php tools/strip-dev.php <导出根目录> [--verify|--reapply]
 // rm 条目删除文件/目录（目录递归），strip 条目剔除哨兵块；
 // 登记了 rm 但树里找不到、登记了 strip 但文件内无哨兵块，都算清单过期，报错退出。
+// --reapply 用于 composer install 之后：骨架脚本可能回填 windows.php、插件
+// 前端测试文件等，此处宽容复剔（不存在的 rm 条目跳过），最终一致性仍由 --verify 卡。
 
 require_once __DIR__ . '/dev-manifest.php';
 
@@ -14,7 +16,7 @@ require_once __DIR__ . '/dev-manifest.php';
  * @param array{rm:list<string>,strip:list<string>} $manifest
  * @return list<string> 实际处理过的路径说明
  */
-function applyDevManifest(string $root, array $manifest): array
+function applyDevManifest(string $root, array $manifest, bool $reapply = false): array
 {
     $done = [];
     foreach ($manifest['rm'] as $pattern) {
@@ -33,6 +35,9 @@ function applyDevManifest(string $root, array $manifest): array
                 }
             }
             if ($matched === []) {
+                if ($reapply) {
+                    continue;
+                }
                 throw new RuntimeException("清单 rm 通配无命中：{$pattern}");
             }
             foreach ($matched as $rel) {
@@ -52,6 +57,9 @@ function applyDevManifest(string $root, array $manifest): array
             $done[] = "rm {$pattern}";
             continue;
         }
+        if ($reapply) {
+            continue;
+        }
         throw new RuntimeException("清单 rm 路径不存在：{$pattern}");
     }
     foreach ($manifest['strip'] as $rel) {
@@ -63,7 +71,7 @@ function applyDevManifest(string $root, array $manifest): array
         if ($content === false) {
             throw new RuntimeException("无法读取 {$rel}");
         }
-        file_put_contents($full, stripDevBlocks($content, $rel));
+        file_put_contents($full, stripDevBlocks($content, $rel, !$reapply));
         $done[] = "strip {$rel}";
     }
 
@@ -87,8 +95,9 @@ function removeDevTree(string $dir): void
 if (PHP_SAPI === 'cli' && realpath((string) ($_SERVER['argv'][0] ?? '')) === __FILE__) {
     $root = realpath((string) ($_SERVER['argv'][1] ?? ''));
     $verifyOnly = in_array('--verify', $_SERVER['argv'], true);
+    $reapply = in_array('--reapply', $_SERVER['argv'], true);
     if ($root === false || !is_dir($root)) {
-        fwrite(STDERR, "用法：php tools/strip-dev.php <导出根目录> [--verify]\n");
+        fwrite(STDERR, "用法：php tools/strip-dev.php <导出根目录> [--verify|--reapply]\n");
         exit(2);
     }
     try {
@@ -105,7 +114,7 @@ if (PHP_SAPI === 'cli' && realpath((string) ($_SERVER['argv'][0] ?? '')) === __F
             echo "PASS 清单所列路径均不存在\n";
             exit(0);
         }
-        $done = applyDevManifest($root, $manifest);
+        $done = applyDevManifest($root, $manifest, $reapply);
     } catch (RuntimeException $error) {
         fwrite(STDERR, 'FAIL ' . $error->getMessage() . "\n");
         exit(1);

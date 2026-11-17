@@ -29,6 +29,9 @@ php "$ROOT/tools/strip-dev.php" "$SRC"
 echo "== 3/6 composer install --no-dev --optimize-autoloader"
 ( cd "$SRC/server" && composer install --no-dev --optimize-autoloader --no-interaction )
 
+# 骨架发布脚本会回填 windows.php、插件前端测试文件等，需按清单宽容复剔
+php "$ROOT/tools/strip-dev.php" "$SRC" --reapply
+
 echo "== 4/6 自检：清单路径不存在、无开发构建标记、无 .env/密钥残留"
 php "$ROOT/tools/strip-dev.php" "$SRC" --verify
 if find "$SRC" -name '.sand-dev-build' | grep -q .; then
