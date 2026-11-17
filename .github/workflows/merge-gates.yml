@@ -214,7 +214,7 @@ jobs:
 
       # MySQL 两档（已知失败槽位）：前面允许失败处只作记录，这里把
       # 「迁移与测试连接只有 PG 方言」落成明确的失败信号，挡住
-      # 「全跳过显示绿」的误导。方言落地后撤掉 job 级 continue-on-error。
+      # 「全跳过显示绿」的误导。方言落地后撤掉本档位的 continue-on-error。
       - name: MySQL 方言就绪断言（已知失败：迁移仅 PG 方言）
         if: matrix.known_failure
         run: |
