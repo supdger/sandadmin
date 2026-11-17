@@ -67,13 +67,6 @@ final class ContractBuild
             return $report;
         }
 
-        $shellProblems = self::assertRouteShell($serverRoot);
-        if ($shellProblems !== []) {
-            $report['problems'] = $shellProblems;
-            $report['result'] = 'failed';
-            return $report;
-        }
-
         $sourceHash = SourceHash::compute($collection['sources']);
         $report['source_hash'] = $sourceHash;
         $sourceLabels = array_map(
@@ -158,7 +151,7 @@ final class ContractBuild
     }
 
     /**
-     * --check：产物与当前源逐字节比对 + route.php 哨兵断言，不写任何文件。
+     * --check：产物与当前源逐字节比对，不写任何文件。
      * @return array{result: string, mismatches: list<string>, warnings: list<string>, problems: list<string>}
      */
     public static function check(string $repoRoot): array
@@ -326,43 +319,8 @@ final class ContractBuild
         ];
     }
 
-    /**
-     * route.php 哨兵断言：SAND-DEV 段之外只允许 Route::disableDefaultRoute()
-     * 与对 route.generated.php 的 require，杜绝有人在哨兵外回写手挂路由。
-     * @return list<string>
-     */
-    public static function assertRouteShell(string $serverRoot): array
-    {
-        $problems = [];
-        $file = $serverRoot . '/config/route.php';
-        if (!is_file($file)) {
-            return ['route.php 不存在：' . $file];
-        }
-        $content = file_get_contents($file);
-        if ($content === false) {
-            return ['route.php 不可读：' . $file];
-        }
-        $begin = substr_count($content, '// SAND-DEV-BEGIN');
-        $end = substr_count($content, '// SAND-DEV-END');
-        if ($begin !== $end) {
-            $problems[] = "route.php 的 SAND-DEV-BEGIN/END 哨兵不成对（{$begin} vs {$end}）";
-        }
-        $stripped = preg_replace('/\/\/ SAND-DEV-BEGIN.*?\/\/ SAND-DEV-END/s', '', $content);
-        $stripped = $stripped === null ? $content : $stripped;
-        if (preg_match_all('/Route::([a-zA-Z]+)\s*\(/', $stripped, $matches) === false) {
-            $matches = [[]];
-        }
-        foreach (($matches[1] ?? []) as $verb) {
-            if ($verb !== 'disableDefaultRoute') {
-                $problems[] = "route.php 哨兵段外存在手写 Route::{$verb} 调用，路由必须走 route.generated.php";
-            }
-        }
-        if (!str_contains($stripped, "route.generated.php")) {
-            $problems[] = 'route.php 没有 require route.generated.php';
-        }
-
-        return $problems;
-    }
+    // route.php 的哨兵结构与「哨兵段外不挂路由」断言在 tools/check-dev-refs.php：
+    // 构建器不感知 dev 哨兵，那条是 dev 链门禁自己的职责。
 
     /**
      * @param array<string, string> $artifacts 相对路径 => 期望内容

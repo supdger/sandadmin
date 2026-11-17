@@ -150,7 +150,6 @@ final class SkeletonEmit
         $lines[] = 'namespace Sandadmin\Tests\Contract\Generated;';
         $lines[] = '';
         $lines[] = 'use PHPUnit\Framework\TestCase;';
-        $lines[] = 'use Sandadmin\Contract\Build\ContractBuild;';
         $lines[] = 'use Sandadmin\Contract\Generated\McpToolRegistry;';
         $lines[] = 'use Sandadmin\Tests\Contract\ContractAssertions;';
         $lines[] = '';
@@ -184,7 +183,9 @@ final class SkeletonEmit
         $lines[] = '';
         $lines[] = '    public function testRouteShellIntact(): void';
         $lines[] = '    {';
-        $lines[] = '        self::assertSame([], ContractBuild::assertRouteShell(ContractAssertions::serverRoot()));';
+        $lines[] = '        // 哨兵结构断言归 tools/check-dev-refs.php（构建器不感知哨兵）';
+        $lines[] = '        require_once ContractAssertions::repoRoot() . \'/tools/check-dev-refs.php\';';
+        $lines[] = '        self::assertSame([], \\checkRouteShell(ContractAssertions::repoRoot()));';
         $lines[] = '    }';
         $lines[] = '';
         $lines[] = '    public function testMcpToolsDeclared(): void';

@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Contract\Generated;
 
 use PHPUnit\Framework\TestCase;
-use Sandadmin\Contract\Build\ContractBuild;
 use Sandadmin\Contract\Generated\McpToolRegistry;
 use Sandadmin\Tests\Contract\ContractAssertions;
 
@@ -144,7 +143,9 @@ final class ContractSurfaceTest extends TestCase
 
     public function testRouteShellIntact(): void
     {
-        self::assertSame([], ContractBuild::assertRouteShell(ContractAssertions::serverRoot()));
+        // 哨兵结构断言归 tools/check-dev-refs.php（构建器不感知哨兵）
+        require_once ContractAssertions::repoRoot() . '/tools/check-dev-refs.php';
+        self::assertSame([], \checkRouteShell(ContractAssertions::repoRoot()));
     }
 
     public function testMcpToolsDeclared(): void

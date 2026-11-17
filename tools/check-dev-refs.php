@@ -67,11 +67,6 @@ const DEV_REF_WHITELIST = [
     'web/README.md',
     // TypePHP 整改盘点报告，逐条点名开发专用类作保留项说明，纯文档
     'tools/typephp-盘点.md',
-    // 契约设计稿与代码盘点：书面描述 dev 链规则与现状，不进入发布包
-    '契约设计.md',
-    '盘点.md',
-    // 契约构建器按哨兵剔除 dev 段，代码必须点名 SAND-DEV-BEGIN/END，属构建工具逻辑
-    'server/src/Contract/Build/ContractBuild.php',
     // 构建插件负责把 mockServiceWorker.js 从产物剔除，属构建工具逻辑
     'web/vite.config.ts',
     // lint 配置的忽略项点名 mock worker 产物文件
@@ -141,6 +136,47 @@ function scanDevRefs(array $files, array $manifest, callable $read, bool $requir
     return $violations;
 }
 
+/**
+ * route.php 结构断言：哨兵必须成对；哨兵段之外只允许
+ * Route::disableDefaultRoute() 与对 route.generated.php 的 require——
+ * 常驻路由全走契约生成表，杜绝有人在哨兵外回写手挂路由。
+ * 原属 contract-build 构建器，挪回本门禁：dev 哨兵语义的归属地在这里，
+ * 构建器不再感知哨兵（本脚本自身在 rm 清单里，token 命中不算违规）。
+ * @return list<string> 违规说明
+ */
+function checkRouteShell(string $base): array
+{
+    $file = $base . '/server/config/route.php';
+    if (!is_file($file)) {
+        return [];
+    }
+    $content = file_get_contents($file);
+    if ($content === false) {
+        return ['server/config/route.php: 不可读'];
+    }
+    $violations = [];
+    $begin = substr_count($content, '// SAND-DEV-BEGIN');
+    $end = substr_count($content, '// SAND-DEV-END');
+    if ($begin !== $end) {
+        $violations[] = "server/config/route.php: 哨兵不成对（{$begin} vs {$end}）";
+    }
+    $stripped = preg_replace('/\/\/ SAND-DEV-BEGIN.*?\/\/ SAND-DEV-END/s', '', $content);
+    $stripped = $stripped === null ? $content : $stripped;
+    if (preg_match_all('/Route::([a-zA-Z]+)\s*\(/', $stripped, $matches) === false) {
+        $matches = [[]];
+    }
+    foreach (($matches[1] ?? []) as $verb) {
+        if ($verb !== 'disableDefaultRoute') {
+            $violations[] = "server/config/route.php: 哨兵段外存在手写 Route::{$verb} 调用，路由必须走 route.generated.php";
+        }
+    }
+    if (!str_contains($stripped, 'route.generated.php')) {
+        $violations[] = 'server/config/route.php: 没有 require route.generated.php';
+    }
+
+    return $violations;
+}
+
 if (PHP_SAPI === 'cli' && realpath((string) ($_SERVER['argv'][0] ?? '')) === __FILE__) {
     $root = dirname(__DIR__);
     $pos = array_search('--dir', $_SERVER['argv'], true);
@@ -192,6 +228,10 @@ if (PHP_SAPI === 'cli' && realpath((string) ($_SERVER['argv'][0] ?? '')) === __F
             return $content === false ? null : $content;
         },
     );
+
+    foreach (checkRouteShell($base) as $routeViolation) {
+        $violations[] = $routeViolation;
+    }
 
     if ($violations !== []) {
         fwrite(STDERR, "FAIL 发现未登记的 dev-only 引用：\n");
