@@ -3,7 +3,7 @@
 # 任何一项不过即非零退出；全部通过才允许合并。
 #
 # 用法：
-#   tools/pre-merge.sh          # 同 --full
+#   tools/pre-merge.sh          # 同 --fast（与 sand-core 一致）
 #   tools/pre-merge.sh --fast   # 快档：PHPStan + strict types + deptrac + 命名
 #                               #       + 基线只减不增 + 前端三道 + PHPUnit unit
 #                               #       套件（不需要数据库）
@@ -33,10 +33,10 @@
 
 set -uo pipefail
 
-MODE=full
+MODE=fast
 case "${1:-}" in
-  ""|--full) MODE=full ;;
-  --fast)    MODE=fast ;;
+  --full)    MODE=full ;;
+  ""|--fast) MODE=fast ;;
   *) echo "未知参数：${1}（只认 --fast / --full）" >&2; exit 2 ;;
 esac
 
