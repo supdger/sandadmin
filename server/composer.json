@@ -39,6 +39,7 @@
         "supdger/sand-package": "^0.2.26",
         "symfony/http-foundation": "^7.4.23",
         "symfony/http-kernel": "^7.4.23",
+        "symfony/yaml": "^7.4",
         "workerman/webman-framework": "~2.2.5",
         "workerman/workerman": "~5.2.3",
         "monolog/monolog": "^2.0",

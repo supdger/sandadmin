@@ -17,10 +17,13 @@ use Sandadmin\Infra\Stream\WorkermanTicker;
  * 控制器取每进程 supervisor 的入口。supervisor 是进程级共享对象：
  * 「每进程挂路数」口径本就按进程计（J-5），里面只放活动会话，
  * 不装请求态数据；请求结束无残留，会话随连接关闭即出账。
+ * 按 role 分桶：不同角色（web/ai_stream）各持自己的 profile 与限额，
+ * 后到的不同 role 不会挪用首个已建桶。
  */
 final class StreamRuntime
 {
-    private static ?StreamSupervisor $supervisor = null;
+    /** @var array<string, StreamSupervisor> */
+    private static array $supervisors = [];
 
     private static ?StreamMetrics $metrics = null;
 
@@ -30,16 +33,16 @@ final class StreamRuntime
 
     public static function supervisor(string $role = 'web'): StreamSupervisor
     {
-        if (self::$supervisor === null) {
-            self::$metrics = new MemoryStreamMetrics();
-            self::$supervisor = new StreamSupervisor(
+        if (!isset(self::$supervisors[$role])) {
+            self::$metrics ??= new MemoryStreamMetrics();
+            self::$supervisors[$role] = new StreamSupervisor(
                 self::profile($role),
                 new WorkermanTicker(),
                 self::$metrics,
             );
         }
 
-        return self::$supervisor;
+        return self::$supervisors[$role];
     }
 
     public static function metrics(): ?StreamMetrics
@@ -57,7 +60,7 @@ final class StreamRuntime
     /** 进程回收与测试复位用：清掉 supervisor 引用，活动会话随之回收。 */
     public static function reset(): void
     {
-        self::$supervisor = null;
+        self::$supervisors = [];
         self::$metrics = null;
     }
 }

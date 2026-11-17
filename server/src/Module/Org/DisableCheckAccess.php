@@ -7,15 +7,17 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Org;
 
+use Sandadmin\Contract\Generated\PermissionRegistry;
+
 /**
  * GET /users/{user_id}/disable-check 的权限。
  * 停用和删除都会先看这份清单，所以持有更新或删除任一权限即可。
  */
 final class DisableCheckAccess
 {
-    public const UPDATE = 'system:user:update';
+    public const UPDATE = PermissionRegistry::USER_UPDATE;
 
-    public const DELETE = 'system:user:delete';
+    public const DELETE = PermissionRegistry::USER_DELETE;
 
     /** @param list<string> $held */
     public static function allowed(array $held): bool

@@ -27,6 +27,9 @@ final class RedisStreamChannel implements StreamChannelInterface
 
     private ?AsyncTcpConnection $subscriber = null;
 
+    /** 对端 TCP 已就绪：未就绪期间的订阅登记由 onConnect 全量补发。 */
+    private bool $connected = false;
+
     private string $buffer = '';
 
     private ?string $lastError = null;
@@ -72,7 +75,7 @@ final class RedisStreamChannel implements StreamChannelInterface
             return;
         }
         $this->connect();
-        if ($this->subscriber !== null) {
+        if ($this->connected && $this->subscriber !== null) {
             $this->subscriber->send(self::command('SUBSCRIBE', $this->keyPrefix . $channel));
         }
     }
@@ -83,7 +86,7 @@ final class RedisStreamChannel implements StreamChannelInterface
             return;
         }
         unset($this->subscribers[$channel]);
-        if ($this->subscriber !== null) {
+        if ($this->connected && $this->subscriber !== null) {
             $this->subscriber->send(self::command('UNSUBSCRIBE', $this->keyPrefix . $channel));
         }
     }
@@ -104,6 +107,9 @@ final class RedisStreamChannel implements StreamChannelInterface
         }
         $conn = new AsyncTcpConnection('tcp://' . $this->host . ':' . $this->port);
         $conn->onConnect = function (AsyncTcpConnection $conn): void {
+            // 首条命令必须等 onConnect 发出：提前 send 会把 SUBSCRIBE 排在
+            // AUTH/SELECT 之前，先吃到 -NOAUTH 或落到默认库、订阅静默不生效。
+            $this->connected = true;
             if ($this->password !== null && $this->password !== '') {
                 $conn->send(self::command('AUTH', $this->password));
             }
@@ -134,6 +140,7 @@ final class RedisStreamChannel implements StreamChannelInterface
         };
         $conn->onClose = function (): void {
             $this->subscriber = null;
+            $this->connected = false;
             $this->buffer = '';
             if ($this->subscribers !== []) {
                 Timer::add($this->reconnectSeconds, function (): void {

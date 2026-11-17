@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Http;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Plugin\ExtensionCatalog;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Domain\Plugin\ScheduleOverride;
@@ -34,7 +35,7 @@ final class ScheduleHttp
     public function update(string $code, array $body, string $requestId): array
     {
         if ($code === '' || strlen($code) > 128) {
-            return ApiOutcome::fail(422, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['code' => ['任务编码不正确']], $requestId);
+            return ApiOutcome::fail(422, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['code' => ['任务编码不正确']], $requestId);
         }
         try {
             $override = ScheduleOverride::fromArray($body);
@@ -42,15 +43,15 @@ final class ScheduleHttp
             $fields = $error->fields;
             foreach (array_keys($fields) as $field) {
                 if ($field === 'schedule' || str_starts_with($field, 'schedule.')) {
-                    return ApiOutcome::fail(422, 'TASK_SCHEDULE_INVALID', '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId);
+                    return ApiOutcome::fail(422, ErrorCodeRegistry::TASK_SCHEDULE_INVALID, '执行时间填写不正确', ['schedule' => ['执行时间填写不正确']], $requestId);
                 }
             }
 
-            return ApiOutcome::fail(422, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['status' => ['状态不正确']], $requestId);
+            return ApiOutcome::fail(422, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['status' => ['状态不正确']], $requestId);
         }
         $found = $this->connection->fetchAssociative('SELECT code, plugin_code, enabled, schedule, last_run_time, last_run_succeeded, next_run_time FROM sand_system_schedule WHERE code = ?', [$code]);
         if ($found === false) {
-            return ApiOutcome::fail(404, 'TASK_NOT_FOUND', '要找的内容不存在或已被删除', [], $requestId);
+            return ApiOutcome::fail(404, ErrorCodeRegistry::TASK_NOT_FOUND, '要找的内容不存在或已被删除', [], $requestId);
         }
         if ($override->enabled !== null) {
             $this->connection->executeStatement(

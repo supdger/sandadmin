@@ -118,7 +118,7 @@ describe('PluginsPage', () => {
     // 已有进行中申请（flow 升级中）：市场列表带 task_state，无 request_id 可看进度。
     server.use(
       http.get('/api/admin/v1/plugins/market', () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             items: [

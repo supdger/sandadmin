@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Task;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Http\DevPrincipal;
 
 /** 开发本机登录通过后，超级管理员可以下载自己发起的导出文件。 */
@@ -23,7 +24,7 @@ final class DevTaskActorProvider implements TaskActorProvider
         if ($org === null) {
             return null;
         }
-        $viewAll = $org->isSuper || $org->can('system:task:index');
+        $viewAll = $org->isSuper || $org->can(PermissionRegistry::TASK_INDEX);
 
         return new TaskActor($org->userId, $viewAll);
     }

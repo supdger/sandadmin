@@ -56,6 +56,8 @@ describe('ShortcutGrid', () => {
     server.use(
       http.get('/api/admin/v1/dashboard/shortcuts', () =>
         HttpResponse.json({
+          code: 'OK',
+          message: '操作成功',
           data: {
             mode: 'auto',
             items: [
@@ -78,6 +80,8 @@ describe('ShortcutGrid', () => {
     server.use(
       http.get('/api/admin/v1/dashboard/shortcuts', () =>
         HttpResponse.json({
+          code: 'OK',
+          message: '操作成功',
           data: {
             mode: 'auto',
             items: [

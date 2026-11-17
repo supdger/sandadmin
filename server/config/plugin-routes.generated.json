@@ -1,0 +1,13 @@
+{
+    "_comment": [
+        "<contract-generated> 本文件由 tools/contract-build 生成，请勿手改；",
+        "改了会在契约一致性门禁（tools/contract-build --check）被打回。",
+        "源: contract/openapi.yaml",
+        "源哈希: sha256:2ad417781bac21b50758c6fe528ed0717de706610284013f09b6952b79f5b7b0",
+        "生成器: contract-build v1"
+    ],
+    "routes": [
+        "plugin/sandadmin/config/route.php",
+        "plugin/sandpackage/config/route.php"
+    ]
+}

@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Stream;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 /**
  * 流式连接的断开原因。指标按这里取值计数；errorCode() 给出断开前
  * 随错误事件发向客户端的契约码（错误码总表登记项），null 表示不发码。
@@ -23,10 +25,10 @@ enum StreamCloseReason: string
     public function errorCode(): ?string
     {
         return match ($this) {
-            self::Idle => 'STREAM_IDLE_TIMEOUT',
-            self::DurationLimit => 'STREAM_DURATION_LIMIT',
-            self::Revoked => 'STREAM_AUTHZ_REVOKED',
-            self::Failed => 'INTERNAL_ERROR',
+            self::Idle => ErrorCodeRegistry::STREAM_IDLE_TIMEOUT,
+            self::DurationLimit => ErrorCodeRegistry::STREAM_DURATION_LIMIT,
+            self::Revoked => ErrorCodeRegistry::STREAM_AUTHZ_REVOKED,
+            self::Failed => ErrorCodeRegistry::INTERNAL_ERROR,
             self::Completed, self::ClientGone => null,
         };
     }

@@ -10,10 +10,10 @@ function randomRequestId(): string {
   return `v1-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** v1 成功信封：`{ data, request_id }`——没有 `code`/`message`。 */
+/** v1 成功信封：`{ code:'OK', message:'操作成功', data, request_id }`（api-conventions §2.1）。 */
 export function okV1<T>(data: T, init?: { status?: number }) {
   return HttpResponse.json(
-    { data, request_id: randomRequestId() },
+    { code: 'OK', message: '操作成功', data, request_id: randomRequestId() },
     {
       status: init?.status ?? 200,
       headers: { 'x-authz-version': String(authzVersion()) },

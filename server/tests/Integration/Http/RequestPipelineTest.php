@@ -174,7 +174,11 @@ final class RequestPipelineTest extends TestCase
         $response = $json->fromPayload(['items' => [], 'total' => 0], 'req-12345678');
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame('{"data":{"items":[],"total":0},"request_id":"req-12345678"}', $response->rawBody());
+        // 成功信封契约：{code:"OK", message:"操作成功", data, request_id}
+        self::assertSame(
+            '{"code":"OK","message":"操作成功","data":{"items":[],"total":0},"request_id":"req-12345678"}',
+            $response->rawBody(),
+        );
         self::assertSame('req-12345678', $response->getHeader('X-Request-Id'));
         self::assertSame('application/json; charset=utf-8', $response->getHeader('Content-Type'));
     }
