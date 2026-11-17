@@ -80,6 +80,36 @@ final class TypephpCheckTest extends TestCase
         self::assertSame(0, $this->countHits($hits, 'FAIL'));
     }
 
+    public function testVariableClassStaticCallsFlagged(): void
+    {
+        $hits = $this->scan('$className::start($worker); $cls::$method();');
+        self::assertSame(2, $this->countHits($hits, 'FAIL', '可变调用'));
+    }
+
+    public function testNamedClassStaticAccessAllowed(): void
+    {
+        $hits = $this->scan('Foo::start(); self::$list = []; $error::class; parent::boot(); $this->method(); Foo::BAR;');
+        self::assertSame(0, $this->countHits($hits, 'FAIL'));
+    }
+
+    public function testNewVariableWithoutParensFlagged(): void
+    {
+        $hits = $this->scan('$a = new $className; $b = new $className();');
+        self::assertSame(2, $this->countHits($hits, 'FAIL', '可变调用'));
+    }
+
+    public function testIndirectCallFunctionsFlagged(): void
+    {
+        $hits = $this->scan('call_user_func($fn, 1); call_user_func_array($cb, $args); forward_static_call("A::b"); forward_static_call_array([$cls, "m"], []);');
+        self::assertSame(4, $this->countHits($hits, 'FAIL', '可变调用'));
+    }
+
+    public function testIndirectCallFunctionsIgnoredShapes(): void
+    {
+        $hits = $this->scan('$o->call_user_func($x); Foo::call_user_func($f); $name = "call_user_func"; // call_user_func($x)');
+        self::assertSame(0, $this->countHits($hits, 'FAIL'));
+    }
+
     public function testDynamicFunctionsFlagged(): void
     {
         $hits = $this->scan('eval($code); extract($vars); $fn = create_function("$a", "return $a;");');

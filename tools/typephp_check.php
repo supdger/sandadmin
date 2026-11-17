@@ -18,6 +18,9 @@ const TYPEPHP_MAGIC_METHODS = [
     '__sleep', '__wakeup', '__clone', '__debuginfo', '__serialize', '__unserialize',
 ];
 const TYPEPHP_FAIL_FUNCTIONS = ['create_function', 'extract'];
+const TYPEPHP_INDIRECT_CALL_FUNCTIONS = [
+    'call_user_func', 'call_user_func_array', 'forward_static_call', 'forward_static_call_array',
+];
 const TYPEPHP_WARN_FUNCTIONS = ['compact'];
 const TYPEPHP_LOAD_TOKENS = [T_INCLUDE, T_INCLUDE_ONCE, T_REQUIRE, T_REQUIRE_ONCE];
 
@@ -127,6 +130,8 @@ function typephpScanTokens(array $tokens): array
                 [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_FN], true);
             if ($isCallName && !$isMember && in_array($lower, TYPEPHP_FAIL_FUNCTIONS, true)) {
                 $hits[] = typephpHit('FAIL', '危险函数', [$line], $text . '()', 'TypePHP 禁用写法，换成显式赋值');
+            } elseif ($isCallName && !$isMember && in_array($lower, TYPEPHP_INDIRECT_CALL_FUNCTIONS, true)) {
+                $hits[] = typephpHit('FAIL', '可变调用', [$line], $text . '()', '可变函数名调用通道，TypePHP 不可静态确定');
             } elseif ($isCallName && !$isMember && in_array($lower, TYPEPHP_WARN_FUNCTIONS, true)) {
                 $hits[] = typephpHit('WARN', '反向造变量', [$line], $text . '()', 'compact() 反向造变量，建议显式数组');
             }
@@ -150,8 +155,9 @@ function typephpScanTokens(array $tokens): array
             }
             $isMember = is_array($prev) && in_array($prev[0],
                 [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON], true);
-            if ($next === '(' && !$isMember) {
-                $label = typephpIsToken($prev, T_NEW) ? "new {$text}()" : "{$text}()";
+            $isNew = typephpIsToken($prev, T_NEW);
+            if ($isNew || ($next === '(' && !$isMember)) {
+                $label = $isNew ? "new {$text}()" : "{$text}()";
                 $hits[] = typephpHit('FAIL', '可变调用', [$line], $label, '变量函数/类名调用，TypePHP 不可静态确定');
             }
             continue;
@@ -166,10 +172,15 @@ function typephpScanTokens(array $tokens): array
         if ($id === T_DOUBLE_COLON) {
             $j = typephpNext($tokens, $i);
             $next = typephpToken($tokens, $j);
-            if (typephpIsToken($next, T_VARIABLE)
-                && typephpToken($tokens, typephpNext($tokens, $j)) === '(') {
+            $afterMember = typephpToken($tokens, typephpNext($tokens, $j));
+            if (typephpIsToken($next, T_VARIABLE) && $afterMember === '(') {
                 // ::$m() 是按变量取方法名；无括号的是静态属性字面访问（self::$x），不算动态调用。
                 $hits[] = typephpHit('FAIL', '可变调用', [$line], "::{$next[1]}()", '静态方法名是变量，TypePHP 不可静态确定');
+            }
+            $receiver = typephpToken($tokens, typephpPrev($tokens, $i));
+            if (typephpIsToken($receiver, T_VARIABLE) && typephpIsToken($next, T_STRING) && $afterMember === '(') {
+                // $cls::m() 的类名是变量；$cls::$m() 已由上一条记过，$e::class 的 class 是 T_CLASS 不算。
+                $hits[] = typephpHit('FAIL', '可变调用', [$line], "{$receiver[1]}::{$next[1]}()", '类名是变量的静态调用，TypePHP 不可静态确定');
             }
             continue;
         }
