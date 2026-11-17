@@ -31,6 +31,7 @@ use Sandadmin\Http\MeController;
 use Sandadmin\Http\MenuController;
 use Sandadmin\Http\NotificationController;
 use Sandadmin\Http\OrgController;
+use Sandadmin\Http\SpaFallback;
 use Sandadmin\Http\TaskController;
 use Webman\Route;
 
@@ -181,3 +182,7 @@ Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'up
 Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
 Route::post('/api/admin/v1/system/update/start', [PackageController::class, 'startUpdate']);
 Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);
+
+// SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；
+// /api/** 未命中与非 GET 在其内重抛 404，与反代部署不冲突。
+Route::fallback([SpaFallback::class, 'respond']);
