@@ -137,11 +137,27 @@ foreach (config('plugin', []) as $firm => $projects) {
     }
 }
 
-$directory = base_path() . '/plugin';
+// 插件路由入口不再扫目录，走契约构建期生成的清单
+// （server/config/plugin-routes.generated.php）；无契约片段的插件
+// 在清单里仍指向旧 config/route.php，由构建期 warning 记录。
 $paths = [config_path()];
-foreach (Util::scanDir($directory) as $path) {
-    if (is_dir($path = "$path/config")) {
-        $paths[] = $path;
+$pluginRouteManifest = config_path() . '/plugin-routes.generated.php';
+if (is_file($pluginRouteManifest)) {
+    /** @var list<string> $pluginRoutes */
+    $pluginRoutes = require $pluginRouteManifest;
+    foreach ($pluginRoutes as $entry) {
+        $dir = base_path() . '/' . dirname($entry);
+        if (is_dir($dir)) {
+            $paths[] = $dir;
+        }
+    }
+} else {
+    // 清单缺失时回退旧扫描，避免升级途中的半成品状态起不来
+    $directory = base_path() . '/plugin';
+    foreach (Util::scanDir($directory) as $path) {
+        if (is_dir($path = "$path/config")) {
+            $paths[] = $path;
+        }
     }
 }
 Route::load($paths);
