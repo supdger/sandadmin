@@ -13,7 +13,7 @@ const base = `${env.apiBaseUrl}/admin/v1`;
 function mockPermissions(permissions: string[]) {
   server.use(
     http.get(`${base}/me`, () =>
-      HttpResponse.json({
+      HttpResponse.json({ code: 'OK',
         data: {
           id: 'u-1',
           username: 'u',

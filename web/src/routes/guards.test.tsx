@@ -40,7 +40,7 @@ function renderAt(entry: string, extraRoutes: RouteObject[] = []) {
 function mockMe(user: { mustChangePassword: boolean; permissions?: string[] }) {
   server.use(
     http.get(`${base}/me`, () =>
-      HttpResponse.json({
+      HttpResponse.json({ code: 'OK',
         data: {
           id: 'u-1',
           username: 'admin',

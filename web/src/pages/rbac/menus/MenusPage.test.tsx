@@ -84,7 +84,7 @@ describe('MenusPage', () => {
     server.use(
       http.get(`${v1}/menus/tree`, ({ request }) => {
         seenKeyword = new URL(request.url).searchParams.get('keyword');
-        return HttpResponse.json({
+        return HttpResponse.json({ code: 'OK',
           data: { menu_version: 7, items: [] },
           request_id: 'test',
         });
@@ -130,7 +130,7 @@ describe('MenusPage', () => {
     server.use(
       http.post(`${v1}/menus/groups`, () => {
         postCalls += 1;
-        return HttpResponse.json({ data: { key: 'x' }, request_id: 't' });
+        return HttpResponse.json({ code: 'OK', data: { key: 'x' }, request_id: 't' });
       }),
     );
     renderPage();
@@ -171,7 +171,7 @@ describe('MenusPage', () => {
     server.use(
       http.post(`${v1}/menus/:menuKey/move`, async ({ request }) => {
         moveBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ data: {}, request_id: 'test' });
+        return HttpResponse.json({ code: 'OK', data: {}, request_id: 'test' });
       }),
     );
     renderPage();

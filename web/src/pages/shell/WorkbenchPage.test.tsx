@@ -88,22 +88,22 @@ describe('WorkbenchPage', () => {
 
   it('renders empty states when dashboard lists are missing', async () => {
     server.use(
-      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.json({ code: 'OK', data: {}, request_id: 'empty' })),
       http.get('/api/admin/v1/dashboard/todos', () =>
-        HttpResponse.json({ data: { items: null, total: 0 }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { items: null, total: 0 }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/charts', () =>
-        HttpResponse.json({ data: { charts: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { charts: null }, request_id: 'empty' }),
       ),
-      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.json({ code: 'OK', data: {}, request_id: 'empty' })),
       http.get('/api/admin/v1/dashboard/notices', () =>
-        HttpResponse.json({ data: { items: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { items: null }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/shortcuts', () =>
-        HttpResponse.json({ data: { mode: 'auto', items: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { mode: 'auto', items: null }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/onboarding', () =>
-        HttpResponse.json({ data: { done: false, steps: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { done: false, steps: null }, request_id: 'empty' }),
       ),
     );
     setToken('mock-admin-token');

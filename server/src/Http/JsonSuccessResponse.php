@@ -7,9 +7,10 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Webman\Http\Response;
 
-/** 成功 JSON：{data, request_id}（api-conventions §2.1）。 */
+/** 成功 JSON：{code:"OK", message:"操作成功", data, request_id}（api-conventions §2.1）。 */
 final class JsonSuccessResponse
 {
     public function fromPayload(mixed $payload, string $requestId): Response
@@ -19,6 +20,8 @@ final class JsonSuccessResponse
         }
         $encoded = json_encode(
             [
+                'code' => ErrorCodeRegistry::OK,
+                'message' => '操作成功',
                 'data' => $payload,
                 'request_id' => $requestId,
             ],

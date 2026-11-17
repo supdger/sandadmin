@@ -64,7 +64,7 @@ describe('ImportantAnnouncementModal', () => {
     server.use(
       http.post(`${base}/announcements/:id/read`, ({ params }) => {
         readIds.push(String(params.id));
-        return HttpResponse.json({ data: { read: true }, request_id: 't' });
+        return HttpResponse.json({ code: 'OK', data: { read: true }, request_id: 't' });
       }),
     );
     const onCloseAll = renderModal();

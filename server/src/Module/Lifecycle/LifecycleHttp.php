@@ -7,6 +7,9 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Lifecycle;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Http\ApiOutcome;
+
 /**
  * GET /api/admin/v1/lifecycle-requests/{request_id} 装配。
  * request_id 为 public_id（uuid）；不存在或无权查看一律 404。
@@ -19,20 +22,18 @@ final class LifecycleHttp
     public static function show(LifecycleRepository $requests, ?LifecycleActor $actor, string $requestId, string $envelopeId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', $envelopeId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', $envelopeId);
         }
         if (preg_match(self::UUID_PATTERN, $requestId) !== 1) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $envelopeId, ['request_id' => ['申请编号不正确']]);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $envelopeId, ['request_id' => ['申请编号不正确']]);
         }
         $item = $requests->findByPublicId(strtolower($requestId));
         if ($item === null || !$item->visibleTo($actor)) {
-            return self::failure(404, 'LIFECYCLE_REQUEST_NOT_FOUND', '申请不存在或无权查看', $envelopeId);
+            return self::failure(404, ErrorCodeRegistry::LIFECYCLE_REQUEST_NOT_FOUND, '申请不存在或无权查看', $envelopeId);
         }
 
-        return [
-            'status' => 200,
-            'body' => ['data' => $item->toApi(), 'request_id' => $envelopeId],
-        ];
+        // 成功信封统一走 ApiOutcome 单点（code=OK + message）
+        return ApiOutcome::ok($item->toApi(), $envelopeId);
     }
 
     /**
