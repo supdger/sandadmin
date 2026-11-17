@@ -108,7 +108,10 @@ final class DevLoginController extends OpenController
         return $this->success($token);
     }
 
-    /** 纯 1.x 库没有旧账号表时，仍发一枚本机令牌。审计文案与正常开发登录相同。 */
+    /**
+     * 纯 1.x 库没有旧账号表时，仍发一枚本机令牌。审计文案与正常开发登录相同。
+     * 响应形状与 issueToken 一致（snake_case），本机令牌无 expires_in/refresh_token。
+     */
     private function localToken(): Response
     {
         try {
@@ -123,8 +126,9 @@ final class DevLoginController extends OpenController
         }
 
         return $this->success([
-            'token' => bin2hex(random_bytes(16)),
-            'mustChangePassword' => false,
+            'token_type' => 'Bearer',
+            'access_token' => bin2hex(random_bytes(16)),
+            'must_change_password' => false,
         ]);
     }
 

@@ -7,12 +7,14 @@ declare(strict_types=1);
 
 namespace app\support;
 
+use Sandadmin\Infra\DevBuild;
 use support\Request;
 
 /**
- * 开发本机登录放行判定：环境开关 + 真实回环对端 + 无转发头。
+ * 开发本机登录放行判定：开发构建标记 + 环境开关 + 真实回环对端 + 无转发头。
  * 出现 X-Forwarded-For / X-Real-IP / Forwarded 说明前面有代理，
  * getRemoteIp() 看到的「回环」不可信，一律拒绝；
+ * 生产制品没有 .sand-dev-build 标记，SAND_DEV_BUILD 不成立，整条链不挂；
  * 纯函数部分可脱离连接单测。
  */
 final class DevLoginGate
@@ -25,7 +27,7 @@ final class DevLoginGate
 
     public static function enabled(): bool
     {
-        return env('SAND_DEV_LOGIN') === '1';
+        return DevBuild::enabled() && env('SAND_DEV_LOGIN') === '1';
     }
 
     public static function allowed(Request $request): bool

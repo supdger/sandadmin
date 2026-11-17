@@ -12,9 +12,14 @@ export interface LoginParams {
   captchaAnswer?: number[];
 }
 
+// 后端发牌形状即 tinywan JwtToken::generateToken + must_change_password，
+// 全为 snake_case；前端不做 case 转换。本机令牌兜底无 expires_in/refresh_token。
 export interface LoginResult {
-  token: string;
-  mustChangePassword: boolean;
+  token_type: string;
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  must_change_password: boolean;
 }
 
 export interface DevLoginAvailability {
@@ -32,7 +37,7 @@ export interface PasswordPolicy {
 
 export async function login(p: LoginParams): Promise<LoginResult> {
   const data = await apiPost<LoginResult>('/auth/login', p);
-  setToken(data.token);
+  setToken(data.access_token);
   return data;
 }
 
@@ -48,7 +53,7 @@ export async function getDevLoginAvailable(): Promise<DevLoginAvailability> {
 // 成功响应与 login() 同构，复用同一解析与写令牌路径；不可用时后端回 HTTP 404。
 export async function devLogin(): Promise<LoginResult> {
   const data = await apiPost<LoginResult>('/auth/dev-login');
-  setToken(data.token);
+  setToken(data.access_token);
   return data;
 }
 

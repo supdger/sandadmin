@@ -30,6 +30,7 @@ import {
 import type { NavItems } from '@douyinfe/semi-ui/lib/es/navigation';
 
 import type { MyMenuNode } from '@/api/v1/me';
+import i18n from '@/i18n/i18n';
 
 /**
  * v1 `/me/menus` returns an already-nested tree of MyMenuNode
@@ -93,6 +94,20 @@ function menuIcon(item: MyMenuNode, depth: number): ReactNode {
   return icon ?? <IconApps />;
 }
 
+/**
+ * 菜单显示标题：节点带 plugin + title_key 时按 `plugin-<code>` 命名空间
+ * 翻译（词条由插件前端注册），否则用后端下发的 title 兜底。
+ */
+export function resolveMenuTitle(item: MyMenuNode): string {
+  if (item.plugin && item.title_key) {
+    return i18n.t(item.title_key, {
+      ns: `plugin-${item.plugin}`,
+      defaultValue: item.title,
+    });
+  }
+  return item.title;
+}
+
 /** MyMenuNode 树 → Semi Nav items；group/link 用 key 做标识，page 用 path。 */
 export function toNavItems(menus: MyMenuNode[], depth = 0): NavItems {
   return menus.map((item) => {
@@ -100,12 +115,12 @@ export function toNavItems(menus: MyMenuNode[], depth = 0): NavItems {
     if (item.children && item.children.length > 0) {
       return {
         itemKey: item.key,
-        text: item.title,
+        text: resolveMenuTitle(item),
         icon,
         items: toNavItems(item.children, depth + 1),
       };
     }
     const target = item.type === 'link' ? item.url : item.path;
-    return { itemKey: target ?? item.key, text: item.title, icon };
+    return { itemKey: target ?? item.key, text: resolveMenuTitle(item), icon };
   });
 }

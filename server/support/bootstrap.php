@@ -53,6 +53,10 @@ if (class_exists('Dotenv\Dotenv') && file_exists(base_path(false) . '/.env')) {
 // .env 加载之后、配置与首个数据库连接之前：未显式设置时默认关闭 libpq GSSAPI 协商。
 require_once __DIR__ . '/gssencmode.php';
 
+// 开发构建标记：源码检出带 .sand-dev-build 空文件，生产制品打包时剔除；
+// 必须在 Route::load 与 bootstrap 守卫之前定义，dev 链（免登录路由等）据此整体不挂。
+defined('SAND_DEV_BUILD') || define('SAND_DEV_BUILD', is_file(base_path() . '/.sand-dev-build'));
+
 Config::clear();
 support\App::loadAllConfig(['route']);
 if ($timezone = config('app.default_timezone')) {

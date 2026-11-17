@@ -416,6 +416,31 @@ export function buildMenuTree(): MenuTree {
         locked: { move: false, hide: false },
         url: '/plugin/analytics',
       },
+      // 示例插件 sand-hello 的「已安装」菜单形态：分组 + 一个子页，
+      // 子页标题由插件前端词条（title_key + plugin）翻译。
+      {
+        key: 'plugin:sand-hello',
+        type: 'group',
+        title: '你好插件',
+        icon: 'star',
+        source: { kind: 'plugin', plugin_label: '你好插件' },
+        visible: true,
+        locked: { move: false, hide: false },
+        children: [
+          {
+            key: 'plugin:sand-hello:home',
+            type: 'page',
+            title: '插件首页',
+            title_key: 'menu.home',
+            plugin: 'sand-hello',
+            icon: null,
+            source: { kind: 'plugin', plugin_label: '你好插件' },
+            visible: true,
+            locked: { move: false, hide: false },
+            url: '/plugin/sand-hello',
+          },
+        ],
+      },
     ],
   };
 }

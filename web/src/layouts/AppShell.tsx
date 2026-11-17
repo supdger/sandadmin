@@ -20,7 +20,7 @@ import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { useVisitReport } from '@/hooks/useVisitReport';
 import { AnnouncementPopup } from './AnnouncementPopup';
-import { findMenuChain, toNavItems } from './menuTree';
+import { findMenuChain, resolveMenuTitle, toNavItems } from './menuTree';
 import { NotificationBell } from './NotificationBell';
 import { useThemeMode } from './themeMode';
 import { UserMenu } from './UserMenu';
@@ -96,7 +96,7 @@ export function AppShell() {
   const breadcrumbRoutes =
     chain.length > 0
       ? chain.map((item) => ({
-          name: item.title,
+          name: resolveMenuTitle(item),
           ...(item.path ? { path: item.path } : {}),
         }))
       : lastHandle.title
