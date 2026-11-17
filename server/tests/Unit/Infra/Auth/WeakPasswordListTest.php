@@ -45,6 +45,18 @@ final class WeakPasswordListTest extends TestCase
         self::assertTrue($list->isWeak('1q2w3e4r5t6y'));
     }
 
+    public function testVendoredFileHitsShortCommonPasswords(): void
+    {
+        $path = dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . 'resource' . DIRECTORY_SEPARATOR . 'security' . DIRECTORY_SEPARATOR . 'weak-passwords.txt';
+        $list = WeakPasswordList::fromFile($path);
+        // admin888 是中文表选 top-100000 版本的理由（第 11,339 位），必须在表里。
+        self::assertTrue($list->isWeak('admin888'));
+        self::assertTrue($list->isWeak('qwerty123'));
+        self::assertTrue($list->isWeak('password123'));
+        self::assertTrue($list->isWeak('a123456'));
+        self::assertTrue($list->isWeak('woaini1314'));
+    }
+
     public function testMissReturnsFalse(): void
     {
         $list = $this->listWith(['password123456']);

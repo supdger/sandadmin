@@ -12,9 +12,6 @@ const SECLISTS_BASE = 'https://raw.githubusercontent.com/danielmiessler/SecLists
 const NCSC_SOURCE = 'Passwords/Common-Credentials/100k-most-used-passwords-NCSC.txt';
 const CHINESE_SOURCE = 'Passwords/Common-Credentials/Language-Specific/Chinese-common-password-list-top-100000.txt';
 
-// C-18 密码最小 12 位：短于 12 的候选在长度检查已拒，词表只保留 ≥12 位条目。
-const MIN_LENGTH = 12;
-
 // 中文表按源文件频率序只取前 20000 条。
 const CHINESE_LIMIT = 20000;
 
@@ -135,7 +132,7 @@ function entries(string $raw, ?int $headLimit): array
 
 /**
  * 单条源记录是否保留：去空行、注释行、含空白字符的行，
- * 以及像手机号、身份证号、邮箱、QQ 号的条目；长度下限 MIN_LENGTH。
+ * 以及像手机号、身份证号、邮箱、QQ 号的条目。
  */
 function accepts(string $word): bool
 {
@@ -143,9 +140,6 @@ function accepts(string $word): bool
         return false;
     }
     if (preg_match('/\s/', $word) === 1) {
-        return false;
-    }
-    if (mb_strlen($word) < MIN_LENGTH) {
         return false;
     }
     if (str_contains($word, '@')) {
