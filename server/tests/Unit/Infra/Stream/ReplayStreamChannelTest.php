@@ -10,14 +10,14 @@ namespace Sandadmin\Tests\Unit\Infra\Stream;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Domain\Stream\StreamEvent;
 use Sandadmin\Infra\Stream\MemoryStreamChannel;
-use Sandadmin\Infra\Stream\MemoryStreamReplayStore;
+use Sandadmin\Infra\Stream\MemoryReplayStore;
 use Sandadmin\Infra\Stream\ReplayStreamChannel;
 
 final class ReplayStreamChannelTest extends TestCase
 {
     public function testPublishFansOutAndLandsInStore(): void
     {
-        $store = new MemoryStreamReplayStore();
+        $store = new MemoryReplayStore();
         $channel = new ReplayStreamChannel(new MemoryStreamChannel(), $store);
         $received = [];
         $channel->subscribe('note.1', function (StreamEvent $event) use (&$received): void {
@@ -32,7 +32,7 @@ final class ReplayStreamChannelTest extends TestCase
 
     public function testReplayAfterLastEventId(): void
     {
-        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryStreamReplayStore());
+        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryReplayStore());
         $channel->publish('note.1', new StreamEvent('1', null, 'a'));
         $channel->publish('note.1', new StreamEvent('2', null, 'b'));
 
@@ -45,7 +45,7 @@ final class ReplayStreamChannelTest extends TestCase
 
     public function testUnsubscribeProxiesToInner(): void
     {
-        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryStreamReplayStore());
+        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryReplayStore());
         $count = 0;
         $channel->subscribe('c', function () use (&$count): void {
             $count++;

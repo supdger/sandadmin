@@ -13,14 +13,14 @@ use Sandadmin\Infra\Stream\SseFraming;
 
 final class SseFramingTest extends TestCase
 {
-    public function testFramesIdNameAndData(): void
+    public function testFramesIdNameAndPayload(): void
     {
         $frame = SseFraming::frame(new StreamEvent('42', 'note', 'hello'));
 
         self::assertSame("id: 42\nevent: note\ndata: hello\n\n", $frame);
     }
 
-    public function testSplitsMultilineData(): void
+    public function testSplitsMultilinePayload(): void
     {
         $frame = SseFraming::frame(new StreamEvent(null, null, "a\nb\r\nc"));
 

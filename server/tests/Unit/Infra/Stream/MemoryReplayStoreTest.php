@@ -9,13 +9,13 @@ namespace Sandadmin\Tests\Unit\Infra\Stream;
 
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Domain\Stream\StreamEvent;
-use Sandadmin\Infra\Stream\MemoryStreamReplayStore;
+use Sandadmin\Infra\Stream\MemoryReplayStore;
 
-final class MemoryStreamReplayStoreTest extends TestCase
+final class MemoryReplayStoreTest extends TestCase
 {
     public function testAfterCursorReturnsSubsequentEvents(): void
     {
-        $store = new MemoryStreamReplayStore();
+        $store = new MemoryReplayStore();
         $store->append('c', new StreamEvent('1', null, 'a'));
         $store->append('c', new StreamEvent('2', null, 'b'));
         $store->append('c', new StreamEvent('3', null, 'c'));
@@ -28,7 +28,7 @@ final class MemoryStreamReplayStoreTest extends TestCase
 
     public function testNullCursorReturnsEverything(): void
     {
-        $store = new MemoryStreamReplayStore();
+        $store = new MemoryReplayStore();
         $store->append('c', new StreamEvent('1', null, 'a'));
         $store->append('c', new StreamEvent('2', null, 'b'));
 
@@ -37,7 +37,7 @@ final class MemoryStreamReplayStoreTest extends TestCase
 
     public function testUnknownCursorFallsBackToAll(): void
     {
-        $store = new MemoryStreamReplayStore();
+        $store = new MemoryReplayStore();
         $store->append('c', new StreamEvent('1', null, 'a'));
         $store->append('c', new StreamEvent('2', null, 'b'));
 
@@ -46,7 +46,7 @@ final class MemoryStreamReplayStoreTest extends TestCase
 
     public function testAutoAssignsMonotonicCursorWhenIdMissing(): void
     {
-        $store = new MemoryStreamReplayStore();
+        $store = new MemoryReplayStore();
         $store->append('c', new StreamEvent(null, null, 'a'));
         $store->append('c', new StreamEvent(null, null, 'b'));
 
@@ -57,7 +57,7 @@ final class MemoryStreamReplayStoreTest extends TestCase
 
     public function testDropsOldestWhenOverLimit(): void
     {
-        $store = new MemoryStreamReplayStore(2);
+        $store = new MemoryReplayStore(2);
         $store->append('c', new StreamEvent('1', null, 'a'));
         $store->append('c', new StreamEvent('2', null, 'b'));
         $store->append('c', new StreamEvent('3', null, 'c'));

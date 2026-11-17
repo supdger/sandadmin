@@ -43,8 +43,8 @@ function ping(string $base): array
     $elapsed = (microtime(true) - $started) * 1000.0;
     $code = 0;
     foreach ($http_response_header as $line) {
-        if (preg_match('#^HTTP/\S+\s+(\d+)#', $line, $m) === 1) {
-            $code = (int) $m[1];
+        if (preg_match('#^HTTP/\S+\s+(\d+)#', $line, $match) === 1) {
+            $code = (int) $match[1];
         }
     }
 

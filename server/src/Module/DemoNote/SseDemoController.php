@@ -16,7 +16,7 @@ use Sandadmin\Domain\Stream\StreamTicker;
 use Sandadmin\Infra\DevBuild;
 use Sandadmin\Infra\Stream\MemoryStreamChannel;
 use Sandadmin\Infra\Stream\MemoryStreamMetrics;
-use Sandadmin\Infra\Stream\MemoryStreamReplayStore;
+use Sandadmin\Infra\Stream\MemoryReplayStore;
 use Sandadmin\Infra\Stream\ReplayStreamChannel;
 use Sandadmin\Infra\Stream\SseStreamWriter;
 use Sandadmin\Infra\Stream\WorkermanTicker;
@@ -142,7 +142,7 @@ final class SseDemoController
     private static function channel(): ReplayStreamChannel
     {
         if (self::$sharedChannel === null) {
-            self::$sharedChannel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryStreamReplayStore(1000));
+            self::$sharedChannel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryReplayStore(1000));
         }
 
         return self::$sharedChannel;

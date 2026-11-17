@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Sandadmin\Application\Stream\StreamSupervisor;
 use Sandadmin\Infra\Stream\MemoryStreamChannel;
 use Sandadmin\Infra\Stream\MemoryStreamMetrics;
-use Sandadmin\Infra\Stream\MemoryStreamReplayStore;
+use Sandadmin\Infra\Stream\MemoryReplayStore;
 use Sandadmin\Infra\Stream\ReplayStreamChannel;
 use Sandadmin\Infra\Stream\StreamProfile;
 use Sandadmin\Module\DemoNote\SseDemoController;
@@ -42,7 +42,7 @@ final class SseDemoEndpointTest extends TestCase
             $ticker,
             $metrics,
         );
-        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryStreamReplayStore());
+        $channel = new ReplayStreamChannel(new MemoryStreamChannel(), new MemoryReplayStore());
         $controller = new SseDemoController($supervisor, $ticker, $channel);
 
         return [$controller, $ticker, $channel, $supervisor];

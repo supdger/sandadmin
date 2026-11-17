@@ -15,7 +15,7 @@ use Sandadmin\Domain\Stream\StreamReplayStore;
  * 只覆盖本进程见过的事件——多进程部署的完整补发要库表实现，
  * 库表等编号表定稿后另做，接口不变。
  */
-final class MemoryStreamReplayStore implements StreamReplayStore
+final class MemoryReplayStore implements StreamReplayStore
 {
     /** @var array<string, list<StreamEvent>> */
     private array $events = [];

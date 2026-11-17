@@ -52,20 +52,20 @@ final class StreamSupervisorTest extends TestCase
             new MemoryStreamMetrics(),
         );
         $probe = new MapPermissionProbe(['u1' => 1, 'u2' => 1]);
-        $writer1 = new MemoryStreamWriter();
-        $writer2 = new MemoryStreamWriter();
-        $writer3 = new MemoryStreamWriter();
-        $supervisor->open('u1', 1, $writer1, $probe)->start();
-        $supervisor->open('u1', 1, $writer2, $probe)->start();
-        $supervisor->open('u2', 1, $writer3, $probe)->start();
+        $aliceWriter = new MemoryStreamWriter();
+        $bobWriter = new MemoryStreamWriter();
+        $carolWriter = new MemoryStreamWriter();
+        $supervisor->open('u1', 1, $aliceWriter, $probe)->start();
+        $supervisor->open('u1', 1, $bobWriter, $probe)->start();
+        $supervisor->open('u2', 1, $carolWriter, $probe)->start();
 
         self::assertSame(2, $supervisor->revokeSubject('u1'));
 
-        self::assertTrue($writer1->isClosed());
-        self::assertTrue($writer2->isClosed());
-        self::assertFalse($writer3->isClosed());
+        self::assertTrue($aliceWriter->isClosed());
+        self::assertTrue($bobWriter->isClosed());
+        self::assertFalse($carolWriter->isClosed());
         self::assertSame(1, $supervisor->activeCount());
-        self::assertStringContainsString('STREAM_AUTHZ_REVOKED', $writer1->output());
+        self::assertStringContainsString('STREAM_AUTHZ_REVOKED', $aliceWriter->output());
     }
 
     public function testCloseReasonsFlowIntoMetrics(): void
