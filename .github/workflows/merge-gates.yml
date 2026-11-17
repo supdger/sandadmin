@@ -1,9 +1,12 @@
-# 1.x 合并前门禁·快档（v4 T-8 / L-1 / U-6 / R-8）：静态检查、strict types、
-# 依赖方向、命名自查、基线只减不增、前端三道、PHPUnit unit 套件，
+# 1.x 合并前门禁·快档（v4 T-8 / L-1 / U-6 / R-8）：直接调用
+# tools/pre-merge.sh --fast，本地和 CI 是同一套命令——红了先在本地
+# 跑 tools/pre-merge.sh --fast 复现再改，别只在 CI 上猜。
+# 快档内容（步序见脚本）：php -l、危险函数白名单扫描、TypePHP 禁用
+# 写法 diff 扫描、strict types、PHPStan、deptrac 依赖方向、命名自查、
+# 基线只减不增、前端三道（tsc/eslint/vitest）、PHPUnit unit 套件，
 # 挂在 PR 与所有分支推送上，全过才允许合并。
 # 慢档（PHPUnit 三库矩阵、依赖审计、e2e 槽位）在 merge-gates-slow.yml，
 # 只在 main 推送、每日定时与手动触发上跑。
-# 与本地 tools/pre-merge.sh --fast 同一套命令，CI 红了先在本地复现再改。
 name: merge-gates
 
 on:
@@ -18,188 +21,28 @@ permissions:
   contents: read
 
 jobs:
-  # PHPStan level max，配置见 server/phpstan.neon.dist（扫 src、tests）。
-  phpstan:
-    name: 快档：PHPStan level max
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
-        with:
-          php-version: "8.2"
-          coverage: none
-          tools: composer:v2
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: PHPStan analyse
-        run: vendor/bin/phpstan analyse --no-progress
-
-  # strict types 与禁用写法（R-8）：新增违规才拦，存量走
-  # tools/strict-types-baseline.txt 基线，口径见 tools/check-strict-types.sh。
-  strict-types:
-    name: 快档：strict types 与禁用写法
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Check strict types and forbidden constructs
-        run: tools/check-strict-types.sh
-
-  # 依赖方向：内核（Sandadmin\ 命名空间，server/src）不许反向依赖插件层
-  # （plugin\ 命名空间，server/plugin）。规则见 server/deptrac.yaml。
-  dep-direction:
-    name: 快档：deptrac 依赖方向（内核不依赖插件层）
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
-        with:
-          php-version: "8.2"
-          coverage: none
-          tools: composer:v2
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      # server/plugin/ 由 composer 安装阶段 sand:publish 发布出来，deptrac 才能扫到。
-      - name: deptrac analyse
-        run: vendor/bin/deptrac analyse --config-file=deptrac.yaml
-
-  # 命名自查：只查本次 diff 的新增行（不新增问题的口径），
-  # 全量扫留作本地参考：python3 tools/naming_check.py code|notes|terms …
-  naming:
-    name: 快档：命名与注释自查（diff）
+  pre-merge:
+    name: 快档：pre-merge --fast（本地同一套门禁）
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          # 命名 diff 与基线只减不增要对 origin/main 做三点比对，需要全历史。
           fetch-depth: 0
 
-      - name: Check code names in diff
-        run: |
-          git diff -U0 origin/main...HEAD \
-            | python3 tools/naming_check.py code --allow naming-allow.txt --diff -
-
-      - name: Check comments in diff
-        run: |
-          git diff -U0 origin/main...HEAD \
-            | python3 tools/naming_check.py notes --diff -
-
-      - name: Check glossary terms in diff
-        run: |
-          git diff -U0 origin/main...HEAD \
-            | python3 tools/naming_check.py terms tools/naming-terms.tsv --allow naming-allow.txt --diff -
-
-      # 只对本次新增/修改的迁移文件做 SQL 命名检查，存量已发布迁移不改名。
-      - name: Check changed migration files
-        run: |
-          files=$(git diff --name-only --diff-filter=AM origin/main...HEAD -- 'server/database/migrations/*.sql')
-          if [ -n "$files" ]; then
-            python3 tools/naming_check.py sql --allow naming-allow.txt $files
-          else
-            echo "本次无新增或修改的迁移文件"
-          fi
-
-  # 基线只减不增（R-8 / M-09）：三个豁免/基线文件相对 origin/main 行数
-  # 不得变多；变多 = 往基线里塞了新豁免，FAIL 打印差值，须人审后放行。
-  # origin/main 侧不存在按 0 行计。
-  # bootstrap 语义：main 侧 merge-gates.yml 还没有本检查（grep 不到
-  # baseline-shrink）= 本闸首次登记，行数增长随本 PR 人审，只 WARN
-  # 不拦；门禁进了 main 之后所有 PR 一律硬 fail。
-  baseline-shrink:
-    name: 快档：基线只减不增
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-
-      - name: 比对基线行数（origin/main vs HEAD）
-        run: |
-          # 先取 main 侧本 workflow 内容再 grep：直接 git show | grep -q
-          # 会被 grep 提前退出触发 git 的 SIGPIPE，pipefail 下误判。
-          main_gate=$(git show "origin/main:.github/workflows/merge-gates.yml" 2>/dev/null || true)
-          bootstrap=0
-          if ! printf '%s' "$main_gate" | grep -q 'baseline-shrink'; then
-            bootstrap=1
-            echo "基线闸首次落地，增长部分随本 PR 人审；合并入 main 后本检查生效"
-          fi
-          failed=0
-          for f in server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt; do
-            before=0
-            if git cat-file -e "origin/main:$f" 2>/dev/null; then
-              before=$(git show "origin/main:$f" | wc -l | tr -d ' ')
-            fi
-            after=0
-            if [ -f "$f" ]; then
-              after=$(wc -l < "$f" | tr -d ' ')
-            fi
-            if [ "$after" -gt "$before" ]; then
-              if [ "$bootstrap" -eq 1 ]; then
-                echo "WARN: $f 行数 ${before} -> ${after}（+$((after - before))，首次登记不拦）"
-              else
-                echo "FAIL: $f 行数 ${before} -> ${after}（+$((after - before))），基线只许减不许加（M-09）"
-                failed=1
-              fi
-            else
-              echo "OK: $f 行数 ${before} -> ${after}"
-            fi
-          done
-          exit "$failed"
-
-  # 快档只跑 unit 套件（tests/Unit，不依赖数据库服务）；
-  # 三库矩阵与集成用例在慢档 merge-gates-slow.yml 跑。
-  phpunit-unit:
-    name: 快档：PHPUnit 单元测试
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: "8.2"
-          coverage: none
-          tools: composer:v2
           extensions: pdo_pgsql, pdo_mysql
+          tools: composer:v2
+          coverage: none
 
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: PHPUnit unit 套件
-        run: vendor/bin/phpunit --testsuite unit
-
-  # 前端三道：类型检查、eslint、Vitest。web/ 是唯一前端（React 19 + Semi）。
-  frontend:
-    name: 快档：前端 tsc + eslint + vitest
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # 脚本前置：vendor/bin/phpstan|phpunit|deptrac；server/plugin/ 由
+      # composer install 的 sand:publish 发布出来，deptrac 才能扫到。
+      - name: Install PHP dependencies
+        run: cd server && composer install --no-interaction --prefer-dist
 
       - name: Setup pnpm
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
@@ -213,14 +56,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - name: Install from the lockfile
-        run: pnpm install --frozen-lockfile
-
-      - name: tsc --noEmit
-        run: pnpm typecheck
-
-      - name: eslint
-        run: pnpm lint
-
-      - name: vitest run
-        run: pnpm test
+      # web/ 的 pnpm install 在脚本内部跑（--frozen-lockfile），这里不重复装。
+      - name: pre-merge --fast
+        run: tools/pre-merge.sh --fast
