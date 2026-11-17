@@ -8,17 +8,12 @@ import { Loading } from '@/components/Loading';
 import { hasPermission } from '@/hooks/useCan';
 import { ME_QUERY_KEY, useMe } from '@/hooks/useMe';
 import { clearToken, getToken } from '@/lib/authToken';
-
-function loginUrl(redirect: string): string {
-  return `/login?redirect=${encodeURIComponent(redirect)}`;
-}
+import { loginUrl, PATH_FORBIDDEN, PATH_FORCE_CHANGE_PASSWORD } from './paths';
 
 /**
- * Route guard for everything behind the shell:
- * - no token              → /login (with ?redirect= back to here)
- * - must_change_password  → /force-change-password
- * - profile still loading → full-page spinner
- * - profile failed        → token dropped, back to /login
+ * Guard for everything behind the shell: no token → /login (with
+ * ?redirect=), must_change_password → /force-change-password,
+ * profile failure drops the token and returns to /login.
  */
 export function RequireAuth() {
   const location = useLocation();
@@ -47,8 +42,8 @@ export function RequireAuth() {
     return <Loading fullPage />;
   }
 
-  if (me.data?.must_change_password && location.pathname !== '/force-change-password') {
-    return <Navigate to="/force-change-password" replace />;
+  if (me.data?.must_change_password && location.pathname !== PATH_FORCE_CHANGE_PASSWORD) {
+    return <Navigate to={PATH_FORCE_CHANGE_PASSWORD} replace />;
   }
 
   return <Outlet />;
@@ -59,11 +54,9 @@ interface PermissionHandle {
 }
 
 /**
- * Permission guard mounted inside the shell: any matched route may declare
- * `handle.permission` (a string, or an array that requires ALL of them).
- * `'*'` in the user's permissions satisfies everything. When the check
- * fails the user lands on the bare /403 page — no shell, no white screen.
- * Routes without the metadata pass through untouched.
+ * Permission guard inside the shell: `handle.permission` declares the
+ * required code(s); `'*'` satisfies everything; failure lands on the
+ * bare /403 page. Routes without the metadata pass through.
  */
 export function RequirePermission() {
   const matches = useMatches();
@@ -88,7 +81,7 @@ export function RequirePermission() {
   }
 
   if (!hasPermission(me.data?.permissions ?? [], required)) {
-    return <Navigate to="/403" replace />;
+    return <Navigate to={PATH_FORBIDDEN} replace />;
   }
 
   return <Outlet />;
