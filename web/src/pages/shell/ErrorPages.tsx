@@ -1,11 +1,11 @@
 import { ErrorState, type ErrorKind } from '@/components/ErrorState';
 
 export interface ErrorPageProps {
-  kind: Extract<ErrorKind, '403' | '500'>;
+  kind: Extract<ErrorKind, '403' | '404' | '500'>;
 }
 
 /**
- * Bare error routes (`/403`, `/500`) rendered without the shell — a missing
+ * Bare error routes (`/403`, `/404`, `/500`) rendered without the shell — a missing
  * permission or a broken server must not depend on a working shell to be
  * explainable.
  */

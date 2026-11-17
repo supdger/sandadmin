@@ -14,6 +14,7 @@ export const PATH_TODOS = '/todos';
 export const PATH_RESULT_SUCCESS = '/result/success';
 export const PATH_RESULT_FAIL = '/result/fail';
 export const PATH_FORBIDDEN = '/403';
+export const PATH_NOT_FOUND = '/404';
 export const PATH_SERVER_ERROR = '/500';
 
 export const PATH_SYSTEM_USER = '/system/user';
