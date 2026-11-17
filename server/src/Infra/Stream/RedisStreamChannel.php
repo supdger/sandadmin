@@ -166,7 +166,7 @@ final class RedisStreamChannel implements StreamChannelInterface
             return;
         }
         foreach ($this->subscribers[$local] ?? [] as $onEvent) {
-            $onEvent($event);
+            ($onEvent)($event);
         }
     }
 

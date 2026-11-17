@@ -42,7 +42,7 @@ final class SseStreamWriter implements StreamWriterInterface
             $this->clientGone();
             $previous = $this->previousClose;
             if ($previous !== null) {
-                $previous($conn);
+                ($previous)($conn);
             }
         };
         $connection->onBufferFull = function (): void {
@@ -134,7 +134,7 @@ final class SseStreamWriter implements StreamWriterInterface
         $this->closed = true;
         $gone = $this->gone;
         if ($gone !== null) {
-            $gone();
+            ($gone)();
         }
     }
 }

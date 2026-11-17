@@ -104,7 +104,7 @@ final class StreamSession
             $this->writer->close();
         }
         foreach ($this->closeListeners as $listener) {
-            $listener($reason);
+            ($listener)($reason);
         }
     }
 

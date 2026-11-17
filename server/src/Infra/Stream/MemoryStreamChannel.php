@@ -22,7 +22,7 @@ final class MemoryStreamChannel implements StreamChannelInterface
     public function publish(string $channel, StreamEvent $event): void
     {
         foreach ($this->subscribers[$channel] ?? [] as $onEvent) {
-            $onEvent($event);
+            ($onEvent)($event);
         }
     }
 

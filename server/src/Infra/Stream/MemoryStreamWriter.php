@@ -115,7 +115,7 @@ final class MemoryStreamWriter implements StreamWriterInterface
         $this->closed = true;
         $gone = $this->gone;
         if ($gone !== null) {
-            $gone();
+            ($gone)();
         }
     }
 }
