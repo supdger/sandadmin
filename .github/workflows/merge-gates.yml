@@ -1,0 +1,229 @@
+# 1.x 合并前门禁（v4 T-8 / L-1 / U-6）：静态检查、依赖方向、命名自查、
+# 前后端测试挂在 PR 与 main 推送上，全过才允许合并。
+# 与本地 tools/pre-merge.sh 同一套命令，CI 红了先在本地复现再改。
+name: merge-gates
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # PHPStan level max，配置见 server/phpstan.neon.dist（扫 src、tests）。
+  phpstan:
+    name: PHPStan level max
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: PHPStan analyse
+        run: vendor/bin/phpstan analyse --no-progress
+
+  # 依赖方向：内核（Sandadmin\ 命名空间，server/src）不许反向依赖插件层
+  # （plugin\ 命名空间，server/plugin）。规则见 server/deptrac.yaml。
+  dep-direction:
+    name: deptrac 依赖方向（内核不依赖插件层）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # server/plugin/ 由 composer 安装阶段 sand:publish 发布出来，deptrac 才能扫到。
+      - name: deptrac analyse
+        run: vendor/bin/deptrac analyse --config-file=deptrac.yaml
+
+  # 命名自查：只查本次 diff 的新增行（不新增问题的口径），
+  # 全量扫留作本地参考：python3 tools/naming_check.py code|notes|terms …
+  naming:
+    name: 命名与注释自查（diff）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Check code names in diff
+        run: |
+          git diff -U0 origin/main...HEAD \
+            | python3 tools/naming_check.py code --allow naming-allow.txt --diff -
+
+      - name: Check comments in diff
+        run: |
+          git diff -U0 origin/main...HEAD \
+            | python3 tools/naming_check.py notes --diff -
+
+      - name: Check glossary terms in diff
+        run: |
+          git diff -U0 origin/main...HEAD \
+            | python3 tools/naming_check.py terms tools/naming-terms.tsv --allow naming-allow.txt --diff -
+
+      # 只对本次新增/修改的迁移文件做 SQL 命名检查，存量已发布迁移不改名。
+      - name: Check changed migration files
+        run: |
+          files=$(git diff --name-only --diff-filter=AM origin/main...HEAD -- 'server/database/migrations/*.sql')
+          if [ -n "$files" ]; then
+            python3 tools/naming_check.py sql --allow naming-allow.txt $files
+          else
+            echo "本次无新增或修改的迁移文件"
+          fi
+
+  # PHPUnit 双库矩阵（v4 L-1 / T-8）：PG 最新 LTS + MySQL 8.0 系列最后版本
+  # + MySQL 8.4 LTS。当前仓库迁移与测试连接只有 PG 方言，MySQL 两档先占
+  # 槽位并记为已知失败（允许失败，不阻断合并），方言层落地后撤掉允许标记。
+  phpunit:
+    name: PHPUnit（${{ matrix.db }}）
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.known_failure }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: postgres-16
+            known_failure: false
+            image: postgres:16
+            db_port: 5432
+            test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
+          # MySQL 8.0 系列最后一个版本（8.0.46）；镜像标签 mysql:8.0 即该系列末版。
+          - db: mysql-8.0
+            known_failure: true
+            image: mysql:8.0
+            db_port: 3306
+            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
+          # MySQL 8.4 LTS 推荐线。
+          - db: mysql-8.4
+            known_failure: true
+            image: mysql:8.4
+            db_port: 3306
+            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env:
+          POSTGRES_PASSWORD: gate_test_pw
+          POSTGRES_DB: sand_test
+          MYSQL_ROOT_PASSWORD: gate_test_pw
+          MYSQL_DATABASE: sand_test
+        ports:
+          - ${{ matrix.db_port }}:${{ matrix.db_port }}
+        options: >-
+          --health-cmd ${{ contains(matrix.image, 'postgres') && 'pg_isready -U postgres' || 'mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw' }}
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer:v2
+          extensions: pdo_pgsql, pdo_mysql
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # PG 档：基线迁移 0001–0003 尚未随仓发布，仓内 0004–0007 无基线会失败；
+      # 先尝试应用并保留日志证据（不阻断），基线进仓后本步转绿且集成测试自动开跑。
+      - name: 应用仓内迁移到 PostgreSQL（缺基线时降级为记录）
+        if: ${{ !matrix.known_failure }}
+        continue-on-error: true
+        run: |
+          export PGPASSWORD=gate_test_pw
+          for f in database/migrations/*.sql; do
+            echo "应用 $f"
+            psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
+        env:
+          SAND_TEST_DB_URL: ${{ matrix.test_db_url }}
+
+      # MySQL 两档（已知失败槽位）：放在 PHPUnit 之后，如实暴露
+      # 「仓内迁移只有 PG 方言、还落不到 MySQL」的现状；服务可达但迁移不可用。
+      - name: MySQL 方言就绪检查（已知失败：迁移仅 PG 方言）
+        if: matrix.known_failure
+        run: |
+          php -r '
+            $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT"), "root", "gate_test_pw");
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS sand_test");
+            $pdo->exec("USE sand_test");
+            foreach (glob("database/migrations/*.sql") as $file) {
+              fwrite(STDERR, "应用 {$file}\n");
+              $pdo->exec(file_get_contents($file));
+            }'
+        env:
+          DB_PORT: ${{ matrix.db_port }}
+
+  # 前端三道：类型检查、eslint、Vitest。web/ 是唯一前端（React 19 + Semi）。
+  frontend:
+    name: 前端 tsc + eslint + vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          package_json_file: web/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install from the lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: tsc --noEmit
+        run: pnpm typecheck
+
+      - name: eslint
+        run: pnpm lint
+
+      - name: vitest run
+        run: pnpm test

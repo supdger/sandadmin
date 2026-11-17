@@ -1,7 +1,11 @@
 /.github/**
 !.github/workflows/
 !.github/workflows/dependency-audit.yml
-/tools/
+!.github/workflows/merge-gates.yml
+/tools/*
+!/tools/naming_check.py
+!/tools/naming-terms.tsv
+!/tools/pre-merge.sh
 /docs/
 
 /.agents/
