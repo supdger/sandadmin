@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Lifecycle;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Http\DevPrincipal;
 
 /** 开发本机登录通过后，超级管理员可以查看全部生命周期申请。 */
@@ -23,7 +24,7 @@ final class DevLifecycleActorProvider implements LifecycleActorProvider
         if ($org === null) {
             return null;
         }
-        $viewAll = $org->isSuper || $org->can('system:plugin:index') || $org->can('system:update:index');
+        $viewAll = $org->isSuper || $org->can(PermissionRegistry::PLUGIN_INDEX) || $org->can(PermissionRegistry::UPDATE_INDEX);
 
         return new LifecycleActor($org->userId, $viewAll);
     }

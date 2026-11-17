@@ -36,7 +36,7 @@ const v1 = `${env.apiBaseUrl}/admin/v1`;
 function mockMe() {
   server.use(
     http.get(`${v1}/me`, () =>
-      HttpResponse.json({
+      HttpResponse.json({ code: 'OK',
         data: {
           id: 'u-1',
           username: 'admin',
@@ -96,7 +96,7 @@ describe('AppShell', () => {
     // individual tests re-enable it with their own server.use override.
     server.use(
       http.get(`${v1}/me/announcements/popup`, () =>
-        HttpResponse.json({ data: { items: [] }, request_id: 'test' }),
+        HttpResponse.json({ code: 'OK', data: { items: [] }, request_id: 'test' }),
       ),
     );
   });
@@ -167,7 +167,7 @@ describe('AppShell', () => {
             { status: 422 },
           );
         }
-        return HttpResponse.json({
+        return HttpResponse.json({ code: 'OK',
           data: {
             menu_version: 1,
             items: [
@@ -203,7 +203,7 @@ describe('AppShell', () => {
             { status: 500 },
           );
         }
-        return HttpResponse.json({
+        return HttpResponse.json({ code: 'OK',
           data: {
             menu_version: 1,
             items: [
@@ -313,7 +313,7 @@ describe('AppShell', () => {
     let readCalls = 0;
     server.use(
       http.get(`${v1}/me/announcements/popup`, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           data: {
             items: [
               {
@@ -331,7 +331,7 @@ describe('AppShell', () => {
       ),
       http.post(`${v1}/announcements/ann-002/read`, () => {
         readCalls += 1;
-        return HttpResponse.json({ data: { read: true }, request_id: 'test' });
+        return HttpResponse.json({ code: 'OK', data: { read: true }, request_id: 'test' });
       }),
     );
 

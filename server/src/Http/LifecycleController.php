@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Http\BizKernel;
 use Sandadmin\Module\Lifecycle\LifecycleHttp;
 use Sandadmin\Module\Lifecycle\LifecycleRuntime;
@@ -30,7 +31,7 @@ final class LifecycleController
         try {
             $runtime = LifecycleRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $envelopeId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $envelopeId);
             }
             $kernel = BizKernel::fromWebman();
             if ($kernel !== null) {
@@ -47,7 +48,7 @@ final class LifecycleController
         } catch (Throwable $error) {
             error_log('LifecycleController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $envelopeId);
+            return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $envelopeId);
         }
     }
 

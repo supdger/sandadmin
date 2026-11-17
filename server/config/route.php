@@ -20,42 +20,12 @@ use app\controller\DevLoginController;
 use Sandadmin\Http\McpController;
 use Sandadmin\Infra\DevBuild;
 // SAND-DEV-END
-use app\controller\FileController;
-use Sandadmin\Http\AnnouncementController;
-use Sandadmin\Http\DashboardController;
-use Sandadmin\Http\DictController;
-use Sandadmin\Http\HostReadController;
-use Sandadmin\Http\LifecycleController;
-use Sandadmin\Http\PackageController;
-use Sandadmin\Http\MeController;
-use Sandadmin\Http\MenuController;
-use Sandadmin\Http\NotificationController;
-use Sandadmin\Http\OrgController;
 use Sandadmin\Http\SpaFallback;
-use Sandadmin\Http\TaskController;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
 // own routes through Webman's plugin configuration.
 Route::disableDefaultRoute();
-
-// 1.x 契约前缀 /api/admin/v1。/api/** 的默认鉴权由统一中间件收口（B2），
-// 这里不做 class_exists 条件挂载；文件可见性在 FileHttp/FileService 内判定。
-Route::post('/api/admin/v1/files', [FileController::class, 'store']);
-Route::get('/api/admin/v1/files', [FileController::class, 'index']);
-Route::get('/api/admin/v1/files/{file_id}', [FileController::class, 'show']);
-Route::delete('/api/admin/v1/files/{file_id}', [FileController::class, 'destroy']);
-Route::get('/api/admin/v1/files/{file_id}/download', [FileController::class, 'download']);
-Route::post('/api/admin/v1/files/cleanup', [FileController::class, 'cleanup']);
-
-// 这里不做 class_exists 条件挂载；任务可见性在控制器内按发起人与
-// system:task:index 等效权限判定。
-Route::get('/api/admin/v1/tasks', [TaskController::class, 'index']);
-Route::get('/api/admin/v1/tasks/{task_id}', [TaskController::class, 'show']);
-Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'download']);
-
-// sand-core 插件自带的一键登录端点由插件自身注册（sand-core ≥0.2.10），
-// 宿主再挂同名路由会在启动时冲突；该端点开关为插件配置 dev_login.*。
 
 // SAND-DEV-BEGIN
 // 1.x 前端按 /api/auth 与 /api/admin/v1/auth 两种前缀访问同一开发登录；
@@ -73,115 +43,10 @@ if (DevBuild::enabled()) {
 }
 // SAND-DEV-END
 
-// 公告：管理与收件人侧端点；权限码（system:announcement:* / authenticated）
-// 在 AnnouncementHttp 内判定，路由只挂形状。
-Route::get('/api/admin/v1/me/announcements/popup', [AnnouncementController::class, 'popup']);
-Route::get('/api/admin/v1/announcements', [AnnouncementController::class, 'index']);
-Route::post('/api/admin/v1/announcements', [AnnouncementController::class, 'store']);
-Route::get('/api/admin/v1/announcements/{announcement_id}', [AnnouncementController::class, 'show']);
-Route::put('/api/admin/v1/announcements/{announcement_id}', [AnnouncementController::class, 'update']);
-Route::delete('/api/admin/v1/announcements/{announcement_id}', [AnnouncementController::class, 'destroy']);
-Route::post('/api/admin/v1/announcements/{announcement_id}/publish', [AnnouncementController::class, 'publish']);
-Route::post('/api/admin/v1/announcements/{announcement_id}/revoke', [AnnouncementController::class, 'revoke']);
-Route::post('/api/admin/v1/announcements/{announcement_id}/read', [AnnouncementController::class, 'markRead']);
-Route::get('/api/admin/v1/announcements/{announcement_id}/read-stats', [AnnouncementController::class, 'readStats']);
-
-// 消息中心：未读数 = 本人未读通知 + 当前可见未读公告。静态路径先于带编号的路径。
-Route::get('/api/admin/v1/notifications/unread-count', [NotificationController::class, 'unreadCount']);
-Route::post('/api/admin/v1/notifications/read-all', [NotificationController::class, 'markAllRead']);
-Route::get('/api/admin/v1/notifications', [NotificationController::class, 'index']);
-Route::post('/api/admin/v1/notifications/{notification_id}/read', [NotificationController::class, 'markRead']);
-
-// 生命周期申请详情：对外编号为 public_id（uuid）；契约无取消端点。
-Route::get('/api/admin/v1/lifecycle-requests/{request_id}', [LifecycleController::class, 'show']);
-
-// 当前登录人与侧栏。开发本机登录的令牌在 MeController 内解析。
-Route::get('/api/admin/v1/auth/password-policy', [MeController::class, 'passwordPolicy']);
-Route::post('/api/admin/v1/auth/password/change', [MeController::class, 'changePassword']);
-Route::get('/api/admin/v1/me', [MeController::class, 'me']);
-Route::get('/api/admin/v1/me/profile', [MeController::class, 'profile']);
-Route::put('/api/admin/v1/me/profile', [MeController::class, 'updateProfile']);
-Route::get('/api/admin/v1/me/menus', [MeController::class, 'menus']);
-
-// 菜单管理。静态路径先于带键的路径。失败由 MenuController 按 4xx/5xx 返回。
-Route::get('/api/admin/v1/menus/tree', [MenuController::class, 'tree']);
-Route::post('/api/admin/v1/menus/groups', [MenuController::class, 'storeGroup']);
-Route::post('/api/admin/v1/menus/links', [MenuController::class, 'storeLink']);
-Route::post('/api/admin/v1/menus/reset', [MenuController::class, 'reset']);
-Route::patch('/api/admin/v1/menus/{menu_key}', [MenuController::class, 'update']);
-Route::delete('/api/admin/v1/menus/{menu_key}', [MenuController::class, 'destroy']);
-Route::post('/api/admin/v1/menus/{menu_key}/move', [MenuController::class, 'move']);
-Route::put('/api/admin/v1/menus/{menu_key}/visible', [MenuController::class, 'visible']);
-
-// 工作台：没有待办、动态、提示时返回空列表，页面画空状态而不是报错。
-Route::get('/api/admin/v1/dashboard/onboarding', [DashboardController::class, 'onboarding']);
-Route::get('/api/admin/v1/dashboard/summary', [DashboardController::class, 'summary']);
-Route::get('/api/admin/v1/dashboard/todos/all', [DashboardController::class, 'allTodos']);
-Route::get('/api/admin/v1/dashboard/todos', [DashboardController::class, 'todos']);
-Route::get('/api/admin/v1/dashboard/charts', [DashboardController::class, 'charts']);
-Route::get('/api/admin/v1/dashboard/activities', [DashboardController::class, 'activities']);
-Route::get('/api/admin/v1/dashboard/notices', [DashboardController::class, 'notices']);
-Route::get('/api/admin/v1/dashboard/shortcuts', [DashboardController::class, 'shortcuts']);
-
-// 用户、部门、角色、岗位。静态路径先于带编号的路径。
-Route::get('/api/admin/v1/users', [OrgController::class, 'usersIndex']);
-Route::post('/api/admin/v1/users', [OrgController::class, 'usersStore']);
-Route::post('/api/admin/v1/users/export', [OrgController::class, 'usersExport']);
-Route::get('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersShow']);
-Route::put('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersUpdate']);
-Route::delete('/api/admin/v1/users/{user_id}', [OrgController::class, 'usersDestroy']);
-Route::put('/api/admin/v1/users/{user_id}/status', [OrgController::class, 'usersStatus']);
-Route::get('/api/admin/v1/users/{user_id}/disable-check', [OrgController::class, 'usersDisableCheck']);
-Route::post('/api/admin/v1/users/{user_id}/reset-password', [OrgController::class, 'usersResetPassword']);
-Route::put('/api/admin/v1/users/{user_id}/roles', [OrgController::class, 'usersRoles']);
-Route::get('/api/admin/v1/org/user-options', [OrgController::class, 'userOptions']);
-Route::get('/api/admin/v1/org/dept-options', [OrgController::class, 'deptOptions']);
-Route::get('/api/admin/v1/depts/tree', [OrgController::class, 'deptsTree']);
-Route::post('/api/admin/v1/depts', [OrgController::class, 'deptsStore']);
-Route::put('/api/admin/v1/depts/{dept_id}', [OrgController::class, 'deptsUpdate']);
-Route::get('/api/admin/v1/depts/{dept_id}/delete-check', [OrgController::class, 'deptsDeleteCheck']);
-Route::delete('/api/admin/v1/depts/{dept_id}', [OrgController::class, 'deptsDestroy']);
-Route::get('/api/admin/v1/roles', [OrgController::class, 'rolesIndex']);
-Route::post('/api/admin/v1/roles', [OrgController::class, 'rolesStore']);
-Route::get('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesShow']);
-Route::put('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesUpdate']);
-Route::delete('/api/admin/v1/roles/{role_id}', [OrgController::class, 'rolesDestroy']);
-Route::post('/api/admin/v1/roles/{role_id}/copy', [OrgController::class, 'rolesCopy']);
-Route::put('/api/admin/v1/roles/{role_id}/status', [OrgController::class, 'rolesStatus']);
-Route::get('/api/admin/v1/roles/{role_id}/permissions', [OrgController::class, 'rolesPermissions']);
-Route::put('/api/admin/v1/roles/{role_id}/permissions', [OrgController::class, 'rolesSavePermissions']);
-Route::get('/api/admin/v1/permission-tree', [OrgController::class, 'permissionTree']);
-Route::get('/api/admin/v1/posts', [OrgController::class, 'postsIndex']);
-Route::post('/api/admin/v1/posts', [OrgController::class, 'postsStore']);
-Route::put('/api/admin/v1/posts/{post_id}', [OrgController::class, 'postsUpdate']);
-Route::delete('/api/admin/v1/posts/{post_id}', [OrgController::class, 'postsDestroy']);
-
-// 选项组与选项。
-Route::get('/api/admin/v1/dicts', [DictController::class, 'index']);
-Route::post('/api/admin/v1/dicts', [DictController::class, 'store']);
-Route::get('/api/admin/v1/dicts/{type_id}', [DictController::class, 'show']);
-Route::put('/api/admin/v1/dicts/{type_id}', [DictController::class, 'update']);
-Route::delete('/api/admin/v1/dicts/{type_id}', [DictController::class, 'destroy']);
-Route::post('/api/admin/v1/dicts/{type_id}/items', [DictController::class, 'storeItem']);
-Route::put('/api/admin/v1/dicts/items/sort', [DictController::class, 'sortItems']);
-Route::put('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'updateItem']);
-Route::delete('/api/admin/v1/dicts/items/{item_id}', [DictController::class, 'destroyItem']);
-Route::put('/api/admin/v1/dicts/items/{item_id}/status', [DictController::class, 'itemStatus']);
-
-// 插件与系统更新。编译版和生产环境拒绝在线安装；定时任务时间不合法时返回 422 TASK_SCHEDULE_INVALID。
-Route::get('/api/admin/v1/plugins/overview', [HostReadController::class, 'pluginsOverview']);
-Route::get('/api/admin/v1/plugins/market', [HostReadController::class, 'pluginsMarket']);
-Route::get('/api/admin/v1/plugins/installed', [HostReadController::class, 'pluginsInstalled']);
-Route::post('/api/admin/v1/plugins/upgrade-all', [PackageController::class, 'upgradeAll']);
-Route::post('/api/admin/v1/plugins/upload', [PackageController::class, 'upload']);
-Route::get('/api/admin/v1/plugins/{plugin_code}', [PackageController::class, 'show']);
-Route::post('/api/admin/v1/plugins/{plugin_code}/install', [PackageController::class, 'install']);
-Route::post('/api/admin/v1/plugins/{plugin_code}/upgrade', [PackageController::class, 'upgrade']);
-Route::post('/api/admin/v1/plugins/{plugin_code}/uninstall', [PackageController::class, 'uninstall']);
-Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'updateStatus']);
-Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
-Route::post('/api/admin/v1/system/update/start', [PackageController::class, 'startUpdate']);
-Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);
+// 1.x 常驻路由全部由 contract/openapi.yaml 经 tools/contract-build 生成；
+// 本文件哨兵段外禁止手写 Route:: 调用（contract-build --check 会打回）。
+// 静态路径先于参数路径的注册语义由契约 paths 的书写顺序承载。
+require __DIR__ . '/route.generated.php';
 
 // SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；
 // /api/** 未命中与非 GET 在其内重抛 404，与反代部署不冲突。

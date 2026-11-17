@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Application\File;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Domain\File\FileActor;
 use Sandadmin\Domain\File\FileException;
 use Sandadmin\Domain\File\FileKind;
@@ -15,6 +17,7 @@ use Sandadmin\Domain\File\FileUsageState;
 use Sandadmin\Domain\File\FileVisibility;
 use Sandadmin\Domain\File\UsageAccess;
 use Sandadmin\Domain\File\UsageDraft;
+use Sandadmin\Http\ApiOutcome;
 
 /**
  * /api/admin/v1/files 契约形状的组装层：入参校验、权限判定、
@@ -27,11 +30,11 @@ final class FileHttp
 {
     private const FILE_ID_PATTERN = '/\A\d{1,18}\z/';
 
-    private const PERMISSION_INDEX = 'system:file:index';
+    private const PERMISSION_INDEX = PermissionRegistry::FILE_INDEX;
 
-    private const PERMISSION_DELETE = 'system:file:delete';
+    private const PERMISSION_DELETE = PermissionRegistry::FILE_DELETE;
 
-    private const PERMISSION_CLEANUP = 'system:file:cleanup';
+    private const PERMISSION_CLEANUP = PermissionRegistry::FILE_CLEANUP;
 
     private const IDEMPOTENCY_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
 
@@ -54,7 +57,7 @@ final class FileHttp
         string $requestId,
     ): array {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         $fields = [];
         $keyError = self::idempotencyKeyError($idempotencyKey);
@@ -64,7 +67,7 @@ final class FileHttp
         $visibility = self::visibility($visibilityParam, $fields);
         $usage = self::usage($usageParam, $fields);
         if ($fields !== []) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
         try {
             $record = $uploads->upload(
@@ -94,15 +97,15 @@ final class FileHttp
     public static function index(FileService $files, ?FileActor $actor, array $query, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (!$actor->can(self::PERMISSION_INDEX)) {
-            return self::failure(403, 'PERMISSION_DENIED', '你没有权限做这个操作', [], $requestId);
+            return self::failure(403, ErrorCodeRegistry::PERMISSION_DENIED, '你没有权限做这个操作', [], $requestId);
         }
         $fields = [];
         $fileQuery = self::fileQuery($query, $fields);
         if ($fields !== []) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
         try {
             $page = $files->search($fileQuery);
@@ -126,14 +129,14 @@ final class FileHttp
     public static function show(FileService $files, ?FileActor $actor, string $fileId, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (!$actor->can(self::PERMISSION_INDEX)) {
-            return self::failure(403, 'PERMISSION_DENIED', '你没有权限做这个操作', [], $requestId);
+            return self::failure(403, ErrorCodeRegistry::PERMISSION_DENIED, '你没有权限做这个操作', [], $requestId);
         }
         $id = self::fileId($fileId);
         if ($id === null) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file_id' => ['文件编号不正确']], $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file_id' => ['文件编号不正确']], $requestId);
         }
         try {
             return self::success($files->findForManagement($id)->toApi(), $requestId);
@@ -150,10 +153,10 @@ final class FileHttp
     public static function destroy(FileService $files, ?FileActor $actor, string $fileId, ?string $idempotencyKey, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (!$actor->can(self::PERMISSION_DELETE)) {
-            return self::failure(403, 'PERMISSION_DENIED', '你没有权限做这个操作', [], $requestId);
+            return self::failure(403, ErrorCodeRegistry::PERMISSION_DENIED, '你没有权限做这个操作', [], $requestId);
         }
         $fields = [];
         $keyError = self::idempotencyKeyError($idempotencyKey);
@@ -163,10 +166,10 @@ final class FileHttp
         $id = self::fileId($fileId);
         if ($id === null) {
             $fields['file_id'] = ['文件编号不正确'];
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
         if ($fields !== []) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
         try {
             $files->remove($id, $actor->userId, $idempotencyKey);
@@ -187,11 +190,11 @@ final class FileHttp
     public static function download(FileService $files, UsageAccess $access, ?FileActor $actor, string $fileId, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         $id = self::fileId($fileId);
         if ($id === null) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file_id' => ['文件编号不正确']], $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file_id' => ['文件编号不正确']], $requestId);
         }
         try {
             // 下载分流：只服务 purpose=attachment，export/package/plugin 按 FILE_NOT_FOUND
@@ -220,10 +223,10 @@ final class FileHttp
     public static function cleanup(FileService $files, ?FileActor $actor, ?string $idempotencyKey, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (!$actor->can(self::PERMISSION_CLEANUP)) {
-            return self::failure(403, 'PERMISSION_DENIED', '你没有权限做这个操作', [], $requestId);
+            return self::failure(403, ErrorCodeRegistry::PERMISSION_DENIED, '你没有权限做这个操作', [], $requestId);
         }
         $fields = [];
         $keyError = self::idempotencyKeyError($idempotencyKey);
@@ -231,7 +234,7 @@ final class FileHttp
             $fields['idempotency_key'] = [$keyError];
         }
         if ($fields !== []) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
         try {
             return self::success($files->cleanup($actor->userId, $idempotencyKey), $requestId);
@@ -429,10 +432,8 @@ final class FileHttp
      */
     private static function success(mixed $data, string $requestId): array
     {
-        return [
-            'status' => 200,
-            'body' => ['data' => $data, 'request_id' => $requestId],
-        ];
+        // 成功信封统一走 ApiOutcome 单点（code=OK + message）
+        return ApiOutcome::ok($data, $requestId);
     }
 
     /**

@@ -8,46 +8,13 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Org;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 
 /** 角色、数据范围和权限码。系统角色拒绝改、停、删。 */
 final class RoleService
 {
     /** @var list<array{group_key: string, group_title: string, menu_key: string, title: string, actions: list<array{action: string, label: string}>}> */
-    private const MENUS = [
-        ['group_key' => 'org', 'group_title' => '组织与用户', 'menu_key' => 'system:user', 'title' => '用户管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-            ['action' => 'export', 'label' => '导出'], ['action' => 'reset-password', 'label' => '重置密码'],
-            ['action' => 'assign-role', 'label' => '分配角色'],
-        ]],
-        ['group_key' => 'org', 'group_title' => '组织与用户', 'menu_key' => 'system:dept', 'title' => '部门管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-        ]],
-        ['group_key' => 'org', 'group_title' => '组织与用户', 'menu_key' => 'system:post', 'title' => '岗位管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-        ]],
-        ['group_key' => 'org', 'group_title' => '组织与用户', 'menu_key' => 'system:role', 'title' => '角色与权限', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-            ['action' => 'permission:update', 'label' => '设置权限'],
-        ]],
-        ['group_key' => 'system', 'group_title' => '系统', 'menu_key' => 'system:menu', 'title' => '菜单管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-            ['action' => 'reset', 'label' => '恢复默认'],
-        ]],
-        ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:dict', 'title' => '选项管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-        ]],
-        ['group_key' => 'data', 'group_title' => '数据管理', 'menu_key' => 'system:announcement', 'title' => '公告管理', 'actions' => [
-            ['action' => 'index', 'label' => '查看'], ['action' => 'create', 'label' => '添加'],
-            ['action' => 'update', 'label' => '编辑'], ['action' => 'delete', 'label' => '删除'],
-            ['action' => 'publish', 'label' => '发布'], ['action' => 'revoke', 'label' => '收回'],
-        ]],
-    ];
+    private const MENUS = PermissionRegistry::TREE;
 
     /** @var list<string> */
     private const SCOPES = ['all', 'dept_and_child', 'dept', 'self', 'custom'];
@@ -396,8 +363,8 @@ final class RoleService
             $actions = [];
             foreach ($menu['actions'] as $action) {
                 $code = $menu['menu_key'] . ':' . $action['action'];
-                if ($menu['menu_key'] === 'system:role' && $action['action'] === 'permission:update') {
-                    $code = 'system:role:permission:update';
+                if ($menu['menu_key'] === PermissionRegistry::SIDEBAR_ROLE && $action['action'] === 'permission:update') {
+                    $code = PermissionRegistry::ROLE_PERMISSION_UPDATE;
                 }
                 $actions[] = [
                     'code' => $code,
@@ -540,16 +507,17 @@ final class RoleService
         if ($holds !== 1) {
             return;
         }
-        if (in_array('system:role:permission:update', $codes, true)) {
+        if (in_array(PermissionRegistry::ROLE_PERMISSION_UPDATE, $codes, true)) {
             return;
         }
         $elsewhere = OrgSql::int($this->connection->fetchOne(
             'SELECT COUNT(*) FROM sand_system_role_permission rp'
             . ' JOIN sand_system_user_role ur ON ur.role_id = rp.role_id'
-            . ' WHERE ur.user_id = ? AND ur.role_id <> ? AND rp.permission_code = \'system:role:permission:update\'',
+            . ' WHERE ur.user_id = ? AND ur.role_id <> ? AND rp.permission_code = \''
+            . PermissionRegistry::ROLE_PERMISSION_UPDATE . '\'',
             [$actor->userId, $roleId],
         ));
-        if ($elsewhere === 0 && $actor->can('system:role:permission:update')) {
+        if ($elsewhere === 0 && $actor->can(PermissionRegistry::ROLE_PERMISSION_UPDATE)) {
             throw OrgException::selfLockout();
         }
     }

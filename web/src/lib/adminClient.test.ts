@@ -21,7 +21,10 @@ import { onAppEvent } from './eventBus';
 const base = `${env.apiBaseUrl}/admin/v1`;
 
 function ok(data: unknown, init?: { headers?: Record<string, string> }) {
-  return HttpResponse.json({ data, request_id: 'req-1' }, init);
+  return HttpResponse.json(
+    { code: 'OK', message: '操作成功', data, request_id: 'req-1' },
+    init,
+  );
 }
 
 function fail(
@@ -33,7 +36,7 @@ function fail(
 }
 
 describe('adminClient', () => {
-  it('unwraps data from the {data, request_id} envelope', async () => {
+  it('unwraps data from the {code:OK, data, request_id} envelope', async () => {
     server.use(http.get(`${base}/test/ok`, () => ok({ hello: 'world' })));
     await expect(adminGet<{ hello: string }>('/test/ok')).resolves.toEqual({
       hello: 'world',
@@ -101,8 +104,12 @@ describe('adminClient', () => {
     expect((htmlErr as AdminApiError).system).toBe(true);
   });
 
-  it('rejects a 200 payload missing the data key', async () => {
-    server.use(http.get(`${base}/test/no-data`, () => HttpResponse.json({ request_id: 'r' })));
+  it('rejects a 200 payload without the OK code', async () => {
+    server.use(
+      http.get(`${base}/test/no-data`, () =>
+        HttpResponse.json({ data: { hello: 'world' }, request_id: 'r' }),
+      ),
+    );
     const err = await adminGet('/test/no-data').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AdminApiError);
     expect((err as AdminApiError).system).toBe(true);

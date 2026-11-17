@@ -36,7 +36,7 @@ function renderHost(entry: string) {
 function mockMenusWithoutPlugin() {
   server.use(
     http.get(`${v1}/me/menus`, () =>
-      HttpResponse.json({
+      HttpResponse.json({ code: 'OK',
         data: {
           menu_version: 1,
           items: [

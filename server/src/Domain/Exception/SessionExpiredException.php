@@ -7,10 +7,12 @@ declare(strict_types=1);
 
 namespace Sandadmin\Domain\Exception;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 final class SessionExpiredException extends DomainException
 {
     public function __construct(string $message = '登录已过期，请重新登录', ?\Throwable $previous = null)
     {
-        parent::__construct($message, 'SESSION_EXPIRED', [], 401, $previous);
+        parent::__construct($message, ErrorCodeRegistry::SESSION_EXPIRED, [], 401, $previous);
     }
 }
