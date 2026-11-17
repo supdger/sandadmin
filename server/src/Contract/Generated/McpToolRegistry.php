@@ -12,7 +12,7 @@ namespace Sandadmin\Contract\Generated;
 
 /**
  * MCP 工具注册表：与 ToolSpec 同形状的机械规格清单。
- * runner 不进注册表，留在代码侧装配（DevCatalog）。
+ * runner 不进注册表，留在代码侧装配。
  * 用静态方法而非 const：类常量不能含 stdClass，
  * 而 JSON Schema 的 properties 空集在 PHP 侧必须是对象。
  */

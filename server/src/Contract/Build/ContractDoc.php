@@ -573,7 +573,7 @@ final class ContractDoc
         if ($tier === 'read') {
             return $input;
         }
-        // 注入形状与 DevCatalog 既有手写 schema 逐键一致，保证线报文不变。
+        // 注入形状与代码侧装配层既有手写 schema 逐键一致，保证线报文不变。
         $keySpec = ['type' => 'string'];
         $drySpec = ['type' => 'boolean'];
         $input['type'] = 'object';

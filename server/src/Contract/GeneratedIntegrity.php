@@ -45,7 +45,7 @@ final class GeneratedIntegrity
 
         $files = $artifactFiles ?? [
             $serverRoot . '/config/route.generated.php',
-            $serverRoot . '/config/plugin-routes.generated.php',
+            $serverRoot . '/config/plugin-routes.generated.json',
             $serverRoot . '/src/Contract/Generated/PermissionRegistry.php',
             $serverRoot . '/src/Contract/Generated/McpToolRegistry.php',
             $serverRoot . '/src/Contract/Generated/ErrorCodeRegistry.php',
@@ -67,10 +67,13 @@ final class GeneratedIntegrity
             }
         }
 
-        $listFile = $serverRoot . '/config/plugin-routes.generated.php';
-        $entries = require $listFile;
+        // 清单是纯数据 JSON：装载点不允许 require 变量路径（TypePHP 门禁）
+        $listFile = $serverRoot . '/config/plugin-routes.generated.json';
+        $manifestRaw = file_get_contents($listFile);
+        $manifest = $manifestRaw === false ? null : json_decode($manifestRaw, true);
+        $entries = is_array($manifest) ? ($manifest['routes'] ?? null) : null;
         if (!is_array($entries)) {
-            throw new \RuntimeException('plugin-routes.generated.php 不是 list 结构');
+            throw new \RuntimeException('plugin-routes.generated.json 的 routes 不是 list 结构');
         }
         foreach ($entries as $entry) {
             if (!is_string($entry) || !is_file($serverRoot . '/' . $entry)) {

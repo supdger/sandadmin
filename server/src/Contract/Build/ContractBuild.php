@@ -15,7 +15,7 @@ use Sandadmin\Contract\SourceHash;
  *
  * build 产物落位：
  *   server/config/route.generated.php            宿主路由表
- *   server/config/plugin-routes.generated.php    插件路由入口清单
+ *   server/config/plugin-routes.generated.json   插件路由入口清单
  *   server/src/Contract/Generated/*.php          三张注册表
  *   web/src/api/v1/contract.generated.ts         前端契约类型
  *   server/tests/Contract/Generated/*.php        测试骨架
@@ -109,7 +109,7 @@ final class ContractBuild
         $artifacts = [];
         $artifacts['server/config/route.generated.php'] =
             PhpEmit::emitRoutes($hostOps, $sourceLabels, $sourceHash);
-        $artifacts['server/config/plugin-routes.generated.php'] =
+        $artifacts['server/config/plugin-routes.generated.json'] =
             PhpEmit::emitPluginRoutes($collection['route_entries'], $sourceLabels, $sourceHash);
         $artifacts['server/src/Contract/Generated/PermissionRegistry.php'] =
             PhpEmit::emitPermissionRegistry($permissions, $tree, $adminCodes, $sidebar, $sourceLabels, $sourceHash);

@@ -64,27 +64,27 @@ final class PhpEmit
     }
 
     /**
-     * 插件路由入口清单：bootstrap 读这份清单逐目录喂给 Route::load，
+     * 插件路由入口清单（JSON）：bootstrap 与启动守卫 json_decode 读 routes 字段，
      * 不再扫 plugin/ 全目录。条目是 Route::load 实际加载的入口文件
      * （相对 server base_path）；契约插件的入口是生成的薄壳 route.php。
+     * 清单刻意用 JSON 而不是 PHP return 形态：装载点 require 变量路径
+     * 会被 TypePHP 门禁判动态加载，纯数据文件不需要任何豁免。
+     * _comment 逐行嵌入与其他产物相同的头行，parseHeader 的正则照样命中。
      * @param list<string> $entries
      * @param list<string> $sourceLabels
      */
     public static function emitPluginRoutes(array $entries, array $sourceLabels, string $sourceHash): string
     {
-        $lines = ['<?php', '', 'declare(strict_types=1);', ''];
-        foreach (SourceHash::headerLines($sourceLabels, $sourceHash) as $line) {
-            $lines[] = '// ' . $line;
+        $manifest = [
+            '_comment' => SourceHash::headerLines($sourceLabels, $sourceHash),
+            'routes' => $entries,
+        ];
+        $encoded = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            throw new \RuntimeException('插件路由清单 JSON 编码失败');
         }
-        $lines[] = '';
-        $lines[] = 'return [';
-        foreach ($entries as $entry) {
-            $lines[] = '    ' . var_export($entry, true) . ',';
-        }
-        $lines[] = '];';
-        $lines[] = '';
 
-        return implode("\n", $lines);
+        return $encoded . "\n";
     }
 
     /**
@@ -269,7 +269,7 @@ final class PhpEmit
         $lines[] = '';
         $lines[] = '/**';
         $lines[] = ' * MCP 工具注册表：与 ToolSpec 同形状的机械规格清单。';
-        $lines[] = ' * runner 不进注册表，留在代码侧装配（DevCatalog）。';
+        $lines[] = ' * runner 不进注册表，留在代码侧装配。';
         $lines[] = ' * 用静态方法而非 const：类常量不能含 stdClass，';
         $lines[] = ' * 而 JSON Schema 的 properties 空集在 PHP 侧必须是对象。';
         $lines[] = ' */';
@@ -358,7 +358,7 @@ final class PhpEmit
 
     /**
      * JSON Schema 导出：properties 为空集时发成 new \stdClass()，
-     * 保证 json_encode 后是 {} 而不是 []（与 DevCatalog 既有线报文一致）。
+     * 保证 json_encode 后是 {} 而不是 []（与装配层既有线报文一致）。
      * @param array<mixed, mixed> $schema
      */
     private static function exportSchema(array $schema, int $level): string

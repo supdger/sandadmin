@@ -70,6 +70,8 @@ const DEV_REF_WHITELIST = [
     // 契约设计稿与代码盘点：书面描述 dev 链规则与现状，不进入发布包
     '契约设计.md',
     '盘点.md',
+    // 契约构建器按哨兵剔除 dev 段，代码必须点名 SAND-DEV-BEGIN/END，属构建工具逻辑
+    'server/src/Contract/Build/ContractBuild.php',
     // 构建插件负责把 mockServiceWorker.js 从产物剔除，属构建工具逻辑
     'web/vite.config.ts',
     // lint 配置的忽略项点名 mock worker 产物文件

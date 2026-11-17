@@ -137,15 +137,20 @@ foreach (config('plugin', []) as $firm => $projects) {
     }
 }
 
-// 插件路由入口不再扫目录，走契约构建期生成的清单
-// （server/config/plugin-routes.generated.php）；无契约片段的插件
+// 插件路由入口不再扫目录，走契约构建期生成的 JSON 清单
+// （server/config/plugin-routes.generated.json，不用 require 装载——
+// 变量路径会被 TypePHP 门禁判动态加载）；无契约片段的插件
 // 在清单里仍指向旧 config/route.php，由构建期 warning 记录。
 $paths = [config_path()];
-$pluginRouteManifest = config_path() . '/plugin-routes.generated.php';
+$pluginRouteManifest = config_path() . '/plugin-routes.generated.json';
 if (is_file($pluginRouteManifest)) {
-    /** @var list<string> $pluginRoutes */
-    $pluginRoutes = require $pluginRouteManifest;
+    $manifestRaw = file_get_contents($pluginRouteManifest);
+    $manifest = $manifestRaw === false ? null : json_decode($manifestRaw, true);
+    $pluginRoutes = is_array($manifest) && is_array($manifest['routes'] ?? null) ? $manifest['routes'] : [];
     foreach ($pluginRoutes as $entry) {
+        if (!is_string($entry)) {
+            continue;
+        }
         $dir = base_path() . '/' . dirname($entry);
         if (is_dir($dir)) {
             $paths[] = $dir;
