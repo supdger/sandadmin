@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * MCP 适配层配置。当前只有开发构建端点（dev）：.sand-dev-build 标记 +
  * SAND_MCP_DEV_TOKEN 同时成立才挂出；生产制品里整段不生效。

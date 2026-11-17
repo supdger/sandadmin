@@ -18,7 +18,7 @@ interface IdempotencyStore
     /**
      * 查询有效期内记录；过期记录顺手删除并视为不存在。
      *
-     * @return array{request_hash: string, response: mixed}|null
+     * @return array{request_hash: string, response: array<array-key, mixed>|\stdClass|string|int|float|bool|null}|null
      *         response 为首次响应 data 快照（jsonb 解码值），无记录返回 null
      */
     public function findActive(int $userId, string $key): ?array;

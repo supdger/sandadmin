@@ -1,37 +1,79 @@
 #!/usr/bin/env bash
-# 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full]
-# --fast（默认）：PHP 语法检查 + 危险函数扫描 + dev-only 引用门禁 + PHPUnit Unit 套件 + PHPStan
+# 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full] [--typephp]
+# --fast（默认）：PHP 语法检查 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
 # --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）
+# --typephp：追加 TypePHP 可选编译验证；找不到编译器或项目文件时跳过不阻塞
+#   （ADR-23：编译门禁在工具链稳定前是可选的，不过不合并的硬门禁是其余几项）
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MODE="${1:---fast}"
-
-if [ "$MODE" != "--fast" ] && [ "$MODE" != "--full" ]; then
-    echo "用法：$0 [--fast|--full]" >&2
-    exit 2
-fi
+MODE="--fast"
+TYPEPHP=0
+for arg in "$@"; do
+    case "$arg" in
+        --fast|--full) MODE="$arg" ;;
+        --typephp) TYPEPHP=1 ;;
+        *)
+            echo "用法：$0 [--fast|--full] [--typephp]" >&2
+            exit 2
+            ;;
+    esac
+done
 
 cd "$ROOT/server"
 
-echo "== 1/5 PHP 语法检查（src/ app/ config/）"
+echo "== 1/6 PHP 语法检查（src/ app/ config/）"
 find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null
 
-echo "== 2/5 危险函数白名单扫描"
+echo "== 2/6 危险函数白名单扫描"
 php tests/security/scan-dangerous-functions.php
 
-echo "== 3/5 dev-only 引用门禁（tools/dev-only-paths.txt）"
+echo "== 3/6 dev-only 引用门禁（tools/dev-only-paths.txt）"
 php ../tools/check-dev-refs.php
 
-echo "== 4/5 PHPUnit Unit 套件"
+# 存量 --all 全量会报既有可变调用/动态 include（整改是另一项工作），
+# 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
+echo "== 4/6 TypePHP 禁用写法扫描（diff 模式）"
+php "$ROOT/tools/typephp_check.php"
+
+echo "== 5/6 PHPUnit Unit 套件"
 vendor/bin/phpunit --testsuite unit
 
-echo "== 5/5 PHPStan"
+echo "== 6/6 PHPStan"
 vendor/bin/phpstan analyse --no-progress
 
 if [ "$MODE" = "--full" ]; then
     echo "== 附加：PHPUnit Integration 套件"
     vendor/bin/phpunit --testsuite integration
+fi
+
+if [ "$TYPEPHP" = "1" ]; then
+    echo "== 附加：TypePHP 可选编译验证"
+    # 查找顺序：TYPEPHP_BIN 环境变量 → PATH 里的 typephp → ~/agent-work/grokbot/webman-typephp 下可执行文件
+    TYPEPHP_BIN_FOUND="${TYPEPHP_BIN:-}"
+    if [ -z "$TYPEPHP_BIN_FOUND" ] || [ ! -x "$TYPEPHP_BIN_FOUND" ]; then
+        TYPEPHP_BIN_FOUND="$(command -v typephp 2>/dev/null || true)"
+    fi
+    if [ -z "$TYPEPHP_BIN_FOUND" ] && [ -d "$HOME/agent-work/grokbot/webman-typephp" ]; then
+        TYPEPHP_BIN_FOUND="$(find "$HOME/agent-work/grokbot/webman-typephp" -maxdepth 4 -type f \
+            \( -name 'typephp' -o -name 'tpc' -o -name 'tpc.php' \) -perm +111 2>/dev/null | head -1 || true)"
+    fi
+    if [ -z "$TYPEPHP_BIN_FOUND" ]; then
+        echo "未找到 TypePHP 编译器，跳过可选编译"
+    else
+        # tpc 需要一个 TypePHP 项目文件（webman-typephp 插件的 typephp:compile 生成，
+        # 或手工提供并用 TYPEPHP_PROJECT 指定）；编译产物只进 .typephp/build/，不改任何源文件。
+        TYPEPHP_PROJECT="${TYPEPHP_PROJECT:-$ROOT/server/.typephp/project.php}"
+        if [ ! -f "$TYPEPHP_PROJECT" ]; then
+            echo "已找到 TypePHP 编译器（${TYPEPHP_BIN_FOUND}），但没有项目文件（${TYPEPHP_PROJECT}），跳过可选编译"
+        elif [[ "$TYPEPHP_BIN_FOUND" == *.php ]]; then
+            php "$TYPEPHP_BIN_FOUND" "$TYPEPHP_PROJECT" --no-progress \
+                || echo "WARN TypePHP 可选编译未通过（工具链技术预览期不阻塞门禁）"
+        else
+            "$TYPEPHP_BIN_FOUND" "$TYPEPHP_PROJECT" --no-progress \
+                || echo "WARN TypePHP 可选编译未通过（工具链技术预览期不阻塞门禁）"
+        fi
+    fi
 fi
 
 echo "pre-merge ${MODE} 全部通过"

@@ -65,6 +65,8 @@ const DEV_REF_WHITELIST = [
     'CHANGELOG.md',
     'RELEASE-NOTES-0.2.4.md',
     'web/README.md',
+    // TypePHP 整改盘点报告，逐条点名开发专用类作保留项说明，纯文档
+    'tools/typephp-盘点.md',
     // 构建插件负责把 mockServiceWorker.js 从产物剔除，属构建工具逻辑
     'web/vite.config.ts',
     // lint 配置的忽略项点名 mock worker 产物文件

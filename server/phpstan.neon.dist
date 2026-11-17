@@ -5,7 +5,8 @@ parameters:
         - tests
         - app/controller/FileController.php
         - app/bootstrap/WeakPasswordGuard.php
-    # 让 PHPStan 发现 tools/ 里的发布期函数符号（不做错误分析）
+    # tools/ 里的门禁和发布期脚本不进 paths，但单测 require 它们的函数，需要可见符号（不做错误分析）
     scanFiles:
         - ../tools/dev-manifest.php
         - ../tools/check-dev-refs.php
+        - ../tools/typephp_check.php

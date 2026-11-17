@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 return [
     // 默认缓存驱动
     'default' => env('CACHE_MODE', 'file'),

@@ -23,6 +23,7 @@ final class ConnectionIdempotencyStore implements IdempotencyStore
     {
     }
 
+    /** @return array{request_hash: string, response: array<array-key, mixed>|\stdClass|string|int|float|bool|null}|null */
     public function findActive(int $userId, string $key): ?array
     {
         try {
@@ -49,6 +50,7 @@ final class ConnectionIdempotencyStore implements IdempotencyStore
         $response = null;
         $raw = $row['response'] ?? null;
         if (is_string($raw) && $raw !== '') {
+            /** @var array<array-key, mixed>|\stdClass|string|int|float|bool|null $decoded */
             $decoded = json_decode($raw, false);
             if ($decoded !== null || $raw === 'null') {
                 $response = $decoded;

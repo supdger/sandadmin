@@ -13,7 +13,8 @@ namespace Sandadmin\Application\File;
  */
 final class IdempotentReplay extends \RuntimeException
 {
-    public function __construct(public readonly mixed $response)
+    /** @param array<array-key, mixed>|\stdClass|string|int|float|bool $response 幂等存储里的 jsonb 快照（非 null） */
+    public function __construct(public readonly array|\stdClass|string|int|float|bool $response)
     {
         parent::__construct('幂等重放');
     }
