@@ -179,18 +179,22 @@ final class AnnouncementHttp
         return $id;
     }
 
-    /** @return array<array-key, mixed> */
-    private static function apiOf(mixed $item): array
+    /**
+     * @param Announcement|array<array-key, mixed>|\stdClass|null $item
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function apiOf(Announcement|array|\stdClass|null $item): array
     {
         // 幂等重放时服务层返回已存快照（json_decode 出 stdClass 或数组）
         if ($item instanceof Announcement) {
             return $item->toApi(new \DateTimeImmutable());
         }
-        if (is_object($item)) {
+        if ($item instanceof \stdClass) {
             return (array) $item;
         }
 
-        return is_array($item) ? $item : [];
+        return $item ?? [];
     }
 
 

@@ -62,10 +62,12 @@ final class ProductionDebugGuard implements Bootstrap
     }
 
     /**
-     * @param mixed $worker
      * @param null|callable(object): void $halt 测试注入；默认让主进程停止，避免 worker 重启风暴
+     *
+     * $worker 只能标 mixed：webman Bootstrap::start 传入 ?Worker，
+     * 独立脚本测试按任意 object 调用，两者取并集。
      */
-    public static function start($worker, ?callable $halt = null): void
+    public static function start(mixed $worker, ?callable $halt = null): void
     {
         $env = getenv('APP_ENV');
         $appEnv = $env === false ? ($_ENV['APP_ENV'] ?? null) : $env;

@@ -5,3 +5,6 @@ parameters:
         - tests
         - app/controller/FileController.php
         - app/bootstrap/WeakPasswordGuard.php
+    # tools/typephp_check.php 是门禁脚本不进 paths，但单测 require 它的函数，需要可见符号
+    scanFiles:
+        - ../tools/typephp_check.php

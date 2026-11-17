@@ -29,8 +29,12 @@ final class SdkQuietLogger extends AbstractLogger
     {
     }
 
-    /** @param array<array-key, mixed> $context */
-    public function log($level, string|\Stringable $message, array $context = []): void
+    /**
+     * @param array<array-key, mixed> $context
+     *
+     * $level 收窄不了：PSR-3 LoggerInterface::log 签名就是无类型参数。
+     */
+    public function log(mixed $level, string|\Stringable $message, array $context = []): void
     {
         if (!is_string($level) || !isset(self::PASS_LEVELS[$level])) {
             return;
