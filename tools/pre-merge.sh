@@ -19,8 +19,9 @@
 #   PRE_MERGE_BASE          命名 diff 检查的对照 ref，默认 origin/main。
 #
 # 现状提醒：集成测试的 SAND_TEST_DB_URL 只认 pgsql://，mysql* 档位下
-# 数据库相关用例按仓库既有逻辑跳过（等 MySQL 方言层落地后转真跑）；
-# 基线迁移 0001–0003 尚未随仓发布，仓内 0004–0007 单独铺不出可用库。
+# 数据库用例会如实报错（方言层未落地，CI 同档位标记为已知失败）；
+# pgsql 指向空库同样报错而非跳过——先用 PRE_MERGE_SCHEMA_DIR 铺基线
+# （0001–0003 基线迁移尚未随仓发布，需从基线产物目录取）。
 #
 # 依赖：php + composer（server/vendor 已装）、python3、pnpm（web/ 存在时）、
 #       psql 或 mysql 客户端（仅在配了 PRE_MERGE_SCHEMA_DIR 时需要）。
