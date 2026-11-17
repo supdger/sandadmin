@@ -5,3 +5,7 @@ parameters:
         - tests
         - app/controller/FileController.php
         - app/bootstrap/WeakPasswordGuard.php
+    # 让 PHPStan 发现 tools/ 里的发布期函数符号（不做错误分析）
+    scanFiles:
+        - ../tools/dev-manifest.php
+        - ../tools/check-dev-refs.php

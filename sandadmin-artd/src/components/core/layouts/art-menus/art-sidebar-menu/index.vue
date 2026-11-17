@@ -137,7 +137,9 @@
   import { MenuTypeEnum, MenuWidth } from '@/enums/appEnum'
   import { useMenuStore } from '@/store/modules/menu'
   import { isIframe } from '@/utils/navigation'
+  // SAND-DEV-BEGIN
   import { devSurfaceOpen, hideDevMenus } from '@/utils/devSurface'
+  // SAND-DEV-END
   import { handleMenuJump } from '@/utils/navigation'
   import SidebarSubmenu from './widget/SidebarSubmenu.vue'
   import { useCommon } from '@/hooks/core/useCommon'
@@ -185,7 +187,11 @@
 
   // 菜单数据
   const firstLevelMenus = computed(() => {
-    return hideDevMenus(useMenuStore().menuList, devSurfaceOpen(route.query)).filter((menu) => !menu.meta.isHide)
+    let menus = useMenuStore().menuList
+    // SAND-DEV-BEGIN
+    menus = hideDevMenus(menus, devSurfaceOpen(route.query))
+    // SAND-DEV-END
+    return menus.filter((menu) => !menu.meta.isHide)
   })
 
   const menuList = computed(() => {
@@ -193,7 +199,10 @@
     const allMenus = menuStore.menuList
 
     // 如果不是顶部左侧菜单或双列菜单，直接返回完整菜单列表
-    const shown = hideDevMenus(allMenus, devSurfaceOpen(route.query))
+    let shown = allMenus
+    // SAND-DEV-BEGIN
+    shown = hideDevMenus(shown, devSurfaceOpen(route.query))
+    // SAND-DEV-END
     if (!isTopLeftMenu.value && !isDualMenu.value) {
       return shown
     }

@@ -9,6 +9,7 @@ export interface AppEnv {
   appLogo: string | null;
   copyright: string;
   defaultLocale: string;
+  // SAND-DEV-BEGIN
   enableMocks: boolean;
   /**
    * Passwords for the extra MSW demo accounts (`viewer` = read-only,
@@ -17,6 +18,7 @@ export interface AppEnv {
    */
   mockViewerPassword: string | null;
   mockGuestPassword: string | null;
+  // SAND-DEV-END
 }
 
 function readString(value: string | undefined, fallback: string): string {
@@ -40,8 +42,10 @@ export const env: AppEnv = {
     '© 2026 青岛沙盒创意网络科技有限公司',
   ),
   defaultLocale: readString(import.meta.env.VITE_DEFAULT_LOCALE, 'zh-CN'),
+  // SAND-DEV-BEGIN
   // Mocks default on in dev, off in production builds.
   enableMocks: readBool(import.meta.env.VITE_ENABLE_MOCKS, import.meta.env.DEV),
   mockViewerPassword: readString(import.meta.env.VITE_MOCK_VIEWER_PASSWORD, '') || null,
   mockGuestPassword: readString(import.meta.env.VITE_MOCK_GUEST_PASSWORD, '') || null,
+  // SAND-DEV-END
 };

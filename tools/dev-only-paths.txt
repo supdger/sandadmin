@@ -1,0 +1,96 @@
+# 开发专用代码清单：只在开发构建存在，生产发布包整段剔除。
+#
+# 语法（路径相对仓库根，正斜杠）：
+#   rm <路径>     发布包中删除该文件或目录；目录递归删除整个子树；
+#               允许 *（单段通配）与 **（跨段通配），如 web/src/**/*.test.ts
+#   strip <路径>  该文件含哨兵块，打包时删除 SAND-DEV-BEGIN 到
+#               SAND-DEV-END 之间的所有行（含标记行）；哨兵用该语言
+#               的行注释写（PHP/TS/Vue script 用 //，模板用 <!-- -->，
+#               env/CSS 用 #或 /* */），必须成对、不嵌套
+#
+# 规矩：
+#   - 新增开发专用代码必须登记进本清单，否则 tools/check-dev-refs.php
+#     门禁失败；含哨兵块的文件也必须用 strip 登记，哨兵块之外不得再
+#     出现 dev 符号，门禁会按剔除后的内容再扫一遍。
+#   - 表达式需要「生产默认 + 开发覆盖」两种写法时，用 let/可变变量先给
+#     生产值，再在哨兵块里覆盖；不要写两份并存的声明。
+#   - 本清单自身不进发布包。
+
+# ── 开发构建标记 ──────────────────────────────────────────────
+rm server/.sand-dev-build
+rm server/src/Infra/DevBuild.php
+
+# ── 开发免登录链（T-5：路由、门禁、开发身份不进生产包）────────
+rm server/app/support/DevLoginGate.php
+rm server/app/controller/DevLoginController.php
+rm server/src/Http/DevPrincipal.php
+rm server/src/Task/DevTaskActorProvider.php
+rm server/src/Module/Announcement/DevAnnouncementActorProvider.php
+rm server/src/Module/Lifecycle/DevLifecycleActorProvider.php
+
+# ── 开发构建 MCP 端点与工具（R-6）；Infra/Mcp 下三个通用类当前唯一
+#    消费方是被剔除的 McpController，U-3 生产 MCP 落地时再按生产
+#    口径实现，不留死代码 ──────────────────────────────────────
+rm server/src/Http/McpController.php
+rm server/src/Infra/Mcp/Dev
+rm server/src/Infra/Mcp/DevTokenVerifier.php
+rm server/src/Infra/Mcp/McpGate.php
+rm server/src/Infra/Mcp/WindowRateLimiter.php
+rm server/src/Infra/Mcp/LogAuditSink.php
+rm server/config/mcp.php
+
+# ── 测试与开发期门禁/工具，发布包不携带 ───────────────────────
+rm server/tests
+rm tests
+rm server/phpunit.xml.dist
+rm server/phpstan.neon.dist
+rm server/bin/ci
+rm server/docs
+rm naming-allow.txt
+rm tools/dev-only-paths.txt
+rm tools/dev-manifest.php
+rm tools/check-dev-refs.php
+rm tools/strip-dev.php
+rm tools/build-release.sh
+rm tools/pre-merge.sh
+
+# ── 其他开发专用 ─────────────────────────────────────────────
+# Windows 本地启动器；生产部署形态是 Linux 编译制品
+rm server/windows.php
+rm server/windows.bat
+# 演示模块，源注释自述测试专用，无路由引用
+rm server/src/Module/DemoNote
+
+# ── web/ 前端：MSW mock 与测试代码 ───────────────────────────
+rm web/src/mocks
+rm web/src/test
+rm web/src/**/*.test.ts
+rm web/src/**/*.test.tsx
+rm web/public/mockServiceWorker.js
+
+# ── sandadmin-artd/ 前端：devSurface 隐藏页机制与测试代码 ────
+rm sandadmin-artd/src/utils/devSurface.ts
+rm sandadmin-artd/src/**/*.test.ts
+
+# ── 含哨兵块的生产文件（剔除块后随包发布）─────────────────────
+strip server/config/route.php
+strip server/support/bootstrap.php
+strip server/src/Http/BizKernel.php
+strip server/src/Http/TaskController.php
+strip server/src/Module/Announcement/AnnouncementRuntime.php
+strip server/src/Module/Notification/NotificationRuntime.php
+strip server/src/Module/Lifecycle/LifecycleRuntime.php
+strip server/.env.example
+strip web/src/main.tsx
+strip web/src/config/env.ts
+strip web/src/vite-env.d.ts
+strip web/src/api/auth.ts
+strip web/src/pages/auth/LoginPage.tsx
+strip web/.env.example
+strip sandadmin-artd/.env.example
+strip sandadmin-artd/src/api/auth.ts
+strip sandadmin-artd/src/views/auth/login/index.vue
+strip sandadmin-artd/src/views/auth/login/style.css
+strip sandadmin-artd/src/router/guards/beforeEach.ts
+strip sandadmin-artd/src/components/core/layouts/art-menus/art-sidebar-menu/index.vue
+strip sandadmin-artd/src/components/core/layouts/art-header-bar/index.vue

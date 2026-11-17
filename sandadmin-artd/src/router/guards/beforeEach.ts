@@ -23,7 +23,9 @@ import {
   showError
 } from '@/utils/http/error'
 import { RouteRegistry, MenuProcessor, IframeRouteManager } from '../core'
+// SAND-DEV-BEGIN
 import { devSurfaceOpen, isDevSurfacePath } from '@/utils/devSurface'
+// SAND-DEV-END
 
 let routeRegistry: RouteRegistry | null = null
 const menuProcessor = new MenuProcessor()
@@ -211,12 +213,14 @@ async function handleRouteGuard(
     return
   }
 
+  // SAND-DEV-BEGIN
   // 开发专用页面只在地址带 dev=1 时可用；没有 dev 参数按页面不存在处理
   if (isDevSurfacePath(to.path) && !devSurfaceOpen(to.query)) {
     closeLoading(to)
     next({ name: 'Exception404' })
     return
   }
+  // SAND-DEV-END
 
   if (to.matched.length > 0) {
     setWorktab(to)

@@ -18,7 +18,7 @@ use support\Request;
  * 只在 SAND_DEV_LOGIN、回环地址、没有转发头、并且请求带了令牌时生效。
  * 令牌内容不解析：开发登录端点本身已经过同一道门，这里只确认「带了令牌」。
  */
-final class DevPrincipal
+final class DevPrincipal implements PrincipalProvider
 {
     public function __construct(private readonly Connection $connection)
     {

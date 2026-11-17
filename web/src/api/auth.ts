@@ -22,10 +22,12 @@ export interface LoginResult {
   must_change_password: boolean;
 }
 
+// SAND-DEV-BEGIN
 export interface DevLoginAvailability {
   available: boolean;
   username?: string;
 }
+// SAND-DEV-END
 
 export interface PasswordPolicy {
   minLength: number;
@@ -41,6 +43,7 @@ export async function login(p: LoginParams): Promise<LoginResult> {
   return data;
 }
 
+// SAND-DEV-BEGIN
 // 查询失败一律按不可用处理：开发体验是附加能力，不能让登录页因为它打不开。
 export async function getDevLoginAvailable(): Promise<DevLoginAvailability> {
   try {
@@ -56,6 +59,7 @@ export async function devLogin(): Promise<LoginResult> {
   setToken(data.access_token);
   return data;
 }
+// SAND-DEV-END
 
 export async function logout(): Promise<void> {
   try {
