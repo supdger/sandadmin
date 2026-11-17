@@ -10,7 +10,7 @@ use Webman\Bootstrap;
 
 /**
  * 日志留存启动自检（T-4/N9）：任一通道 retention.days 低于所属类别下限
- * 即拒绝启动——安全类下限 180 天、普通类下限 30 天。只在启动期判定，
+ * 即拒绝启动——安全类下限 183 天、普通类下限 30 天。只在启动期判定，
  * 不持有请求状态。
  */
 final class LogRetentionGuard implements Bootstrap

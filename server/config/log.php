@@ -17,10 +17,10 @@ declare(strict_types=1);
 
 return [
     'default' => [
-        // 留存策略（T-4/N9）：security 类下限 180 天、general 类下限 30 天，
-        // days 缺省 180；低于下限由 LogRetentionGuard 拒绝启动。库表日志
+        // 留存策略（T-4/N9）：security 类下限 183 天、general 类下限 30 天，
+        // days 缺省 183；低于下限由 LogRetentionGuard 拒绝启动。库表日志
         // （审计、登录日志表）清理同样从 LogRetentionPolicy 取天数。
-        'retention' => ['kind' => 'general', 'days' => 180],
+        'retention' => ['kind' => 'general', 'days' => 183],
         'handlers' => [
             [
                 'class' => Monolog\Handler\RotatingFileHandler::class,
@@ -37,9 +37,9 @@ return [
             ]
         ],
     ],
-    // 安全类日志通道：登录、操作、审计等安全事件写这里（下限 180 天）
+    // 安全类日志通道：登录、操作、审计等安全事件写这里（下限 183 天）
     'security' => [
-        'retention' => ['kind' => 'security', 'days' => 180],
+        'retention' => ['kind' => 'security', 'days' => 183],
         'handlers' => [
             [
                 'class' => Monolog\Handler\RotatingFileHandler::class,

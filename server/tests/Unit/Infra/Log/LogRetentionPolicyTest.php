@@ -34,7 +34,7 @@ final class LogRetentionPolicyTest extends TestCase
         } catch (LogRetentionException $error) {
             self::assertStringContainsString('security', $error->getMessage());
             self::assertStringContainsString('179', $error->getMessage());
-            self::assertStringContainsString('180', $error->getMessage());
+            self::assertStringContainsString('183', $error->getMessage());
         }
     }
 
@@ -48,11 +48,11 @@ final class LogRetentionPolicyTest extends TestCase
     public function testMinBoundaryIsAccepted(): void
     {
         $policy = LogRetentionPolicy::fromArray([
-            'security' => $this->channel('security', 180),
+            'security' => $this->channel('security', 183),
             'default' => $this->channel('general', 30),
         ]);
         $policy->assertValid();
-        self::assertSame(180, $policy->resolveDays('security'));
+        self::assertSame(183, $policy->resolveDays('security'));
         self::assertSame(30, $policy->resolveDays('default'));
     }
 
@@ -73,7 +73,7 @@ final class LogRetentionPolicyTest extends TestCase
             'default' => ['handlers' => [['constructor' => ['/tmp/x.log', 7]]]],
         ]);
         $policy->assertValid();
-        self::assertSame(180, $policy->resolveDays('default'));
+        self::assertSame(183, $policy->resolveDays('default'));
     }
 
     public function testUnknownKindIsRejected(): void

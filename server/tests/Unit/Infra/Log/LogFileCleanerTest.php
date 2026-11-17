@@ -80,10 +80,10 @@ final class LogFileCleanerTest extends TestCase
     {
         $today = new DateTimeImmutable('2026-11-17');
         $this->writeLog('app-2026-10-01.log'); // 47 天前
-        $this->writeLog('sec-2026-10-01.log'); // 同日：security 180 天内保留
+        $this->writeLog('sec-2026-10-01.log'); // 同日：security 183 天内保留
 
         $config = $this->policyConfig('default', 30, $this->dir . '/app.log')
-            + $this->policyConfig('security', 180, $this->dir . '/sec.log');
+            + $this->policyConfig('security', 183, $this->dir . '/sec.log');
         $policy = LogRetentionPolicy::fromArray($config);
         $rows = (new LogFileCleaner())->clean($policy, $today);
 

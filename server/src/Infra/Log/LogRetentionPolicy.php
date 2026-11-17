@@ -9,8 +9,8 @@ namespace Sandadmin\Infra\Log;
 
 /**
  * 日志留存策略：解析 config('log') 各通道的 retention 配置并校验下限。
- * 安全类（security）下限 180 天、普通类（general）下限 30 天，缺省按 general、
- * 180 天——网络安全法要求网络日志留存不少于六个月是下限依据（T-4/N9）。
+ * 安全类（security）下限 183 天、普通类（general）下限 30 天，缺省按 general、
+ * 183 天——网络安全法要求网络日志留存不少于六个月是下限依据（T-4/N9）。
  * 文件日志清理（LogFileCleaner/LogRetentionWorker）与将来的库表日志
  * （审计、登录日志表）清理统一从本类取留存天数。
  *
@@ -20,9 +20,9 @@ final class LogRetentionPolicy
 {
     public const KIND_SECURITY = 'security';
     public const KIND_GENERAL = 'general';
-    public const MIN_SECURITY_DAYS = 180;
+    public const MIN_SECURITY_DAYS = 183;
     public const MIN_GENERAL_DAYS = 30;
-    public const DEFAULT_DAYS = 180;
+    public const DEFAULT_DAYS = 183;
 
     /** @var array<string, ChannelRetention> */
     private readonly array $channels;

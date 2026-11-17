@@ -18,15 +18,15 @@ final class LogRetentionGuardTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
         LogRetentionGuard::start(null, [
-            'default' => ['retention' => ['kind' => 'general', 'days' => 180]],
-            'security' => ['retention' => ['kind' => 'security', 'days' => 180]],
+            'default' => ['retention' => ['kind' => 'general', 'days' => 183]],
+            'security' => ['retention' => ['kind' => 'security', 'days' => 183]],
         ]);
     }
 
     public function testBelowMinRejectsStartup(): void
     {
         $this->expectException(LogRetentionException::class);
-        $this->expectExceptionMessageMatches('/security.*30.*180/');
+        $this->expectExceptionMessageMatches('/security.*30.*183/');
         LogRetentionGuard::start(null, [
             'security' => ['retention' => ['kind' => 'security', 'days' => 30]],
         ]);
