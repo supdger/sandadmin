@@ -70,4 +70,11 @@ return [
         'count' => max(1, (int) env('SANDADMIN_TASK_WORKERS', 1)),
         'constructor' => [],
     ],
+    // Custom process: 按 config/log.php 各通道 retention 每日清理过期日志
+    // 文件（T-4/N9）；库表日志清理落地后复用同一 LogRetentionPolicy。
+    'log_retention' => [
+        'handler' => Sandadmin\Infra\Log\LogRetentionWorker::class,
+        'count' => 1,
+        'constructor' => [],
+    ],
 ];

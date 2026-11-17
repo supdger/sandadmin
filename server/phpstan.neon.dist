@@ -10,3 +10,4 @@ parameters:
         - ../tools/dev-manifest.php
         - ../tools/check-dev-refs.php
         - ../tools/typephp_check.php
+        - ../tools/strip-vendor-tests.php

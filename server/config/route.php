@@ -20,6 +20,7 @@ use app\controller\DevLoginController;
 use Sandadmin\Http\McpController;
 use Sandadmin\Infra\DevBuild;
 // SAND-DEV-END
+use Sandadmin\Http\SpaFallback;
 use Webman\Route;
 
 // Public controllers must opt in explicitly; installed plugins register their
@@ -46,3 +47,7 @@ if (DevBuild::enabled()) {
 // 本文件哨兵段外禁止手写 Route:: 调用（contract-build --check 会打回）。
 // 静态路径先于参数路径的注册语义由契约 paths 的书写顺序承载。
 require __DIR__ . '/route.generated.php';
+
+// SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；
+// /api/** 未命中与非 GET 在其内重抛 404，与反代部署不冲突。
+Route::fallback([SpaFallback::class, 'respond']);

@@ -138,7 +138,8 @@ function scanDevRefs(array $files, array $manifest, callable $read, bool $requir
 
 /**
  * route.php 结构断言：哨兵必须成对；哨兵段之外只允许
- * Route::disableDefaultRoute() 与对 route.generated.php 的 require——
+ * Route::disableDefaultRoute()、SPA 回退 Route::fallback()（不是接口，不进契约）
+ * 与对 route.generated.php 的 require——
  * 常驻路由全走契约生成表，杜绝有人在哨兵外回写手挂路由。
  * 原属 contract-build 构建器，挪回本门禁：dev 哨兵语义的归属地在这里，
  * 构建器不再感知哨兵（本脚本自身在 rm 清单里，token 命中不算违规）。
@@ -166,7 +167,7 @@ function checkRouteShell(string $base): array
         $matches = [[]];
     }
     foreach (($matches[1] ?? []) as $verb) {
-        if ($verb !== 'disableDefaultRoute') {
+        if (!in_array($verb, ['disableDefaultRoute', 'fallback'], true)) {
             $violations[] = "server/config/route.php: 哨兵段外存在手写 Route::{$verb} 调用，路由必须走 route.generated.php";
         }
     }

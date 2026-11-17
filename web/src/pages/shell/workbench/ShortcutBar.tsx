@@ -4,7 +4,6 @@ import { Button, Card, Empty, Modal, Select, Tag, Toast, Typography } from '@dou
 import { IconClose } from '@douyinfe/semi-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
 
 import {
   getShortcuts,
@@ -13,7 +12,9 @@ import {
   type ShortcutItem,
 } from '@/api/v1/dashboard';
 import { getMyMenus, MY_MENUS_QUERY_KEY, type MyMenuNode } from '@/api/v1/me';
+import { ShortcutGrid } from '@/components/layout/ShortcutGrid';
 import { adminErrorMessage } from '@/lib/adminError';
+import { isNetworkFailure } from '@/lib/networkFailure';
 import { listOrEmpty } from './listOrEmpty';
 import { LoadError } from './LoadError';
 
@@ -38,13 +39,13 @@ function flattenLeaves(items: MyMenuNode[], out: LeafMenu[] = []): LeafMenu[] {
 }
 
 /**
- * Workbench 快捷入口 strip. Auto mode renders the server-picked list; the
- * 「调整」 modal switches to manual mode — drag to reorder, × to remove,
- * search to add — persisted via PUT/DELETE /dashboard/shortcuts.
+ * Workbench 快捷入口 card：容器负责标题、「调整」modal 与离线占位；
+ * 内容渲染 ShortcutGrid（按 /me/menus 过滤权限）。modal 里 drag to
+ * reorder, × to remove, search to add — persisted via
+ * PUT/DELETE /dashboard/shortcuts.
  */
 export function ShortcutBar() {
   const { t } = useTranslation('workbench');
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState<ShortcutItem[]>([]);
@@ -114,8 +115,6 @@ export function ShortcutBar() {
     .filter((m) => !draft.some((s) => s.menu_key === m.key))
     .map((m) => ({ value: m.key, label: m.title }));
 
-  const items = listOrEmpty(shortcuts.data?.items);
-
   return (
     <Card
       title={t('shortcuts.title')}
@@ -125,27 +124,10 @@ export function ShortcutBar() {
         </Button>
       }
     >
-      {shortcuts.isPaused || shortcuts.isError ? (
+      {shortcuts.isPaused || isNetworkFailure(shortcuts.error) ? (
         <LoadError error={shortcuts.error} paused={shortcuts.isPaused} onRetry={() => void shortcuts.refetch()} />
-      ) : shortcuts.isPending ? (
-        <Typography.Text type="tertiary" size="small">
-          {t('common:loading')}
-        </Typography.Text>
-      ) : items.length === 0 ? (
-        <Empty title={t('shortcuts.empty')} description={undefined} />
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {items.map((item) => (
-            <Button
-              key={item.menu_key}
-              size="small"
-              theme="light"
-              onClick={() => navigate(item.link)}
-            >
-              {item.title}
-            </Button>
-          ))}
-        </div>
+        <ShortcutGrid />
       )}
 
       <Modal
