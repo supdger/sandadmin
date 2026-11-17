@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: SandHello 示例插件
+  version: "0.1"
+  description: 契约夹具：验证插件片段的命名空间隔离与宿主码复用。
+
+# 插件只许声明本域新增码；宿主已登记码直接引用不重复声明。
+x-error-catalog:
+  SAND_HELLO_NOTE_NOT_FOUND: {http_status: 404, summary: 记录不存在}
+
+paths:
+  /api/admin/v1/plugin/sand-hello/notes:
+    get:
+      operationId: sandHelloNotesIndex
+      summary: 示例记录列表
+      tags: [sand-hello]
+      x-handler: 'SandHello\Http\NoteController::index'
+      # 与 manifest.menus[].permission 同码
+      x-permission: sand_hello:page:read
+      # NOT_FOUND 是宿主已登记码，插件可直接引用
+      x-error-codes: [SAND_HELLO_NOTE_NOT_FOUND, NOT_FOUND]
+      x-mcp:
+        name: sand_hello_notes_list
+        tier: read
+        title: 示例记录列表
+        description: 读取示例记录（只读）
+        input:
+          type: object
+          properties: {}
+          additionalProperties: false
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugin/sand-hello/notes/{note_id}:
+    get:
+      operationId: sandHelloNotesShow
+      summary: 示例记录详情
+      tags: [sand-hello]
+      x-handler: 'SandHello\Http\NoteController::show'
+      x-permission: sand_hello:page:read
+      x-error-codes: [SAND_HELLO_NOTE_NOT_FOUND]
+      parameters:
+        - {name: note_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
