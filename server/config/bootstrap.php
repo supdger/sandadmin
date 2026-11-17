@@ -20,6 +20,8 @@ return [
     app\bootstrap\ProductionDebugGuard::class,
     // 弱密码命中表：进程启动载入一次 + 生产缺失拒启自检（C-18）。
     app\bootstrap\WeakPasswordGuard::class,
+    // 日志留存下限自检：通道 retention.days 低于类别下限即拒绝启动（T-4/N9）。
+    app\bootstrap\LogRetentionGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];

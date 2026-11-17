@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 生产发布包构建：git archive 干净导出 HEAD → 按 tools/dev-only-paths.txt
 # 物理剔除开发专用代码 → server 下 composer install --no-dev → vendor
-# sand-core 与 plugin/sandadmin 载荷剔除 dev-login 链 → web/ 前端构建
-# 并把 dist 并入 server/public → 自检 → 打 tar.gz。
+# sand-core 与 plugin/sandadmin 载荷剔除 dev-login 链、第三方测试文件 →
+# web/ 前端构建并把 dist 并入 server/public → 自检 → 打 tar.gz。
 #
 #   tools/build-release.sh [版本号]
 #
@@ -34,8 +34,10 @@ echo "== 3/8 composer install --no-dev --optimize-autoloader"
 # 骨架发布脚本会回填 windows.php、插件前端测试文件等，需按清单宽容复剔
 php "$ROOT/tools/strip-dev.php" "$SRC" --reapply
 
-echo "== 4/8 vendor sand-core 与 plugin/sandadmin 载荷剔除 dev-login 链"
+echo "== 4/8 vendor sand-core 与 plugin/sandadmin 载荷剔除 dev-login 链、第三方测试文件"
 php "$ROOT/tools/strip-sand-core.php" "$SRC"
+# 第三方包自带的测试文件（*.test.*、*.spec.*、__tests__、前端载荷内 tests/）
+php "$ROOT/tools/strip-vendor-tests.php" "$SRC"
 # 剔除后重建类映射，清掉指向已删文件的 optimized classmap 项
 ( cd "$SRC/server" && composer dump-autoload --no-dev --optimize --no-interaction )
 
@@ -78,6 +80,13 @@ fi
 # 浏览器公开变量（源自已剔除哨兵的 .env.example），豁免；其余 .env 与密钥文件不得残留
 if find "$SRC" \( -name '.env' -not -path '*/sandadmin-artd/.env' \) -o -name '*.key' -o -name '*.pem' | grep -q .; then
     echo "FAIL 产物含 .env/密钥类文件" >&2
+    exit 1
+fi
+# 第三方测试文件不得进包（剔除漏网的兜底断言）
+left=$(find "$SRC" \( -name '*.test.*' -o -name '*.spec.*' -o -name '__tests__' \) -print)
+if [ -n "$left" ]; then
+    echo "FAIL 产物含第三方测试文件：" >&2
+    echo "$left" >&2
     exit 1
 fi
 
