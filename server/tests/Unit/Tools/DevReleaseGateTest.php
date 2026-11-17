@@ -74,6 +74,26 @@ final class DevReleaseGateTest extends TestCase
         self::assertTrue(matchDevPath('web/src/*.test.ts', 'web/src/x.test.ts'));
     }
 
+    public function testMatchDoubleStarCoversZeroSegments(): void
+    {
+        // 「**/」兼容零层目录：清单语义是 src 下所有测试文件，不只子目录里的
+        self::assertTrue(matchDevPath('web/src/**/*.test.ts', 'web/src/x.test.ts'));
+        self::assertTrue(matchDevPath('web/src/**/*.test.ts', 'web/src/a/b/x.test.ts'));
+        self::assertFalse(matchDevPath('web/src/**/*.test.ts', 'web/src/x.test.tsx'));
+        self::assertFalse(matchDevPath('web/src/**/*.test.ts', 'web/lib/x.test.ts'));
+    }
+
+    public function testScanFlagsUnregisteredDevBuildRef(): void
+    {
+        // DevBuild 是清单 rm 的开发构建标记类，未登记文件引用它必须判失败
+        $files = ['a/Prod.php'];
+        $manifest = ['rm' => ['server/src/Infra/DevBuild.php'], 'strip' => []];
+        $read = static fn (string $path): string => "use Sandadmin\\Infra\\DevBuild;\nDevBuild::enabled();\n";
+        $violations = scanDevRefs($files, $manifest, $read);
+        self::assertNotSame([], $violations);
+        self::assertSame('a/Prod.php:DevBuild@1', $violations[0]);
+    }
+
     public function testStripDevBlocksRemovesMarkedRanges(): void
     {
         $source = "keep1\n// SAND-DEV-BEGIN\ndev line\n// SAND-DEV-END\nkeep2\n";

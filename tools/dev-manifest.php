@@ -43,7 +43,9 @@ function parseDevManifest(string $path): array
 
 /**
  * 清单路径匹配：不带通配符时按「精确文件或目录前缀」匹配；
- * 带 *（单段任意字符）与 **（跨段任意字符）时按通配匹配。
+ * 带 *（单段任意字符）与 **（跨段任意字符）时按通配匹配；
+ * 跨段通配兼容零层目录：清单 web/src 加跨段段加 *.test.ts 形条目
+ * 同时命中 src 直属文件与子目录文件，否则会比注释语义少匹配一层。
  */
 function matchDevPath(string $pattern, string $path): bool
 {
@@ -51,7 +53,9 @@ function matchDevPath(string $pattern, string $path): bool
         return $path === $pattern || str_starts_with($path, $pattern . '/');
     }
     $regex = preg_quote($pattern, '#');
+    $regex = str_replace('\*\*/', "\x00", $regex);
     $regex = str_replace(['\*\*', '\*', '\?'], ['.*', '[^/]*', '[^/]'], $regex);
+    $regex = str_replace("\x00", '(?:.*/)?', $regex);
 
     return preg_match('#^' . $regex . '$#', $path) === 1;
 }

@@ -26,6 +26,7 @@ const DEV_REF_PATTERNS = [
     'DevAnnouncementActorProvider',
     'DevLifecycleActorProvider',
     'DevTokenVerifier',
+    'DevBuild',
     'DevCatalog',
     'Infra\\Mcp\\Dev',
     'Infra/Mcp/Dev',
