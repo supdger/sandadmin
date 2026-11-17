@@ -15,6 +15,8 @@
 return [
     // 必须最先执行：生产环境开启 debug 时拒绝启动（安全 P0-F4）。
     app\bootstrap\ProductionDebugGuard::class,
+    // 弱密码命中表：进程启动载入一次 + 生产缺失拒启自检（C-18）。
+    app\bootstrap\WeakPasswordGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];

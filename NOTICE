@@ -15,3 +15,7 @@ MIT-licensed `saithink/saipackage`. They are maintained inside SandPackage so
 the public source tree does not require a separate compatibility namespace.
 
 SandAdmin is not an official SaiAdmin release and does not imply endorsement by SaiAdmin or its authors.
+
+This product includes a common weak password denylist compiled from SecLists (https://github.com/danielmiessler/SecLists), licensed under the MIT License. Copyright (c) 2018 Daniel Miessler.
+
+The Chinese common password list is derived from Chinese-Common-Password-List (https://github.com/NihaoKangkang/Chinese-Common-Password-List) by Kyi Wong, MIT License; the general list is derived from the NCSC Pwned Passwords Top 100k list based on Troy Hunt's Have I Been Pwned data (no licence required).

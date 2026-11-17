@@ -4,3 +4,4 @@ parameters:
         - src
         - tests
         - app/controller/FileController.php
+        - app/bootstrap/WeakPasswordGuard.php
