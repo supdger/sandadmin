@@ -114,18 +114,21 @@ jobs:
             known_failure: false
             image: postgres:16
             db_port: 5432
+            health_cmd: "pg_isready -U postgres"
             test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
           # MySQL 8.0 系列最后一个版本（8.0.46）；镜像标签 mysql:8.0 即该系列末版。
           - db: mysql-8.0
             known_failure: true
             image: mysql:8.0
             db_port: 3306
+            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
             test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
           # MySQL 8.4 LTS 推荐线。
           - db: mysql-8.4
             known_failure: true
             image: mysql:8.4
             db_port: 3306
+            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
             test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
     services:
       db:
@@ -138,7 +141,7 @@ jobs:
         ports:
           - ${{ matrix.db_port }}:${{ matrix.db_port }}
         options: >-
-          --health-cmd ${{ contains(matrix.image, 'postgres') && 'pg_isready -U postgres' || 'mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw' }}
+          --health-cmd "${{ matrix.health_cmd }}"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
