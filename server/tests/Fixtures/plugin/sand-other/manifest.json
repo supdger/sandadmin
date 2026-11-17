@@ -1,0 +1,10 @@
+{
+    "app": "sand-other",
+    "version": "0.1.0",
+    "kernel_api_min": "1.0.0",
+    "kernel_api_max": "1.9.9",
+    "databases": ["pgsql", "mysql"],
+    "locales": {
+        "backend": "resource/translations"
+    }
+}

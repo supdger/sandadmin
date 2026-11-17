@@ -14,6 +14,7 @@
 
 use app\controller\DevLoginController;
 use app\controller\FileController;
+use Sandadmin\Infra\DevBuild;
 use Sandadmin\Http\AnnouncementController;
 use Sandadmin\Http\DashboardController;
 use Sandadmin\Http\DictController;
@@ -51,10 +52,13 @@ Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'do
 
 // 1.x 前端按 /api/auth 与 /api/admin/v1/auth 两种前缀访问同一开发登录；
 // 两条映射共用 DevLoginGate，拒绝转发头伪装的非本机请求。
-Route::post('/api/auth/dev-login', [DevLoginController::class, 'devLogin']);
-Route::post('/api/admin/v1/auth/dev-login', [DevLoginController::class, 'devLogin']);
-Route::get('/api/auth/dev-login/available', [DevLoginController::class, 'available']);
-Route::get('/api/admin/v1/auth/dev-login/available', [DevLoginController::class, 'available']);
+// 整条链只在开发构建存在：生产制品没有 .sand-dev-build 标记，路由不注册。
+if (DevBuild::enabled()) {
+    Route::post('/api/auth/dev-login', [DevLoginController::class, 'devLogin']);
+    Route::post('/api/admin/v1/auth/dev-login', [DevLoginController::class, 'devLogin']);
+    Route::get('/api/auth/dev-login/available', [DevLoginController::class, 'available']);
+    Route::get('/api/admin/v1/auth/dev-login/available', [DevLoginController::class, 'available']);
+}
 
 // 公告：管理与收件人侧端点；权限码（system:announcement:* / authenticated）
 // 在 AnnouncementHttp 内判定，路由只挂形状。

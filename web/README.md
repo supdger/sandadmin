@@ -66,6 +66,7 @@ pnpm dev        # 开发服务器，默认启用 MSW mock
 - `src/routes/`：路由聚合。`src/routes/modules/<area>.tsx` 默认导出 `RouteObject[]`；`handle.public: true` 为免登录裸路由，其余自动挂到鉴权守卫 + 外壳布局下。
 - `src/components/`：共享组件（PageHeader、Empty、ErrorState、Loading、ListPage）。
 - `src/i18n/`：i18next；`locales/<locale>/<ns>.ts` 的文件名即命名空间，UI 文案一律走 `t()`。
+- `src/plugins/`：插件前端收集点，`src/plugins/<code>/index.ts(x)` 默认导出插件模块（路由/权限/词条）；构建期由 `pnpm collect:plugins` 把 `server/plugin/<app>/plugin-web/<app>/` 同步进来（`dev`/`build` 前自动执行）。
 - `src/mocks/`：MSW handler 与 worker/server 入口。
 
 ## 部署

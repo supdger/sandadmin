@@ -49,6 +49,7 @@ const MENU_PERMISSION: Record<string, string> = {
   'system:announcement': 'system:announcement:index',
   'system:plugin': 'system:plugin:index',
   'system:update': 'system:update:index',
+  'plugin:sand-hello:home': 'sand_hello:page:read',
 };
 
 function canSee(principal: { permissions: string[] }, key: string): boolean {
@@ -73,6 +74,8 @@ function toMyMenuNodes(
       icon: n.icon ?? null,
       path: n.url && n.url.startsWith('/') ? n.url : null,
       url: n.url && !n.url.startsWith('/') ? n.url : null,
+      ...(n.title_key ? { title_key: n.title_key } : {}),
+      ...(n.plugin ? { plugin: n.plugin } : {}),
       ...(n.children ? { children: toMyMenuNodes(n.children, principal) } : {}),
     }))
     // 子项被权限过滤光的 group 不再出现。

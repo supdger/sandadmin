@@ -53,7 +53,8 @@ const USERS: Record<string, MockUser> = {
     username: 'admin',
     nickname: '管理员',
     mustChangePassword: false,
-    permissions: ['*'],
+    // `'*'` 已是通配；带上示例插件权限码让菜单/宿主判定有显式依据。
+    permissions: ['*', 'sand_hello:page:read'],
     password: MOCK_PASSWORD,
     phone: '13800000001',
     email: 'admin@example.com',
@@ -240,6 +241,18 @@ function bumpFailure(username: string): { count: number; justLocked: boolean } {
   return { count, justLocked: false };
 }
 
+// 与真后端 SystemUserLogic::issueToken / DevLoginController 的响应 data 同形：
+// tinywan JwtToken::generateToken 的 snake_case 负载 + must_change_password。
+function issueTokenPayload(token: string, mustChangePassword: boolean) {
+  return {
+    token_type: 'Bearer',
+    expires_in: 3 * 3600,
+    access_token: token,
+    refresh_token: `${token}-refresh`,
+    must_change_password: mustChangePassword,
+  };
+}
+
 export default [
   http.post(`${base}/auth/login`, async ({ request }) => {
     const body = (await request.json()) as {
@@ -278,7 +291,8 @@ export default [
       failures.delete(username);
       const token = `mock-${username}-token`;
       tokenToUser.set(token, user);
-      return ok({ token, mustChangePassword: user.mustChangePassword }, '登录成功');
+      // 与真后端 JwtToken::generateToken 同形（snake_case），不做 case 转换。
+      return ok(issueTokenPayload(token, user.mustChangePassword), '登录成功');
     }
 
     const bump = bumpFailure(username);
@@ -305,7 +319,7 @@ export default [
     const user = USERS[DEV_LOGIN_USERNAME];
     const token = `mock-${user.username}-token`;
     tokenToUser.set(token, user);
-    return ok({ token, mustChangePassword: user.mustChangePassword }, '登录成功');
+    return ok(issueTokenPayload(token, user.mustChangePassword), '登录成功');
   }),
 
   http.post(`${base}/auth/logout`, () => ok(null)),

@@ -1,0 +1,39 @@
+{
+    "app": "sand-hello",
+    "version": "0.1.0",
+    "kernel_api_min": "1.0.0",
+    "kernel_api_max": "1.9.9",
+    "databases": ["pgsql", "mysql"],
+    "frontend": {
+        "entry": "plugin-web/sand-hello",
+        "route_prefix": "/plugin/sand-hello"
+    },
+    "menus": [
+        {
+            "key": "home",
+            "path": "/plugin/sand-hello",
+            "title": "你好示例",
+            "title_key": "menu.home",
+            "icon": "apps",
+            "permission": "sand_hello:page:read"
+        },
+        {
+            "key": "more",
+            "path": "/plugin/sand-hello/more",
+            "title": "更多",
+            "sort": 9,
+            "children": [
+                {
+                    "key": "about",
+                    "path": "/plugin/sand-hello/more/about",
+                    "title": "关于",
+                    "sort": 1
+                }
+            ]
+        }
+    ],
+    "locales": {
+        "backend": "resource/translations",
+        "frontend": "plugin-web/sand-hello/locales"
+    }
+}

@@ -14,6 +14,10 @@ export interface MyMenuNode {
   icon: string | null;
   path: string | null;
   url: string | null;
+  /** 插件菜单的词条 key；存在时按 `plugin-<plugin>` 命名空间翻译标题。 */
+  title_key?: string | null;
+  /** 节点所属插件编码；与 `plugin:<code>` 菜单前缀、/plugin/<code> 路由一致。 */
+  plugin?: string | null;
   children?: MyMenuNode[];
 }
 

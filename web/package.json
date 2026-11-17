@@ -5,8 +5,9 @@
   "type": "module",
   "packageManager": "pnpm@12.16.1",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "collect:plugins": "node scripts/collect-plugin-pages.mjs",
+    "dev": "node scripts/collect-plugin-pages.mjs && vite",
+    "build": "node scripts/collect-plugin-pages.mjs && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

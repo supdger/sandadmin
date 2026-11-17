@@ -26,6 +26,10 @@ export interface MenuNode {
   type: MenuNodeType;
   title: string;
   original_title?: string | null;
+  /** 插件菜单的词条 key；存在时标题按 `plugin-<plugin>` 命名空间翻译。 */
+  title_key?: string | null;
+  /** 节点所属插件编码。 */
+  plugin?: string | null;
   icon?: string | null;
   source?: MenuSource;
   visible: boolean;

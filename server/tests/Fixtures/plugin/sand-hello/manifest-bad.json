@@ -1,0 +1,12 @@
+{
+    "app": "sand-hello",
+    "version": "0.1.0",
+    "menus": [
+        {
+            "key": "home",
+            "path": "/other/sand-hello",
+            "title": "你好示例",
+            "bogus_field": true
+        }
+    ]
+}

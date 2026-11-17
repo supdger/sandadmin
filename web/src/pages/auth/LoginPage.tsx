@@ -60,7 +60,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await devLogin();
-      if (res.mustChangePassword) {
+      if (res.must_change_password) {
         navigate('/force-change-password', { replace: true });
       } else {
         navigate(redirectTo, { replace: true });
@@ -122,7 +122,7 @@ export default function LoginPage() {
           ? { captchaId: verified.captchaId, captchaAnswer: verified.points }
           : {}),
       });
-      if (res.mustChangePassword) {
+      if (res.must_change_password) {
         navigate('/force-change-password', { replace: true });
       } else {
         navigate(redirectTo, { replace: true });
