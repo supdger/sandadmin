@@ -52,6 +52,11 @@
 权威清单是 openapi.yaml 顶层 `x-error-catalog`（`码 → {http_status, summary}`），
 生成 `ErrorCodeRegistry::HTTP_STATUS`/`ALL` 常量表。
 
+- 条目可加 `const: <大写蛇形常量名>` 给 PHP 常量另取短名：线上码值不变，
+  只有常量名变化（用于码名超 4 词上限的既有码，如
+  `MCP_HIGH_RISK_NOT_OPEN` → `ErrorCodeRegistry::MCP_HIGH_RISK_CLOSED`）；
+  不写 `const` 时常量名即码名。两个码声明同一 `const` 构建失败。
+
 - 四个通用码 `VALIDATION_FAILED`/`UNAUTHENTICATED`/`PERMISSION_DENIED`/
   `INTERNAL_ERROR` 标 `common: true`，接口不用逐个在 `x-error-codes` 声明。
 - 业务码必须在 `x-error-catalog` 先登记再在接口 `x-error-codes` 引用；

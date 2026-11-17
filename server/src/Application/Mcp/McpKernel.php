@@ -68,7 +68,7 @@ final class McpKernel
         }
         if ($spec->tier === ToolTier::HighRisk) {
             // 高危写永不直接执行（M-02）：只给「待确认请求」形状，本期未开放。
-            return ToolOutcome::fail(ErrorCodeRegistry::MCP_HIGH_RISK_NOT_OPEN, [
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_HIGH_RISK_CLOSED, [
                 'message' => '高危写工具本期未开放，只能生成待确认请求',
                 'pending_request' => new PendingRequest($spec->name, McpCall::digestOf($arguments), PendingState::Pending),
             ]);

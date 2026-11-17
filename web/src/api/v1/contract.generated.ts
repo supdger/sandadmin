@@ -1,7 +1,7 @@
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:88cdba7f878484e5983e0d12c838437b866de31a9249313662030a9d5ff223f7
+// 源哈希: sha256:fb32ff5719edd1a74d399bd0a765fc240e7780d7a89eda2379fd3c17f57d75fb
 // 生成器: contract-build v1
 
 /** 成功信封：code 固定字符串 OK，成功判定只看这一个字段 */

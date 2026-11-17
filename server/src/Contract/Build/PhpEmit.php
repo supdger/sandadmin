@@ -216,8 +216,17 @@ final class PhpEmit
         $lines[] = "    /** 成功码：成功信封固定返回 code=OK */";
         $lines[] = "    public const OK = 'OK';";
         $lines[] = '';
-        foreach (array_keys($catalog) as $code) {
-            $lines[] = '    public const ' . $code . ' = ' . var_export($code, true) . ';';
+        $usedNames = [];
+        foreach ($catalog as $code => $entry) {
+            $name = $entry['const_name'] !== '' ? $entry['const_name'] : $code;
+            if (isset($usedNames[$name])) {
+                throw new \RuntimeException("错误码常量名冲突：{$name} 被 {$usedNames[$name]} 与 {$code} 同时声明");
+            }
+            $usedNames[$name] = $code;
+            if ($name !== $code) {
+                $lines[] = '    /** 线上错误码为 ' . $code . '，常量名按 4 词上限取短名 */';
+            }
+            $lines[] = '    public const ' . $name . ' = ' . var_export($code, true) . ';';
         }
         $lines[] = '';
         $lines[] = '    /** @var array<string, int> code => HTTP 状态 */';

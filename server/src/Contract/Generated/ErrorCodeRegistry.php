@@ -5,7 +5,7 @@ declare(strict_types=1);
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:88cdba7f878484e5983e0d12c838437b866de31a9249313662030a9d5ff223f7
+// 源哈希: sha256:fb32ff5719edd1a74d399bd0a765fc240e7780d7a89eda2379fd3c17f57d75fb
 // 生成器: contract-build v1
 
 namespace Sandadmin\Contract\Generated;
@@ -34,7 +34,8 @@ final class ErrorCodeRegistry
     public const MCP_BAD_ARGUMENT = 'MCP_BAD_ARGUMENT';
     public const MCP_FORBIDDEN = 'MCP_FORBIDDEN';
     public const MCP_GATE_MISSING = 'MCP_GATE_MISSING';
-    public const MCP_HIGH_RISK_NOT_OPEN = 'MCP_HIGH_RISK_NOT_OPEN';
+    /** 线上错误码为 MCP_HIGH_RISK_NOT_OPEN，常量名按 4 词上限取短名 */
+    public const MCP_HIGH_RISK_CLOSED = 'MCP_HIGH_RISK_NOT_OPEN';
     public const MCP_IDEMPOTENCY_REQUIRED = 'MCP_IDEMPOTENCY_REQUIRED';
     public const MCP_ORIGIN_REJECTED = 'MCP_ORIGIN_REJECTED';
     public const MCP_RATE_LIMITED = 'MCP_RATE_LIMITED';

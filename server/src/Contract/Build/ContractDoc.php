@@ -36,7 +36,7 @@ use Symfony\Component\Yaml\Yaml;
  * @phpstan-type ParameterSpec array{
  *   name: string, in: string, required: bool, schema: array<string, mixed>,
  * }
- * @phpstan-type ErrorEntry array{http_status: int, summary: string, common: bool, note: string}
+ * @phpstan-type ErrorEntry array{http_status: int, summary: string, common: bool, note: string, const_name: string}
  * @phpstan-type TreeNode array{
  *   group_key: string, group_title: string, menu_key: string, title: string,
  *   actions: list<array{action: string, label: string}>,
@@ -145,11 +145,21 @@ final class ContractDoc
                 $problems[] = "{$source}: 错误码 {$errorCode} 缺 summary";
                 continue;
             }
+            $constName = $entry['const'] ?? '';
+            if ($constName !== ''
+                && (!is_string($constName) || preg_match('/^[A-Z][A-Z0-9_]*$/', $constName) !== 1)
+            ) {
+                $shown = is_string($constName) ? $constName : gettype($constName);
+                $problems[] = "{$source}: 错误码 {$errorCode} 的 const「{$shown}」不是大写蛇形常量名";
+                $constName = '';
+            }
             $catalog[$errorCode] = [
                 'http_status' => $status,
                 'summary' => $summary,
                 'common' => ($entry['common'] ?? false) === true,
                 'note' => is_string($entry['note'] ?? null) ? (string) $entry['note'] : '',
+                // 常量短名声明：线上码值不变，PHP 常量名可按 4 词上限取短名；空串表示用码名
+                'const_name' => $constName,
             ];
         }
 

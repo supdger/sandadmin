@@ -61,7 +61,8 @@ x-error-catalog:
   MCP_RATE_LIMITED:    {http_status: 429, summary: 调用频率超限}
   MCP_FORBIDDEN:       {http_status: 403, summary: 凭据没有工具需要的权限码}
   MCP_IDEMPOTENCY_REQUIRED: {http_status: 400, summary: 普通写工具必须带幂等键}
-  MCP_HIGH_RISK_NOT_OPEN: {http_status: 403, summary: 高危写未开放，只能生成待确认请求}
+  # const 是常量短名声明：线上码值不变，PHP 常量名按 4 词上限取短名
+  MCP_HIGH_RISK_NOT_OPEN: {http_status: 403, summary: 高危写未开放，只能生成待确认请求, const: MCP_HIGH_RISK_CLOSED}
   MCP_TOOL_FAILED:     {http_status: 500, summary: 工具执行失败}
   MCP_BAD_ARGUMENT:    {http_status: 400, summary: 工具参数不合法}
   MCP_TARGET_REJECTED: {http_status: 403, summary: 测试目标不在白名单}
