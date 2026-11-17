@@ -18,7 +18,9 @@ import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { getMyMenus, MY_MENUS_QUERY_KEY } from '@/api/v1/me';
 import { env } from '@/config/env';
 import { AdminErrorNotice } from '@/components/AdminErrorNotice';
+import { GlobalLoading } from '@/components/GlobalLoading';
 import { useVisitReport } from '@/hooks/useVisitReport';
+import { useLayoutSettings, setSidebarCollapsed } from '@/stores/layout';
 import { AnnouncementPopup } from './AnnouncementPopup';
 import { findMenuChain, resolveMenuTitle, toNavItems } from './menuTree';
 import { NotificationBell } from './NotificationBell';
@@ -44,7 +46,9 @@ export function AppShell() {
   const matches = useMatches();
   const { isDark, setMode } = useThemeMode();
 
-  const [collapsed, setCollapsed] = useState(false);
+  // 折叠态走 stores/layout（持久化偏好），设置面板等别处也能读到。
+  const collapsed = useLayoutSettings().sidebarCollapsed;
+  const setCollapsed = setSidebarCollapsed;
   const [manualOpenKeys, setManualOpenKeys] = useState<Array<string | number>>([]);
 
   const menus = useQuery({
@@ -105,6 +109,7 @@ export function AppShell() {
 
   return (
     <Layout className="min-h-screen">
+      <GlobalLoading />
       <Layout.Sider
         className="flex flex-col"
         style={{

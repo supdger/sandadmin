@@ -21,6 +21,7 @@ import { useSearchParams } from 'react-router';
 import {
   deleteDictItem,
   deleteDictType,
+  DICT_QUERY_KEY,
   getDictType,
   listDictTypes,
   sortDictItems,
@@ -37,8 +38,6 @@ import { DictItemModal } from './DictItemModal';
 import { DictTypeModal } from './DictTypeModal';
 import { useDebouncedValue } from './useDebouncedValue';
 import { confirmAction, confirmDanger } from '@/lib/confirmAction';
-
-const DICT_QUERY_KEY = ['dict'] as const;
 
 /** source 缺省时按 is_system 推导：老数据里没有 plugin 组。 */
 function typeSourceKind(type: DictType): 'system' | 'plugin' | 'custom' {

@@ -1,35 +1,9 @@
 import type { ReactNode } from 'react';
 
-import {
-  IconApps,
-  IconBarChartHStroked,
-  IconBell,
-  IconBook,
-  IconBriefcase,
-  IconCalendar,
-  IconClock,
-  IconEyeOpened,
-  IconFile,
-  IconFilter,
-  IconFolder,
-  IconHome,
-  IconIdCard,
-  IconLink,
-  IconList,
-  IconMail,
-  IconMapPin,
-  IconMenu,
-  IconPhone,
-  IconPriceTag,
-  IconSafe,
-  IconSetting,
-  IconStar,
-  IconUser,
-  IconUserGroup,
-} from '@douyinfe/semi-icons';
 import type { NavItems } from '@douyinfe/semi-ui/lib/es/navigation';
 
 import type { MyMenuNode } from '@/api/v1/me';
+import { SvgIcon } from '@/components/SvgIcon';
 import i18n from '@/i18n/i18n';
 
 /**
@@ -54,44 +28,14 @@ export function findMenuChain(menus: MyMenuNode[], pathname: string): MyMenuNode
   return [];
 }
 
-// Menu icons travel as names in the API payload; map them to icon components
-// here so new menus only need a name, not a component reference.
-const MENU_ICONS: Record<string, ReactNode> = {
-  home: <IconHome />,
-  setting: <IconSetting />,
-  // 组织与用户域菜单用到的图标名（与 /me/menus、MSW 菜单数据保持一致）。
-  users: <IconUserGroup />,
-  user: <IconUser />,
-  building: <IconBriefcase />,
-  idcard: <IconIdCard />,
-  safe: <IconSafe />,
-  menu: <IconMenu />,
-  chart: <IconBarChartHStroked />,
-  // 菜单管理可自定义图标；键名与 rbac 菜单编辑器的图标集保持一致。
-  file: <IconFile />,
-  link: <IconLink />,
-  star: <IconStar />,
-  calendar: <IconCalendar />,
-  clock: <IconClock />,
-  mail: <IconMail />,
-  phone: <IconPhone />,
-  map: <IconMapPin />,
-  tag: <IconPriceTag />,
-  folder: <IconFolder />,
-  list: <IconList />,
-  filter: <IconFilter />,
-  eye: <IconEyeOpened />,
-  bell: <IconBell />,
-  book: <IconBook />,
-};
-
+// 图标名来自接口载荷，渲染走 SvgIcon 查本地注册表——未知名
+// 由注册表兜底，菜单不会因为脏数据丢图标。
 function menuIcon(item: MyMenuNode, depth: number): ReactNode {
   // 子项一律不带图标。内置页只有少数几项有图标时，侧栏会把它们看成分组。
   if (depth > 0) {
     return undefined;
   }
-  const icon = item.icon ? MENU_ICONS[item.icon] : undefined;
-  return icon ?? <IconApps />;
+  return <SvgIcon name={item.icon} />;
 }
 
 /**
