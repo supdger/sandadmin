@@ -14,7 +14,8 @@ final class MenuRouteTest extends TestCase
 {
     public function testMenuWriteAndProfileRoutesExist(): void
     {
-        $route = file_get_contents(dirname(__DIR__, 3) . '/config/route.php');
+        // 常驻路由已迁移到契约生成的 route.generated.php（route.php 只留哨兵段与 require）
+        $route = file_get_contents(dirname(__DIR__, 3) . '/config/route.generated.php');
         self::assertIsString($route);
         foreach ([
             "Route::get('/api/admin/v1/menus/tree'",
