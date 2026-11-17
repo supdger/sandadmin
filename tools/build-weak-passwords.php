@@ -154,6 +154,10 @@ function accepts(string $word): bool
     if (preg_match(QQ_PATTERN, $word) === 1) {
         return false;
     }
+    // 形如网址域名的条目会暴露出处，不进表。
+    if (preg_match('/^(www\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)*\\.(com|cn|net|org)$/i', $word) === 1) {
+        return false;
+    }
     return true;
 }
 
