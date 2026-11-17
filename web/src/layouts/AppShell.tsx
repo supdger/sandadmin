@@ -1,51 +1,42 @@
-import { useMemo, useState } from 'react';
-
-import { IconLayers, IconMoon, IconSun } from '@douyinfe/semi-icons';
-import {
-  Breadcrumb,
-  Button,
-  IconButton,
-  Layout,
-  Nav,
-  Spin,
-  Typography,
-} from '@douyinfe/semi-ui';
-import type { OnSelectedData } from '@douyinfe/semi-ui/lib/es/navigation';
+import { Layout, Typography } from '@douyinfe/semi-ui';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 
 import { getMyMenus, MY_MENUS_QUERY_KEY } from '@/api/v1/me';
+import { AppLogo } from '@/components/layout/AppLogo';
+import { BackToTop } from '@/components/layout/BackToTop';
+import { GlobalMount } from '@/components/layout/GlobalMount';
+import { useGlobalUi } from '@/components/layout/globalUi';
+import { HeaderBar } from '@/components/layout/HeaderBar';
+import { HorizontalMenu } from '@/components/layout/HorizontalMenu';
+import { MixedMenu } from '@/components/layout/MixedMenu';
+import { PageContent } from '@/components/layout/PageContent';
+import { SidebarMenu } from '@/components/layout/SidebarMenu';
+import { useActiveTopMenu } from '@/components/layout/useActiveTopMenu';
+import { WorkTabs } from '@/components/layout/WorkTabs';
+import { GlobalLoading } from '@/components/GlobalLoading';
 import { env } from '@/config/env';
-import { AdminErrorNotice } from '@/components/AdminErrorNotice';
 import { useVisitReport } from '@/hooks/useVisitReport';
+import { useLayoutSettings } from '@/stores/layout';
 import { AnnouncementPopup } from './AnnouncementPopup';
-import { findMenuChain, resolveMenuTitle, toNavItems } from './menuTree';
-import { NotificationBell } from './NotificationBell';
-import { useThemeMode } from './themeMode';
-import { UserMenu } from './UserMenu';
 
 const SIDER_WIDTH = 240;
 const SIDER_COLLAPSED_WIDTH = 60;
 
-interface RouteHandle {
-  public?: boolean;
-  title?: string;
-}
+const siderStyle = {
+  width: SIDER_WIDTH,
+  backgroundColor: 'var(--semi-color-bg-1)',
+  borderRight: '1px solid var(--semi-color-border)',
+  transition: 'width 0.2s',
+} as const;
 
 /**
- * Shell：侧边导航、面包屑、通知铃、主题切换、头像菜单的挂载与布局。
- * 业务逻辑（通知面板、公告弹层、改密弹窗、退出登录）都在各自组件里。
+ * Shell：顶栏、菜单三形态（侧边/顶部/混合）、多标签、全局件的
+ * 挂载与布局。菜单树、面包屑、通知、主题等细节都在各自组件里；
+ * 这里保留 /me/menus 查询供访问上报与混合布局的一级栏目判断。
  */
 export function AppShell() {
-  const { t } = useTranslation('shell');
-  const navigate = useNavigate();
-  const location = useLocation();
-  const matches = useMatches();
-  const { isDark, setMode } = useThemeMode();
-
-  const [collapsed, setCollapsed] = useState(false);
-  const [manualOpenKeys, setManualOpenKeys] = useState<Array<string | number>>([]);
+  const { sidebarCollapsed: collapsed, layoutMode } = useLayoutSettings();
+  const { tabsEnabled } = useGlobalUi();
 
   const menus = useQuery({
     queryKey: MY_MENUS_QUERY_KEY,
@@ -57,162 +48,74 @@ export function AppShell() {
   // inside the hook and fully silent on failure.
   useVisitReport(menus.data?.items);
 
-  const menuTree = useMemo(() => menus.data?.items ?? [], [menus.data]);
-  const navItems = useMemo(() => toNavItems(menuTree), [menuTree]);
-  const chain = useMemo(
-    () => findMenuChain(menuTree, location.pathname),
-    [menuTree, location.pathname],
+  const menuItems = menus.data?.items ?? [];
+  const activeTop = useActiveTopMenu(menuItems);
+  const mixChildren = layoutMode === 'mix' ? (activeTop?.children ?? []) : [];
+  const showMixSider = layoutMode === 'mix' && mixChildren.length > 0;
+
+  const header =
+    layoutMode === 'side' ? (
+      <HeaderBar />
+    ) : (
+      <HeaderBar
+        collapseTrigger={false}
+        hideBreadcrumb
+        leading={
+          <>
+            <AppLogo />
+            {layoutMode === 'top' ? <HorizontalMenu /> : <MixedMenu />}
+          </>
+        }
+      />
+    );
+
+  const contentColumn = (
+    <Layout style={{ backgroundColor: 'var(--semi-color-bg-0)' }}>
+      {tabsEnabled ? <WorkTabs /> : null}
+      <Layout.Content className="p-6">
+        <PageContent />
+      </Layout.Content>
+      <Layout.Footer className="flex items-center justify-center py-4">
+        <Typography.Text type="tertiary" size="small">
+          {env.copyright}
+        </Typography.Text>
+      </Layout.Footer>
+      <BackToTop />
+    </Layout>
   );
-  const selectedKey = chain.length > 0 ? chain[chain.length - 1].path : '';
-
-  // The submenu containing the active route always stays expanded; the user
-  // can still open/close any other group (tracked in manualOpenKeys).
-  const openKeys = useMemo(
-    () =>
-      Array.from(
-        new Set([...manualOpenKeys, ...chain.slice(0, -1).map((item) => item.key)]),
-      ),
-    [manualOpenKeys, chain],
-  );
-
-  const onSelect = (data: OnSelectedData) => {
-    const key = String(data.itemKey);
-    if (key.startsWith('/')) {
-      navigate(key);
-    } else if (key.startsWith('http')) {
-      window.open(key, '_blank', 'noopener');
-    }
-  };
-
-  const onToggleTheme = () => {
-    // Theme is a per-device display setting kept in localStorage — switching
-    // it never hits the API, so read-only accounts can use it too.
-    setMode(isDark ? 'light' : 'dark');
-  };
-
-  // Breadcrumb follows the menu chain; fall back to the route handle title
-  // for protected pages that are not reachable from the menu.
-  const lastHandle = (matches[matches.length - 1]?.handle ?? {}) as RouteHandle;
-  const breadcrumbRoutes =
-    chain.length > 0
-      ? chain.map((item) => ({
-          name: resolveMenuTitle(item),
-          ...(item.path ? { path: item.path } : {}),
-        }))
-      : lastHandle.title
-        ? [{ name: t(lastHandle.title) }]
-        : [];
 
   return (
     <Layout className="min-h-screen">
-      <Layout.Sider
-        className="flex flex-col"
-        style={{
-          width: collapsed ? SIDER_COLLAPSED_WIDTH : SIDER_WIDTH,
-          backgroundColor: 'var(--semi-color-bg-1)',
-          borderRight: '1px solid var(--semi-color-border)',
-          transition: 'width 0.2s',
-        }}
-      >
-        <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-          {env.appLogo ? (
-            <img src={env.appLogo} alt={env.appName} className="h-7 w-7 shrink-0" />
-          ) : (
-            <IconLayers size="large" />
-          )}
-          {collapsed ? null : (
-            <Typography.Title heading={6} ellipsis={{ showTooltip: true }} style={{ margin: 0 }}>
-              {env.appName}
-            </Typography.Title>
-          )}
-        </div>
-        {menus.isPending ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Spin size="large" />
-          </div>
-        ) : menus.isError ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 px-3">
-            {collapsed ? (
-              // The collapsed rail is too narrow for the notice row; the
-              // retry button alone keeps the failure recoverable.
-              <Button size="small" onClick={() => void menus.refetch()}>
-                {t('common:actions.retry')}
-              </Button>
-            ) : (
-              <AdminErrorNotice
-                error={menus.error}
-                onRetry={() => void menus.refetch()}
-                fallback={
-                  <>
-                    <Typography.Text type="danger" size="small">
-                      {t('menu.loadFailed')}
-                    </Typography.Text>
-                    <Button size="small" onClick={() => void menus.refetch()}>
-                      {t('common:actions.retry')}
-                    </Button>
-                  </>
-                }
-              />
-            )}
-          </div>
-        ) : (
-          <Nav
-            style={{ flex: 1, borderRight: 'none' }}
-            items={navItems}
-            selectedKeys={selectedKey ? [selectedKey] : []}
-            openKeys={openKeys}
-            onOpenChange={(data) => setManualOpenKeys(data.openKeys ?? [])}
-            onSelect={onSelect}
-            isCollapsed={collapsed}
-            onCollapseChange={setCollapsed}
-            footer={{ collapseButton: true }}
-          />
-        )}
-      </Layout.Sider>
-
-      <Layout style={{ backgroundColor: 'var(--semi-color-bg-0)' }}>
-        <Layout.Header
-          className="flex items-center gap-3 px-4"
-          style={{
-            backgroundColor: 'var(--semi-color-bg-1)',
-            borderBottom: '1px solid var(--semi-color-border)',
-          }}
+      <GlobalLoading />
+      {layoutMode === 'side' ? (
+        <Layout.Sider
+          className="flex flex-col"
+          style={{ ...siderStyle, width: collapsed ? SIDER_COLLAPSED_WIDTH : SIDER_WIDTH }}
         >
-          {breadcrumbRoutes.length > 0 ? (
-            <Breadcrumb
-              compact
-              routes={breadcrumbRoutes}
-              onClick={(route) => {
-                if (route.path) {
-                  navigate(route.path);
-                }
-              }}
-            />
-          ) : null}
-          <div className="ml-auto flex items-center gap-1">
-            <NotificationBell />
-            <IconButton
-              theme="borderless"
-              icon={isDark ? <IconSun /> : <IconMoon />}
-              aria-label={isDark ? t('header.themeToLight') : t('header.themeToDark')}
-              onClick={onToggleTheme}
-            />
-            <UserMenu />
-          </div>
-        </Layout.Header>
+          <AppLogo collapsed={collapsed} />
+          <SidebarMenu />
+        </Layout.Sider>
+      ) : null}
 
-        <Layout.Content className="p-6">
-          <Outlet />
-        </Layout.Content>
+      {showMixSider ? (
+        <Layout style={{ backgroundColor: 'var(--semi-color-bg-0)' }}>
+          {header}
+          <Layout>
+            <Layout.Sider className="flex flex-col" style={siderStyle}>
+              <SidebarMenu items={mixChildren} footerCollapse={false} />
+            </Layout.Sider>
+            {contentColumn}
+          </Layout>
+        </Layout>
+      ) : (
+        <Layout style={{ backgroundColor: 'var(--semi-color-bg-0)' }}>
+          {header}
+          {contentColumn}
+        </Layout>
+      )}
 
-        <Layout.Footer className="flex items-center justify-center py-4">
-          <Typography.Text type="tertiary" size="small">
-            {env.copyright}
-          </Typography.Text>
-        </Layout.Footer>
-
-        <AnnouncementPopup />
-      </Layout>
+      <GlobalMount />
+      <AnnouncementPopup />
     </Layout>
   );
 }

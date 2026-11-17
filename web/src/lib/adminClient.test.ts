@@ -16,6 +16,7 @@ import {
   subscribeAuthzVersion,
 } from './adminClient';
 import { clearToken, setToken } from './authToken';
+import { onAppEvent } from './eventBus';
 
 const base = `${env.apiBaseUrl}/admin/v1`;
 
@@ -254,5 +255,66 @@ describe('adminClient', () => {
     expect(err).toBeInstanceOf(AdminApiError);
     expect((err as AdminApiError).code).toBe('TASK_RUN_NOT_DOWNLOADABLE');
     expect((err as AdminApiError).httpStatus).toBe(409);
+  });
+
+  it('accepts the full success envelope with code OK', async () => {
+    server.use(
+      http.get(`${base}/test/ok-full`, () =>
+        HttpResponse.json({ code: 'OK', data: { id: '1' }, request_id: 'req-ok' }),
+      ),
+    );
+    await expect(adminGet<{ id: string }>('/test/ok-full')).resolves.toEqual({ id: '1' });
+  });
+
+  it('emits request begin/end events around a request', async () => {
+    const events: string[] = [];
+    const offBegin = onAppEvent('request:begin', () => events.push('begin'));
+    const offEnd = onAppEvent('request:end', () => events.push('end'));
+    server.use(http.get(`${base}/test/lifecycle`, () => ok({})));
+    await adminGet('/test/lifecycle');
+    expect(events).toEqual(['begin', 'end']);
+    offBegin();
+    offEnd();
+  });
+
+  it('emits session:expired on a 401 error envelope', async () => {
+    const handler = vi.fn();
+    const unsubscribe = onAppEvent('session:expired', handler);
+    server.use(
+      http.get(`${base}/test/expired`, () =>
+        fail(401, { code: 'SESSION_EXPIRED', message: '登录已过期，请重新登录' }),
+      ),
+    );
+    await adminGet('/test/expired').catch(() => undefined);
+    expect(handler).toHaveBeenCalledWith({ message: '登录已过期，请重新登录' });
+    unsubscribe();
+  });
+
+  it('emits sudo:required when the contract returns SUDO_REQUIRED', async () => {
+    const handler = vi.fn();
+    const unsubscribe = onAppEvent('sudo:required', handler);
+    server.use(
+      http.post(`${base}/test/sudo`, () =>
+        fail(403, { code: 'SUDO_REQUIRED', message: '该操作需要再次验证' }),
+      ),
+    );
+    const err = await adminPost('/test/sudo', {}).catch((e: unknown) => e);
+    expect(handler).toHaveBeenCalledWith({ error: err });
+    unsubscribe();
+  });
+
+  it('parses Retry-After on 429 into retryAfterMs', async () => {
+    server.use(
+      http.get(`${base}/test/limited`, () =>
+        fail(
+          429,
+          { code: 'RATE_LIMITED', message: '操作太频繁了，请稍后再试' },
+          { headers: { 'retry-after': '30' } },
+        ),
+      ),
+    );
+    const err = await adminGet('/test/limited').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AdminApiError);
+    expect((err as AdminApiError).retryAfterMs).toBe(30_000);
   });
 });

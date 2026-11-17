@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 // SAND-DEV-BEGIN
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 // SAND-DEV-END
 
 import { Banner, Button, Card, Form, Modal, Typography } from '@douyinfe/semi-ui';
@@ -20,7 +20,9 @@ import type { DevLoginAvailability } from '@/api/auth';
 // SAND-DEV-END
 import { env } from '@/config/env';
 import { apiErrorMessage, ApiError } from '@/lib/apiClient';
+import { AuthTopBar } from './AuthTopBar';
 import { ClickCaptcha } from './ClickCaptcha';
+import { LoginLeftView } from './LoginLeftView';
 
 /** Business code the mock/API uses to demand a captcha before retrying. */
 const CODE_NEED_CAPTCHA = 4001;
@@ -217,121 +219,126 @@ export default function LoginPage() {
       ) : null}
       {/* SAND-DEV-END */}
 
-      <div className="flex flex-1 items-center justify-center">
-        <Card style={{ width: 400 }} shadows="hover">
-          <div className="flex flex-col items-center gap-2 pb-4">
-            {env.appLogo ? (
-              <img src={env.appLogo} alt={env.appName} style={{ height: 44 }} />
-            ) : (
-              <IconSemiLogo size="extra-large" style={{ color: 'var(--semi-color-primary)' }} />
-            )}
-            <Typography.Title heading={4} style={{ margin: 0 }}>
-              {env.appName}
-            </Typography.Title>
-            <Typography.Text type="secondary" size="small">
-              {t('login.subtitle')}
-            </Typography.Text>
-          </div>
+      <AuthTopBar />
 
-          {error ? (
-            <Banner
-              type="danger"
-              fullMode={false}
-              description={error}
-              style={{ marginBottom: 12 }}
-              closeIcon={null}
-            />
-          ) : null}
+      <div className="flex flex-1">
+        <LoginLeftView className="hidden lg:flex" />
+        <div className="flex flex-1 items-center justify-center">
+          <Card style={{ width: 400 }} shadows="hover">
+            <div className="flex flex-col items-center gap-2 pb-4">
+              {env.appLogo ? (
+                <img src={env.appLogo} alt={env.appName} style={{ height: 44 }} />
+              ) : (
+                <IconSemiLogo size="extra-large" style={{ color: 'var(--semi-color-primary)' }} />
+              )}
+              <Typography.Title heading={4} style={{ margin: 0 }}>
+                {env.appName}
+              </Typography.Title>
+              <Typography.Text type="secondary" size="small">
+                {t('login.subtitle')}
+              </Typography.Text>
+            </div>
 
-          <Form
-            /* SAND-DEV-BEGIN */
-            key={devEntry ? 'dev' : 'plain'}
-            initValues={
-              devEntry
-                ? ({
-                    username: dev?.username ?? '',
-                    password: DEV_PASSWORD_PLACEHOLDER,
-                  } as Record<string, unknown>)
-                : undefined
-            }
-            /* SAND-DEV-END */
-            onSubmit={(values) => {
-              // SAND-DEV-BEGIN
-              if (devEntry) {
-                void handleDevEnter();
-                return;
+            {error ? (
+              <Banner
+                type="danger"
+                fullMode={false}
+                description={error}
+                style={{ marginBottom: 12 }}
+                closeIcon={null}
+              />
+            ) : null}
+
+            <Form
+              /* SAND-DEV-BEGIN */
+              key={devEntry ? 'dev' : 'plain'}
+              initValues={
+                devEntry
+                  ? ({
+                      username: dev?.username ?? '',
+                      password: DEV_PASSWORD_PLACEHOLDER,
+                    } as Record<string, unknown>)
+                  : undefined
               }
-              // SAND-DEV-END
-              void handleSubmit(values as Record<string, unknown>);
-            }}
-            getFormApi={(api) => {
-              formApi.current = api as FormApi<Record<string, unknown>>;
-            }}
-          >
-            <Form.Input
-              field="username"
-              label={t('login.username')}
-              placeholder={t('login.usernamePlaceholder')}
-              rules={[{ required: true, message: t('login.usernamePlaceholder') }]}
-            />
-            <Form.Input
-              field="password"
-              type="password"
-              label={t('login.password')}
-              placeholder={t('login.passwordPlaceholder')}
-              rules={[{ required: true, message: t('login.passwordPlaceholder') }]}
-            />
+              /* SAND-DEV-END */
+              onSubmit={(values) => {
+                // SAND-DEV-BEGIN
+                if (devEntry) {
+                  void handleDevEnter();
+                  return;
+                }
+                // SAND-DEV-END
+                void handleSubmit(values as Record<string, unknown>);
+              }}
+              getFormApi={(api) => {
+                formApi.current = api as FormApi<Record<string, unknown>>;
+              }}
+            >
+              <Form.Input
+                field="username"
+                label={t('login.username')}
+                placeholder={t('login.usernamePlaceholder')}
+                rules={[{ required: true, message: t('login.usernamePlaceholder') }]}
+              />
+              <Form.Input
+                field="password"
+                type="password"
+                label={t('login.password')}
+                placeholder={t('login.passwordPlaceholder')}
+                rules={[{ required: true, message: t('login.passwordPlaceholder') }]}
+              />
 
-            {captchaVisible ? (
-              <div className="pb-2">
-                <ClickCaptcha
-                  key={captchaEpoch}
-                  onVerified={(captchaId, points) => setVerified({ captchaId, points })}
-                />
-              </div>
-            ) : null}
+              {captchaVisible ? (
+                <div className="pb-2">
+                  <ClickCaptcha
+                    key={captchaEpoch}
+                    onVerified={(captchaId, points) => setVerified({ captchaId, points })}
+                  />
+                </div>
+              ) : null}
 
-            {/* SAND-DEV-BEGIN */}
-            {devEntry ? (
-              <>
-                <Button
-                  autoFocus
-                  htmlType="submit"
-                  type="primary"
-                  theme="solid"
-                  block
-                  loading={submitting}
-                >
-                  {submitting ? t('login.devEntering') : t('login.devEnter')}
-                </Button>
-                <div className="flex justify-center pt-3">
-                  <Button theme="borderless" size="small" onClick={handleOtherAccount}>
-                    {t('login.devOtherAccount')}
+              {/* SAND-DEV-BEGIN */}
+              {devEntry ? (
+                <>
+                  <Button
+                    autoFocus
+                    htmlType="submit"
+                    type="primary"
+                    theme="solid"
+                    block
+                    loading={submitting}
+                  >
+                    {submitting ? t('login.devEntering') : t('login.devEnter')}
                   </Button>
-                </div>
-              </>
-            ) : null}
-            {/* SAND-DEV-END */}
-            {showPlainSubmit ? (
-              <>
-                <Button
-                  htmlType="submit"
-                  type="primary"
-                  theme="solid"
-                  block
-                  loading={submitting}
-                >
-                  {submitting ? t('login.submitting') : t('login.submit')}
-                </Button>
-                <div className="flex justify-end pt-3">
-                  <Button theme="borderless" size="small" onClick={showForgot}>
-                    {t('login.forgot')}
+                  <div className="flex justify-center pt-3">
+                    <Button theme="borderless" size="small" onClick={handleOtherAccount}>
+                      {t('login.devOtherAccount')}
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+              {/* SAND-DEV-END */}
+              {showPlainSubmit ? (
+                <>
+                  <Button
+                    htmlType="submit"
+                    type="primary"
+                    theme="solid"
+                    block
+                    loading={submitting}
+                  >
+                    {submitting ? t('login.submitting') : t('login.submit')}
                   </Button>
-                </div>
-              </>
-            ) : null}
-          </Form>
-        </Card>
+                  <div className="flex justify-end pt-3">
+                    <Button theme="borderless" size="small" onClick={showForgot}>
+                      {t('login.forgot')}
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+            </Form>
+          </Card>
+        </div>
       </div>
     </div>
   );

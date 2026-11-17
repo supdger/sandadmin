@@ -3,10 +3,14 @@ import type { ZodType } from 'zod';
 import { env } from '@/config/env';
 import i18n from '@/i18n/i18n';
 import { getToken } from './authToken';
+import { eventBus } from './eventBus';
 
 /**
- * 1.x admin 契约（`/api/admin/v1`）的客户端：信封、错误码与
- * snake_case 约定见 api-conventions.md，本文件不重复。
+ * 1.x admin 契约（`/api/admin/v1`）客户端。全局联动走 eventBus：
+ * request:begin/end 供全局 loading 计数，401 发 session:expired，
+ * SUDO_REQUIRED 发 sudo:required。Cookie 会话经
+ * `credentials: 'same-origin'`；Bearer 兜底是 FE0 遗留登录流的
+ * 过渡（开发 mock 与免登录入口还在用），随 authToken 一起退役。
  */
 
 const ADMIN_V1_PATH = '/admin/v1';
@@ -46,6 +50,8 @@ export class AdminApiError extends Error {
   url: string;
   /** 传输/5xx/响应不可解析为 true；4xx 业务错误为 false。 */
   system: boolean;
+  /** 429/503 的 Retry-After 头换算毫秒；没有该头为 undefined。 */
+  retryAfterMs?: number;
 
   constructor(shape: {
     code: string;
@@ -56,6 +62,7 @@ export class AdminApiError extends Error {
     method: string;
     url: string;
     system?: boolean;
+    retryAfterMs?: number;
   }) {
     super(shape.message);
     this.name = 'AdminApiError';
@@ -66,6 +73,7 @@ export class AdminApiError extends Error {
     this.method = shape.method;
     this.url = shape.url;
     this.system = shape.system ?? false;
+    this.retryAfterMs = shape.retryAfterMs;
   }
 }
 
@@ -148,6 +156,7 @@ function systemError(init: {
   method: string;
   url: string;
   httpStatus: number;
+  retryAfterMs?: number;
 }): AdminApiError {
   const network = init.code === 'NETWORK_ERROR';
   return new AdminApiError({
@@ -158,7 +167,33 @@ function systemError(init: {
     method: init.method,
     url: init.url,
     system: true,
+    retryAfterMs: init.retryAfterMs,
   });
+}
+
+function readRetryAfter(res: Response): number | undefined {
+  const value = res.headers.get('retry-after');
+  if (value === null) {
+    return undefined;
+  }
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined;
+}
+
+/** 401 分流用的契约错误码；HTTP 401 本身也按会话失效处理。 */
+const SESSION_EXPIRED_CODES = new Set(['UNAUTHENTICATED', 'SESSION_EXPIRED']);
+
+/**
+ * 把该全局动作的错误发到事件总线；业务错误照常抛给调用方。
+ * 503+Retry-After 不在此列——它是要重试的临时故障，不当登出。
+ */
+function dispatchAdminError(error: AdminApiError): void {
+  if (error.httpStatus === 401 || SESSION_EXPIRED_CODES.has(error.code)) {
+    eventBus.emit('session:expired', { message: error.message });
+  }
+  if (error.code === 'SUDO_REQUIRED') {
+    eventBus.emit('sudo:required', { error });
+  }
 }
 
 interface SuccessEnvelope {
@@ -179,97 +214,110 @@ async function request<T>(
   body: unknown,
   options?: AdminRequestOptions<T>,
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-  if (method !== 'GET') {
-    headers['Idempotency-Key'] = options?.idempotencyKey ?? crypto.randomUUID();
-  }
-  const token = getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   const url = buildUrl(path, options?.query);
-
-  let res: Response;
+  eventBus.emit('request:begin', { url, method });
   try {
-    res = await fetch(url, {
-      method,
-      headers,
-      credentials: 'same-origin',
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: options?.signal,
-    });
-  } catch {
-    throw systemError({ code: 'NETWORK_ERROR', method, url, httpStatus: 0 });
-  }
-
-  trackAuthzVersion(res);
-
-  const headerRequestId = res.headers.get('x-request-id') ?? undefined;
-  const status = res.status;
-
-  let text = '';
-  try {
-    text = await res.text();
-  } catch {
-    throw systemError({ requestId: headerRequestId, method, url, httpStatus: status });
-  }
-
-  let payload: unknown = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
+    const headers: Record<string, string> = { Accept: 'application/json' };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
     }
-  }
+    if (method !== 'GET') {
+      headers['Idempotency-Key'] = options?.idempotencyKey ?? crypto.randomUUID();
+    }
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-  if (!res.ok) {
-    const errPayload = (payload ?? {}) as ErrorEnvelope;
-    const requestId = errPayload.request_id ?? headerRequestId;
-    if (status >= 500 || typeof errPayload.code !== 'string') {
-      throw systemError({
-        code: typeof errPayload.code === 'string' ? errPayload.code : undefined,
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers,
+        credentials: 'same-origin',
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: options?.signal,
+      });
+    } catch {
+      throw systemError({ code: 'NETWORK_ERROR', method, url, httpStatus: 0 });
+    }
+
+    trackAuthzVersion(res);
+
+    const headerRequestId = res.headers.get('x-request-id') ?? undefined;
+    const status = res.status;
+    const retryAfterMs = readRetryAfter(res);
+
+    let text = '';
+    try {
+      text = await res.text();
+    } catch {
+      throw systemError({ requestId: headerRequestId, method, url, httpStatus: status, retryAfterMs });
+    }
+
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+    }
+
+    if (!res.ok) {
+      const errPayload = (payload ?? {}) as ErrorEnvelope;
+      const requestId = errPayload.request_id ?? headerRequestId;
+      if (status >= 500 || typeof errPayload.code !== 'string') {
+        const error = systemError({
+          code: typeof errPayload.code === 'string' ? errPayload.code : undefined,
+          requestId,
+          method,
+          url,
+          httpStatus: status,
+          retryAfterMs,
+        });
+        dispatchAdminError(error);
+        throw error;
+      }
+      const error = new AdminApiError({
+        code: errPayload.code,
+        message: errPayload.message || i18n.t('errors.system.message'),
+        fields: errPayload.fields,
+        httpStatus: status,
         requestId,
         method,
         url,
-        httpStatus: status,
+        system: false,
+        retryAfterMs,
       });
+      dispatchAdminError(error);
+      throw error;
     }
-    throw new AdminApiError({
-      code: errPayload.code,
-      message: errPayload.message || i18n.t('errors.system.message'),
-      fields: errPayload.fields,
-      httpStatus: status,
-      requestId,
-      method,
-      url,
-      system: false,
-    });
-  }
 
-  if (
-    typeof payload !== 'object' ||
-    payload === null ||
-    Array.isArray(payload) ||
-    !('data' in payload)
-  ) {
-    const headerId =
-      typeof payload === 'object' && payload !== null
-        ? ((payload as SuccessEnvelope).request_id ?? headerRequestId)
-        : headerRequestId;
-    throw systemError({ requestId: headerId, method, url, httpStatus: status });
-  }
+    // 成功信封两种合法形态：{data, request_id}（现行 mock/契约），
+    // 或带成功码的完整信封 {code:'OK', data, request_id}。
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      Array.isArray(payload) ||
+      (!('data' in payload) && (payload as ErrorEnvelope).code !== 'OK')
+    ) {
+      const headerId =
+        typeof payload === 'object' && payload !== null
+          ? ((payload as SuccessEnvelope).request_id ?? headerRequestId)
+          : headerRequestId;
+      throw systemError({ requestId: headerId, method, url, httpStatus: status });
+    }
 
-  const envelope = payload as SuccessEnvelope;
-  const data = envelope.data as T;
-  try {
-    return options?.schema ? options.schema.parse(data) : data;
-  } catch {
-    throw systemError({ requestId: envelope.request_id ?? headerRequestId, method, url, httpStatus: status });
+    const envelope = payload as SuccessEnvelope;
+    const data = envelope.data as T;
+    try {
+      return options?.schema ? options.schema.parse(data) : data;
+    } catch {
+      throw systemError({ requestId: envelope.request_id ?? headerRequestId, method, url, httpStatus: status });
+    }
+  } finally {
+    eventBus.emit('request:end', { url, method });
   }
 }
 
@@ -277,57 +325,68 @@ async function requestDownload(
   path: string,
   options?: AdminRequestOptions<Blob>,
 ): Promise<DownloadedFile> {
-  const headers: Record<string, string> = { Accept: '*/*' };
-  const token = getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
   const url = buildUrl(path, options?.query);
-
-  let res: Response;
+  eventBus.emit('request:begin', { url, method: 'GET' });
   try {
-    res = await fetch(url, {
-      method: 'GET',
-      headers,
-      credentials: 'same-origin',
-      signal: options?.signal,
-    });
-  } catch {
-    throw systemError({ code: 'NETWORK_ERROR', method: 'GET', url, httpStatus: 0 });
-  }
+    const headers: Record<string, string> = { Accept: '*/*' };
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-  trackAuthzVersion(res);
-  const status = res.status;
-  const contentType = res.headers.get('content-type') ?? '';
-
-  // 下载端点的错误响应仍走 JSON 信封。
-  if (!res.ok || contentType.includes('application/json')) {
-    let payload: ErrorEnvelope | null = null;
+    let res: Response;
     try {
-      payload = (await res.json()) as ErrorEnvelope;
+      res = await fetch(url, {
+        method: 'GET',
+        headers,
+        credentials: 'same-origin',
+        signal: options?.signal,
+      });
     } catch {
-      payload = null;
+      throw systemError({ code: 'NETWORK_ERROR', method: 'GET', url, httpStatus: 0 });
     }
-    const requestId = payload?.request_id ?? res.headers.get('x-request-id') ?? undefined;
-    if (status >= 500 || !payload || typeof payload.code !== 'string') {
-      throw systemError({ requestId, method: 'GET', url, httpStatus: status });
-    }
-    throw new AdminApiError({
-      code: payload.code,
-      message: payload.message || i18n.t('errors.system.message'),
-      fields: payload.fields,
-      httpStatus: status,
-      requestId,
-      method: 'GET',
-      url,
-      system: status >= 500,
-    });
-  }
 
-  const disposition = res.headers.get('content-disposition') ?? '';
-  const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
-  const fileName = match ? decodeURIComponent(match[1] ?? match[2] ?? '') : null;
-  return { blob: await res.blob(), fileName };
+    trackAuthzVersion(res);
+    const status = res.status;
+    const retryAfterMs = readRetryAfter(res);
+    const contentType = res.headers.get('content-type') ?? '';
+
+    // 下载端点的错误响应仍走 JSON 信封。
+    if (!res.ok || contentType.includes('application/json')) {
+      let payload: ErrorEnvelope | null = null;
+      try {
+        payload = (await res.json()) as ErrorEnvelope;
+      } catch {
+        payload = null;
+      }
+      const requestId = payload?.request_id ?? res.headers.get('x-request-id') ?? undefined;
+      if (status >= 500 || !payload || typeof payload.code !== 'string') {
+        const error = systemError({ requestId, method: 'GET', url, httpStatus: status, retryAfterMs });
+        dispatchAdminError(error);
+        throw error;
+      }
+      const error = new AdminApiError({
+        code: payload.code,
+        message: payload.message || i18n.t('errors.system.message'),
+        fields: payload.fields,
+        httpStatus: status,
+        requestId,
+        method: 'GET',
+        url,
+        system: status >= 500,
+        retryAfterMs,
+      });
+      dispatchAdminError(error);
+      throw error;
+    }
+
+    const disposition = res.headers.get('content-disposition') ?? '';
+    const match = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(disposition);
+    const fileName = match ? decodeURIComponent(match[1] ?? match[2] ?? '') : null;
+    return { blob: await res.blob(), fileName };
+  } finally {
+    eventBus.emit('request:end', { url, method: 'GET' });
+  }
 }
 
 export function adminGet<T>(path: string, options?: AdminRequestOptions<T>): Promise<T> {
@@ -372,83 +431,95 @@ export async function adminUpload<T>(
   form: FormData,
   options?: AdminRequestOptions<T>,
 ): Promise<T> {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Idempotency-Key': options?.idempotencyKey ?? crypto.randomUUID(),
-  };
-  const token = getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
   const url = buildUrl(path, options?.query);
-
-  let res: Response;
+  eventBus.emit('request:begin', { url, method: 'POST' });
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers,
-      credentials: 'same-origin',
-      body: form,
-      signal: options?.signal,
-    });
-  } catch {
-    throw systemError({ code: 'NETWORK_ERROR', method: 'POST', url, httpStatus: 0 });
-  }
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      'Idempotency-Key': options?.idempotencyKey ?? crypto.randomUUID(),
+    };
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-  trackAuthzVersion(res);
-  const headerRequestId = res.headers.get('x-request-id') ?? undefined;
-  const status = res.status;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: form,
+        signal: options?.signal,
+      });
+    } catch {
+      throw systemError({ code: 'NETWORK_ERROR', method: 'POST', url, httpStatus: 0 });
+    }
 
-  let payload: unknown = null;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
+    trackAuthzVersion(res);
+    const headerRequestId = res.headers.get('x-request-id') ?? undefined;
+    const status = res.status;
+    const retryAfterMs = readRetryAfter(res);
 
-  if (!res.ok) {
-    const errPayload = (payload ?? {}) as ErrorEnvelope;
-    const requestId = errPayload.request_id ?? headerRequestId;
-    if (status >= 500 || typeof errPayload.code !== 'string') {
-      throw systemError({
-        code: typeof errPayload.code === 'string' ? errPayload.code : undefined,
+    let payload: unknown = null;
+    try {
+      payload = await res.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!res.ok) {
+      const errPayload = (payload ?? {}) as ErrorEnvelope;
+      const requestId = errPayload.request_id ?? headerRequestId;
+      if (status >= 500 || typeof errPayload.code !== 'string') {
+        const error = systemError({
+          code: typeof errPayload.code === 'string' ? errPayload.code : undefined,
+          requestId,
+          method: 'POST',
+          url,
+          httpStatus: status,
+          retryAfterMs,
+        });
+        dispatchAdminError(error);
+        throw error;
+      }
+      const error = new AdminApiError({
+        code: errPayload.code,
+        message: errPayload.message || i18n.t('errors.system.message'),
+        fields: errPayload.fields,
+        httpStatus: status,
         requestId,
+        method: 'POST',
+        url,
+        system: false,
+        retryAfterMs,
+      });
+      dispatchAdminError(error);
+      throw error;
+    }
+
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      Array.isArray(payload) ||
+      (!('data' in payload) && (payload as ErrorEnvelope).code !== 'OK')
+    ) {
+      throw systemError({ requestId: headerRequestId, method: 'POST', url, httpStatus: status });
+    }
+    const envelope = payload as SuccessEnvelope;
+    const data = envelope.data as T;
+    try {
+      return options?.schema ? options.schema.parse(data) : data;
+    } catch {
+      throw systemError({
+        requestId: envelope.request_id ?? headerRequestId,
         method: 'POST',
         url,
         httpStatus: status,
       });
     }
-    throw new AdminApiError({
-      code: errPayload.code,
-      message: errPayload.message || i18n.t('errors.system.message'),
-      fields: errPayload.fields,
-      httpStatus: status,
-      requestId,
-      method: 'POST',
-      url,
-      system: false,
-    });
-  }
-
-  if (
-    typeof payload !== 'object' ||
-    payload === null ||
-    Array.isArray(payload) ||
-    !('data' in payload)
-  ) {
-    throw systemError({ requestId: headerRequestId, method: 'POST', url, httpStatus: status });
-  }
-  const envelope = payload as SuccessEnvelope;
-  const data = envelope.data as T;
-  try {
-    return options?.schema ? options.schema.parse(data) : data;
-  } catch {
-    throw systemError({
-      requestId: envelope.request_id ?? headerRequestId,
-      method: 'POST',
-      url,
-      httpStatus: status,
-    });
+  } finally {
+    eventBus.emit('request:end', { url, method: 'POST' });
   }
 }
 

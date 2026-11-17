@@ -37,6 +37,11 @@ const routes: RouteObject[] = [
     handle: { public: true },
   },
   {
+    path: '/404',
+    element: <ErrorPage kind="404" />,
+    handle: { public: true },
+  },
+  {
     path: '/500',
     element: <ErrorPage kind="500" />,
     handle: { public: true },
