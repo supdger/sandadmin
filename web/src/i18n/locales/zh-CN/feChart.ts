@@ -4,4 +4,10 @@
  */
 export default {
   loading: '图表加载中…',
+  more: '查看全部',
+  stats: {
+    change: '较上期',
+    up: '上升',
+    down: '下降',
+  },
 } as const;

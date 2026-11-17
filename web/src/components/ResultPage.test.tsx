@@ -38,4 +38,20 @@ describe('ResultPage', () => {
     expect(screen.getByText('重新开始')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '返回首页' })).not.toBeInTheDocument();
   });
+
+  it('renders warning and info statuses as part of the same family', () => {
+    render(
+      <MemoryRouter>
+        <ResultPage status="warning" title="部分完成" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('部分完成')).toBeInTheDocument();
+
+    render(
+      <MemoryRouter>
+        <ResultPage status="info" title="知道了" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('知道了')).toBeInTheDocument();
+  });
 });
