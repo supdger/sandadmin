@@ -1,10 +1,7 @@
 /.github/**
 !.github/workflows/
 !.github/workflows/dependency-audit.yml
-/tools/
 /docs/
-
-/.agents/
 
 # Composer-generated private runtime configuration
 /sandadmin-artd/.env
@@ -12,5 +9,4 @@
 /server/config/plugin/tinywan/jwt/
 
 # Internal dev-process artifacts (repo-content-hygiene: not for repo consumers)
-/.agents/
 /openspec/
