@@ -215,6 +215,12 @@ final class PdoFileRepository implements FileRepository
         }
     }
 
+    /**
+     * @template T
+     * @param callable(): T $work
+     *
+     * @return T
+     */
     public function transaction(callable $work): mixed
     {
         if ($this->pdo->inTransaction()) {
