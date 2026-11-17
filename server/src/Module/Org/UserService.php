@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Org;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Infra\Auth\WeakPasswordRuntime;
 
 /**
  * 用户管理写读。口令只以哈希落库，响应里不出现口令。
@@ -230,7 +231,7 @@ final class UserService
             'min_length' => $admin ? 10 : 8,
             'require_letter' => true,
             'require_digit' => true,
-            'forbid_weak' => true,
+            'forbid_weak' => self::forbidWeak(),
             'forbid_same_as_username' => true,
             'forbid_same_as_previous' => 0,
         ];
@@ -278,6 +279,7 @@ final class UserService
                 '密码不能和账号一样，请换一个',
             );
         }
+        self::assertNotWeak($newPassword, 'new_password');
         $token = bin2hex(random_bytes(32));
         $this->connection->transactional(function () use ($id, $newPassword, $token, $ip, $device): void {
             $this->connection->executeStatement(
@@ -442,6 +444,7 @@ final class UserService
         if (mb_strlen($password) < 6) {
             throw OrgException::invalid(['password' => ['密码太短了，至少要 6 位']]);
         }
+        self::assertNotWeak($password, 'password');
         $row = $this->requireAlive($id);
         $hash = $this->hashPassword($password);
         $nickname = OrgSql::str($row['nickname'] ?? null);
@@ -627,6 +630,7 @@ final class UserService
             if (mb_strlen($password) < 6) {
                 throw OrgException::invalid(['password' => ['密码太短了，至少要 6 位']]);
             }
+            self::assertNotWeak($password, 'password');
         }
         $roleIds = OrgInput::idList($body, 'role_ids', true);
         if ($roleIds === []) {
@@ -938,6 +942,33 @@ final class UserService
     private function hashPassword(string $password): string
     {
         return password_hash($password, PASSWORD_ARGON2ID);
+    }
+
+    /**
+     * C-18：候选密码命中常用弱密码表即拒绝。只在明文期比对、不回显命中条目。
+     * 词表由进程启动引导挂载；未挂载（开发环境降级）时本检查为空表放行。
+     */
+    private static function assertNotWeak(string $password, string $field): void
+    {
+        if (!self::forbidWeak()) {
+            return;
+        }
+        if (WeakPasswordRuntime::isWeak($password)) {
+            throw OrgException::invalid(
+                [$field => ['密码太常见，请换一个']],
+                '密码太常见，请换一个',
+            );
+        }
+    }
+
+    /** 弱密码检查开关唯一来源：config/security.php 的 forbid_weak，缺省常开。 */
+    private static function forbidWeak(): bool
+    {
+        if (!function_exists('config')) {
+            return true;
+        }
+
+        return (bool) config('security.forbid_weak', true);
     }
 
     private function page(mixed $raw): int

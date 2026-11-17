@@ -118,13 +118,13 @@ abstract class Repository
         return new Page($items, $total, $query->page, $query->pageSize);
     }
 
-    /** @param array<string, mixed> $data 列名 => 值 */
+    /** @param array<string, scalar|\DateTimeInterface|null> $data 列名 => 值 */
     protected function insertRow(array $data): int
     {
         return (int) $this->connection->insert($this->table(), $this->bindValues($data));
     }
 
-    /** @param array<string, mixed> $data */
+    /** @param array<string, scalar|\DateTimeInterface|null> $data */
     protected function updateRow(int|string $id, array $data): int
     {
         return (int) $this->connection->update($this->table(), $this->bindValues($data), [$this->primaryKey() => $id]);
@@ -234,9 +234,9 @@ abstract class Repository
      * DBAL 把未显式声明类型的参数按字符串绑定，DateTimeInterface 需先转成
      * 带时区偏移的 ISO 8601（timestamptz 按字面量解析，不能丢时区）。
      *
-     * @param array<string, mixed> $data
+     * @param array<string, scalar|\DateTimeInterface|null> $data
      *
-     * @return array<string, mixed>
+     * @return array<string, string|int|float|null>
      */
     private function bindValues(array $data): array
     {
@@ -247,7 +247,7 @@ abstract class Repository
         return $data;
     }
 
-    private function bindValue(mixed $value): mixed
+    private function bindValue(string|int|float|bool|\DateTimeInterface|null $value): string|int|float|null
     {
         if ($value instanceof \DateTimeInterface) {
             return $value->format(DATE_ATOM);

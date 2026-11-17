@@ -59,6 +59,20 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
   集成测试需 `SAND_TEST_DB_URL` 指向 PostgreSQL）、`vendor/bin/phpstan analyse`。
 - 无 CI；本地开发用 `pnpm dev`，不做多余构建。
 
+## AI 开发必读 skill
+
+动手改本仓代码前，先读 `.agents/skills/` 下随仓分发的四个 skill（上游权威副本在 `~/.shared-skills/`，本目录是同步副本）：
+
+- `sandadmin1x-backend`：宿主后端（Webman/Workerman、`server/`）的写法与约束；
+- `sandadmin1x-frontend`：管理端前端（Vue3/TS，`web/`、`sandadmin-artd/`）的写法与约束；
+- `sandadmin1x-plugin`：插件开发约定；
+- `sandadmin1x-ai-loop`：AI 参与开发的闭环流程。
+
+配套工具在 `tools/`（发布包不含，见 `.gitattributes`）：
+
+- `tools/skill-sync.sh`：比对 `.agents/skills/` 与上游 `~/.shared-skills/` 是否一致；不一致时列出差异文件，`--pull` 用上游覆盖本仓副本后复核。
+- `tools/naming_check.py` + `tools/naming-terms.tsv`：命名与注释规范的机械自查，用法见脚本开头注释（`terms` 子命令把词表路径作为第一个参数传入）。
+
 ## 许可证
 
 MIT（根 LICENSE，含 saithink 双版权行；NOTICE 声明衍生自 SaiAdmin 6.x）。

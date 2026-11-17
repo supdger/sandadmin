@@ -28,6 +28,9 @@ use Sandadmin\Domain\Plugin\OptionGroup;
 use Sandadmin\Domain\Plugin\OptionItem;
 use Sandadmin\Domain\Plugin\PersonalSettingsCategory;
 use Sandadmin\Domain\Plugin\PluginExtensions;
+use Sandadmin\Domain\Plugin\PluginLocaleSpec;
+use Sandadmin\Domain\Plugin\PluginManifest;
+use Sandadmin\Domain\Plugin\PluginMenuEntry;
 use Sandadmin\Domain\Plugin\ScheduleDefinition;
 use Sandadmin\Domain\Plugin\ScheduleFreq;
 use Sandadmin\Domain\Plugin\ScheduleNextRun;
@@ -37,6 +40,8 @@ use Sandadmin\Domain\Plugin\SettingsCategory;
 use Sandadmin\Domain\Plugin\UserDisableCheck;
 use Sandadmin\Domain\Plugin\UserTransfer;
 use Sandadmin\Domain\Plugin\WorkbenchCard;
+use Sandadmin\Application\Plugin\PluginI18n;
+use Sandadmin\Application\Plugin\PluginManifestLoader;
 use Sandadmin\Infra\Audit\AuditModuleOptions;
 use Sandadmin\Infra\Plugin\ExtensionCallbacks;
 use Sandadmin\Infra\Plugin\ExtensionRegistry;
@@ -94,8 +99,10 @@ final class RegistrySourceConstraintsTest extends TestCase
             }
         }
         // 合并 #75（33 个）与 #76（新增 PluginResidue、ScheduleClaim 两个 Infra 源文件）后为 35 个；
-        // 重算依据：find src/Domain/Plugin src/Infra/Plugin -name '*.php'，29 + 6 = 35。
-        self::assertCount(35, $files);
+        // 本轮新增 PluginManifest、PluginMenuEntry、PluginLocaleSpec 三个 Domain 值对象后为 38 个；
+        // manifest/locale 的文件 IO 装载器在 src/Application/Plugin，不属本纯函数子树。
+        // 重算依据：find src/Domain/Plugin src/Infra/Plugin -name '*.php'，32 + 6 = 38。
+        self::assertCount(38, $files);
         foreach ($files as $path) {
             $source = file_get_contents($path);
             if (!is_string($source)) {
@@ -145,6 +152,11 @@ final class RegistrySourceConstraintsTest extends TestCase
             ExtensionCallbacks::class,
             AuditModuleOption::class,
             AuditModuleOptions::class,
+            PluginManifest::class,
+            PluginMenuEntry::class,
+            PluginLocaleSpec::class,
+            PluginManifestLoader::class,
+            PluginI18n::class,
         ] as $class) {
             $ref = new \ReflectionClass($class);
             self::assertTrue($ref->isFinal(), $class);
@@ -181,6 +193,9 @@ final class RegistrySourceConstraintsTest extends TestCase
             PluginDictRepository::class,
             AuditModuleOption::class,
             AuditModuleOptions::class,
+            PluginManifest::class,
+            PluginMenuEntry::class,
+            PluginLocaleSpec::class,
         ] as $class) {
             $ref = new \ReflectionClass($class);
             foreach ($ref->getProperties() as $property) {

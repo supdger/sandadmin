@@ -3,12 +3,19 @@
 # 任何一项不过即非零退出；全部通过才允许合并。
 #
 # 用法：
-#   tools/pre-merge.sh          # 同 --fast（与 sand-core 一致）
-#   tools/pre-merge.sh --fast   # 快档：PHPStan + strict types + deptrac + 命名
-#                               #       + 基线只减不增 + 前端三道 + PHPUnit unit
-#                               #       套件（不需要数据库）
-#   tools/pre-merge.sh --full   # 慢档口径：--fast 全部内容 + PHPUnit 全套
-#                               #       （需先配库，见下）
+#   tools/pre-merge.sh                    # 同 --fast（与 sand-core 一致）
+#   tools/pre-merge.sh --fast             # 快档：php -l + 危险函数白名单扫描
+#                                         #       + TypePHP 禁用写法 diff 扫描
+#                                         #       + strict types + PHPStan + deptrac
+#                                         #       + 命名自查 + 基线只减不增
+#                                         #       + 前端三道 + PHPUnit unit
+#                                         #       套件（不需要数据库）
+#   tools/pre-merge.sh --full             # 慢档口径：--fast 全部内容 + PHPUnit 全套
+#                                         #       （需先配库，见下）
+#   tools/pre-merge.sh --typephp          # 追加 TypePHP 可选编译验证；找不到
+#                                         #       编译器或项目文件时跳过不阻塞
+#                                         #       （ADR-23：工具链稳定前编译
+#                                         #       门禁是可选的）
 #   PRE_MERGE_DB=pgsql tools/pre-merge.sh --full
 #
 # 数据库由环境变量配置（本脚本不启动容器、不建库）：
@@ -34,11 +41,17 @@
 set -uo pipefail
 
 MODE=fast
-case "${1:-}" in
-  --full)    MODE=full ;;
-  ""|--fast) MODE=fast ;;
-  *) echo "未知参数：${1}（只认 --fast / --full）" >&2; exit 2 ;;
-esac
+TYPEPHP=0
+for arg in "$@"; do
+  case "$arg" in
+    --fast)    MODE=fast ;;
+    --full)    MODE=full ;;
+    --typephp) TYPEPHP=1 ;;
+    *) echo "未知参数：${arg}" >&2
+       echo "用法：$0 [--fast|--full] [--typephp]" >&2
+       exit 2 ;;
+  esac
+done
 
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -53,7 +66,26 @@ fail() {
   FAILED=1
 }
 
-# ---------- 1. PHPStan level max ----------
+# ---------- 1. PHP 语法检查 ----------
+step "PHP 语法检查（server/src app config）"
+(cd server && find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null) \
+  || fail "php -l"
+
+# ---------- 2. 危险函数白名单扫描 ----------
+step "危险函数白名单扫描"
+(cd server && php tests/security/scan-dangerous-functions.php) || fail "scan-dangerous-functions"
+
+# ---------- 3. TypePHP 禁用写法扫描（diff 模式） ----------
+# 存量 --all 全量会报既有可变调用/动态 include（36 条，整改是另一项工作），
+# 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
+step "TypePHP 禁用写法扫描（diff 模式）"
+php tools/typephp_check.php || fail "typephp_check"
+
+# ---------- 4. strict types 与禁用写法 ----------
+step "strict types 与禁用写法"
+tools/check-strict-types.sh || fail "check-strict-types"
+
+# ---------- 5. PHPStan level max ----------
 step "PHPStan level max"
 if [ ! -x server/vendor/bin/phpstan ]; then
   fail "server/vendor 未安装，先跑 cd server && composer install"
@@ -61,7 +93,7 @@ else
   (cd server && vendor/bin/phpstan analyse --no-progress) || fail "phpstan"
 fi
 
-# ---------- 2. deptrac 依赖方向 ----------
+# ---------- 6. deptrac 依赖方向 ----------
 step "deptrac 依赖方向（内核不依赖插件层）"
 if [ ! -x server/vendor/bin/deptrac ]; then
   fail "deptrac 未安装，先跑 cd server && composer install"
@@ -71,11 +103,7 @@ else
   (cd server && vendor/bin/deptrac analyse --config-file=deptrac.yaml) || fail "deptrac"
 fi
 
-# ---------- 3. strict types 与禁用写法 ----------
-step "strict types 与禁用写法"
-tools/check-strict-types.sh || fail "check-strict-types"
-
-# ---------- 4. 命名自查（diff 口径） ----------
+# ---------- 7. 命名自查（diff 口径） ----------
 step "命名自查（diff：${PRE_MERGE_BASE:-origin/main}...HEAD）"
 BASE=${PRE_MERGE_BASE:-origin/main}
 if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
@@ -127,7 +155,7 @@ else
   done
 fi
 
-# ---------- 5. 前端三道（web/ 存在才跑） ----------
+# ---------- 8. 前端三道（web/ 存在才跑） ----------
 if [ -d web ]; then
   step "前端：pnpm install --frozen-lockfile"
   (cd web && pnpm install --frozen-lockfile) || fail "pnpm install"
@@ -139,7 +167,7 @@ if [ -d web ]; then
   (cd web && pnpm test) || fail "vitest"
 fi
 
-# ---------- 6. PHPUnit ----------
+# ---------- 9. PHPUnit ----------
 if [ "$MODE" = fast ]; then
   # 快档只跑 unit 套件：不需要数据库，三库矩阵/集成用例归 --full。
   step "PHPUnit unit 套件（--fast，无需数据库）"
@@ -195,6 +223,36 @@ else
     (cd server && vendor/bin/phpunit) || fail "phpunit"
   fi
 fi
+fi
+
+# ---------- 10. TypePHP 可选编译验证（--typephp 才跑） ----------
+if [ "$TYPEPHP" = "1" ]; then
+  step "TypePHP 可选编译验证"
+  # 查找顺序：TYPEPHP_BIN 环境变量 → PATH 里的 typephp → ~/agent-work/grokbot/webman-typephp 下可执行文件
+  TYPEPHP_BIN_FOUND="${TYPEPHP_BIN:-}"
+  if [ -z "$TYPEPHP_BIN_FOUND" ] || [ ! -x "$TYPEPHP_BIN_FOUND" ]; then
+      TYPEPHP_BIN_FOUND="$(command -v typephp 2>/dev/null || true)"
+  fi
+  if [ -z "$TYPEPHP_BIN_FOUND" ] && [ -d "$HOME/agent-work/grokbot/webman-typephp" ]; then
+      TYPEPHP_BIN_FOUND="$(find "$HOME/agent-work/grokbot/webman-typephp" -maxdepth 4 -type f \
+          \( -name 'typephp' -o -name 'tpc' -o -name 'tpc.php' \) -perm +111 2>/dev/null | head -1 || true)"
+  fi
+  if [ -z "$TYPEPHP_BIN_FOUND" ]; then
+      echo "未找到 TypePHP 编译器，跳过可选编译"
+  else
+      # tpc 需要一个 TypePHP 项目文件（webman-typephp 插件的 typephp:compile 生成，
+      # 或手工提供并用 TYPEPHP_PROJECT 指定）；编译产物只进 .typephp/build/，不改任何源文件。
+      TYPEPHP_PROJECT="${TYPEPHP_PROJECT:-$ROOT/server/.typephp/project.php}"
+      if [ ! -f "$TYPEPHP_PROJECT" ]; then
+          echo "已找到 TypePHP 编译器（${TYPEPHP_BIN_FOUND}），但没有项目文件（${TYPEPHP_PROJECT}），跳过可选编译"
+      elif [[ "$TYPEPHP_BIN_FOUND" == *.php ]]; then
+          php "$TYPEPHP_BIN_FOUND" "$TYPEPHP_PROJECT" --no-progress \
+              || echo "WARN TypePHP 可选编译未通过（工具链技术预览期不阻塞门禁）"
+      else
+          "$TYPEPHP_BIN_FOUND" "$TYPEPHP_PROJECT" --no-progress \
+              || echo "WARN TypePHP 可选编译未通过（工具链技术预览期不阻塞门禁）"
+      fi
+  fi
 fi
 
 step "结果"

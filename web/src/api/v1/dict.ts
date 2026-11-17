@@ -1,6 +1,9 @@
 import { adminDelete, adminGet, adminPost, adminPut, type AdminQuery } from '@/lib/adminClient';
 import type { Id, UserStatus } from './types';
 
+/** 选项组/选项的查询键根；失效整个前缀即刷新全部字典缓存。 */
+export const DICT_QUERY_KEY = ['dict'] as const;
+
 /** 选项组来源：系统自带 / 插件提供 / 用户自建；plugin 时带插件中文名。 */
 export interface DictTypeSource {
   kind: 'system' | 'plugin' | 'custom';

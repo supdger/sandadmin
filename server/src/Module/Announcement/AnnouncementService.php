@@ -43,9 +43,13 @@ final class AnnouncementService
     }
 
     /**
+     * 正常路径返回 Announcement；幂等重放时返回首次存下的响应快照（数组或 stdClass）。
+     *
      * @param array<string, mixed> $rawBody 幂等哈希用原始请求体
+     *
+     * @return Announcement|array<array-key, mixed>|\stdClass|null
      */
-    public function create(AnnouncementDraft $draft, AnnouncementActor $actor, array $rawBody, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): mixed
+    public function create(AnnouncementDraft $draft, AnnouncementActor $actor, array $rawBody, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): Announcement|array|\stdClass|null
     {
         return $this->idempotent($actor->userId, $idempotencyKey, 'create', $rawBody, function () use ($draft, $actor, $requestId, $ip, $deviceLabel): Announcement {
             $this->assertDeptsExist($draft->deptIds);
@@ -65,9 +69,13 @@ final class AnnouncementService
     }
 
     /**
+     * 正常路径返回 Announcement；幂等重放时返回首次存下的响应快照（数组或 stdClass）。
+     *
      * @param array<string, mixed> $rawBody 幂等哈希用原始请求体
+     *
+     * @return Announcement|array<array-key, mixed>|\stdClass|null
      */
-    public function update(int $id, AnnouncementDraft $draft, AnnouncementActor $actor, array $rawBody, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): mixed
+    public function update(int $id, AnnouncementDraft $draft, AnnouncementActor $actor, array $rawBody, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): Announcement|array|\stdClass|null
     {
         return $this->idempotent($actor->userId, $idempotencyKey, 'update', $rawBody + ['_id' => $id], function () use ($id, $draft, $actor, $requestId, $ip, $deviceLabel): Announcement {
             $before = $this->requireOne($id);
@@ -85,7 +93,12 @@ final class AnnouncementService
         });
     }
 
-    public function publish(int $id, AnnouncementActor $actor, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): mixed
+    /**
+     * 正常路径返回 Announcement；幂等重放时返回首次存下的响应快照（数组或 stdClass）。
+     *
+     * @return Announcement|array<array-key, mixed>|\stdClass|null
+     */
+    public function publish(int $id, AnnouncementActor $actor, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): Announcement|array|\stdClass|null
     {
         return $this->idempotent($actor->userId, $idempotencyKey, 'publish', ['_id' => $id], function () use ($id, $actor, $requestId, $ip, $deviceLabel): Announcement {
             $item = $this->requireOne($id);
@@ -100,7 +113,12 @@ final class AnnouncementService
         });
     }
 
-    public function revoke(int $id, AnnouncementActor $actor, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): mixed
+    /**
+     * 正常路径返回 Announcement；幂等重放时返回首次存下的响应快照（数组或 stdClass）。
+     *
+     * @return Announcement|array<array-key, mixed>|\stdClass|null
+     */
+    public function revoke(int $id, AnnouncementActor $actor, string $requestId, ?string $ip, ?string $deviceLabel, ?string $idempotencyKey): Announcement|array|\stdClass|null
     {
         return $this->idempotent($actor->userId, $idempotencyKey, 'revoke', ['_id' => $id], function () use ($id, $actor, $requestId, $ip, $deviceLabel): Announcement {
             $item = $this->requireOne($id);
@@ -226,8 +244,13 @@ final class AnnouncementService
 
     /**
      * 幂等键处理：同键同请求重放首次结果；同键不同内容抛 409。
+     * 原生返回类型写不出 T|快照，留在 docblock。
      *
+     * @template T
      * @param array<string, mixed> $payload
+     * @param \Closure(): T $work
+     *
+     * @return T|array<array-key, mixed>|\stdClass|null
      */
     private function idempotent(int $userId, ?string $key, string $action, array $payload, \Closure $work): mixed
     {
@@ -240,8 +263,12 @@ final class AnnouncementService
             if ($found['request_hash'] !== $hash) {
                 throw AnnouncementException::idempotencyConflict();
             }
+            $replay = $found['response'];
+            if ($replay !== null && !is_array($replay) && !$replay instanceof \stdClass) {
+                throw new \RuntimeException('幂等记录损坏');
+            }
 
-            return $found['response'] ?? null;
+            return $replay;
         }
         $response = $work();
         try {
@@ -253,7 +280,15 @@ final class AnnouncementService
         return $response;
     }
 
-    /** Announcement 无法直接序列化进幂等存储；快照为契约数组。 */
+    /**
+     * Announcement 无法直接序列化进幂等存储；快照为契约数组。
+     * 原生返回类型写不出 T|数组，留在 docblock。
+     *
+     * @template T
+     * @param T $response
+     *
+     * @return T|array<array-key, mixed>
+     */
     private function snapshot(mixed $response): mixed
     {
         if ($response instanceof Announcement) {

@@ -89,63 +89,16 @@ final class MeController
     public function menus(Request $request): Response
     {
         return $this->run($request, function (BizKernel $kernel, Request $request, string $requestId): array {
-            if ($kernel->principal->resolve($request) === null) {
+            $actor = $kernel->principal->resolve($request);
+            if ($actor === null) {
                 throw OrgException::unauthenticated();
             }
 
             return ApiOutcome::ok([
                 'menu_version' => $kernel->menus->loadTree(null, null)['menu_version'],
-                'items' => $kernel->menus->mergeSidebar($this->items($kernel)),
+                'items' => $kernel->menus->mergeSidebar($kernel->menus->sidebarItems($actor)),
             ], $requestId);
         });
-    }
-
-    /** @return list<array<string, mixed>> */
-    private function items(BizKernel $kernel): array
-    {
-        $children = [
-            self::page('system:user', '用户管理', 'user', '/system/user'),
-            self::page('system:dept', '部门管理', 'dept', '/system/dept'),
-            self::page('system:post', '岗位管理', 'post', '/system/post'),
-            self::page('system:role', '角色管理', 'role', '/system/role'),
-            self::page('system:dict', '选项管理', 'dict', '/data/dict'),
-            self::page('system:announcement', '公告管理', 'notice', '/data/notice'),
-            self::page('system:menu', '菜单管理', 'menu', '/system/menu'),
-            self::page('system:plugin', '插件管理', 'plugin', '/system/plugins'),
-            self::page('system:update', '系统更新', 'refresh', '/system/update'),
-        ];
-        $rows = $kernel->connection->fetchAllAssociative(
-            'SELECT code, name FROM sand_system_plugin WHERE state = \'installed\' ORDER BY name',
-        );
-        foreach ($rows as $row) {
-            $code = $row['code'] ?? null;
-            $name = $row['name'] ?? null;
-            if (!is_string($code) || !is_string($name) || $code === '') {
-                continue;
-            }
-            $children[] = self::page('plugin:' . $code, $name, 'plugin', '/plugin/' . $code);
-        }
-
-        return [
-            self::page('home', '工作台', 'home', '/'),
-            self::group('system', '系统', 'setting', $children),
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private static function page(string $key, string $title, string $icon, string $path): array
-    {
-        return ['key' => $key, 'type' => 'page', 'title' => $title, 'icon' => $icon, 'path' => $path, 'url' => null];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $children
-     *
-     * @return array<string, mixed>
-     */
-    private static function group(string $key, string $title, string $icon, array $children): array
-    {
-        return ['key' => $key, 'type' => 'group', 'title' => $title, 'icon' => $icon, 'path' => null, 'url' => null, 'children' => $children];
     }
 
     /**

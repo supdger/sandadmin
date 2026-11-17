@@ -20,7 +20,10 @@ describe('mock demo account permissions', () => {
 
   it('reports per-account permissions from /me', async () => {
     setToken('mock-admin-token');
-    await expect(getMe()).resolves.toMatchObject({ permissions: ['*'] });
+    // `'*'` 通配之外显式带示例插件权限码，与 USERS.admin 保持一致。
+    await expect(getMe()).resolves.toMatchObject({
+      permissions: ['*', 'sand_hello:page:read'],
+    });
 
     setToken('mock-viewer-token');
     await expect(getMe()).resolves.toMatchObject({
@@ -83,13 +86,13 @@ describe('mock demo account permissions', () => {
 
   it.skipIf(!env.mockViewerPassword)('viewer can log in when the env password is set', async () => {
     const res = await login({ username: 'viewer', password: env.mockViewerPassword as string });
-    expect(res.token).toBe('mock-viewer-token');
+    expect(res.access_token).toBe('mock-viewer-token');
     await expect(getMe()).resolves.toMatchObject({ username: 'viewer' });
   });
 
   it.skipIf(!env.mockGuestPassword)('guest can log in when the env password is set', async () => {
     const res = await login({ username: 'guest', password: env.mockGuestPassword as string });
-    expect(res.token).toBe('mock-guest-token');
+    expect(res.access_token).toBe('mock-guest-token');
     await expect(getMe()).resolves.toMatchObject({ username: 'guest', permissions: [] });
   });
 });

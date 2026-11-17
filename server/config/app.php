@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * This file is part of webman.
  *
@@ -24,4 +27,6 @@ return [
     'runtime_path' => base_path(false) . DIRECTORY_SEPARATOR . 'runtime',
     'controller_suffix' => 'Controller',
     'controller_reuse' => false,
+    // 插件安装产物根目录（composer 发布到 server/plugin/，非源码权威）
+    'plugin_dir' => env('SAND_PLUGIN_DIR', base_path() . DIRECTORY_SEPARATOR . 'plugin'),
 ];

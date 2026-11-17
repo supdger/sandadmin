@@ -1,16 +1,8 @@
 /.github/**
 !.github/workflows/
-!.github/workflows/merge-gates.yml
-!.github/workflows/merge-gates-slow.yml
-/tools/*
-!/tools/check-strict-types.sh
-!/tools/naming_check.py
-!/tools/naming-terms.tsv
-!/tools/pre-merge.sh
-!/tools/strict-types-baseline.txt
+!.github/CODEOWNERS
+!.github/workflows/dependency-audit.yml
 /docs/
-
-/.agents/
 
 # Composer-generated private runtime configuration
 /sandadmin-artd/.env
@@ -18,5 +10,4 @@
 /server/config/plugin/tinywan/jwt/
 
 # Internal dev-process artifacts (repo-content-hygiene: not for repo consumers)
-/.agents/
 /openspec/

@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Menu;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Domain\Plugin\PluginMenuEntry;
+use Sandadmin\Application\Plugin\PluginManifestLoader;
 use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgAudit;
 use Sandadmin\Module\Org\OrgIdempotency;
@@ -23,11 +25,15 @@ final class MenuService
     private const TITLE_MAX = 6;
     private const URL_MAX = 2048;
 
+    private readonly PluginManifestLoader $manifests;
+
     public function __construct(
         private readonly Connection $connection,
         private readonly OrgAudit $audit,
         private readonly OrgIdempotency $keys,
+        ?PluginManifestLoader $manifests = null,
     ) {
+        $this->manifests = $manifests ?? PluginManifestLoader::atDefault();
     }
 
     /**
@@ -54,6 +60,45 @@ final class MenuService
     public function mergeSidebar(array $items): array
     {
         return $this->attachCustom($this->pruneHidden($this->applyOverrides($items)), true);
+    }
+
+    /**
+     * 侧栏基础清单（/me/menus 的输入，未过覆盖层与自建节点）：
+     * 系统目录 + installed 插件节点。插件 manifest 声明 menus 时按声明展开
+     * 分组，未声明保持单自动页。声明 permission 且 actor 不满足的项不出
+     * 现，permission 字段同时透传给前端守卫；actor 为空不做过滤。
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function sidebarItems(?OrgActor $actor): array
+    {
+        $children = [
+            self::sidebarPage('system:user', '用户管理', 'user', '/system/user'),
+            self::sidebarPage('system:dept', '部门管理', 'dept', '/system/dept'),
+            self::sidebarPage('system:post', '岗位管理', 'post', '/system/post'),
+            self::sidebarPage('system:role', '角色管理', 'role', '/system/role'),
+            self::sidebarPage('system:dict', '选项管理', 'dict', '/data/dict'),
+            self::sidebarPage('system:announcement', '公告管理', 'notice', '/data/notice'),
+            self::sidebarPage('system:menu', '菜单管理', 'menu', '/system/menu'),
+            self::sidebarPage('system:plugin', '插件管理', 'plugin', '/system/plugins'),
+            self::sidebarPage('system:update', '系统更新', 'refresh', '/system/update'),
+        ];
+        foreach ($this->pluginItems($actor, false) as $node) {
+            $children[] = $node;
+        }
+
+        return [
+            self::sidebarPage('home', '工作台', 'home', '/'),
+            [
+                'key' => 'system',
+                'type' => 'group',
+                'title' => '系统',
+                'icon' => 'setting',
+                'path' => null,
+                'url' => null,
+                'children' => $children,
+            ],
+        ];
     }
 
     /**
@@ -307,8 +352,8 @@ final class MenuService
             $this->catalogNode('system:plugin', 'page', '插件管理', 'plugin', '/system/plugins'),
             $this->catalogNode('system:update', 'page', '系统更新', 'refresh', '/system/update'),
         ];
-        foreach ($this->pluginPages() as $page) {
-            $children[] = $page;
+        foreach ($this->pluginItems(null, true) as $node) {
+            $children[] = $node;
         }
         $system = $this->catalogNode('system', 'group', '系统', 'setting', null);
         $system['children'] = $children;
@@ -590,8 +635,114 @@ final class MenuService
         return $node;
     }
 
-    /** @return list<array<string, mixed>> */
-    private function pluginPages(): array
+    /**
+     * installed 插件节点清单。manifest 有 menus 声明 → 展开成分组；
+     * 无声明（含清单缺失或不合法）→ 保持单自动页。
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function pluginItems(?OrgActor $actor, bool $catalog): array
+    {
+        $nodes = [];
+        foreach ($this->installedPlugins() as [$code, $name]) {
+            $manifest = $this->manifests->load($code);
+            if (!$manifest->declaresMenus()) {
+                $nodes[] = $this->pluginPage($code, $name, $catalog);
+                continue;
+            }
+            $children = $this->declaredItems($code, 'plugin:' . $code, $manifest->menus, $actor, $catalog);
+            if (!$catalog && $children === []) {
+                continue;
+            }
+            $group = $catalog
+                ? $this->catalogNode('plugin:' . $code, 'group', $name, 'plugin', null)
+                : $this->sidebarGroup('plugin:' . $code, $name, 'plugin');
+            $group['plugin'] = $code;
+            $group['children'] = $children;
+            if ($catalog) {
+                $group['source'] = ['kind' => 'plugin', 'plugin_label' => $name];
+            }
+            $nodes[] = $group;
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * 声明菜单项 → 节点树。permission 不满足 actor 的项连同空分组一起摘掉（侧栏）。
+     *
+     * @param list<PluginMenuEntry> $entries
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function declaredItems(string $code, string $parentKey, array $entries, ?OrgActor $actor, bool $catalog): array
+    {
+        $sorted = $entries;
+        usort($sorted, static fn (PluginMenuEntry $a, PluginMenuEntry $b): int => $a->sort <=> $b->sort);
+        $nodes = [];
+        foreach ($sorted as $entry) {
+            if ($entry->permission !== null && $actor !== null && !$actor->can($entry->permission)) {
+                continue;
+            }
+            $key = $parentKey . ':' . $entry->key;
+            if ($entry->children !== []) {
+                $children = $this->declaredItems($code, $key, $entry->children, $actor, $catalog);
+                if (!$catalog && $children === []) {
+                    continue;
+                }
+                $node = $catalog
+                    ? $this->catalogNode($key, 'group', $entry->title, $entry->icon ?? 'plugin', null)
+                    : $this->sidebarGroup($key, $entry->title, $entry->icon ?? 'plugin');
+                $node['children'] = $children;
+            } else {
+                $node = $catalog
+                    ? $this->catalogNode($key, 'page', $entry->title, $entry->icon ?? 'plugin', $entry->path)
+                    : self::sidebarPage($key, $entry->title, $entry->icon, $entry->path);
+            }
+            if ($catalog) {
+                $node['source'] = ['kind' => 'plugin', 'plugin_label' => null];
+            }
+            $node['plugin'] = $code;
+            if ($entry->titleKey !== null) {
+                $node['title_key'] = $entry->titleKey;
+            }
+            if ($entry->permission !== null) {
+                $node['permission'] = $entry->permission;
+            }
+            $nodes[] = $node;
+        }
+
+        return $nodes;
+    }
+
+    /** @return array<string, mixed> */
+    private function pluginPage(string $code, string $name, bool $catalog): array
+    {
+        if ($catalog) {
+            $page = $this->catalogNode('plugin:' . $code, 'page', $name, 'plugin', '/plugin/' . $code);
+            $page['source'] = ['kind' => 'plugin', 'plugin_label' => $name];
+        } else {
+            $page = self::sidebarPage('plugin:' . $code, $name, 'plugin', '/plugin/' . $code);
+        }
+        $page['plugin'] = $code;
+
+        return $page;
+    }
+
+    /** @return array<string, mixed> */
+    private static function sidebarPage(string $key, string $title, ?string $icon, string $path): array
+    {
+        return ['key' => $key, 'type' => 'page', 'title' => $title, 'icon' => $icon, 'path' => $path, 'url' => null];
+    }
+
+    /** @return array<string, mixed> */
+    private function sidebarGroup(string $key, string $title, string $icon): array
+    {
+        return ['key' => $key, 'type' => 'group', 'title' => $title, 'icon' => $icon, 'path' => null, 'url' => null, 'children' => []];
+    }
+
+    /** @return list<array{0: string, 1: string}> */
+    private function installedPlugins(): array
     {
         try {
             $rows = $this->connection->fetchAllAssociative(
@@ -600,19 +751,17 @@ final class MenuService
         } catch (\Throwable) {
             return [];
         }
-        $pages = [];
+        $plugins = [];
         foreach ($rows as $row) {
             $code = $row['code'] ?? null;
             $name = $row['name'] ?? null;
             if (!is_string($code) || !is_string($name) || $code === '') {
                 continue;
             }
-            $page = $this->catalogNode('plugin:' . $code, 'page', $name, 'plugin', '/plugin/' . $code);
-            $page['source'] = ['kind' => 'plugin', 'plugin_label' => $name];
-            $pages[] = $page;
+            $plugins[] = [$code, $name];
         }
 
-        return $pages;
+        return $plugins;
     }
 
     /** @return list<array<string, mixed>> */

@@ -5,7 +5,12 @@
 /README.md export-ignore
 /catalog.json export-ignore
 /docs/ export-ignore
-/tools/ export-ignore
+# tools/ 下开发工具不进发布包；逐文件列。例外：词表合并脚本随包带出，
+# 发布侧可复算 weak-passwords.txt 的来源与 sha256
+/tools/naming_check.py export-ignore
+/tools/naming-terms.tsv export-ignore
+/tools/skill-sync.sh export-ignore
 /sandadmin-artd/** text=auto eol=lf
 /openspec/ export-ignore
 /.agents/ export-ignore
+/server/.sand-dev-build export-ignore

@@ -2,3 +2,6 @@
 # 均非 HTTP 请求路径：
 windows.php
 app/process/Monitor.php
+# MCP 开发工具固定 argv 子进程（proc_open 数组形式不过 shell，参数无调用方原文，
+# 仅在 .sand-dev-build 开发构建 + 本机回环 + 令牌三道门槛后可达）：
+src/Infra/Mcp/Dev/Subprocess.php
