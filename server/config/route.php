@@ -15,16 +15,18 @@ declare(strict_types=1);
  * @license   http://www.opensource.org/licenses/mit-license.php MIT License
  */
 
+// SAND-DEV-BEGIN
 use app\controller\DevLoginController;
-use app\controller\FileController;
+use Sandadmin\Http\McpController;
 use Sandadmin\Infra\DevBuild;
+// SAND-DEV-END
+use app\controller\FileController;
 use Sandadmin\Http\AnnouncementController;
 use Sandadmin\Http\DashboardController;
 use Sandadmin\Http\DictController;
 use Sandadmin\Http\HostReadController;
 use Sandadmin\Http\LifecycleController;
 use Sandadmin\Http\PackageController;
-use Sandadmin\Http\McpController;
 use Sandadmin\Http\MeController;
 use Sandadmin\Http\MenuController;
 use Sandadmin\Http\NotificationController;
@@ -51,9 +53,10 @@ Route::get('/api/admin/v1/tasks', [TaskController::class, 'index']);
 Route::get('/api/admin/v1/tasks/{task_id}', [TaskController::class, 'show']);
 Route::get('/api/admin/v1/tasks/{task_id}/download', [TaskController::class, 'download']);
 
-// /core/dev-login 由 sandadmin 插件自身注册（sand-core ≥0.2.10），宿主再挂
-// 同名路由会在启动时冲突；该端点开关为插件配置 dev_login.*。
+// sand-core 插件自带的一键登录端点由插件自身注册（sand-core ≥0.2.10），
+// 宿主再挂同名路由会在启动时冲突；该端点开关为插件配置 dev_login.*。
 
+// SAND-DEV-BEGIN
 // 1.x 前端按 /api/auth 与 /api/admin/v1/auth 两种前缀访问同一开发登录；
 // 两条映射共用 DevLoginGate，拒绝转发头伪装的非本机请求。
 // 整条链只在开发构建存在：生产制品没有 .sand-dev-build 标记，路由不注册。
@@ -67,6 +70,7 @@ if (DevBuild::enabled()) {
     // 令牌、回环、Origin 三道门槛在 McpController 内收口，缺一按 404 处理。
     Route::post('/api/admin/mcp', [McpController::class, 'handle']);
 }
+// SAND-DEV-END
 
 // 公告：管理与收件人侧端点；权限码（system:announcement:* / authenticated）
 // 在 AnnouncementHttp 内判定，路由只挂形状。

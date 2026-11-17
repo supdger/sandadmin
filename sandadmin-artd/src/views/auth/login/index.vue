@@ -6,6 +6,7 @@
     <main class="login-shell">
       <div class="auth-right-wrap">
         <section class="login-card" aria-labelledby="login-page-title">
+          <!-- SAND-DEV-BEGIN -->
           <ElAlert
             v-if="isDevExperience"
             class="dev-login-banner"
@@ -14,9 +15,11 @@
             show-icon
             title="开发模式：仅本机可用，正式环境会自动关闭"
           />
+          <!-- SAND-DEV-END -->
           <div class="form">
             <h3 id="login-page-title" class="title">{{ $t('login.title') }}</h3>
             <p class="sub-title">{{ $t('login.subTitle') }}</p>
+            <!-- SAND-DEV-BEGIN -->
             <ElAlert
               v-if="devError"
               class="dev-login-error"
@@ -25,6 +28,7 @@
               show-icon
               :title="devError"
             />
+            <!-- SAND-DEV-END -->
             <ElForm
               ref="formRef"
               :model="formData"
@@ -64,7 +68,10 @@
                 </ElFormItem>
               </div>
 
-              <div class="form-field" v-if="!isDevExperience">
+              <!-- SAND-DEV-BEGIN -->
+              <template v-if="!isDevExperience">
+              <!-- SAND-DEV-END -->
+              <div class="form-field">
                 <label class="field-label" for="login-code">验证码</label>
                 <ElFormItem class="login-form-item" prop="code">
                   <div class="captcha-row">
@@ -89,6 +96,9 @@
                   </div>
                 </ElFormItem>
               </div>
+              <!-- SAND-DEV-BEGIN -->
+              </template>
+              <!-- SAND-DEV-END -->
 
               <div class="login-options">
                 <ElCheckbox v-model="formData.rememberPassword">{{
@@ -98,6 +108,7 @@
               </div>
 
               <div class="login-submit-wrap">
+                <!-- SAND-DEV-BEGIN -->
                 <template v-if="isDevExperience && devEntry">
                   <ElButton
                     id="dev-enter-button"
@@ -113,16 +124,20 @@
                     用其他账号登录
                   </button>
                 </template>
-                <ElButton
-                  v-else
-                  class="w-full custom-height"
-                  type="primary"
-                  @click="handleSubmit"
-                  :loading="loading"
-                  v-ripple
-                >
-                  {{ $t('login.btnText') }} SandAdmin
-                </ElButton>
+                <template v-else>
+                <!-- SAND-DEV-END -->
+                  <ElButton
+                    class="w-full custom-height"
+                    type="primary"
+                    @click="handleSubmit"
+                    :loading="loading"
+                    v-ripple
+                  >
+                    {{ $t('login.btnText') }} SandAdmin
+                  </ElButton>
+                <!-- SAND-DEV-BEGIN -->
+                </template>
+                <!-- SAND-DEV-END -->
               </div>
 
               <p class="login-security-note">
@@ -149,7 +164,10 @@
   import { useUserStore } from '@/store/modules/user'
   import { useI18n } from 'vue-i18n'
   import { HttpError } from '@/utils/http/error'
-  import { fetchCaptcha, fetchLogin, fetchDevLogin, fetchGetUserInfo } from '@/api/auth'
+  import { fetchCaptcha, fetchLogin, fetchGetUserInfo } from '@/api/auth'
+  // SAND-DEV-BEGIN
+  import { fetchDevLogin } from '@/api/auth'
+  // SAND-DEV-END
   import { ElNotification, type FormInstance, type FormRules } from 'element-plus'
 
   defineOptions({ name: 'Login' })
@@ -172,6 +190,7 @@
   const systemName = AppConfig.systemInfo.name
   const formRef = ref<FormInstance>()
 
+  // SAND-DEV-BEGIN
   // 开发体验门控：构建期开关 VITE_SAND_DEV_LOGIN=1 且页面由回环主机名访问。
   // 两个条件缺一个即生产体验：提示条、一键进入、dev=1 一概不渲染不生效。
   const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]']
@@ -181,55 +200,75 @@
   // 开发体验下账号密码预填展示：密码只是占位圆点，真实发牌走免口令 dev 接口
   const DEV_USERNAME = 'admin'
   const DEV_PASSWORD_PLACEHOLDER = '········'
+  // SAND-DEV-END
 
   const formData = reactive({
-    username: isDevExperience ? DEV_USERNAME : '',
-    password: isDevExperience ? DEV_PASSWORD_PLACEHOLDER : '',
+    username: '',
+    password: '',
     code: '',
     uuid: '',
     rememberPassword: true
   })
+  // SAND-DEV-BEGIN
+  if (isDevExperience) {
+    formData.username = DEV_USERNAME
+    formData.password = DEV_PASSWORD_PLACEHOLDER
+  }
+  // SAND-DEV-END
 
-  const rules = computed<FormRules>(() => ({
-    username: [{ required: true, message: t('login.placeholder.username'), trigger: 'blur' }],
-    password: [{ required: true, message: t('login.placeholder.password'), trigger: 'blur' }],
-    ...(isDevExperience
-      ? {}
-      : { code: [{ required: true, message: t('login.placeholder.code'), trigger: 'blur' }] })
-  }))
+  const rules = computed<FormRules>(() => {
+    const all: FormRules = {
+      username: [{ required: true, message: t('login.placeholder.username'), trigger: 'blur' }],
+      password: [{ required: true, message: t('login.placeholder.password'), trigger: 'blur' }],
+      code: [{ required: true, message: t('login.placeholder.code'), trigger: 'blur' }]
+    }
+    // SAND-DEV-BEGIN
+    if (isDevExperience) {
+      delete all.code
+    }
+    // SAND-DEV-END
+    return all
+  })
 
   const loading = ref(false)
 
+  // SAND-DEV-BEGIN
   // devEntry=true 显示一键进入；点了「用其他账号登录」或 dev 接口失败后回落为普通表单
   const devEntry = ref(isDevExperience)
   const devLoading = ref(false)
   const devError = ref('')
   // dev=1 参数只自动执行一次，避免失败后无限重试
   const devAutoRan = ref(false)
+  // SAND-DEV-END
 
   const route = useRoute()
 
   onMounted(() => {
-    if (!isDevExperience) {
-      refreshCaptcha()
+    // SAND-DEV-BEGIN
+    if (isDevExperience) {
+      nextTick(() => document.getElementById('dev-enter-button')?.focus())
+      if (route.query.dev === '1' && !devAutoRan.value) {
+        devAutoRan.value = true
+        handleDevEnter()
+      }
       return
     }
-    nextTick(() => document.getElementById('dev-enter-button')?.focus())
-    if (route.query.dev === '1' && !devAutoRan.value) {
-      devAutoRan.value = true
-      handleDevEnter()
-    }
+    // SAND-DEV-END
+    refreshCaptcha()
   })
 
   // 开发体验主按钮聚焦时回车走一键进入，其余情况走普通登录
   const handleEnter = () => {
+    // SAND-DEV-BEGIN
     if (isDevExperience && devEntry.value) {
       handleDevEnter()
       return
     }
+    // SAND-DEV-END
     handleSubmit()
   }
 
+  // SAND-DEV-BEGIN
   // 一键进入：调免口令 dev 接口，成功后与正常登录走同一段后续流程
   const handleDevEnter = async () => {
     if (devLoading.value) return
@@ -254,6 +293,7 @@
     formData.username = ''
     formData.password = ''
   }
+  // SAND-DEV-END
 
   // 拿到令牌后的公共流程：存 token、拉用户信息、按强制改密或原目标页跳转
   const completeLogin = async (data: Api.Auth.LoginResponse) => {
@@ -316,9 +356,13 @@
         console.error('[Login] Unexpected error:', error)
       }
     } finally {
+      // SAND-DEV-BEGIN
       if (!isDevExperience) {
+      // SAND-DEV-END
         refreshCaptcha()
+      // SAND-DEV-BEGIN
       }
+      // SAND-DEV-END
       loading.value = false
     }
   }

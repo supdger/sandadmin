@@ -34,7 +34,7 @@ final readonly class BizKernel
         public PostService $posts,
         public DictService $dicts,
         public MenuService $menus,
-        public DevPrincipal $principal,
+        public PrincipalProvider $principal,
     ) {
     }
 
@@ -77,7 +77,19 @@ final readonly class BizKernel
             new PostService($connection, $audit, $keys),
             new DictService($connection, $audit, $keys),
             new MenuService($connection, $audit, $keys),
-            new DevPrincipal($connection),
+            self::principal($connection),
         );
+    }
+
+    // 哨兵块里的身份实现只存在于开发构建，发布打包时整段剔除。
+    private static function principal(Connection $connection): PrincipalProvider
+    {
+        // SAND-DEV-BEGIN
+        if (class_exists(DevPrincipal::class)) {
+            return new DevPrincipal($connection);
+        }
+        // SAND-DEV-END
+
+        return new UnavailablePrincipalProvider();
     }
 }

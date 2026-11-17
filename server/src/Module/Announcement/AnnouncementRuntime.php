@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Announcement;
 
+use Doctrine\DBAL\Connection;
 use Sandadmin\Infra\Db\DbalConnection;
 use Sandadmin\Infra\Idempotency\PdoIdempotencyStore;
 
@@ -43,12 +44,24 @@ final readonly class AnnouncementRuntime
 
             return new self(
                 new AnnouncementService($repository, new AnnouncementAuditWriter($connection), $idempotency),
-                new DevAnnouncementActorProvider($connection),
+                self::actorProvider($connection),
             );
         } catch (\Throwable $exception) {
             error_log('公告运行时初始化失败 ' . $exception::class . ': ' . $exception->getMessage());
 
             return null;
         }
+    }
+
+    // 哨兵块里的身份提供方只存在于开发构建，发布打包时整段剔除。
+    private static function actorProvider(Connection $connection): AnnouncementActorProvider
+    {
+        // SAND-DEV-BEGIN
+        if (class_exists(DevAnnouncementActorProvider::class)) {
+            return new DevAnnouncementActorProvider($connection);
+        }
+        // SAND-DEV-END
+
+        return new UnavailableAnnouncementActorProvider();
     }
 }

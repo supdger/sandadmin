@@ -10,7 +10,7 @@ import { eventBus } from './eventBus';
  * request:begin/end 供全局 loading 计数，401 发 session:expired，
  * SUDO_REQUIRED 发 sudo:required。Cookie 会话经
  * `credentials: 'same-origin'`；Bearer 兜底是 FE0 遗留登录流的
- * 过渡（mocks/dev-login 还在用），随 authToken 一起退役。
+ * 过渡（开发 mock 与免登录入口还在用），随 authToken 一起退役。
  */
 
 const ADMIN_V1_PATH = '/admin/v1';

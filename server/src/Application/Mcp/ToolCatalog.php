@@ -11,7 +11,7 @@ use Sandadmin\Domain\Mcp\ToolSpec;
 
 /**
  * MCP 工具登记表：显式清单，不是反射/注解扫描出来的（U-3/M-03）。
- * 构建期从 OpenAPI x-mcp 生成注册表落地前，清单在 DevCatalog 与
+ * 构建期从 OpenAPI x-mcp 生成注册表落地前，清单在开发构建工具登记表与
  * 后续的业务登记表里手写维护；启动期一致性校验归后续版本。
  */
 final class ToolCatalog

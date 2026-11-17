@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Lifecycle;
 
+use Doctrine\DBAL\Connection;
 use Sandadmin\Infra\Db\DbalConnection;
 
 /** 生命周期详情 Webman 装配。 */
@@ -32,12 +33,24 @@ final readonly class LifecycleRuntime
 
             return new self(
                 new LifecycleRepository($connection),
-                new DevLifecycleActorProvider($connection),
+                self::actorProvider($connection),
             );
         } catch (\Throwable $exception) {
             error_log('生命周期运行时初始化失败 ' . $exception::class . ': ' . $exception->getMessage());
 
             return null;
         }
+    }
+
+    // 哨兵块里的身份提供方只存在于开发构建，发布打包时整段剔除。
+    private static function actorProvider(Connection $connection): LifecycleActorProvider
+    {
+        // SAND-DEV-BEGIN
+        if (class_exists(DevLifecycleActorProvider::class)) {
+            return new DevLifecycleActorProvider($connection);
+        }
+        // SAND-DEV-END
+
+        return new UnavailableLifecycleActorProvider();
     }
 }

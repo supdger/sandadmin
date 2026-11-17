@@ -343,7 +343,7 @@ def check_code(files, allow):
 
 TAG_ONLY = re.compile(r"^(@(param|return|returns|var|throws|template|extends|implements|deprecated|see|"
                       r"phpstan|psalm|internal)\b|eslint-|@ts-|phpcs:|prettier-ignore|c8 ignore|"
-                      r"istanbul ignore|noinspection)")
+                      r"istanbul ignore|noinspection|SAND-DEV-(BEGIN|END)\b)")
 BAD_NOTE = [
     ("WARN", "流水账", re.compile(r"第\s*[一二三四五六七八九十0-9]+\s*步|步骤\s*[一二三四五六七八九十0-9]|\bstep\s*\d+\b", re.I)),
     ("FAIL", "废话开头", re.compile(r"^(此|该|这个|本)(函数|方法|类|接口|组件|文件)(用于|用来|是|负责)|^用于|"

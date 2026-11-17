@@ -189,7 +189,9 @@
 <script setup lang="ts">
   import { useI18n } from 'vue-i18n'
   import { useRoute, useRouter } from 'vue-router'
+  // SAND-DEV-BEGIN
   import { devSurfaceOpen, hideDevMenus } from '@/utils/devSurface'
+  // SAND-DEV-END
   import { useFullscreen, useWindowSize } from '@vueuse/core'
   import { LanguageEnum, MenuTypeEnum } from '@/enums/appEnum'
   import { useSettingStore } from '@/store/modules/setting'
@@ -234,7 +236,13 @@
 
   const { language } = storeToRefs(userStore)
   const { menuList: rawMenus } = storeToRefs(menuStore)
-  const visibleMenus = computed(() => hideDevMenus(rawMenus.value, devSurfaceOpen(route.query)))
+  const visibleMenus = computed(() => {
+    let menus = rawMenus.value
+    // SAND-DEV-BEGIN
+    menus = hideDevMenus(menus, devSurfaceOpen(route.query))
+    // SAND-DEV-END
+    return menus
+  })
 
   const showNotice = ref(false)
   const notice = ref(null)
