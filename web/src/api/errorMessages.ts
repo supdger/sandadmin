@@ -89,6 +89,10 @@ export const API_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.PROVIDER_HANDLE_EXPIRED]: '连接已过期，请重新发起',
   [API_ERROR_CODES.PROVIDER_CONNECT_FAILED]: '连接没有成功，请稍后再试',
   [API_ERROR_CODES.VENDOR_UNKNOWN]: '不认识这个厂商',
+  [API_ERROR_CODES.STREAM_LIMIT_REACHED]: '流式连接数已达上限，稍后再试',
+  [API_ERROR_CODES.STREAM_IDLE_TIMEOUT]: '流式连接空闲超时，已断开',
+  [API_ERROR_CODES.STREAM_DURATION_LIMIT]: '流式连接已达时长上限，已断开',
+  [API_ERROR_CODES.STREAM_AUTHZ_REVOKED]: '权限已变更，流式连接已断开',
 };
 
 /** 未登记的码也给出带码的中文，避免页面只显示一个英文码。 */
