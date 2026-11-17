@@ -11,7 +11,9 @@ use Sandadmin\Application\Mcp\McpHttpBridge;
 use Sandadmin\Application\Mcp\McpKernel;
 use Sandadmin\Application\Mcp\McpServerFactory;
 use Sandadmin\Application\Mcp\ToolCatalog;
+use Sandadmin\Domain\Stream\StreamWriterInterface;
 use Sandadmin\Infra\Mcp\Dev\DevCatalog;
+use Sandadmin\Infra\Stream\MemoryStreamWriter;
 use Sandadmin\Infra\Mcp\DevTokenVerifier;
 use Sandadmin\Infra\Mcp\LogAuditSink;
 use Sandadmin\Infra\Mcp\McpGate;
@@ -29,6 +31,24 @@ use Webman\Route;
  */
 final class McpController
 {
+    /**
+     * 流式写出接线点（U-3：MCP 输出统一走 StreamWriterInterface）。
+     * 当前是无状态 Streamable HTTP 的单次 JSON 响应，默认 MemoryStreamWriter
+     * 即「缓冲取回」的非流式路径；升级到 SSE 传输时换注入 SseStreamWriter，
+     * 本方法与协议层调用面不变。
+     */
+    private readonly StreamWriterInterface $streamWriter;
+
+    public function __construct(?StreamWriterInterface $streamWriter = null)
+    {
+        $this->streamWriter = $streamWriter ?? new MemoryStreamWriter();
+    }
+
+    public function streamWriter(): StreamWriterInterface
+    {
+        return $this->streamWriter;
+    }
+
     public function handle(Request $request): Response
     {
         if (!DevTokenVerifier::configured() || !McpGate::remoteAllowed($request)) {

@@ -19,6 +19,7 @@ declare(strict_types=1);
 use app\controller\DevLoginController;
 use Sandadmin\Http\McpController;
 use Sandadmin\Infra\DevBuild;
+use Sandadmin\Module\DemoNote\SseDemoController;
 // SAND-DEV-END
 use app\controller\FileController;
 use Sandadmin\Http\AnnouncementController;
@@ -70,6 +71,11 @@ if (DevBuild::enabled()) {
     // 开发构建 MCP 端点（无状态 Streamable HTTP）：路由只按构建标记挂出，
     // 令牌、回环、Origin 三道门槛在 McpController 内收口，缺一按 404 处理。
     Route::post('/api/admin/mcp', [McpController::class, 'handle']);
+
+    // 流式基础层演示/压测端点：类在 DemoNote 内，整目录随生产包剔除；
+    // slow_ms 模拟慢上游，ping 给普通请求延迟对照。
+    Route::get('/api/dev/stream/sse', [SseDemoController::class, 'events']);
+    Route::get('/api/dev/stream/ping', [SseDemoController::class, 'ping']);
 }
 // SAND-DEV-END
 
