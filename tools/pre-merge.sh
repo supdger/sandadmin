@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full] [--typephp]
-# --fast（默认）：PHP 语法检查 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
+# --fast（默认）：PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
 # --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）
 # --typephp：追加 TypePHP 可选编译验证；找不到编译器或项目文件时跳过不阻塞
 #   （ADR-23：编译门禁在工具链稳定前是可选的，不过不合并的硬门禁是其余几项）
@@ -22,24 +22,27 @@ done
 
 cd "$ROOT/server"
 
-echo "== 1/6 PHP 语法检查（src/ app/ config/）"
+echo "== 1/7 PHP 语法检查（src/ app/ config/）"
 find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null
 
-echo "== 2/6 危险函数白名单扫描"
+echo "== 2/7 契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
+php ../tools/contract-build --check
+
+echo "== 3/7 危险函数白名单扫描"
 php tests/security/scan-dangerous-functions.php
 
-echo "== 3/6 dev-only 引用门禁（tools/dev-only-paths.txt）"
+echo "== 4/7 dev-only 引用门禁（tools/dev-only-paths.txt）"
 php ../tools/check-dev-refs.php
 
 # 存量 --all 全量会报既有可变调用/动态 include（整改是另一项工作），
 # 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
-echo "== 4/6 TypePHP 禁用写法扫描（diff 模式）"
+echo "== 5/7 TypePHP 禁用写法扫描（diff 模式）"
 php "$ROOT/tools/typephp_check.php"
 
-echo "== 5/6 PHPUnit Unit 套件"
+echo "== 6/7 PHPUnit Unit 套件"
 vendor/bin/phpunit --testsuite unit
 
-echo "== 6/6 PHPStan"
+echo "== 7/7 PHPStan"
 vendor/bin/phpstan analyse --no-progress
 
 if [ "$MODE" = "--full" ]; then

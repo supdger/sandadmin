@@ -1,3 +1,6 @@
 # TypePHP 禁用写法白名单（tools/typephp_check.php）。一行一条：文件相对路径[:行号|*] #原因
 # 路径相对仓库根（如 server/src/Foo.php:12）；不带行号或 :* 整文件豁免。
 # 门禁文件只减不增：新增条目须人审并在 # 后写明原因与到期日。
+# 运行时按路径装载契约生成清单，与 webman Route::load 内部动态 require 同性质（2026-12 复审）
+server/src/Contract/GeneratedIntegrity.php:71
+server/support/bootstrap.php:147
