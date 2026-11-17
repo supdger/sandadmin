@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 
 import { EChart, type EChartProps } from '@/components/EChart';
-import type { EChartsCoreOption } from '@/lib/echarts';
+import type { ChartOption } from '@/lib/echarts';
 import type { RingDatum } from './types';
 
 export interface RingChartProps {
@@ -31,7 +31,7 @@ export function RingChart({
   style,
 }: RingChartProps) {
   const legend = showLegend ?? true;
-  const option = useMemo<EChartsCoreOption>(
+  const option = useMemo<ChartOption>(
     () => ({
       tooltip: { trigger: 'item' },
       legend: legend ? { bottom: 0 } : undefined,

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 
 import { EChart, type EChartProps } from '@/components/EChart';
-import type { EChartsCoreOption } from '@/lib/echarts';
+import type { ChartOption } from '@/lib/echarts';
 import type { CategoryChart } from './types';
 
 export interface BarChartProps {
@@ -29,7 +29,7 @@ export function BarChart({
   style,
 }: BarChartProps) {
   const legend = showLegend ?? data.series.length > 1;
-  const option = useMemo<EChartsCoreOption>(
+  const option = useMemo<ChartOption>(
     () => ({
       tooltip: { trigger: 'axis' },
       legend: legend ? { data: data.series.map((item) => item.name) } : undefined,

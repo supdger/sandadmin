@@ -29,4 +29,4 @@ echartsCore.use([
 
 export const echarts = echartsCore;
 
-export type { ECharts, EChartsCoreOption } from 'echarts/core';
+export type { ECharts, EChartsCoreOption as ChartOption } from 'echarts/core';

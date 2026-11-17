@@ -3,12 +3,12 @@ import type { CSSProperties } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { echarts, type ECharts, type EChartsCoreOption } from '@/lib/echarts';
+import { echarts, type ECharts, type ChartOption } from '@/lib/echarts';
 import { useThemeMode } from '@/layouts/themeMode';
 
 export interface EChartProps {
   /** echarts option；变化时整量 setOption（不合并，避免残留旧系列）。 */
-  option: EChartsCoreOption;
+  option: ChartOption;
   /** 容器高度；默认 320px。宽度跟随容器并由 ResizeObserver 自适应。 */
   height?: number | string;
   loading?: boolean;
