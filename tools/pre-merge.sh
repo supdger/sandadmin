@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# 合并前本地门禁：与 .github/workflows/merge-gates.yml 同一套命令。
+# 合并前本地门禁：与 .github/workflows/merge-gates*.yml 同一套命令。
 # 任何一项不过即非零退出；全部通过才允许合并。
 #
 # 用法：
-#   tools/pre-merge.sh                 # 静态检查 + 前端三道 + PHPUnit（需先配库）
-#   PRE_MERGE_DB=pgsql tools/pre-merge.sh
+#   tools/pre-merge.sh          # 同 --full
+#   tools/pre-merge.sh --fast   # 快档：PHPStan + strict types + deptrac + 命名
+#                               #       + 基线只减不增 + 前端三道 + PHPUnit unit
+#                               #       套件（不需要数据库）
+#   tools/pre-merge.sh --full   # 慢档口径：--fast 全部内容 + PHPUnit 全套
+#                               #       （需先配库，见下）
+#   PRE_MERGE_DB=pgsql tools/pre-merge.sh --full
 #
 # 数据库由环境变量配置（本脚本不启动容器、不建库）：
-#   PRE_MERGE_DB            必填：pgsql | mysql80 | mysql84
+#   PRE_MERGE_DB            --full 必填：pgsql | mysql80 | mysql84
 #   PRE_MERGE_DB_HOST       默认 127.0.0.1
 #   PRE_MERGE_DB_PORT       默认按库种：pgsql=5432，mysql80=3306，mysql84=3306
 #   PRE_MERGE_DB_NAME       默认 sand_test
@@ -27,6 +32,13 @@
 #       psql 或 mysql 客户端（仅在配了 PRE_MERGE_SCHEMA_DIR 时需要）。
 
 set -uo pipefail
+
+MODE=full
+case "${1:-}" in
+  ""|--full) MODE=full ;;
+  --fast)    MODE=fast ;;
+  *) echo "未知参数：${1}（只认 --fast / --full）" >&2; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
@@ -59,11 +71,15 @@ else
   (cd server && vendor/bin/deptrac analyse --config-file=deptrac.yaml) || fail "deptrac"
 fi
 
-# ---------- 3. 命名自查（diff 口径） ----------
+# ---------- 3. strict types 与禁用写法 ----------
+step "strict types 与禁用写法"
+tools/check-strict-types.sh || fail "check-strict-types"
+
+# ---------- 4. 命名自查（diff 口径） ----------
 step "命名自查（diff：${PRE_MERGE_BASE:-origin/main}...HEAD）"
 BASE=${PRE_MERGE_BASE:-origin/main}
 if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
-  fail "找不到对照 ref：$BASE（先 git fetch，或用 PRE_MERGE_BASE 指定）"
+  fail "找不到对照 ref：${BASE}（先 git fetch，或用 PRE_MERGE_BASE 指定）"
 else
   DIFF=$(git diff -U0 "$BASE"...HEAD)
   echo "$DIFF" | python3 tools/naming_check.py code --allow naming-allow.txt --diff - \
@@ -77,9 +93,29 @@ else
     # shellcheck disable=SC2086
     python3 tools/naming_check.py sql --allow naming-allow.txt $MIGRATIONS || fail "naming_check sql"
   fi
+
+  # 基线只减不增：对照 BASE 行数不得变多；BASE 侧不存在按 0 行计，
+  # 变多即失败并打印差值（与快档 CI 同口径，加须人审 M-09）。
+  step "基线只减不增（对照 ${BASE}）"
+  for f in server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt; do
+    BEFORE=0
+    if git cat-file -e "$BASE:$f" 2>/dev/null; then
+      BEFORE=$(git show "$BASE:$f" | wc -l | tr -d ' ')
+    fi
+    AFTER=0
+    if [ -f "$f" ]; then
+      AFTER=$(wc -l < "$f" | tr -d ' ')
+    fi
+    if [ "$AFTER" -gt "$BEFORE" ]; then
+      echo "$f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))）"
+      fail "基线只减不增：$f"
+    else
+      echo "OK: $f 行数 ${BEFORE} -> ${AFTER}"
+    fi
+  done
 fi
 
-# ---------- 4. 前端三道（web/ 存在才跑） ----------
+# ---------- 5. 前端三道（web/ 存在才跑） ----------
 if [ -d web ]; then
   step "前端：pnpm install --frozen-lockfile"
   (cd web && pnpm install --frozen-lockfile) || fail "pnpm install"
@@ -91,8 +127,17 @@ if [ -d web ]; then
   (cd web && pnpm test) || fail "vitest"
 fi
 
-# ---------- 5. PHPUnit ----------
-step "PHPUnit"
+# ---------- 6. PHPUnit ----------
+if [ "$MODE" = fast ]; then
+  # 快档只跑 unit 套件：不需要数据库，三库矩阵/集成用例归 --full。
+  step "PHPUnit unit 套件（--fast，无需数据库）"
+  if [ ! -x server/vendor/bin/phpunit ]; then
+    fail "server/vendor 未安装，先跑 cd server && composer install"
+  else
+    (cd server && vendor/bin/phpunit --testsuite unit) || fail "phpunit --testsuite unit"
+  fi
+else
+step "PHPUnit（--full 全套，需配库）"
 if [ -z "${PRE_MERGE_DB:-}" ]; then
   cat >&2 <<'EOF'
 未配置数据库：设 PRE_MERGE_DB=pgsql|mysql80|mysql84 后重跑。
@@ -106,7 +151,7 @@ else
     pgsql)   DEF_PORT=5432; DEF_USER=postgres; SCHEME=pgsql ;;
     mysql80) DEF_PORT=3306; DEF_USER=root;     SCHEME=mysql ;;
     mysql84) DEF_PORT=3306; DEF_USER=root;     SCHEME=mysql ;;
-    *) fail "PRE_MERGE_DB 只接受 pgsql|mysql80|mysql84（当前：$PRE_MERGE_DB）"; SCHEME="" ;;
+    *) fail "PRE_MERGE_DB 只接受 pgsql|mysql80|mysql84（当前：${PRE_MERGE_DB}）"; SCHEME="" ;;
   esac
   if [ -n "$SCHEME" ]; then
     DB_HOST=${PRE_MERGE_DB_HOST:-127.0.0.1}
@@ -137,6 +182,7 @@ else
 
     (cd server && vendor/bin/phpunit) || fail "phpunit"
   fi
+fi
 fi
 
 step "结果"

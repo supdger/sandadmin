@@ -1,13 +1,18 @@
-# 1.x 合并前门禁（v4 T-8 / L-1 / U-6）：静态检查、依赖方向、命名自查、
-# 前后端测试挂在 PR 与 main 推送上，全过才允许合并。
-# 与本地 tools/pre-merge.sh 同一套命令，CI 红了先在本地复现再改。
+# 1.x 合并前门禁·快档（v4 T-8 / L-1 / U-6 / R-8）：静态检查、strict types、
+# 依赖方向、命名自查、基线只减不增、前端三道、PHPUnit unit 套件，
+# 挂在 PR 与所有分支推送上，全过才允许合并。
+# 慢档（PHPUnit 三库矩阵、依赖审计、e2e 槽位）在 merge-gates-slow.yml，
+# 只在 main 推送、每日定时与手动触发上跑。
+# 与本地 tools/pre-merge.sh --fast 同一套命令，CI 红了先在本地复现再改。
 name: merge-gates
 
 on:
   pull_request:
     branches: [main]
+  # 所有分支推送都跑快档：提交即反馈，慢档只挂 main（见 merge-gates-slow.yml）。
   push:
-    branches: [main]
+    branches:
+      - "**"
 
 permissions:
   contents: read
@@ -15,7 +20,7 @@ permissions:
 jobs:
   # PHPStan level max，配置见 server/phpstan.neon.dist（扫 src、tests）。
   phpstan:
-    name: PHPStan level max
+    name: 快档：PHPStan level max
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,10 +42,22 @@ jobs:
       - name: PHPStan analyse
         run: vendor/bin/phpstan analyse --no-progress
 
+  # strict types 与禁用写法（R-8）：新增违规才拦，存量走
+  # tools/strict-types-baseline.txt 基线，口径见 tools/check-strict-types.sh。
+  strict-types:
+    name: 快档：strict types 与禁用写法
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Check strict types and forbidden constructs
+        run: tools/check-strict-types.sh
+
   # 依赖方向：内核（Sandadmin\ 命名空间，server/src）不许反向依赖插件层
   # （plugin\ 命名空间，server/plugin）。规则见 server/deptrac.yaml。
   dep-direction:
-    name: deptrac 依赖方向（内核不依赖插件层）
+    name: 快档：deptrac 依赖方向（内核不依赖插件层）
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,7 +83,7 @@ jobs:
   # 命名自查：只查本次 diff 的新增行（不新增问题的口径），
   # 全量扫留作本地参考：python3 tools/naming_check.py code|notes|terms …
   naming:
-    name: 命名与注释自查（diff）
+    name: 快档：命名与注释自查（diff）
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -99,52 +116,46 @@ jobs:
             echo "本次无新增或修改的迁移文件"
           fi
 
-  # PHPUnit 双库矩阵（v4 L-1 / T-8）：PG 最新 LTS + MySQL 8.0 系列最后版本
-  # + MySQL 8.4 LTS。当前仓库迁移与测试连接只有 PG 方言，MySQL 两档先占
-  # 槽位并记为已知失败（允许失败，不阻断合并），方言层落地后撤掉允许标记。
-  phpunit:
-    name: PHPUnit（${{ matrix.db }}）
+  # 基线只减不增（R-8 / M-09）：三个豁免/基线文件相对 origin/main 行数
+  # 不得变多；变多 = 往基线里塞了新豁免，FAIL 打印差值，须人审后放行。
+  # origin/main 侧不存在按 0 行计：本档首次进仓的 PR（引入
+  # strict-types-baseline.txt）会如实红一次，合并时需人审确认后放行；
+  # 文件进 main 后起所有 PR 一律只减不增。
+  baseline-shrink:
+    name: 快档：基线只减不增
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.known_failure }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - db: postgres-16
-            known_failure: false
-            image: postgres:16
-            db_port: 5432
-            health_cmd: "pg_isready -U postgres"
-            test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
-          # MySQL 8.0 系列最后一个版本（8.0.46）；镜像标签 mysql:8.0 即该系列末版。
-          - db: mysql-8.0
-            known_failure: true
-            image: mysql:8.0
-            db_port: 3306
-            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
-            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
-          # MySQL 8.4 LTS 推荐线。
-          - db: mysql-8.4
-            known_failure: true
-            image: mysql:8.4
-            db_port: 3306
-            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
-            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
-    services:
-      db:
-        image: ${{ matrix.image }}
-        env:
-          POSTGRES_PASSWORD: gate_test_pw
-          POSTGRES_DB: sand_test
-          MYSQL_ROOT_PASSWORD: gate_test_pw
-          MYSQL_DATABASE: sand_test
-        ports:
-          - ${{ matrix.db_port }}:${{ matrix.db_port }}
-        options: >-
-          --health-cmd "${{ matrix.health_cmd }}"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: 比对基线行数（origin/main vs HEAD）
+        run: |
+          failed=0
+          for f in server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt; do
+            before=0
+            if git cat-file -e "origin/main:$f" 2>/dev/null; then
+              before=$(git show "origin/main:$f" | wc -l | tr -d ' ')
+            fi
+            after=0
+            if [ -f "$f" ]; then
+              after=$(wc -l < "$f" | tr -d ' ')
+            fi
+            if [ "$after" -gt "$before" ]; then
+              echo "FAIL: $f 行数 ${before} -> ${after}（+$((after - before))），基线只许减不许加（M-09）"
+              failed=1
+            else
+              echo "OK: $f 行数 ${before} -> ${after}"
+            fi
+          done
+          exit "$failed"
+
+  # 快档只跑 unit 套件（tests/Unit，不依赖数据库服务）；
+  # 三库矩阵与集成用例在慢档 merge-gates-slow.yml 跑。
+  phpunit-unit:
+    name: 快档：PHPUnit 单元测试
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: server
@@ -163,75 +174,12 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      # 铺测试库：基线迁移 0001–0003 尚未随仓发布，仓内 0004–0007 单独
-      # 应用必失败；MySQL 两档同理且仓内迁移只有 PG 方言。失败只作记录
-      # （不阻断），基线/方言进仓后本步自然转绿。
-      - name: 应用仓内迁移到测试库（缺基线/方言时降级为记录）
-        continue-on-error: true
-        run: |
-          if [ "${{ matrix.db }}" = "postgres-16" ]; then
-            export PGPASSWORD=gate_test_pw
-            for f in database/migrations/*.sql; do
-              echo "应用 $f"
-              psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" -v ON_ERROR_STOP=1 -f "$f"
-            done
-          else
-            php -r '
-              $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
-              foreach (glob("database/migrations/*.sql") as $file) {
-                fwrite(STDERR, "应用 {$file}\n");
-                $pdo->exec(file_get_contents($file));
-              }'
-          fi
-        env:
-          DB_PORT: ${{ matrix.db_port }}
-
-      # 基线没铺上的库不设 SAND_TEST_DB_URL：连得通但无表结构时部分
-      # 集成用例会报错而非跳过，不设 URL 才是仓库约定的跳过口径；
-      # 基线落库后这里自动写入 URL，集成测试随之真实开跑。
-      - name: 判定集成测试库就绪（缺基线则跳过集成用例）
-        run: |
-          if [ "${{ matrix.db }}" = "postgres-16" ]; then
-            PGPASSWORD=gate_test_pw psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" \
-              -tAc "SELECT to_regclass('sand_system_user')" > /tmp/db_ready.txt
-          else
-            php -r 'try {
-                $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
-                echo (int) (bool) $pdo->query("SHOW TABLES LIKE \"sand_system_user\"")->fetchColumn();
-              } catch (Throwable) { echo "0"; }' > /tmp/db_ready.txt
-          fi
-          if grep -qE "sand_system_user|^1$" /tmp/db_ready.txt; then
-            echo "SAND_TEST_DB_URL=${{ matrix.test_db_url }}" >> "$GITHUB_ENV"
-            echo "基线就绪：集成测试真实执行"
-          else
-            echo "基线未就位（0001–0003 或 MySQL 方言未落地）：依赖数据库的用例按仓库约定跳过"
-          fi
-        env:
-          DB_PORT: ${{ matrix.db_port }}
-
-      - name: PHPUnit
-        run: vendor/bin/phpunit
-
-      # MySQL 两档（已知失败槽位）：前面允许失败处只作记录，这里把
-      # 「迁移与测试连接只有 PG 方言」落成明确的失败信号，挡住
-      # 「全跳过显示绿」的误导。方言落地后撤掉本档位的 continue-on-error。
-      - name: MySQL 方言就绪断言（已知失败：迁移仅 PG 方言）
-        if: matrix.known_failure
-        run: |
-          php -r 'try {
-              $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
-              $ready = (bool) $pdo->query("SHOW TABLES LIKE \"sand_system_user\"")->fetchColumn();
-            } catch (Throwable) { $ready = false; }
-            if (!$ready) {
-              fwrite(STDERR, "基线模式缺失：MySQL 方言迁移未落地（v4 L-1 双库矩阵槽位）\n");
-              exit(1);
-            }'
-        env:
-          DB_PORT: ${{ matrix.db_port }}
+      - name: PHPUnit unit 套件
+        run: vendor/bin/phpunit --testsuite unit
 
   # 前端三道：类型检查、eslint、Vitest。web/ 是唯一前端（React 19 + Semi）。
   frontend:
-    name: 前端 tsc + eslint + vitest
+    name: 快档：前端 tsc + eslint + vitest
     runs-on: ubuntu-latest
     defaults:
       run:
