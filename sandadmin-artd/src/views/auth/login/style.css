@@ -210,6 +210,7 @@
   color: var(--login-link);
 }
 
+/* SAND-DEV-BEGIN */
 .dev-login-banner {
   margin-bottom: 24px;
 }
@@ -232,6 +233,7 @@
 .dev-switch-account:hover {
   text-decoration: underline;
 }
+/* SAND-DEV-END */
 
 .login-submit-wrap {
   margin-top: 32px;

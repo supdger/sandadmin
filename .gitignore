@@ -11,3 +11,4 @@
 
 # Internal dev-process artifacts (repo-content-hygiene: not for repo consumers)
 /openspec/
+/dist/

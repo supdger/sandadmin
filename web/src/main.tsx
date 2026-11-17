@@ -17,10 +17,12 @@ import { initTheme } from './lib/theme';
 import './i18n/i18n';
 
 async function bootstrap() {
+  // SAND-DEV-BEGIN
   if (env.enableMocks) {
     const { worker } = await import('./mocks/browser');
     await worker.start({ onUnhandledRequest: 'bypass' });
   }
+  // SAND-DEV-END
 
   initTheme();
   document.title = env.appName;

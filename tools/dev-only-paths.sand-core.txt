@@ -1,0 +1,24 @@
+# supdger/sand-core 开发专用代码镜像清单：上游 tools/dev-only-paths.txt 的
+# 本仓副本，条目内容与上游逐行一致（相对包根）。
+#
+# 用途：上游清单随 Composer 包分发后，构建直接用 vendor 包自带的那份；
+# 已发布的旧版包内还没有该文件，本镜像作回落来源。上游清单变化时同步
+# 更新本文件，两边不一致的剔除结果由 build-release.sh 自检兜底。
+#
+# 用法（见 tools/strip-sand-core.php）：
+#   - 对 vendor/supdger/sand-core/ 安装树按原路径套用；
+#   - 对载荷副本 server/plugin/sandadmin/ 把条目的
+#     server/plugin/sandadmin/ 前缀去掉后复剔。
+#   - 本清单自身不进发布包。
+
+# ── 开发免登录链（/core/dev-login*）：控制器与门禁整文件剔除 ──
+rm server/plugin/sandadmin/app/controller/DevLoginController.php
+rm server/plugin/sandadmin/utils/DevLoginGuard.php
+
+# ── 含哨兵块的生产文件（剔除块后随包发布）─────────────────────
+# route.php：/core/dev-login* 两条路由注册
+# sandadmin.php：dev_login 配置块（SANDADMIN_DEV_LOGIN_* 环境变量）
+# SystemUserLogic.php：DevLoginGuard 的 use 行与 devLogin() 签发方法
+strip server/plugin/sandadmin/config/route.php
+strip server/plugin/sandadmin/config/sandadmin.php
+strip server/plugin/sandadmin/app/logic/system/SystemUserLogic.php

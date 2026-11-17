@@ -28,6 +28,7 @@ export function fetchLogin(params: Api.Auth.LoginParams) {
   })
 }
 
+// SAND-DEV-BEGIN
 /**
  * 开发模式本机一键登录（不带任何口令）
  * 仅在服务端 SAND_DEV_LOGIN=1 且对端为回环地址时可用，其余情况 404
@@ -38,6 +39,7 @@ export function fetchDevLogin() {
     url: '/core/dev-login'
   })
 }
+// SAND-DEV-END
 
 /**
  * 获取用户信息

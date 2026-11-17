@@ -9,6 +9,7 @@ export interface AppEnv {
   appLogo: string | null;
   copyright: string;
   defaultLocale: string;
+  // SAND-DEV-BEGIN
   enableMocks: boolean;
   /**
    * Passwords for the extra MSW demo accounts (`viewer` = read-only,
@@ -17,6 +18,7 @@ export interface AppEnv {
    */
   mockViewerPassword: string | null;
   mockGuestPassword: string | null;
+  // SAND-DEV-END
 }
 
 function readString(value: string | undefined, fallback: string): string {
@@ -24,12 +26,15 @@ function readString(value: string | undefined, fallback: string): string {
   return trimmed ? trimmed : fallback;
 }
 
+// SAND-DEV-BEGIN
+// 只有 mock 账号块在读布尔环境变量；生产剔除后该函数无消费方。
 function readBool(value: string | undefined, fallback: boolean): boolean {
   if (value === undefined || value.trim() === '') {
     return fallback;
   }
   return value === 'true' || value === '1';
 }
+// SAND-DEV-END
 
 export const env: AppEnv = {
   apiBaseUrl: readString(import.meta.env.VITE_API_BASE_URL, '/api'),
@@ -40,8 +45,10 @@ export const env: AppEnv = {
     '© 2026 青岛沙盒创意网络科技有限公司',
   ),
   defaultLocale: readString(import.meta.env.VITE_DEFAULT_LOCALE, 'zh-CN'),
+  // SAND-DEV-BEGIN
   // Mocks default on in dev, off in production builds.
   enableMocks: readBool(import.meta.env.VITE_ENABLE_MOCKS, import.meta.env.DEV),
   mockViewerPassword: readString(import.meta.env.VITE_MOCK_VIEWER_PASSWORD, '') || null,
   mockGuestPassword: readString(import.meta.env.VITE_MOCK_GUEST_PASSWORD, '') || null,
+  // SAND-DEV-END
 };

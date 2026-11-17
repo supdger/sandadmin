@@ -10,7 +10,9 @@ declare(strict_types=1);
 namespace Sandadmin\Http;
 
 use Sandadmin\Infra\Db\DbalConnection;
+// SAND-DEV-BEGIN
 use Sandadmin\Task\DevTaskActorProvider;
+// SAND-DEV-END
 use Sandadmin\Task\StoredExportResolver;
 use Sandadmin\Task\TaskActor;
 use Sandadmin\Task\TaskActorProvider;
@@ -103,14 +105,17 @@ final class TaskController
         return $this->actorProvider()->actor($request);
     }
 
+    // 哨兵块里的身份提供方只存在于开发构建，发布打包时整段剔除。
     private function actorProvider(): TaskActorProvider
     {
+        // SAND-DEV-BEGIN
         $connection = $this->connection();
-        if ($connection === null) {
-            return new UnavailableTaskActorProvider();
+        if ($connection !== null && class_exists(DevTaskActorProvider::class)) {
+            return new DevTaskActorProvider($connection);
         }
+        // SAND-DEV-END
 
-        return new DevTaskActorProvider($connection);
+        return new UnavailableTaskActorProvider();
     }
 
     private function artifacts(): TaskArtifactResolver

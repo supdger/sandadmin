@@ -13,4 +13,5 @@
 /sandadmin-artd/** text=auto eol=lf
 /openspec/ export-ignore
 /.agents/ export-ignore
-/server/.sand-dev-build export-ignore
+# .sand-dev-build 不在 export-ignore：发布包剔除口径以 tools/dev-only-paths.txt
+# 清单为唯一权威，导出后由 strip-dev.php 物理删除并复检，避免双重口径漂移
