@@ -7,7 +7,9 @@
 
 ## 开启条件（三件套，缺一不可）
 
-1. 检出根目录存在 `server/.sand-dev-build` 标记（开发检出默认有，已 gitignore）；
+1. 检出根目录存在 `server/.sand-dev-build` 标记（git 跟踪文件，随开发检出自带，
+   生产构建/打包时由构建工序整段剔除；生产环境即使出现 `SAND_MCP_DEV_TOKEN`
+   开关，`ProductionDebugGuard` 也会拒绝启动）；
 2. `server/.env` 里配置 `SAND_MCP_DEV_TOKEN`（至少 16 位随机串，
    例如 `openssl rand -hex 24` 的输出，示例值请自行生成，勿用弱串）；
 3. 客户端从本机回环地址发起，且不带 `X-Forwarded-For`/`X-Real-IP`/`Forwarded` 头；
