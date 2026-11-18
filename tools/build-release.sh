@@ -90,9 +90,11 @@ if find "$SRC/server/plugin/sandadmin" "$SRC/server/vendor/supdger/sand-core" \
     echo "FAIL sand-core/载荷仍有 dev-login 符号残留" >&2
     exit 1
 fi
-# sandadmin-artd/.env 由 vendor FrontendPublisher 发布时生成，只含 VITE_*
-# 浏览器公开变量（源自已剔除哨兵的 .env.example），豁免；其余 .env 与密钥文件不得残留
-if find "$SRC" \( -name '.env' -not -path '*/sandadmin-artd/.env' \) -o -name '*.key' -o -name '*.pem' | grep -q .; then
+# sandadmin-artd/.env 与 .env.development 由 vendor FrontendPublisher
+# 发布前端源码时生成，只含构建期消费的 VITE_* 公开变量；发布语义是
+# 包内不带任何 .env，自检前物理删除后按零残留断言
+rm -f "$SRC/sandadmin-artd/.env" "$SRC/sandadmin-artd/.env.development"
+if find "$SRC" -name '.env' -o -name '*.key' -o -name '*.pem' | grep -q .; then
     echo "FAIL 产物含 .env/密钥类文件" >&2
     exit 1
 fi
