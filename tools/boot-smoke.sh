@@ -8,8 +8,8 @@
 #   --prod  先跑 tools/build-release.sh 产出 tar.gz，解到临时目录后起
 #   --all   两种形态各起一次（pre-merge --full 用）
 #   --tar   复用已有发布包，跳过重新构建
-#   --timeout 端口就绪与单步 curl 的总预算（默认 20 秒；--fast 档由
-#           pre-merge 传 15 控制整段冒烟 ≤30 秒）
+#   --timeout 整个形态的就绪等待总预算（默认 20 秒，3 次端口尝试共享；
+#           --fast 档由 pre-merge 传 15 控制整段冒烟 ≤30 秒）
 #
 # 进程与端口规矩：
 #   - 只杀自己拉起的 PID（trap EXIT/INT/TERM 兜底），不按进程名杀；
@@ -111,9 +111,16 @@ run_form() {
         return
     fi
 
-    # 端口就绪探测用 favicon.ico（任何形态都存在，不依赖前端构建产物）
+    # 端口就绪探测用 favicon.ico（任何形态都存在，不依赖前端构建产物）。
+    # deadline 在进入重试循环前算一次：3 次端口尝试共享 --timeout 总预算，
+    # 剩余时间归零直接放弃，避免最坏 3×TIMEOUT 撑爆 --fast 的 30s 约定。
     local ready=0
+    local deadline=$((SECONDS + TIMEOUT))
     for attempt in 1 2 3; do
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "-- 就绪总预算 ${TIMEOUT}s 已用完，不再开新尝试" >&2
+            break
+        fi
         port=$(pick_port) || return 1
         channel_port=$(pick_port) || return 1
         (
@@ -126,7 +133,6 @@ run_form() {
                 php start.php start
         ) >"$log" 2>&1 &
         SERVER_PID=$!
-        local deadline=$((SECONDS + TIMEOUT))
         while [ "$SECONDS" -lt "$deadline" ]; do
             if ! kill -0 "$SERVER_PID" 2>/dev/null; then
                 break
@@ -145,7 +151,7 @@ run_form() {
     done
 
     if [ "$ready" != "1" ]; then
-        report FAIL "$form 端口就绪" "3 次尝试均未在 ${TIMEOUT}s 内监听起来"
+        report FAIL "$form 端口就绪" "总预算 ${TIMEOUT}s 内（最多 3 次尝试）未监听起来"
         tail -20 "$log" >&2 || true
         return
     fi
