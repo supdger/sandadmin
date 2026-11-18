@@ -52,6 +52,9 @@ if (DevBuild::enabled()) {
 // 1.x 常驻路由全部由 contract/openapi.yaml 经 tools/contract-build 生成；
 // 本文件哨兵段外禁止手写 Route:: 调用（contract-build --check 会打回）。
 // 静态路径先于参数路径的注册语义由契约 paths 的书写顺序承载。
+// 装载标记：本文件只在 Route::load 的调度回调内被包含（Config 装载排除
+// 基名 route.php），生成表据此判定当前处于注册期而非配置装载期。
+defined('SAND_CONTRACT_ROUTE_LOAD') || define('SAND_CONTRACT_ROUTE_LOAD', true);
 require __DIR__ . '/route.generated.php';
 
 // SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；

@@ -22,6 +22,14 @@ use Sandadmin\Http\TaskController;
 use app\controller\FileController;
 use Webman\Route;
 
+// Config::loadFromDir 会按 *.php 误包本表（只排除基名 route.php）：
+// 那时无 FastRoute collector，直接注册会致命。装载标记只由
+// config/route.php 在 Route::load 回调内定义，缺席即返回空数组、
+// 无害并入配置树。
+if (!defined('SAND_CONTRACT_ROUTE_LOAD')) {
+    return [];
+}
+
 Route::post('/api/admin/v1/files', [FileController::class, 'store']);
 Route::get('/api/admin/v1/files', [FileController::class, 'index']);
 Route::get('/api/admin/v1/files/{file_id}', [FileController::class, 'show']);

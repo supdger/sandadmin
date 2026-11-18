@@ -52,6 +52,14 @@ final class PhpEmit
         }
         $lines[] = 'use Webman\Route;';
         $lines[] = '';
+        $lines[] = '// Config::loadFromDir 会按 *.php 误包本表（只排除基名 route.php）：';
+        $lines[] = '// 那时无 FastRoute collector，直接注册会致命。装载标记只由';
+        $lines[] = '// config/route.php 在 Route::load 回调内定义，缺席即返回空数组、';
+        $lines[] = '// 无害并入配置树。';
+        $lines[] = "if (!defined('SAND_CONTRACT_ROUTE_LOAD')) {";
+        $lines[] = '    return [];';
+        $lines[] = '}';
+        $lines[] = '';
         foreach ($operations as $op) {
             [$class, $method] = explode('::', $op['handler'], 2);
             $basename = self::classBasename($class);
