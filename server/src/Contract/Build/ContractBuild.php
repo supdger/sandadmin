@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Contract\Build;
 
 use Sandadmin\Contract\SourceHash;
+use Sandadmin\Contract\KernelApi\RuntimeCheck;
 
 /**
  * 契约构建编排：收集（宿主契约 + 插件片段）→ 解析 → 冲突检查 → 发射产物。
@@ -122,7 +123,7 @@ final class ContractBuild
             $artifacts["{$pluginBase}/route.generated.php"] =
                 PhpEmit::emitPluginRouteTable($ops, $sourceLabels, $sourceHash);
             $artifacts["{$pluginBase}/route.php"] =
-                PhpEmit::emitPluginRouteShell($sourceLabels, $sourceHash);
+                PhpEmit::emitPluginRouteShell($app, $sourceLabels, $sourceHash);
         }
 
         if ($write) {
@@ -227,6 +228,10 @@ final class ContractBuild
             $fragments[] = $app;
             $doc = ContractDoc::parse($fragment, $app);
             foreach ($doc['problems'] as $problem) {
+                $problems[] = $problem;
+            }
+            // 有片段的包顺带核运行时对齐（薄壳/路由表/注解码/x-handler 文件）
+            foreach (RuntimeCheck::check($appDir, $doc) as $problem) {
                 $problems[] = $problem;
             }
             $docs[$app] = $doc;

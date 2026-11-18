@@ -107,17 +107,25 @@ final class PhpEmit
 
     /**
      * 插件路由薄壳：Route::load 只认 config/route.php，
-     * 契约插件由这层薄壳转发到生成的路由表。
+     * 契约插件由这层薄壳转发到生成的路由表，并关掉本插件的
+     * /app/<插件>/ 默认路由（webman 把路径里的连字符归一掉，
+     * disableDefaultRoute 实参也只收 [a-zA-Z0-9_]，连字符会静默
+     * 失效，所以一律发去连字符后的插件名）。
      * @param list<string> $sourceLabels
      */
-    public static function emitPluginRouteShell(array $sourceLabels, string $sourceHash): string
+    public static function emitPluginRouteShell(string $app, array $sourceLabels, string $sourceHash): string
     {
+        $pluginName = str_replace('-', '', $app);
         $lines = ['<?php', '', 'declare(strict_types=1);', ''];
         foreach (SourceHash::headerLines($sourceLabels, $sourceHash) as $line) {
             $lines[] = '// ' . $line;
         }
         $lines[] = '';
+        $lines[] = 'use Webman\Route;';
+        $lines[] = '';
         $lines[] = "require __DIR__ . '/route.generated.php';";
+        $lines[] = '';
+        $lines[] = 'Route::disableDefaultRoute(' . var_export($pluginName, true) . ');';
         $lines[] = '';
 
         return implode("\n", $lines);

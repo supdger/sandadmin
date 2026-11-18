@@ -14,7 +14,7 @@ paths:
       operationId: sandHelloNotesIndex
       summary: 示例记录列表
       tags: [sand-hello]
-      x-handler: 'SandHello\Http\NoteController::index'
+      x-handler: 'plugin\sandhello\app\controller\NoteController::index'
       # 与 manifest.menus[].permission 同码
       x-permission: sand_hello:page:read
       # NOT_FOUND 是宿主已登记码，插件可直接引用
@@ -34,7 +34,7 @@ paths:
       operationId: sandHelloNotesShow
       summary: 示例记录详情
       tags: [sand-hello]
-      x-handler: 'SandHello\Http\NoteController::show'
+      x-handler: 'plugin\sandhello\app\controller\NoteController::show'
       x-permission: sand_hello:page:read
       x-error-codes: [SAND_HELLO_NOTE_NOT_FOUND]
       parameters:
