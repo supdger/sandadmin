@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Package;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Build\ContractBuild;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Http\ApiOutcome;
 use Sandadmin\Infra\File\LocalFileStorage;
@@ -24,6 +25,9 @@ final class PackageOps
 {
     private const EXECUTOR = 'package-ops';
 
+    /** 收尾前要重跑契约收集的申请种类；system_upgrade 不带插件片段，不参与。 */
+    private const PLUGIN_KINDS = ['plugin_install', 'plugin_upgrade', 'plugin_uninstall', 'plugin_upgrade_batch'];
+
     /** @var list<array{code: string, name: string, version: string, latest_version: string, description: string}> */
     private const CATALOG = [
         [
@@ -35,9 +39,13 @@ final class PackageOps
         ],
     ];
 
-    public function __construct(private readonly Connection $connection)
+    public function __construct(private readonly Connection $connection, ?string $repoRoot = null)
     {
+        $this->repoRoot = $repoRoot ?? dirname(__DIR__, 4);
     }
+
+    /** 契约收集扫的仓根（contract/ + server/plugin/ 都从它下面找）。 */
+    private readonly string $repoRoot;
 
     /** @return array{status: int, body: array<string, mixed>} */
     public function overview(string $requestId): array
@@ -251,6 +259,9 @@ final class PackageOps
         $this->connection->transactional(function () use ($row, $kind): void {
             $next = $this->nextStep($kind, is_string($row['stage_key'] ?? null) ? $row['stage_key'] : null, OrgSql::int($row['progress'] ?? 0));
             if ($next['done']) {
+                if ($this->collectContracts($kind, OrgSql::int($row['id'] ?? 0)) !== null) {
+                    return;
+                }
                 $this->apply($row);
                 $this->connection->executeStatement(
                     'UPDATE sand_system_lifecycle_request SET state = \'succeeded\', stage = :stage, stage_key = :stage_key,'
@@ -271,6 +282,57 @@ final class PackageOps
                 ],
             );
         });
+    }
+
+    /**
+     * 插件类申请收尾前重跑契约收集与冲突检查。返回 null 表示通过或本类
+     * 申请不查；返回非空说明申请已标 failed——冲突检查在写产物之前返回、
+     * apply 也没跑过，标 failed 就等于回到原状态，启动期哈希守卫照旧兜底。
+     */
+    private function collectContracts(string $kind, int $requestId): ?string
+    {
+        if (!in_array($kind, self::PLUGIN_KINDS, true)) {
+            return null;
+        }
+        try {
+            $report = ContractBuild::collectPlugins($this->repoRoot);
+        } catch (\Throwable $error) {
+            error_log('契约收集失败 ' . $error::class . ': ' . $error->getMessage());
+            $this->markFailed(
+                $requestId,
+                '契约收集异常',
+                ErrorCodeRegistry::INTERNAL_ERROR,
+                '契约收集异常：' . $error->getMessage(),
+            );
+
+            return '契约收集异常';
+        }
+        if ($report['result'] === 'ok') {
+            return null;
+        }
+        $reasons = array_merge($report['problems'], $report['conflicts']);
+        if ($reasons === []) {
+            $reasons = $report['warnings'];
+        }
+        $message = '插件契约与现有声明冲突：' . implode('；', $reasons);
+        $this->markFailed($requestId, '契约冲突', ErrorCodeRegistry::PLUGIN_CONTRACT_CONFLICT, $message);
+
+        return $message;
+    }
+
+    private function markFailed(int $requestId, string $stage, string $errorCode, string $message): void
+    {
+        $this->connection->executeStatement(
+            'UPDATE sand_system_lifecycle_request SET state = \'failed\', rolled_back = true, stage = :stage,'
+            . ' error_code = :error_code, error_message = :error_message,'
+            . ' finish_time = CURRENT_TIMESTAMP, heartbeat_time = CURRENT_TIMESTAMP WHERE id = :id',
+            [
+                'stage' => $stage,
+                'error_code' => $errorCode,
+                'error_message' => mb_substr($message, 0, 480),
+                'id' => $requestId,
+            ],
+        );
     }
 
     /** @return array{status: int, body: array<string, mixed>}|null */

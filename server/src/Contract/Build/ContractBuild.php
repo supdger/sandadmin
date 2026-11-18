@@ -174,7 +174,9 @@ final class ContractBuild
 
     /**
      * 插件装/升/卸后由生命周期调用：重跑收集与产物落位。
-     * @return array{result: string, warnings: list<string>}
+     * warnings 是全部提示（含 problems/conflicts），调用方写失败原因时
+     * 只取 problems + conflicts，免得把「无契约片段走旧机制」写进错误。
+     * @return array{result: string, problems: list<string>, conflicts: list<string>, warnings: list<string>}
      */
     public static function collectPlugins(string $repoRoot): array
     {
@@ -182,6 +184,8 @@ final class ContractBuild
 
         return [
             'result' => $report['result'],
+            'problems' => $report['problems'],
+            'conflicts' => $report['conflicts'],
             'warnings' => array_merge($report['warnings'], $report['problems'], $report['conflicts']),
         ];
     }
