@@ -30,6 +30,17 @@ final class RedisStreamChannel implements StreamChannelInterface
     /** 对端 TCP 已就绪：未就绪期间的订阅登记由 onConnect 全量补发。 */
     private bool $connected = false;
 
+    /** 单个字符串帧上限：流式事件远小于此，超了按对端异常断线重连。 */
+    public const MAX_BULK_BYTES = 8 * 1024 * 1024;
+
+    /** 列表帧元素数上限与嵌套层数上限（订阅消息只有 3 个元素、1 层）。 */
+    public const MAX_LIST_ITEMS = 1024;
+
+    public const MAX_DEPTH = 4;
+
+    /** 接收缓冲上限：凑不成整帧又越积越多时断线，防内存被撑爆。 */
+    public const MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+
     private string $buffer = '';
 
     private ?string $lastError = null;
@@ -122,6 +133,11 @@ final class RedisStreamChannel implements StreamChannelInterface
         };
         $conn->onMessage = function (AsyncTcpConnection $conn, string $data): void {
             $this->buffer .= $data;
+            if (strlen($this->buffer) > self::MAX_BUFFER_BYTES) {
+                $conn->close();
+
+                return;
+            }
             while (true) {
                 try {
                     $frame = self::decode($this->buffer, 0);
@@ -192,8 +208,11 @@ final class RedisStreamChannel implements StreamChannelInterface
      *
      * @return null|array{value: mixed, bytes: int}
      */
-    private static function decode(string $buffer, int $offset): ?array
+    private static function decode(string $buffer, int $offset, int $depth = 0): ?array
     {
+        if ($depth > self::MAX_DEPTH) {
+            throw new \RuntimeException('RESP 嵌套层数超限');
+        }
         $type = substr($buffer, $offset, 1);
         $lineEnd = strpos($buffer, "\r\n", $offset);
         if ($lineEnd === false) {
@@ -206,7 +225,7 @@ final class RedisStreamChannel implements StreamChannelInterface
             '-' => ['value' => ['error' => $line], 'bytes' => $lineEnd + 2 - $offset],
             ':' => ['value' => (int) $line, 'bytes' => $lineEnd + 2 - $offset],
             '$' => self::decodeBulk($buffer, $offset, (int) $line, $lineEnd),
-            '*' => self::decodeList($buffer, $offset, (int) $line, $lineEnd),
+            '*' => self::decodeList($buffer, $offset, (int) $line, $lineEnd, $depth),
             default => throw new \RuntimeException('RESP 帧类型不可识别'),
         };
     }
@@ -217,6 +236,9 @@ final class RedisStreamChannel implements StreamChannelInterface
         if ($length === -1) {
             return ['value' => null, 'bytes' => $lineEnd + 2 - $offset];
         }
+        if ($length < 0 || $length > self::MAX_BULK_BYTES) {
+            throw new \RuntimeException('RESP 字符串帧长度不合法或超限');
+        }
         $start = $lineEnd + 2;
         if (strlen($buffer) < $start + $length + 2) {
             return null;
@@ -226,12 +248,18 @@ final class RedisStreamChannel implements StreamChannelInterface
     }
 
     /** @return null|array{value: mixed, bytes: int} */
-    private static function decodeList(string $buffer, int $offset, int $count, int $lineEnd): ?array
+    private static function decodeList(string $buffer, int $offset, int $count, int $lineEnd, int $depth): ?array
     {
+        if ($count === -1) {
+            return ['value' => null, 'bytes' => $lineEnd + 2 - $offset];
+        }
+        if ($count < 0 || $count > self::MAX_LIST_ITEMS) {
+            throw new \RuntimeException('RESP 列表帧元素数不合法或超限');
+        }
         $values = [];
         $cursor = $lineEnd + 2;
         for ($index = 0; $index < $count; $index++) {
-            $item = self::decode($buffer, $cursor);
+            $item = self::decode($buffer, $cursor, $depth + 1);
             if ($item === null) {
                 return null;
             }
