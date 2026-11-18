@@ -30,7 +30,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --timeout) TIMEOUT="$2"; shift 2 ;;
         --tar) TAR_PATH="$2"; shift 2 ;;
-        --dev|--prod|--all) shift ;;
+        --dev|--prod|--all) MODE="$1"; shift ;;
         *) echo "未知参数：$1" >&2; exit 2 ;;
     esac
 done
