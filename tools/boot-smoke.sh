@@ -4,7 +4,7 @@
 #
 #   tools/boot-smoke.sh --dev | --prod | --all [--tar 包路径] [--timeout 秒]
 #
-#   --dev   在 server/ 源码检出直接起（php start.php start）
+#   --dev   把 server/ 拷到临时隔离副本后起（不拷 .env*，php start.php start）
 #   --prod  先跑 tools/build-release.sh 产出 tar.gz，解到临时目录后起
 #   --all   两种形态各起一次（pre-merge --full 用）
 #   --tar   复用已有发布包，跳过重新构建
@@ -17,9 +17,11 @@
 #     撞了重取），就绪前最多重试 3 个端口；
 #   - 临时目录、PID 文件、解开的发布包全在 mktemp -d 里，退出即清。
 #
-# 不依赖数据库：脚本不建 .env 也不读它；server/.env 存在时直接拒绝跑，
-# 避免误连真实库。无库时依赖 DB 才能到的判定（v1 未登录 401 语义等）
-# 以 SKIP/NOTE 形式写明，不算 FAIL。
+# 不依赖数据库：dev 形态先把 server/ rsync 到临时隔离副本再起，排除规则
+# 保证 .env、.env.*、webhook*.env、根级 *.key/*.pem、private/、runtime/
+# 不进副本——源码检出里的真实 .env 根本不会被打开；实际启动目录仍带
+# .env（排除失效或生产包混入）时直接 FAIL。无库时依赖 DB 才能到的判定
+# （v1 未登录 401 语义等）以 SKIP/NOTE 形式写明，不算 FAIL。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -270,7 +272,27 @@ cleanup_one() {
 }
 
 run_dev() {
-    run_form dev "$ROOT/server"
+    # 源码检出常带 server/.env，dev 形态在隔离副本起：排除规则按 basename
+    # 匹配所有层级，副本里的 .env.example 与 .sand-dev-build（dev 构建标记）
+    # 必须保留；runtime/ 不带入，运行日志检查只看本次启动的新日志。
+    if ! command -v rsync >/dev/null 2>&1; then
+        report FAIL "dev 隔离副本" "缺少 rsync，无法搭建隔离副本"
+        return
+    fi
+    if [ -f "$ROOT/server/.env" ]; then
+        echo "-- dev 源码检出含 server/.env，冒烟在隔离副本运行，原文件未读未动"
+    fi
+    rsync -a \
+        --include='.env.example' \
+        --exclude='.env' --exclude='.env.*' \
+        --exclude='webhook*.env' \
+        --exclude='/*.key' --exclude='/*.pem' \
+        --exclude='/private/' --exclude='/runtime/' \
+        "$ROOT/server/" "$TMP/dev-src/"
+    # 契约守卫按 dirname(server)/contract/openapi.yaml 找契约源并复算哈希，
+    # 副本的父目录下必须有同一份 contract/，否则 fail-closed 拒启
+    rsync -a "$ROOT/contract/" "$TMP/contract/"
+    run_form dev "$TMP/dev-src"
 }
 
 run_prod() {
