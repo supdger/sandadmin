@@ -8,7 +8,6 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Package;
 
 use Sandadmin\Contract\KernelApi\KernelApiVersion;
-use Sandadmin\Infra\Mcp\McpGate;
 
 /**
  * 回环挑战的签发与应答。挑战值是 32 字节随机数，写进运行目录下的
@@ -61,7 +60,7 @@ final class UpdateChallenge
      */
     public function answer(string $remoteIp, ?string $token): ?array
     {
-        if (!McpGate::isLoopback($remoteIp) || $token === null || $token === '' || !is_file($this->file)) {
+        if (!self::isLoopbackIp($remoteIp) || $token === null || $token === '' || !is_file($this->file)) {
             return null;
         }
         $raw = file_get_contents($this->file);
@@ -75,6 +74,21 @@ final class UpdateChallenge
         }
 
         return ['token' => $expected, 'kernel_api' => KernelApiVersion::CURRENT];
+    }
+
+    /**
+     * 回环来源判定：127.0.0.0/8、::1 及 ::ffff: 映射的 v4 回环才算本机，
+     * 其余一律拒绝。发布包不含 dev-only 的 Infra/Mcp，本类自持等价判定。
+     */
+    private static function isLoopbackIp(string $remoteIp): bool
+    {
+        if ($remoteIp === '::1') {
+            return true;
+        }
+        $ipv4 = str_starts_with($remoteIp, '::ffff:') ? substr($remoteIp, 7) : $remoteIp;
+
+        return filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false
+            && str_starts_with($ipv4, '127.');
     }
 
     public function clear(): void

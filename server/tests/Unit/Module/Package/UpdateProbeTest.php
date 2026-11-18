@@ -171,6 +171,22 @@ final class UpdateProbeTest extends TestCase
         $token = $challenge->issue();
 
         self::assertNull($challenge->answer('203.0.113.9', $token));
+        self::assertNull($challenge->answer('10.0.0.2', $token));
+        self::assertNull($challenge->answer('::ffff:203.0.113.9', $token));
+        self::assertNull($challenge->answer('::2', $token));
+        self::assertNull($challenge->answer('', $token));
+        $challenge->clear();
+    }
+
+    public function testAnswerAcceptsLoopbackVariants(): void
+    {
+        $challenge = new UpdateChallenge($this->challengeFile());
+        $token = $challenge->issue();
+
+        // 127.0.0.0/8 任意回环、::1 与 v4 映射回环都算本机对端
+        foreach (['127.0.0.1', '127.0.0.53', '::1', '::ffff:127.0.0.1'] as $ip) {
+            self::assertNotNull($challenge->answer($ip, $token), $ip);
+        }
         $challenge->clear();
     }
 

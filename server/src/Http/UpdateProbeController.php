@@ -7,7 +7,6 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
-use Sandadmin\Infra\Mcp\McpGate;
 use Sandadmin\Module\Package\UpdateChallenge;
 use Sandadmin\Module\Package\UpdateProbe;
 use support\Request;
@@ -21,9 +20,12 @@ use support\Response;
  */
 final class UpdateProbeController
 {
+    /** 与旧端点同口径的转发头黑名单。 */
+    private const FORWARDED_HEADERS = ['x-forwarded-for', 'x-real-ip', 'forwarded'];
+
     public function probe(Request $request): Response
     {
-        if (McpGate::hasForwardedHeaders($request)) {
+        if (self::hasForwardedHeaders($request)) {
             return new Response(404, [], 'Not Found');
         }
         $token = $request->header(UpdateProbe::TOKEN_HEADER);
@@ -41,5 +43,18 @@ final class UpdateProbeController
             ['Content-Type' => 'application/json; charset=utf-8'],
             is_string($body) ? $body : '{}',
         );
+    }
+
+    /** 代理转发头存在即拒：回环对端必须真实，不能由前置反代改写来源。 */
+    private static function hasForwardedHeaders(Request $request): bool
+    {
+        foreach (self::FORWARDED_HEADERS as $header) {
+            $value = $request->header($header);
+            if (is_string($value) && trim($value) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
