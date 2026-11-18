@@ -582,7 +582,8 @@ final class PackageOps
                 'state' => $installed ? 'installed' : 'uninstalled',
                 'task_state' => $this->taskState($entry['code']),
                 'rolled_back' => false,
-                'signature_verified' => true,
+                // 未接真验签，一律如实 false：目录条目只做了 sha256 完整性校验
+                'signature_verified' => false,
                 'description' => $entry['description'],
                 'provides' => [
                     'menus' => [
