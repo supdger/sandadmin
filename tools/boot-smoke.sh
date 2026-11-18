@@ -18,8 +18,8 @@
 #   - 临时目录、PID 文件、解开的发布包全在 mktemp -d 里，退出即清。
 #
 # 不依赖数据库：dev 形态先把 server/ rsync 到临时隔离副本再起，排除规则
-# 保证 .env、.env.*、webhook*.env、根级 *.key/*.pem、private/、runtime/
-# 不进副本——源码检出里的真实 .env 根本不会被打开；实际启动目录仍带
+# 保证 .env、.env.*、webhook*.env、各层级 *.key/*.pem、private/、根级
+# runtime/ 不进副本——源码检出里的真实 .env 根本不会被打开；实际启动目录仍带
 # .env（排除失效或生产包混入）时直接 FAIL。无库时依赖 DB 才能到的判定
 # （v1 未登录 401 语义等）以 SKIP/NOTE 形式写明，不算 FAIL。
 set -euo pipefail
@@ -272,9 +272,13 @@ cleanup_one() {
 }
 
 run_dev() {
-    # 源码检出常带 server/.env，dev 形态在隔离副本起：排除规则按 basename
-    # 匹配所有层级，副本里的 .env.example 与 .sand-dev-build（dev 构建标记）
-    # 必须保留；runtime/ 不带入，运行日志检查只看本次启动的新日志。
+    # 源码检出常带 server/.env，dev 形态在隔离副本起：私密类排除一律按
+    # basename 匹配所有层级（*.key/*.pem/private/ 与发布自检同口径，
+    # build-release.sh 的 find 也是全层级），副本里的 .env.example 与
+    # .sand-dev-build（dev 构建标记）必须保留；runtime/ 只排根级——它是
+    # 非私密的运行目录（server/.gitignore 同锚根级），排除只为让运行
+    # 日志检查只看本次启动的新日志，嵌套同名目录（如 vendor 测试夹具）
+    # 不该被误剔。
     if ! command -v rsync >/dev/null 2>&1; then
         report FAIL "dev 隔离副本" "缺少 rsync，无法搭建隔离副本"
         return
@@ -286,8 +290,8 @@ run_dev() {
         --include='.env.example' \
         --exclude='.env' --exclude='.env.*' \
         --exclude='webhook*.env' \
-        --exclude='/*.key' --exclude='/*.pem' \
-        --exclude='/private/' --exclude='/runtime/' \
+        --exclude='*.key' --exclude='*.pem' \
+        --exclude='private/' --exclude='/runtime/' \
         "$ROOT/server/" "$TMP/dev-src/"
     # 契约守卫按 dirname(server)/contract/openapi.yaml 找契约源并复算哈希，
     # 副本的父目录下必须有同一份 contract/，否则 fail-closed 拒启
