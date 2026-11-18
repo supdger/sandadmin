@@ -1,6 +1,7 @@
 /.github/**
 !.github/workflows/
 !.github/workflows/dependency-audit.yml
+!.github/workflows/fast.yml
 /docs/
 
 # Composer-generated private runtime configuration

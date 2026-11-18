@@ -1,0 +1,58 @@
+name: fast
+
+# PR 快档（delivery-loop R-8）：与本地 tools/pre-merge.sh --fast 同一套命令，
+# 另加 web/ 前端构建，让启动冒烟的 SPA 断言走严格路径（源码检出无
+# public/index.html 时该断言降级为 SKIP）。
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fast-gate:
+    name: pre-merge fast + boot smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # typephp_check 的 diff 口径要对比 main，浅克隆拿不到基线
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.2"
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          # pnpm 版本由 web/package.json 的 packageManager 字段固定（pnpm@12.16.1）
+          package_json_file: web/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install PHP dependencies
+        working-directory: server
+        run: composer install --no-interaction
+
+      - name: Build web frontend into server/public
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm build
+          cp -R dist/. ../server/public/
+
+      - name: Run fast gate
+        run: bash tools/pre-merge.sh --fast

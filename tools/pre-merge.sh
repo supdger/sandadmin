@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full] [--typephp]
-# --fast（默认）：PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
-# --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）
+# --fast（默认）：PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan + 开发形态启动冒烟
+# --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL），启动冒烟扩为开发+生产两形态
 # --typephp：追加 TypePHP 可选编译验证；找不到编译器或项目文件时跳过不阻塞
 #   （ADR-23：编译门禁在工具链稳定前是可选的，不过不合并的硬门禁是其余几项）
 set -euo pipefail
@@ -48,6 +48,16 @@ vendor/bin/phpstan analyse --no-progress
 if [ "$MODE" = "--full" ]; then
     echo "== 附加：PHPUnit Integration 套件"
     vendor/bin/phpunit --testsuite integration
+fi
+
+# 真实启动冒烟：#91 教训——静态检查全绿但 start 即崩的缺口只能由
+# 真起服务补上。--fast 只跑开发形态（就绪预算 15s，整段冒烟 ≤30s）；
+# --full 追加生产形态（构建发布包再起，耗时长由 --full 自己承担）。
+echo "== 8/8 真实启动冒烟"
+if [ "$MODE" = "--full" ]; then
+    bash "$ROOT/tools/boot-smoke.sh" --all --timeout 20
+else
+    bash "$ROOT/tools/boot-smoke.sh" --dev --timeout 15
 fi
 
 if [ "$TYPEPHP" = "1" ]; then
