@@ -68,6 +68,12 @@ x-error-catalog:
   MCP_BAD_ARGUMENT:    {http_status: 400, summary: 工具参数不合法}
   MCP_TARGET_REJECTED: {http_status: 403, summary: 测试目标不在白名单}
   MCP_GATE_MISSING:    {http_status: 500, summary: tools/pre-merge.sh 不存在}
+  # 流式断开的带内错误事件码：http_status 是开流前拒绝路径的信封语义，
+  # 连接建立后以 SSE error 事件载荷下发，不产生新的 HTTP 响应
+  STREAM_LIMIT_REACHED:    {http_status: 429, summary: 流式连接数已达上限，稍后再试}
+  STREAM_IDLE_TIMEOUT:     {http_status: 408, summary: 流式连接空闲超时，已断开}
+  STREAM_DURATION_LIMIT:   {http_status: 408, summary: 流式连接已达时长上限，已断开}
+  STREAM_AUTHZ_REVOKED:    {http_status: 403, summary: 权限已变更，流式连接已断开}
 
 # ── 不挂在具体接口上的权限码（viewAll 等效码、MCP 凭据 scope）
 x-permissions:

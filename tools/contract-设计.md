@@ -163,7 +163,7 @@ x-error-codes: [ROLE_NAME_TAKEN, STALE_VERSION]
 
 | 产物 | 路径 | 形态与消费方 |
 | --- | --- | --- |
-| 宿主路由表 | `server/config/route.generated.php` | PHP 文件，被 `route.php` `require`，**自己调 `Route::get/post/...` 注册**（不是数据数组）。选「自注册」不选「route.php 遍历数据数组」，因为直接 Route:: 调用与现状逐行等价，Webman 语义零差异，PHPStan/人读都直观 |
+| 宿主路由表 | `server/config/route.generated.php` | PHP 文件，被 `route.php` `require`，**自己调 `Route::get/post/...` 注册**（不是数据数组）。选「自注册」不选「route.php 遍历数据数组」，因为直接 Route:: 调用与现状逐行等价，Webman 语义零差异，PHPStan/人读都直观。装载期守卫：`Config::loadFromDir` 只排除基名 `route.php`，会把本表当配置文件 include（`webman start`/`start.php` 主进程路径），彼时无 FastRoute collector、自注册必崩——生成表开头判 `SAND_CONTRACT_ROUTE_LOAD` 未定义即 `return []`，标记由 `route.php` 在 `Route::load` 回调内定义 |
 | 插件路由清单 | `server/config/plugin-routes.generated.json` | `{"_comment": [<头行>], "routes": ["plugin/sand-foo/config/route.generated.php", ...]}`，bootstrap 用它替换 `Util::scanDir` 喂 `Route::load` 的那段（见设计点 5）；用 JSON 而非 PHP return 形态——装载点 require 变量路径会被 TypePHP 门禁判动态加载 |
 | 插件路由表 | `server/plugin/<app>/config/route.generated.php` | 装/升插件时 contract-build 生成进载荷目录；插件 `config/route.php` 变成一行 require 的薄壳 |
 | 权限注册表 | `server/src/Contract/Generated/PermissionRegistry.php` | `final class`，每码一个 `public const`（`USER_INDEX = 'system:user:index'`），加 `CODES`（全量清单）、`TREE`（权限树，顶掉 `RoleService::MENUS`）、`ADMIN_CODES`（顶掉 `UserService::ADMIN_CODES`）、`MENU_KEYS`（顶掉 MenuService 手写菜单 key） |

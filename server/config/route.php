@@ -19,6 +19,7 @@ declare(strict_types=1);
 use app\controller\DevLoginController;
 use Sandadmin\Http\McpController;
 use Sandadmin\Infra\DevBuild;
+use Sandadmin\Module\DemoNote\SseDemoController;
 // SAND-DEV-END
 use Sandadmin\Http\SpaFallback;
 use Webman\Route;
@@ -40,12 +41,20 @@ if (DevBuild::enabled()) {
     // 开发构建 MCP 端点（无状态 Streamable HTTP）：路由只按构建标记挂出，
     // 令牌、回环、Origin 三道门槛在 McpController 内收口，缺一按 404 处理。
     Route::post('/api/admin/mcp', [McpController::class, 'handle']);
+
+    // 流式基础层演示/压测端点：类在 DemoNote 内，整目录随生产包剔除；
+    // slow_ms 模拟慢上游，ping 给普通请求延迟对照。
+    Route::get('/api/dev/stream/sse', [SseDemoController::class, 'events']);
+    Route::get('/api/dev/stream/ping', [SseDemoController::class, 'ping']);
 }
 // SAND-DEV-END
 
 // 1.x 常驻路由全部由 contract/openapi.yaml 经 tools/contract-build 生成；
 // 本文件哨兵段外禁止手写 Route:: 调用（contract-build --check 会打回）。
 // 静态路径先于参数路径的注册语义由契约 paths 的书写顺序承载。
+// 装载标记：本文件只在 Route::load 的调度回调内被包含（Config 装载排除
+// 基名 route.php），生成表据此判定当前处于注册期而非配置装载期。
+defined('SAND_CONTRACT_ROUTE_LOAD') || define('SAND_CONTRACT_ROUTE_LOAD', true);
 require __DIR__ . '/route.generated.php';
 
 // SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；

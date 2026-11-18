@@ -1,7 +1,7 @@
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:cf82ee2f6dbd21796934cc4f544ba247c1bbfc8594af44eb80669fad02a37fc2
+// 源哈希: sha256:a8cf8b7cebf97fe5e9c8c4776d63005e670511b7bf4f09d8eef32e619405f18f
 // 生成器: contract-build v1
 
 /** 成功信封：code 固定字符串 OK，成功判定只看这一个字段 */
@@ -69,6 +69,10 @@ export type ErrorCode =
   | 'SELF_LOCKOUT'
   | 'SESSION_EXPIRED'
   | 'STALE_VERSION'
+  | 'STREAM_AUTHZ_REVOKED'
+  | 'STREAM_DURATION_LIMIT'
+  | 'STREAM_IDLE_TIMEOUT'
+  | 'STREAM_LIMIT_REACHED'
   | 'SYSTEM_ROLE_READONLY'
   | 'SYSTEM_UPDATE_OPERATION_FORBIDDEN'
   | 'TASK_NOT_FOUND'

@@ -5,7 +5,7 @@ declare(strict_types=1);
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:cf82ee2f6dbd21796934cc4f544ba247c1bbfc8594af44eb80669fad02a37fc2
+// 源哈希: sha256:a8cf8b7cebf97fe5e9c8c4776d63005e670511b7bf4f09d8eef32e619405f18f
 // 生成器: contract-build v1
 
 use Sandadmin\Http\AnnouncementController;
@@ -21,6 +21,14 @@ use Sandadmin\Http\PackageController;
 use Sandadmin\Http\TaskController;
 use app\controller\FileController;
 use Webman\Route;
+
+// Config::loadFromDir 会按 *.php 误包本表（只排除基名 route.php）：
+// 那时无 FastRoute collector，直接注册会致命。装载标记只由
+// config/route.php 在 Route::load 回调内定义，缺席即返回空数组、
+// 无害并入配置树。
+if (!defined('SAND_CONTRACT_ROUTE_LOAD')) {
+    return [];
+}
 
 Route::post('/api/admin/v1/files', [FileController::class, 'store']);
 Route::get('/api/admin/v1/files', [FileController::class, 'index']);

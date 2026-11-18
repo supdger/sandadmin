@@ -25,7 +25,8 @@ return [
     'webman' => [
         'handler' => Http::class,
         'listen' => 'http://0.0.0.0:' . env('SANDADMIN_SERVER_PORT', 8787),
-        'count' => cpu_count() * 4,
+        // 压测/开发可经 SANDADMIN_WEB_WORKERS 固定为 1，验证「每进程挂路数」口径
+        'count' => max(1, (int) env('SANDADMIN_WEB_WORKERS', cpu_count() * 4)),
         'user' => '',
         'group' => '',
         'reusePort' => false,
