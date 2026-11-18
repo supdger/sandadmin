@@ -12,9 +12,11 @@ use Sandadmin\Contract\KernelApi\KernelApiVersion;
 
 /**
  * 离线包安装/升级/卸载执行器（CLI 通道）。顺序：
- * 检查 zip → 安装闸 → journal → 解包暂存 → 落位 → 记账本 → 契约收集。
+ * 编译版闸 → Ed25519 验签 → 检查 zip → 安装闸 → journal → 解包暂存
+ * → 落位 → 记账本 → 契约收集。验签在解包前，拒绝零副作用；
  * 任何一步失败都回滚到操作前状态；进程中断由 journal 恢复。
- * signature_verified 恒为 false：本轮只有 sha256 完整性校验，没有真验签。
+ * signature_verified 如实反映验签结果：真验签通过才为 true，
+ * 未签名放行（仅非编译版 + 显式 allowUnsigned）为 false。
  */
 final class PackageExecutor
 {
@@ -30,15 +32,25 @@ final class PackageExecutor
     }
 
     /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
-    public function install(string $zipFile, ?string $sha256): array
-    {
-        return $this->applyPackage($zipFile, $sha256, 'install');
+    public function install(
+        string $zipFile,
+        ?string $sha256,
+        ?string $signatureFile = null,
+        ?string $pubkeyFile = null,
+        bool $allowUnsigned = false,
+    ): array {
+        return $this->applyPackage($zipFile, $sha256, $signatureFile, $pubkeyFile, $allowUnsigned, 'install');
     }
 
     /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
-    public function upgrade(string $zipFile, ?string $sha256): array
-    {
-        return $this->applyPackage($zipFile, $sha256, 'upgrade');
+    public function upgrade(
+        string $zipFile,
+        ?string $sha256,
+        ?string $signatureFile = null,
+        ?string $pubkeyFile = null,
+        bool $allowUnsigned = false,
+    ): array {
+        return $this->applyPackage($zipFile, $sha256, $signatureFile, $pubkeyFile, $allowUnsigned, 'upgrade');
     }
 
     /**
@@ -96,7 +108,7 @@ final class PackageExecutor
                 $problems[] = '已按 ' . $dataPolicy . ' 选择数据处理，但删数据要连库，由迁移执行器另行执行，本次未动插件数据';
             }
 
-            return $this->report('ok', $app, $current, 'done', $problems, false, false);
+            return $this->report('ok', $app, $current, 'done', $problems, false, false, false);
         } catch (\Throwable $error) {
             $problems = array_merge($pending, ['操作中断：' . $error->getMessage()]);
             $restored = !is_dir($backup) || rename($backup, $pluginPath);
@@ -189,11 +201,23 @@ final class PackageExecutor
     }
 
     /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
-    private function applyPackage(string $zipFile, ?string $sha256, string $kind): array
-    {
+    private function applyPackage(
+        string $zipFile,
+        ?string $sha256,
+        ?string $signatureFile,
+        ?string $pubkeyFile,
+        bool $allowUnsigned,
+        string $kind,
+    ): array {
         $shaOk = $this->shaMatches($zipFile, $sha256);
         if (PackageGate::compiled()) {
             return $this->fail(null, null, 'gate', ['编译版或生产宿主不执行插件安装与升级'], $shaOk);
+        }
+        // 先验签再解包：此时 zip 目录项都还没解析、零写入，
+        // 编译版闸在前面已整体拒绝，allowUnsigned 的口子进不了生产
+        $signature = PackageSignature::checkPackage($zipFile, $signatureFile, $pubkeyFile, $allowUnsigned);
+        if ($signature['problems'] !== []) {
+            return $this->fail(null, null, 'signature', $signature['problems'], $shaOk);
         }
         $seen = PackageArchive::inspect($zipFile, $sha256);
         if ($seen['manifest'] === null || $seen['payload'] === null) {
@@ -250,7 +274,7 @@ final class PackageExecutor
             }
             $journal->finish($id);
 
-            return $this->report('ok', $app, $manifest->version, 'done', [], $shaOk, false);
+            return $this->report('ok', $app, $manifest->version, 'done', [], $shaOk, $signature['verified'], false);
         } catch (\Throwable $error) {
             $problems = array_merge($pending, ['操作中断：' . $error->getMessage()]);
             $this->undoPlace($id, $app, $pluginPath, $registered, $current, $problems);
@@ -367,7 +391,7 @@ final class PackageExecutor
      * @param list<string> $problems
      * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool}
      */
-    private function report(string $result, ?string $app, ?string $version, string $stage, array $problems, bool $shaOk, bool $dataRemoved): array
+    private function report(string $result, ?string $app, ?string $version, string $stage, array $problems, bool $shaOk, bool $sigOk, bool $dataRemoved): array
     {
         return [
             'result' => $result,
@@ -376,7 +400,7 @@ final class PackageExecutor
             'stage' => $stage,
             'problems' => $problems,
             'sha256_verified' => $shaOk,
-            'signature_verified' => false,
+            'signature_verified' => $sigOk,
             'data_removed' => $dataRemoved,
         ];
     }
@@ -387,6 +411,6 @@ final class PackageExecutor
      */
     private function fail(?string $app, ?string $version, string $stage, array $problems, bool $shaOk): array
     {
-        return $this->report('failed', $app, $version, $stage, $problems, false, false);
+        return $this->report('failed', $app, $version, $stage, $problems, false, false, false);
     }
 }

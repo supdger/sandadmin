@@ -15,8 +15,9 @@ use Sandadmin\Tests\Support\PackageKit;
 
 /**
  * 离线包生命周期闭环（无库）：临时目录拼迷你仓 + 内存账本。
- * 覆盖安装闸各条拒装理由、落位/记账/契约收集顺序、失败回滚与 journal 恢复。
+ * 覆盖验签各条拒绝理由、安装闸、落位/记账/契约收集顺序、失败回滚与 journal 恢复。
  * SAND_COMPILED=0 才放行执行器；测试结束恢复环境变量。
+ * Ed25519 测试钥在运行时生成、只落测试临时目录，不提交密钥文件。
  */
 final class PackageExecutorTest extends TestCase
 {
@@ -85,7 +86,7 @@ final class PackageExecutorTest extends TestCase
         $digest = hash_file('sha256', $zip);
         self::assertIsString($digest);
 
-        $result = $this->executor()->install($zip, $digest);
+        $result = $this->executor()->install($zip, $digest, allowUnsigned: true);
 
         self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
         self::assertSame('sand-hello', $result['app']);
@@ -103,7 +104,7 @@ final class PackageExecutorTest extends TestCase
 
     public function testInstallRejectsSha256Mismatch(): void
     {
-        $result = $this->executor()->install($this->zip('hello'), str_repeat('0', 64));
+        $result = $this->executor()->install($this->zip('hello'), str_repeat('0', 64), allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertFalse($result['sha256_verified']);
@@ -115,7 +116,7 @@ final class PackageExecutorTest extends TestCase
     {
         $zip = $this->zip('kernel', ['kernel_api_min' => '1.5.0']);
 
-        $result = $this->executor()->install($zip, null);
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
@@ -127,7 +128,7 @@ final class PackageExecutorTest extends TestCase
     {
         $zip = $this->zip('db', ['databases' => ['mysql']]);
 
-        $result = $this->executor()->install($zip, null);
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
@@ -138,7 +139,7 @@ final class PackageExecutorTest extends TestCase
     {
         $zip = $this->zip('requires', ['requires' => ['sand-iam' => '0.8.0,0.9.9']]);
 
-        $result = $this->executor()->install($zip, null);
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
@@ -150,7 +151,7 @@ final class PackageExecutorTest extends TestCase
         $this->registry->recordInstall('sand-iam', 'sand-iam', '0.8.4', 'x');
         $zip = $this->zip('requires-ok', ['requires' => ['sand-iam' => '0.8.0,0.9.9']]);
 
-        $result = $this->executor()->install($zip, null);
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
 
         self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
     }
@@ -159,7 +160,7 @@ final class PackageExecutorTest extends TestCase
     {
         $zip = $this->zip('banned', null, ['plugin/sand-hello/install.sql' => 'select 1']);
 
-        $result = $this->executor()->install($zip, null);
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('inspect', $result['stage']);
@@ -168,10 +169,10 @@ final class PackageExecutorTest extends TestCase
 
     public function testInstallTwiceRejected(): void
     {
-        $first = $this->executor()->install($this->zip('hello'), null);
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
         self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
 
-        $result = $this->executor()->install($this->zip('hello'), null);
+        $result = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
@@ -188,7 +189,7 @@ final class PackageExecutorTest extends TestCase
             'plugin/sand-bad/app/thing.php' => '<?php',
         ]);
 
-        $result = $this->executor()->install($file, null);
+        $result = $this->executor()->install($file, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('collect', $result['stage']);
@@ -205,11 +206,11 @@ final class PackageExecutorTest extends TestCase
 
     public function testUpgradeSwitchesVersion(): void
     {
-        $first = $this->executor()->install($this->zip('hello'), null);
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
         self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
         $zip = $this->zip('hello-2', ['version' => '0.2.0']);
 
-        $result = $this->executor()->upgrade($zip, null);
+        $result = $this->executor()->upgrade($zip, null, allowUnsigned: true);
 
         self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
         self::assertSame('0.2.0', $this->registry->installedVersion('sand-hello'));
@@ -220,7 +221,7 @@ final class PackageExecutorTest extends TestCase
 
     public function testUpgradeConflictRestoresOldVersion(): void
     {
-        $first = $this->executor()->install($this->zip('hello'), null);
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
         self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
         $manifest = PackageKit::fixtureManifest('sand-hello', ['version' => '0.2.0']);
         $file = $this->dir . '/bad-upgrade.zip';
@@ -228,7 +229,7 @@ final class PackageExecutorTest extends TestCase
             'plugin/sand-hello/contract/openapi.yaml' => self::CONFLICT_YAML,
         ]);
 
-        $result = $this->executor()->upgrade($file, null);
+        $result = $this->executor()->upgrade($file, null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('collect', $result['stage']);
@@ -241,7 +242,7 @@ final class PackageExecutorTest extends TestCase
 
     public function testUninstallKeepRemovesDirAndMarksRow(): void
     {
-        $first = $this->executor()->install($this->zip('hello'), null);
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
         self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
 
         $result = $this->executor()->uninstall('sand-hello', 'keep');
@@ -257,7 +258,7 @@ final class PackageExecutorTest extends TestCase
 
     public function testUninstallDeletePolicyReportsPendingDataRemoval(): void
     {
-        $first = $this->executor()->install($this->zip('hello'), null);
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
         self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
 
         $result = $this->executor()->uninstall('sand-hello', 'delete');
@@ -406,15 +407,128 @@ final class PackageExecutorTest extends TestCase
         self::assertStringNotContainsString('孤儿备份', implode("\n", $result['notes']));
     }
 
+    public function testInstallSucceedsWithValidSignature(): void
+    {
+        $signed = $this->signedZip('hello-signed');
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], $signed['pubkey']);
+
+        self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
+        self::assertTrue($result['signature_verified']);
+        self::assertSame('0.1.0', $this->registry->installedVersion('sand-hello'));
+    }
+
+    public function testInstallRejectsTamperedPackage(): void
+    {
+        $signed = $this->signedZip('hello-tampered');
+        // 签完再改包内字节：验签必须先于解包拒绝，且不留任何副作用
+        $bytes = file_get_contents($signed['zip']);
+        self::assertIsString($bytes);
+        $bytes[16] = $bytes[16] === "\x00" ? "\x01" : "\x00";
+        file_put_contents($signed['zip'], $bytes);
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], $signed['pubkey']);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('signature', $result['stage']);
+        self::assertFalse($result['signature_verified']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testInstallRejectsWrongPublicKey(): void
+    {
+        $signed = $this->signedZip('hello-wrong-key');
+        $other = sodium_crypto_sign_keypair();
+        file_put_contents($signed['pubkey'], base64_encode(sodium_crypto_sign_publickey($other)));
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], $signed['pubkey']);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('signature', $result['stage']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testInstallRejectsMissingSignatureByDefault(): void
+    {
+        $result = $this->executor()->install($this->zip('hello'), null);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('signature', $result['stage']);
+        self::assertStringContainsString('签名', implode("\n", $result['problems']));
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testInstallRejectsSignatureWithoutPublicKey(): void
+    {
+        $signed = $this->signedZip('hello-no-pubkey');
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], null);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('signature', $result['stage']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testInstallAllowsUnsignedOnlyWithFlag(): void
+    {
+        $result = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
+
+        self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
+        self::assertFalse($result['signature_verified']);
+    }
+
+    public function testAllowUnsignedDoesNotRescueBadSignature(): void
+    {
+        $signed = $this->signedZip('hello-bad-sig');
+        file_put_contents($signed['signature'], base64_encode(str_repeat("\x07", SODIUM_CRYPTO_SIGN_BYTES)));
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], $signed['pubkey'], true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('signature', $result['stage']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
     public function testCompiledHostRefusesInstall(): void
     {
         putenv('SAND_COMPILED=1');
+        // 编译版闸在验签之前整体拒绝，allowUnsigned 的口子进不了生产
 
-        $result = $this->executor()->install($this->zip('hello'), null);
+        $result = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
 
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
         self::assertDirectoryDoesNotExist($this->pluginPath('sand-hello'));
+    }
+
+    /**
+     * 打一个夹具 zip 并用运行时生成的一次性 Ed25519 密钥签名，
+     * 返回 zip、签名、公钥三个文件路径。密钥只活在本用例内，
+     * 不落仓不打印。
+     *
+     * @return array{zip: string, signature: string, pubkey: string}
+     */
+    private function signedZip(string $name): array
+    {
+        $zip = $this->zip($name);
+        $bytes = file_get_contents($zip);
+        self::assertIsString($bytes);
+        $pair = sodium_crypto_sign_keypair();
+        $signatureFile = $this->dir . '/' . $name . '.sig';
+        $pubkeyFile = $this->dir . '/' . $name . '.pub';
+        file_put_contents($signatureFile, base64_encode(sodium_crypto_sign_detached($bytes, sodium_crypto_sign_secretkey($pair))));
+        file_put_contents($pubkeyFile, base64_encode(sodium_crypto_sign_publickey($pair)));
+
+        return ['zip' => $zip, 'signature' => $signatureFile, 'pubkey' => $pubkeyFile];
+    }
+
+    /** 验签拒绝必须零副作用：work-dir 无文件、plugin-dir 无变化、账本无记录。 */
+    private function assertNoSideEffects(string $app): void
+    {
+        self::assertDirectoryDoesNotExist($this->pluginPath($app));
+        self::assertNull($this->registry->installedVersion($app));
+        $leftovers = glob($this->dir . '/work/*');
+        self::assertTrue($leftovers === false || $leftovers === [], 'work-dir 有残留文件');
     }
 
     private function executor(string $dbDriver = 'pgsql'): PackageExecutor
