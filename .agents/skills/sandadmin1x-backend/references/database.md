@@ -20,7 +20,7 @@
 - 主键一律叫 `id`；外键 `<对方名词>_id`；操作人 `created_by`/`updated_by`/`requested_by`。
 - 时间字段一律 `datetime`、后缀 `_time`：审计三件套 `create_time`/`update_time`/`delete_time`（软删，NULL=未删）；**禁止** `*_at` 后缀命名和 int 时间戳。
 - 布尔：`is_/has_/can_/must_` 开头或形容词，两库都用 `boolean`（MySQL 落 `tinyint(1)` 等价、只用 0/1），**禁止** 1=是/2=否 的旧 `sa_*` 口径（加 `CHECK (col IN (0,1))` 锁取值——8.0.16 以下静默忽略、由应用层校验兜底；已定，总监 11-17）。
-- 状态：启停用 `status`（1 启用 2 停用）；流转用 `state`（字符串，取值用 CHECK 约束列出）。`status` 只在启停有业务语义时加，不对审计/事件等不可变记录机械加。
+- 状态：启停用 `status`（1 启用 2 停用）；流转用 `state`（字符串，取值用 CHECK 约束列出）。
 - 索引/约束前缀：`uk_`（唯一）`ix_`（普通）`fk_`（外键）`ck_`（检查）+ 完整表名 + 列名，全名 ≤63 字节。
 - 两库都支持 COMMENT 的列一律写 COMMENT。
 - 可编辑的配置/业务表加 `version` 乐观锁列：更新带版本条件、冲突返契约错误码 409（S-03）。

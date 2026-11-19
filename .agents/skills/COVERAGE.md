@@ -16,6 +16,7 @@
   - `F/` = `sandadmin1x-frontend/`：`SK`=SKILL.md、`CV`=references/conventions.md、`PU`=references/permission-ui.md
   - `P/` = `sandadmin1x-plugin/`：`SK`=SKILL.md、`CT`=references/contract.md、`PK`=references/packaging.md
   - `L/` = `sandadmin1x-ai-loop/`：`SK`=SKILL.md、`DL`=references/delivery-loop.md、`MCP`=references/mcp.md、`PS`=references/project-selfdesc.md
+  - `LA` = `LEGACY-ABSORBED.md`（本仓专属补遗，不参与 skill-sync 比对）
 
 ## 冲突与未拍板事项
 
@@ -107,7 +108,7 @@
 | 条目ID | 老出处 | 老规则要点 | 处置 | 新位置/来源 |
 | --- | --- | --- | --- | --- |
 | repo-sp-ace-01 | acceptance-evidence.md:3 | 使用时机：权威源码已提交+demo 已备好 | 已收编 | `P/PK` §8 |
-| repo-sp-ace-02 | acceptance-evidence.md:7 | 必录：仓/分支/commit/库版本/插件修订/包版本/准备方式/时间 | 已收编（最小集+必录字段清单均落文；库版本按双库写「数据库版本」） | `P/PK` §8 |
+| repo-sp-ace-02 | acceptance-evidence.md:7 | 必录：仓/分支/commit/库版本/插件修订/包版本/准备方式/时间 | 已收编（最小集落 `P/PK` §8；必录字段清单落 `LA`，库版本按双库写「数据库版本」） | `LA` §4 |
 | repo-sp-ace-03 | acceptance-evidence.md:8 | 必录：插件仓/tag/资产名/SHA-256/catalog 条目 | 已收编（补签名校验结果） | `P/PK` §4/§7 步 5 |
 | repo-sp-ace-04 | acceptance-evidence.md:9 | 必录：干净零业务插件实例的安装/迁移/登录/基础管理 | 已收编 | `P/PK` §8 步 1 |
 | repo-sp-ace-05 | acceptance-evidence.md:10 | 必录：精确命令、预期与实观、fixture、清理确认 | 已收编 | `P/PK` §8 |
@@ -145,7 +146,7 @@
 | repo-sp-ipr-09 | ipr:19 | 拆分步骤 4：仓库专属归属措辞，移除绝对路径 | 不适用（聚合仓步骤） | `P/PK` §9 |
 | repo-sp-ipr-10 | ipr:20 | 步骤 5：已提交修订构建 ZIP、发布、回验 SHA-256 | 已收编（回验加签名） | `P/PK` §3/§7 步 4 |
 | repo-sp-ipr-11 | ipr:21 | 步骤 6：资产存在后才更新 catalog | 已收编（加签名字段+kernel_api 区间） | `P/PK` §4/§7 步 5 |
-| repo-sp-ipr-12 | ipr:22 | 步骤 7：契约测试+浏览器检查后才移除旧 Release | 已收编（退役前置检查落文） | `P/PK` §4 |
+| repo-sp-ipr-12 | ipr:22 | 步骤 7：契约测试+浏览器检查后才移除旧 Release | 已收编（退役前置检查落文于 `LA`） | `LA` §3 |
 | repo-sp-ipr-13 | ipr:26 | catalog 可变但包由仓库/tag/资产/版本/digest 钉死；须验证实际加载修订 | 已收编 | `P/PK` §4 |
 | repo-sp-ipr-14 | ipr:28 | 前端只选应用和版本；服务端取 catalog/校验/推导/下载/验 digest 交安装器 | 已收编（校验环节加验签） | `P/PK` §4 |
 | repo-sp-ipr-15 | ipr:30 | 下载/读 README 不得执行 SQL、部署文件、建注册记录 | 已收编 | `P/PK` §4 |
@@ -249,7 +250,7 @@
 | saiadmin6-backend-28 | backend.md:225-241 | Pattern B Controller 样板 | 被取代 | 样板重写（`B/BS` §六 + `F/CV` §5） |
 | saiadmin6-backend-29 | backend.md:244 | tree 用 Helper::makeTree | 被取代 | `P/CT` §7（SDK/自实现；Helper 归属改） |
 | saiadmin6-backend-30 | backend.md:245 | edit 校验禁止父级设为自身 | 已收编 | `F/CV` §5.2（禁选自身或后代，前端挡+后端验） |
-| saiadmin6-backend-31 | backend.md:246 | destroy 校验禁止删有子级的项 | 已收编（服务端树校验条：禁删有子级+父级不选自身/后代，前端先挡后端仍验） | `B/BS` §六 |
+| saiadmin6-backend-31 | backend.md:246 | destroy 校验禁止删有子级的项 | 已收编（服务端树校验条：禁删有子级+父级不选自身/后代，前端先挡后端仍验；落文于 `LA`） | `LA` §2 |
 | saiadmin6-backend-32 | backend.md:248-299 | Pattern B Logic 样板（tree=true 投影 value/label） | 被取代 | `F/CV` §5.2 + OpenAPI 契约登记 |
 
 ### B4. `~/.shared-skills/saiadmin6/references/frontend.md`（16 条）
@@ -440,8 +441,8 @@
 | WDS-04 | SKILL.md:13 | 外围规则（sandpet-*）存在才读 | 不适用（sandpet rules 引用面） | — |
 | WDS-05 | SKILL.md:15-21 | PHP≥8.1/Webman2/MySQL8.0+/Asia/Shanghai/start.php | 被取代（PHP≥8.2 见 AGENTS.md；MySQL 8.0+ 见 `B/DB` 适用范围；时区/start.php 属 sandpet 运行参数，1.x 时间统一 UTC `B/DB` §四） | `B/DB` + `AGENTS.md` |
 | WDS-06 | SKILL.md:23-26 | 保护分支禁直推，功能分支+PR | 已收编 | `L/SK` 总纲 + `L/DL` §0 |
-| WDS-07 | SKILL.md:26 | 分支命名 feat\|fix\|chore/<scope>（可 hotfix/） | 已收编 | `L/DL` §0 |
-| WDS-08 | SKILL.md:27 | Commit type feat/fix/docs/refactor/test/chore | 已收编（与分支命名同条落 §0，不进 §4 门禁硬条件） | `L/DL` §0 |
+| WDS-07 | SKILL.md:26 | 分支命名 feat\|fix\|chore/<scope>（可 hotfix/） | 已收编（落文于 `LA`） | `LA` §1 |
+| WDS-08 | SKILL.md:27 | Commit type feat/fix/docs/refactor/test/chore | 已收编（与分支命名同条收编于 `LA`，不进 `L/DL` §4 门禁硬条件） | `LA` §1 |
 | WDS-09 | SKILL.md:28 | PR 前跑 security-baseline 脚本（仓有才跑） | 已收编（等价门禁） | `L/DL` §2 供应链条（audit+gitleaks） |
 | WDS-10 | SKILL.md:32 | strict_types | 已收编 | `B/TP` §一 |
 | WDS-11 | SKILL.md:33 | 参数返回值类型 | 已收编 | `B/TP` §二 |
@@ -558,7 +559,7 @@ Webman/Workerman 生产运行基线（SLO/IO/事件循环/连接池/背压/容�
 | SPC-14 | SKILL.md:54-56 | PG-only 基线 | 被取代 | `B/DB` 双库 |
 | SPC-15 | SKILL.md:57 | bigint IDENTITY 主键、外键同型 | 被取代 | `B/DB` §三 两类编号（外键同型保留） |
 | SPC-16 | SKILL.md:58 | _time 三件套 timestamp(0) | 已收编（三件套；时间精度细节按双库） | `B/DB` §二/§四 |
-| SPC-17 | SKILL.md:59 | status 启停 1/2；不机械加 status | 已收编（启停口径+不机械加细节均落文） | `B/DB` §二 |
+| SPC-17 | SKILL.md:59 | status 启停 1/2；不机械加 status | 已收编（启停口径在 `B/DB` §二；「不机械加」细节落 `LA`） | `LA` §5 |
 | SPC-18 | SKILL.md:60 | 唯一约束/索引按身份与边界建 | 保留仓外（通用建模纪律；索引前缀 `B/DB` §二） | — |
 | SPC-19 | SKILL.md:61 | 密钥 write-only（慢哈希/加密信封） | 保留仓外（插件侧 secret_hash/encrypted_config 字段约定；通用「密钥不进日志」已收编 `B/SA` §五） | — |
 | SPC-20 | SKILL.md:63-81 | 字段字典（id/FK/code/name/status/state/边界列/actor/time/secret/policy） | 已收编（主体：id、FK、created_by、_time、status/state；org/application/environment 边界列不适用单租户；secret/policy 列名属插件字典未落文） | `B/DB` §二 + `P/CT` §5 |
@@ -656,16 +657,16 @@ Webman/Workerman 生产运行基线（SLO/IO/事件循环/连接池/背压/容�
 
 ## 缺口小结
 
-原登记的 6 项缺口已于 2026-11-19 按技术总监要求（老板没提到的也不能丢）全部按老版原文补文收编，当前**无剩余缺口**：
+原登记的 6 项缺口已于 2026-11-19 按技术总监要求（老板没提到的也不能丢）全部按老版原文补文收编，当前**无剩余缺口**。补文原拟落 4 个 skill 的 references 文件，因这些文件是上游 `~/.shared-skills/` 同步副本（skill-sync 全量比对、上游只读原文），同日改集中收编于 `LA`（本仓专属补遗文件）：
 
 | 条目ID | 原缺口内容 | 实际落点 |
 | --- | --- | --- |
-| WDS-07 | 分支命名约定（`feat\|fix\|chore/<scope>`、可 `hotfix/`） | `L/DL` §0 |
-| WDS-08 | Commit type 约定（feat/fix/docs/refactor/test/chore） | `L/DL` §0 |
-| saiadmin6-backend-31 | destroy 校验禁止删有子级的项 | `B/BS` §六 |
-| repo-sp-ace-02 | 安装验收必录字段清单（仓/分支/commit/库版本/插件修订/包版本/准备方式/时间） | `P/PK` §8 |
-| repo-sp-ipr-12 | 移除被引用的旧 Release 前须先跑 catalog 契约测试+登录态检查 | `P/PK` §4 |
-| SPC-17 | 有启停语义才加 status、不对不可变记录机械加 status | `B/DB` §二 |
+| WDS-07 | 分支命名约定（`feat\|fix\|chore/<scope>`、可 `hotfix/`） | `LA` §1 |
+| WDS-08 | Commit type 约定（feat/fix/docs/refactor/test/chore） | `LA` §1 |
+| saiadmin6-backend-31 | destroy 校验禁止删有子级的项 | `LA` §2 |
+| repo-sp-ace-02 | 安装验收必录字段清单（仓/分支/commit/库版本/插件修订/包版本/准备方式/时间） | `LA` §4 |
+| repo-sp-ipr-12 | 移除被引用的旧 Release 前须先跑 catalog 契约测试+登录态检查 | `LA` §3 |
+| SPC-17 | 有启停语义才加 status、不对不可变记录机械加 status | `LA` §5 |
 
 另有两类说明性注记（非缺口，登记备查）：
 
