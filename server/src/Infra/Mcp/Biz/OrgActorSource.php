@@ -15,10 +15,10 @@ use Sandadmin\Module\Org\OrgSql;
 
 /**
  * 按 username 把 MCP 身份落成 sand_system_user 行对应的 OrgActor。
- * 权限口径与 DevPrincipal 一致：账号 is_super 给全量，否则取角色权限码并集；
+ * 权限口径与开发期身份一致：账号 is_super 给全量，否则取角色权限码并集；
  * 再按凭据 permissions 收窄（U-3/M-01：scope 只能缩小不能放大）——
  * 收窄后 is_super 必须落 false，否则 OrgActor::can 会跳过码清单。
- * 与 DevPrincipal 同一判定面：只看 delete_time，账号停用的联动失效
+ * 与开发期身份同一判定面：只看 delete_time，账号停用的联动失效
  * 随机器令牌（authz_version）接通时补齐。
  */
 final class OrgActorSource implements McpActorSource
