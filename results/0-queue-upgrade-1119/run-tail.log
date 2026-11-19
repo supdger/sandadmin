@@ -1,0 +1,19 @@
+I'll do exactly the five steps. First, let me look at the plist and confirm the scripts exist.Step 1 is already done — the plist already contains `<key>AbandonProcessGroup</key><true/>`, so nothing to change there. Now step 2: copy via temp files then `mv` into place.Copies verified identical. Step 3: unload then load the LaunchAgent.Both succeeded. Step 4: wait 10 seconds, then check `launchctl list`.`com.assistant.queue` is loaded (PID `-`, last exit `0`). Step 5: write RESULT.md.五步全部完成：
+
+1. **plist**：`AbandonProcessGroup` 已存在（`true`），按要求跳过，文件未改。
+2. **脚本**：`qwatch.sh`、`runjob.sh` 经临时文件 + `mv` 替换到 `~/agent-work/assistant/`，md5 与源一致。
+3. **重载**：`launchctl unload` / `load` 均 rc=0。
+4. **验证**：等 10 秒后 `launchctl list` 显示 `com.assistant.queue` 已加载（PID `-`，LastExitStatus `0`）。
+5. **记录**：已写入 `0-queue-upgrade-1119/RESULT.md`。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（`swe-2-high`）
+- 子 Agent：未使用（任务明确禁止开下级会话）
+
+## 任务记录
+- 已修改：`~/agent-work/assistant/qwatch.sh`、`~/agent-work/assistant/runjob.sh`（替换为 q/scripts 版本）；新建 `~/agent-work/assistant/0-queue-upgrade-1119/RESULT.md`。plist 未改（键已存在）。
+- 已验证：md5 比对一致；`launchctl unload/load` rc=0；`launchctl list | grep com.assistant` 确认 `com.assistant.queue` 在列。
+- 已提交/已部署：否（本机服务已重新加载，非 git 操作）
+- 未完成：无
+
+=== RUN COMPLETE ===
