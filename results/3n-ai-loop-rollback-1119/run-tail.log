@@ -1,0 +1,25 @@
+我先调用相关技能（sandadmin 1.x 仓库任务必须加载 `sandadmin1x-ai-loop`，写 PHP 测试代码还需 `sandadmin1x-backend` 和 `php-aot-coding`），然后读输入文档。加载关键输入：设计文档相关行、总表、2c 结果、命名规范、delivery-loop reference。任务输入已读到。本地仓库在 `~/agent-work/pub-sandadmin`（2c RESULT 写明）。再补齐 U-6 被截断的两行，并确认仓库基线状态。仓库已 fetch：`origin/main` 仍为 `977427a`（PR #104 test-gate 未合并），按任务口径从 main 开 `feat/ai-loop-rollback`，避免改 2c 同段的 `pre-merge.sh`。派发前确认仓内现状。现状明确：main 的 pre-merge.sh 是 7 步版，Unit/Module 缺 Dict/Lifecycle/Notification/Package，`server/src/Module/Dict` 很小适合做样板。查一下提交风格与 gh 可用性，然后派发。派发一个 `dv-implementer-sonnet` 长程实现子代理：三个工作包在同一分支顺序执行、跑门禁、提交、推分支、开 PR。实现子代理已后台启动（ad9014b5）。阻塞等待其完成。实现完成：PR #110（`907c0d1`）。按独立验收口径派 `dv-verifier-swe`（未参与实现的新上下文）复跑验证。验收打回：1 个阻断项（pre-merge.sh 用法注释与 #104 同行冲突）+ 1 个建议同修缺陷（--dist 取第一条 sha 记录）+ 2 处瑕疵。把修改发回原实现子代理（resume 保留上下文）。返工完成（`d3e4783`，merge-tree 无冲突）。让原验收子代理复核修复 delta。验收通过。查一下 sessions.db 拿实际模型记录，然后写 RESULT.md。模型记录：本 session 登记 `swe-2-high`；`generation_model` 在 message_nodes 无记录，子代理实际模型按规则写「未记录」。写 RESULT.md。U-6 无库部分完成并交付。
+
+**PR**：https://github.com/supdger/sandadmin/pull/110 （目标 main，未合并）
+**分支** `feat/ai-loop-rollback`：基线 `977427a`（origin/main）→ `907c0d1` 实现 → `d3e4783` 验收返修
+
+三项交付：
+1. **模块测试规范与样例**：`server/tests/Unit/Module/Dict/`（DictServiceTest 12 用例 + DictExceptionTest 4 用例，sqlite 内存不连库）+ `server/docs/module-tests.md` 规范页；`server/src` 零改动。
+2. **pre-merge 对照**：7 步覆盖静态检查/契约/安全回归/TypePHP/Unit；补缺一项「命名自查」（diff 模式三子命令，插末尾纯插入块）。首轮与 #104 在同行注释实测 CONFLICT，返修为纯插入后 `git merge-tree` 干净。双库矩阵、JSON 报告、CODEOWNERS 列缺口未做。
+3. **保留上一版与回退**：`build-release.sh` 登记 `dist/releases.txt` + `dist/previous`，不删旧包；新 `tools/rollback-release.sh` 支持 `--root` 原子切 current（PHP rename 绕开 macOS mv 坑）、`--dist` sha256 校验、`--dry-run`，退出码 0/1/2；`tests/rollback-release-test.sh` 14/14 过。
+
+验证全绿：phpunit unit 424 tests、phpstan 0、pre-merge --fast 0、naming_check 0 FAIL、typephp FAIL=0。独立验收两轮（打回 4 处 → 修复 → 通过）。
+
+剩余项：迁移回退与「升级→回退→再升级」验证、双库矩阵（要库）、JSON 报告、CODEOWNERS（仓外）。RESULT.md 已写入任务目录。
+
+## 模型记录
+- 主 Agent：SWE-2 / swe-2-high（sessions.db `model` 列记录）
+- 子 Agent：dv-implementer-sonnet = 请求 SWE-2 → 实际记录未查到（sessions.db 无 generation_model 记录）；dv-verifier-swe = 请求 SWE-2 → 同上未记录
+
+## 任务记录
+- 已修改：`server/tests/Unit/Module/Dict/*`、`server/docs/module-tests.md`、`tools/pre-merge.sh`、`tools/build-release.sh`、`tools/rollback-release.sh`、`tests/rollback-release-test.sh`；任务目录 `RESULT.md`
+- 已验证：phpunit unit 424/0、phpstan 0、pre-merge --fast 0、naming_check 0 FAIL、typephp FAIL=0、rollback 测试 14/14、merge-tree 与 #104 无冲突；独立验收通过
+- 已提交/已部署：已提交并推送分支、PR 已开（未合并）；未部署
+- 未完成：迁移回退验证与双库矩阵（要库）、JSON 报告、CODEOWNERS 仓外设置、PR 待人审合并
+
+=== RUN COMPLETE ===
