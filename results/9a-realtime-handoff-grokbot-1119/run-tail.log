@@ -1,0 +1,20 @@
+我先摸清现状：读 `qwatch.sh`、看 `~/agent-work/grokbot/` 目录、确认 results 位置和 launchd 状态。`qwatch.sh` 的结构清楚了：`publish()` 在推回 GitHub 后写 `.published`；脚本从 `q/scripts/qwatch.sh`（assistant-queue 分支克隆）自更新，所以两处都要改。`com.assistant.queue` 已 loaded。
+
+继续看 results 目录、RESULT.md 格式和 grokbot 主交接文件。results 在 `q/results/` 下。现在看两份交接文件内容判断主交接文件，并抽查 results 里的 status.log 和 RESULT.md 格式。这两份是配套口径文件，不像主交接文件。查前几个 handoff 任务的 RESULT，看 grokbot 开工先读的交接文件是哪个。主交接文件已确认是 `~/agent-work/grokbot/QUEUE-1117.txt`（之前 2i/3f 任务也是追加到它末尾）。看它末尾格式，并统计今天 results 里各任务的状态与完成时间来源。主交接文件确认是 `QUEUE-1117.txt`（前两次交接任务都追加在它末尾）。results 里今天共 52 个任务，全部 `done`，status.log 末行有完成时间可排序。先确认本地与仓库脚本一致，再验证结论抽取的 awk 逻辑。抽取逻辑验证通过（有 `## 结论` 段取结论段，否则取第一段正文）。现在生成新版 `qwatch.sh` 到临时文件，语法检查后原子替换。语法 OK，diff 只有三处增量改动。现在原子替换本地脚本，并把同一内容落到仓库 `scripts/qwatch.sh` 后提交推送（用队列自己的 `.gitlock` 避免与运行中的队列抢 git）。推送完成（`0c7979b`）。现在生成实时进度文件：表头 + 52 个今日任务按 status.log 完成时间升序各写一段，临时文件 + mv 落盘。52 条回填完成。看文件尾部确认顺序和格式，然后给 `QUEUE-1117.txt` 追加一行指向它。收尾核验：两份脚本语法、`cmp` 一致性、launchd 状态、残留临时文件。全部验证通过。写 RESULT.md。快速查一下会话记录里的实际模型再收尾。任务完成摘要：
+
+- **qwatch.sh 改动**：新增 `hq()` 函数并在 `publish()` 末尾（push + `.published` 之后）调用——向 `~/agent-work/grokbot/交接-实时进度.md` 追加「时间 · 任务名 · 状态 / RESULT 结论段（≤5 行，优先取 `## 结论` 段）/ 结果路径」；文件不存在时先建带规定表头的文件。本地与 `assistant-queue` 分支 `scripts/qwatch.sh` 两份一致（commit `0c7979b`，rebase 后普通推送成功，期间持有队列 `.gitlock`）。
+- **回填**：`results/` 下今日 52 个任务全部按 status.log 完成时间升序写入，全部 `done`。
+- **主交接文件**：`QUEUE-1117.txt` 末尾加了一行指向实时进度文件，未动其他内容。
+- **验证**：`bash -n` 两份脚本通过；launchd `com.assistant.queue` 仍加载、300 秒周期、last exit 0；无临时文件/锁残留。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（会话模型；sessions.db 与日志未查到 generation_model/resolved_model_uid 记录）
+- 子 Agent：未使用
+
+## 任务记录
+- 已修改：`~/agent-work/assistant/qwatch.sh`、`q/scripts/qwatch.sh`（已推送）、新建 `~/agent-work/grokbot/交接-实时进度.md`、`QUEUE-1117.txt` 追加一行、任务目录 `RESULT.md`
+- 已验证：`bash -n` ×2 通过、`cmp` 两副本一致、推送 rc=0、`launchctl` 确认 com.assistant.queue 在运行（300s 周期）、抽取逻辑在真实 RESULT.md 上验证
+- 已提交/已部署：assistant-queue 分支 commit `0c7979b` 已推送（任务要求的同步）；其余为本地文件
+- 未完成：无
+
+=== RUN COMPLETE ===
