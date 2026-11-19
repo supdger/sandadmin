@@ -1,0 +1,56 @@
+*未定项**：Referrer-Policy 单值、自定义头名、CSP 完整指令集、v1 挂载机制（生成路由无 group，需中间件内按前缀判作用域）、`CSRF_REJECTED` 是否已登记错误码目录。
+- **门禁**：`tools/pre-merge.sh --fast`（含 php -l、contract-build --check、typephp_check diff、phpunit unit、phpstan）。
+
+按编排派一个长程实现包给 `dv-implementer-sonnet`（本周仅 SWE-2），完成建分支→实现→门禁→未合并 PR→RESULT.md 全链。审计判定：**有条件通过，现状不得合并**。核心发现：
+
+- **阻断 B1**：管理端前端 `web/src/lib/adminClient.ts` 不发 `X-Requested-With`，合并后所有 v1 写操作 403——`web/` 不在本任务授权范围，只能列为合并前置项上报。
+- **严重 S1**：webman 静态文件回调不走全局中间件，`/index.html` 等静态响应无安全头（XFO 可绕过）——改 `config/static.php` 一行可修，属达成 N3 验收口径的必要修复。
+- **严重 S2/S3/S4**：`site_origin` 未配置时源校验 fail-open（待总监拍板）；`CSRF_REJECTED` 未登记错误码目录（任务禁止改 openapi.yaml，已标注）；插件命名空间 v1 路由不进 `''` 链（后续项）。
+- **提示项**：`/api/admin/v1x` 前缀误匹配、ACAO 回显请求原值、env `0` 被吞、`\t` 字面量等。
+
+门禁复跑全部与 RESULT 一致（phpunit 436/2679 OK、phpstan 0、pre-merge 7/7、curl 14/14）。
+
+判定：S1 及提示项中的安全问题属于「达成 N3 目标直接必要的修复」，在授权覆盖范围内，派原实现代理返工；B1/S2/S3 涉越界或待定事项，如实上报不动。返修完成（+388/−100，15 文件，新 SHA `77ed4e4`）。按审计建议复验 S1 及门禁——让原审计代理在同一上下文做定向复核最省。复验通过：11 项返修全部落实，门禁复跑一致干净。合并前置项收敛为 3 条（B1 前端标记头、S3 错误码登记、S2 策略拍板）——均超出本任务授权，属上报事项。
+
+但复验新发现提示项中 **N1 是实质约束违反**：断言脚本起服时 webman channel 进程绑 `0.0.0.0:2206`，超出 19100–19199 端口限制；N2 空 `SAND_HSTS_MAX_AGE` 会输出 `max-age=0`（返修引入的退化）；N3/N5/N7 也是小修量级。派最后一轮微修。微修轮完成，门禁全绿。做最后产物核对：RESULT.md 存在性、PR 状态与 SHA。RESULT.md 头部「最终 SHA」疑似停留在第一轮 `d4e8bb0`，实际 HEAD 已到 `977c396`。核对文档内是否更新。微修轮小节已正确记录 `977c396`，仅头部「最终 SHA」字段滞后。直接修正文档头。# 任务完成回报 — 1.x HTTP 安全中间件
+
+## 交付物
+
+- **PR #107**（未合并，目标 main）：https://github.com/supdger/sandadmin/pull/107
+- 分支 `feat/http-security-mw`；基线 `977427acc` → 最终 `977c3967`（3 个 commit：实现 + 审计返修 + 微修）
+- `RESULT.md`：`~/agent-work/assistant/3a-http-security-mw-1119/RESULT.md`（含配置键表、Origin/CORS 规则、全部门禁命令与退出码、三轮处置对照）
+
+## 实现概要
+
+- `SecurityHeadersMiddleware`：N3 七头全配置化（Referrer-Policy 默认 `strict-origin-when-cross-origin`；HSTS 仅 HTTPS 且不信转发头；CSP enforce 开关切 Report-Only/强制，JSON 响应 `default-src 'none'`、其余 `'self'`）
+- `CsrfMiddleware`：v1 写请求 Origin↔`security.site_origin` 精确比对、null 拒、缺失回落 Referer、皆无→403 `CSRF_REJECTED`；并要求自定义头（默认 `X-Requested-With`，可配）
+- `CorsMiddleware`：`security.cors.allowed_origins` 白名单（默认空），不反射、无 Allow-Credentials、OPTIONS 预检独立应答
+- `server/tests/Unit/` 42 用例 + `tools/assert-security-headers.sh`（22 断言，端口 19107/19108，全部段内监听）
+
+## 门禁（复验一致，退出码全 0）
+
+`phpunit unit` 463 tests / 2722 assertions OK · `phpstan` max 无错误 · `pre-merge.sh --fast` 7/7 · `naming_check` 0 FAIL 0 WARN · TypePHP diff FAIL=0 · curl 断言 22/22 PASS
+
+## 独立安全审计（Fable dv-escalation，两轮）
+
+判定「有条件通过」。首轮 1 阻断 + 4 严重 + 8 提示，返修 11 项全部复核关闭；复验 7 条提示项再微修 6 条。审计发现并修复的关键点：静态文件绕过全局中间件（已挂 `static.php`）、`/api/admin/v1x` 前缀误匹配、ACAO 回显原值、userinfo 伪装 Origin、channel 进程段外监听等。
+
+## 合并前置（超本任务授权，须总监/契约侧处理）
+
+1. **B1 阻断**：`web/` 前端不发 `X-Requested-With`，合并后全部 v1 写 403——需定头名后授权改 `adminClient.ts` 与本 PR 同批合并
+2. **S3**：`CSRF_REJECTED` 未登记 `x-error-catalog`（任务禁改 openapi.yaml，已按"停下回报"标注）
+3. **S2**：`site_origin` 未配置时源校验 fail-open（仍要求标记头），Cookie 会话上线前必须拍板收口
+
+其余待确认项（Referrer-Policy 单值、自定义头名、CSP 完整指令集与上报端点、v1 挂载机制待架构复审、S4 插件命名空间归入 R45）已列 RESULT.md。
+
+## 模型记录
+- 主 Agent：SWE-2 High（sessions.db 该会话 `model` 字段为空，实际记录未查到）
+- 子 Agent：dv-scout = 请求 SWE-2 → 未记录；dv-implementer-sonnet ×3 轮 = 请求 SWE-2 → 未记录；dv-escalation ×2 轮 = 请求 Fable 5.2 high（只读安全审计，符合临时额度规矩）→ 未记录
+
+## 任务记录
+- 已修改：sandadmin `feat/http-security-mw` 共 3 commits（中间件×3、配置值对象×3、config 4 文件、测试、断言脚本、.env.example）；任务包 `RESULT.md`
+- 已验证：上列门禁全部由独立审计代理复跑核对，退出码全 0
+- 已提交/已部署：已提交并推送分支、已开 PR #107；未合并、未部署
+- 未完成：合并前置 B1/S2/S3 三项待总监；CSRF_REJECTED 登记待契约负责人
+
+=== RUN COMPLETE ===
