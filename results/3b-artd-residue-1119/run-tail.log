@@ -1,0 +1,23 @@
+我先调用相关技能并读取输入文档，然后盘点仓库结构。技能已加载。现在并行读取输入文档并定位仓库。收到项目 AGENTS.md（fe-gap 任务的旧副本，描述的是 Vue3 时代结构；`web/` React 前端的现状以 origin/main 实际内容为准）。现在确认仓库位置和远程，并读取其他输入文档。基线 `origin/main` = `977427a`。建分支并读取 PR #98 分支上的前端 skill 参考文档。artd 视图结构清楚了。现在拿 web/ 完整页面清单、路由和契约接口列表做对照。契约里没有 auth/login、登录日志等路径 —— 检查 openapi.yaml 是否引用了其他文件或还有别的契约目录。契约清单已拿全。现在看 web/ 现有路由、api 封装和 artd 页面实际调用的接口，做逐页对照。发现历史提交 `065d6ed` 曾交付「运行状态、登录/操作日志、定时任务、系统设置、全局搜索」页面。查它们现在是否还在 main 上。artd 页面全集已拿到。查契约生成的权限/菜单注册表里有哪些已登记但 web 还没页面的菜单项。契约里 `system:task:index` 已注册但无菜单页。查 server 端 `/tasks` 返回形态与是否另有定时任务列表面。盘点结论已清晰（下面汇总）。动手写代码前先读命名规范 v2 和一个现成列表页作为模式基准。模式齐了。看下现有 i18n 词条文件的结构，然后开写页面。查后端任务类型取值，让 mock 数据贴近契约语义。模式全部确认。开始写代码：先建 i18n 词条和页面文件。现在写新文件：i18n 词条、任务中心页、详情抽屉、测试。补上 i18n 缺的 `startTime` 键，然后写主页面。现在写测试文件，然后做 mock/路由的配套修改。`taskSeq` 与新种子冲突，改成从 6 开始。跑类型检查和新页面测试。测试全过。跑 lint 和全量测试。修掉 react-refresh 告警：把状态标签抽成 `TaskStateTag` 组件共用。一个既有测试断言 viewer 的权限清单精确匹配——把我加的 `system:task:index` 补进去。复跑该测试文件确认修复。全绿。起 dev 服务器做浏览器冒烟 + 截图。先看 dev 脚本和 mock 登录方式。启动 dev 服务器（MSW 开启，端口 19101），然后用 Playwright 冒烟。Dev 服务器已在 19101 端口运行。检查 Playwright 可用性并编写冒烟脚本。版本与浏览器不匹配，直接指向已装的 chromium 可执行文件。一个 modal 挡住了点击。看截图确认是什么弹窗。列表渲染正常，只是被公告弹窗挡住了。关掉弹窗再截图。两张截图都达标。再验证访客账号直访 `/system/tasks` 的 403 门禁。403 门禁验证通过。停 dev 服务器，审查完整 diff 后提交。改动全在 `web/src` 内。快速复查新文件内容后提交。PR #106 已创建。现在精确盘点 artd 页面清单写 RESULT.md。核对契约里各资源接口有无，写进盘点表。契约里有个 `/api/admin/v1/scheduled-tasks/{code}`，查一下它是什么——可能和 crontab 相关。工作区干净。写 RESULT.md。全部完成。汇总如下：
+
+## 交付
+
+| 项 | 值 |
+| --- | --- |
+| 分支 | `feat/artd-residue` |
+| 基线 SHA | `977427acc285da074a443e8206309289a9bd94fb` |
+| 最终 SHA | `afdd56e7a2ce396373e51fd3dbadab79476bb595` |
+| PR | [#106](https://github.com/supdger/sandadmin/pull/106) → `main`，未合并 |
+| RESULT | `~/agent-work/assistant/3b-artd-residue-1119/RESULT.md` |
+
+## 盘点结论
+
+artd `src/views` 全量对照契约后，宿主残留页中**唯一有契约接口且 web/ 缺失**的是 `tool/crontab` 的后台任务运行面（`system:task:index` + `/api/admin/v1/tasks`），已实现为 `pages/system/tasks/`；其余页面要么已存在（user/dept/post/role/menu/dict/工作台等），要么契约无接口（附件/缓存/数据库/三类日志/服务器监控/系统配置/代码生成器/忘记密码、crontab CRUD），按规则不做、未改契约、未删 artd 任何文件。
+
+## 验证
+
+- `tsc --noEmit`：0 错；`eslint`：0 错；`vitest`：125 文件 534 通过
+- `naming_check code|notes`：0 FAIL
+- dev 冒烟（19101 端口 + MSW）：列表/详情抽屉/五态标签/下载按钮正常；guest 直访 `/system/tasks` → `/403` 无权限页；1280x800 截图三张在 `shots/`
+
+=== RUN COMPLETE ===
