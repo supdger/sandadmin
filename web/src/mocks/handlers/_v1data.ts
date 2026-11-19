@@ -404,6 +404,7 @@ export function buildMenuTree(): MenuTree {
           { key: 'custom:docs', type: 'link', title: '帮助文档', icon: null, source: { kind: 'custom' }, visible: true, locked: { move: false, hide: false }, url: 'https://docs.example.com' },
           { key: 'system:plugin', type: 'page', title: '插件管理', icon: 'layers', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/plugins' },
           { key: 'system:update', type: 'page', title: '系统更新', icon: 'refresh', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/update' },
+          { key: 'system:task', type: 'page', title: '任务中心', icon: 'clock', source: { kind: 'system' }, visible: true, locked: { move: false, hide: false }, url: '/system/tasks' },
         ],
       },
       {
@@ -506,6 +507,45 @@ export const mockTasks: MockTask[] = [
     finish_time: '2026-06-08T11:20:30+08:00',
     pollsUntilDone: 0,
   },
+  {
+    id: 'task-003',
+    type: 'user.export',
+    state: 'running',
+    progress: 55,
+    stage: 'exporting',
+    result: null,
+    error: null,
+    create_time: '2026-06-10T09:30:00+08:00',
+    start_time: '2026-06-10T09:30:02+08:00',
+    finish_time: null,
+    pollsUntilDone: 3,
+  },
+  {
+    id: 'task-004',
+    type: 'file.cleanup',
+    state: 'queued',
+    progress: 0,
+    stage: 'queued',
+    result: null,
+    error: null,
+    create_time: '2026-06-10T09:35:00+08:00',
+    start_time: null,
+    finish_time: null,
+    pollsUntilDone: 4,
+  },
+  {
+    id: 'task-005',
+    type: 'file.cleanup',
+    state: 'cancelled',
+    progress: 12,
+    stage: 'cancelled',
+    result: null,
+    error: null,
+    create_time: '2026-06-07T16:00:00+08:00',
+    start_time: '2026-06-07T16:00:04+08:00',
+    finish_time: '2026-06-07T16:01:10+08:00',
+    pollsUntilDone: 0,
+  },
 ];
 
 export function findDept(depts: Dept[], id: string): Dept | undefined {
@@ -521,7 +561,7 @@ export function flattenDepts(depts: Dept[]): Dept[] {
   return depts.flatMap((d) => [d, ...flattenDepts(d.children)]);
 }
 
-let taskSeq = 3;
+let taskSeq = 6;
 export function createExportTask(): MockTask {
   const id = `task-${String(taskSeq).padStart(3, '0')}`;
   taskSeq += 1;
@@ -565,6 +605,7 @@ export function pollTask(task: MockTask): MockTask {
 
 // 模块加载时的快照，供测试完整重置被改动的状态。
 const initialUsers = structuredClone(mockUsers);
+const initialTasks = structuredClone(mockTasks);
 const initialPosts = structuredClone(mockPosts);
 const initialRoles = structuredClone(mockRoles);
 const initialDepts = structuredClone(mockDepts);
@@ -587,12 +628,8 @@ export function resetV1Mock(): void {
   mockPosts.splice(0, mockPosts.length, ...structuredClone(initialPosts));
   mockRoles.splice(0, mockRoles.length, ...structuredClone(initialRoles));
   mockDepts.splice(0, mockDepts.length, ...structuredClone(initialDepts));
-  mockTasks.splice(
-    0,
-    mockTasks.length,
-    ...mockTasks.filter((t) => t.id === 'task-001' || t.id === 'task-002'),
-  );
-  taskSeq = 3;
+  mockTasks.splice(0, mockTasks.length, ...structuredClone(initialTasks));
+  taskSeq = 6;
 }
 
 // 聚合器会拍平每个兄弟文件的 default export——数据模块不贡献 handler。
