@@ -71,6 +71,8 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 
 老版 skills 到 1.x 规范的逐条对照、冲突与未拍板事项登记见 `.agents/skills/COVERAGE.md`。
 
+读 delivery-loop、backend-structure、packaging、database 这几份同步 skill 时，以 `.agents/skills/LEGACY-ABSORBED.md` 对应小节为必守补充条款。
+
 配套工具在 `tools/`（发布包不含，见 `.gitattributes`）：
 
 - `tools/skill-sync.sh`：比对 `.agents/skills/` 与上游 `~/.shared-skills/` 是否一致；不一致时列出差异文件，`--pull` 用上游覆盖本仓副本后复核。
