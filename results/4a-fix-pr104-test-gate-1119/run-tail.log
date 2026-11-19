@@ -1,0 +1,31 @@
+I'll start by exploring the task directory and locating the repository.The repo is `~/agent-work/pub-sandadmin` on branch `feat/test-gate` (baseline `ee08b60`). Let me read the rest of the prior RESULT and check the repo state.The untracked Dict tests + doc were created seconds before my task launched — likely another agent working concurrently on `feat/ai-loop-rollback`. To avoid disturbing their working tree, I'll use a separate git worktree for `feat/test-gate`.A concurrent job (`3n-ai-loop-rollback-1119`, pid 85671) is actively working in this repo on `feat/ai-loop-rollback` — those untracked Dict tests are theirs. I'll isolate my work in a separate git worktree on `feat/test-gate`.Now let me read the module sources to plan the tests.Let me read the rest of DictService and the Org dependencies (OrgIdempotency, OrgAudit, OrgInput, OrgSql).The worktree needs dependencies. Let me install them (composer for server, pnpm for web) in the background while I continue exploring.Let me verify sqlite compatibility for the few PG-isms I'll hit (`::text` cast, `CAST AS jsonb`, `RETURNING`, `ON CONFLICT`).Now I'll write the test files. Starting with Dict module.I left a nonsense placeholder line in the test — fixing it.Now the Lifecycle module tests.I'll put the shared lifecycle-table fixture in `tests/Support/` so both Lifecycle and Package tests can reuse it.Now the Notification module tests.Now the Package module tests — starting with `PackageGateTest` (env-based, pure) and `PackageOpsTest`.Let me check the actual filenames under `web/` to exclude, then update `dev-only-paths.txt` and `test-gate.json`.Now let me run the new unit tests.All 88 new tests pass. Now the full unit suite plus phpstan on the new files.phpstan flags `mixed` offset access in my tests. Let me see all errors grouped.`phpstan-phpunit` is installed, so `assertIsArray` narrows. Let me get the per-file error list and fix systematically.The pattern is clear: use `OrgSql::int/str` normalizers (existing convention) plus `is_array` narrowing helpers instead of bare casts. Rewriting the Dict test file cleanly.Fixing LifecycleHttpTest, NotificationHttpTest, NotificationRepositoryTest, and PackageOpsTest for phpstan.phpstan clean, 501 unit tests green. Now the module-test gate and pre-merge --fast.`pre-merge --fast` is fully green. Now the naming check on new files, then the release self-check (the long one) and the Playwright smoke.Two WARN single-letter variables — fixing them rather than documenting.Now run the release self-check (build steps 1–8) in the background, and the Playwright smoke test in parallel.Smoke test passed (13/13 pages). Waiting for the release self-check to finish.Self-check passed all steps including step 6 (`PASS 清单所列路径均不存在`). Let me capture the key log lines for the report.All checks green. Now stage and commit — specific files only, no `git add -A`.Commit is on `feat/test-gate` (8530ce2). Now write RESULT.md and clean up the worktree.Now removing the worktree so `feat/test-gate` isn't locked to my workspace (the commit is already safe on the branch).Done. `feat/test-gate` now has one new commit on top of `ee08b60`: **8530ce2** (`8530ce26e5b0ddc992a5bf1a06c951dacc62e788`), RESULT.md written to `~/agent-work/assistant/4a-fix-pr104-test-gate-1119/RESULT.md`.
+
+## What changed (15 files, +1913)
+
+**1. Release artifact exclusion** — `tools/dev-only-paths.txt` (packaging manifest, not self-check script) gained `rm web/e2e` and `rm web/playwright.config.ts`. Self-check log shows both applied in step 2; step 6 `PASS 清单所列路径均不存在`.
+
+**2. Real Unit tests for the 4 missing modules** — 13 test files + 2 shared fixtures (`LifecycleFixture`, `NotificationFixture`), all on sqlite in-memory with `UserFactory`-backed actors:
+- **Dict** (2 files): exception factories; type source classification incl. ghost-plugin fallback; item counts/`used` tri-state; create/update/remove validation tiers; default-item clearing; sorting; audit payload
+- **Lifecycle** (4 files): `visibleTo` visibility rules; `toApi` serialization shape; `show()` envelope 401/400/404/200 paths; repository hydration edge cases; default actor provider
+- **Notification** (3 files): exception factories; unread count incl. dept-scoped announcements, draft/expired exclusion; mark-read idempotency; HTTP auth/regex/404 validation
+- **Package** (2 files): `PackageGate` env matrix incl. production override; market/installed/plugin ops; guard ordering 401→403→409; upload binary rejection; lifecycle stage ladders; contract-conflict rollback
+
+PG-only dialect paths (`ILIKE`, `::text`, `CAST AS jsonb`, constraint-name mapping) are honestly deferred to Integration with comments — verified sqlite can't parse them.
+
+**3. `tools/test-gate.json`** — threshold stays `80`; added `diff_line_coverage_min_note: "已定（技术总监口径）"` (JSON has no comments; `_note` sibling key doesn't affect the checker).
+
+## Verification (all exit 0)
+
+| Check | Result |
+|---|---|
+| `phpunit --testsuite unit` | `OK (501 tests, 2991 assertions)` — 88 new cases |
+| `phpstan analyse` | `[OK] No errors` (level max) |
+| `pre-merge.sh --fast` | all 8 steps, `pre-merge --fast 全部通过` |
+| `check-module-tests.php` | 8 modules all have Unit+Integration dirs |
+| `build-release.sh --self-check` step 6 | `PASS 清单所列路径均不存在` + classmap PASS → `OK 自检通过` |
+| `pnpm test:smoke` | 13/13 menu routes, `1 passed (21.1s)` |
+| `naming_check.py` | no FAIL/WARN |
+
+Notes: worked in an isolated worktree (main repo had a concurrent agent on `feat/ai-loop-rollback`); worktree removed after commit so the branch is free. Composer's install-time rewrite of `server/webman`/`server/windows.php` was reverted and never staged. Not pushed/merged per scope; Integration suite remains gated on `SAND_TEST_DB_URL` as designed.
+
+=== RUN COMPLETE ===
