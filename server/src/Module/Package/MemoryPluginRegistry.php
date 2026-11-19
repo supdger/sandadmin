@@ -28,15 +28,24 @@ final class MemoryPluginRegistry implements PluginRegistry
             return;
         }
         $dir = dirname($stateFile);
-        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+        if (!is_dir($dir) && (file_exists($dir) || !mkdir($dir, 0755, true)) && !is_dir($dir)) {
             throw new \RuntimeException('无法创建演练账本目录：' . $dir);
         }
-        if (!isset(self::$locks[$stateFile])) {
-            $lock = fopen($stateFile . '.lock', 'c');
-            if ($lock === false || !flock($lock, LOCK_EX)) {
-                throw new \RuntimeException('无法锁定演练账本：' . $stateFile);
-            }
-            self::$locks[$stateFile] = $lock;
+        // 按锁文件身份去重，不按路径文本：同一文件换个写法（如 ./、符号链接）
+        // 再实例化不能二次 flock 把自己锁死——flock 不可重入
+        $lockPath = $stateFile . '.lock';
+        $lock = fopen($lockPath, 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('无法锁定演练账本：' . $stateFile);
+        }
+        $lockKey = realpath($lockPath);
+        if (is_string($lockKey) && isset(self::$locks[$lockKey])) {
+            fclose($lock);
+        } elseif (flock($lock, LOCK_EX)) {
+            self::$locks[is_string($lockKey) ? $lockKey : $lockPath] = $lock;
+        } else {
+            fclose($lock);
+            throw new \RuntimeException('无法锁定演练账本：' . $stateFile);
         }
         if (!is_file($stateFile)) {
             return;
