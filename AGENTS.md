@@ -12,7 +12,7 @@ SandAdmin 宿主：SaiAdmin 6.x 的独立 PostgreSQL fork，包含可运行的 W
 - `tests/`：宿主验证脚本（`http-error-data-test.php`）。
 - `catalog.json`：插件目录；`RELEASE-CHECKLIST.md`：发布清单。
 
-注意：核心业务后端与插件安装器不在本仓——由 `supdger/sand-core`、`supdger/sand-package` 经 Composer 安装到 `server/plugin/`（运行目录，非源码权威）。本仓无 migrations；新增插件表前缀 `sand_<域>_*`，历史 `sa_*` 表保留原名不改。
+注意：核心业务后端与插件安装器不在本仓——由 `supdger/sand-core`、`supdger/sand-package` 经 Composer 安装到 `server/plugin/`（运行目录，非源码权威）。宿主迁移在 `server/database/migrations/`（0001–0003 基线 + 增量，增量带同名 `.down.sql` 回退文件），由统一迁移执行器 `server/bin/migrate.php` 按账本 `sand_system_schema_migration` 执行；新增插件表前缀 `sand_<域>_*`，历史 `sa_*` 表保留原名不改。
 
 ## 命名与注释规范
 
@@ -28,7 +28,7 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 
 - 路径全小写连字符、资源用复数；JSON/查询参数小写蛇形、与列同名。
 - 枚举小写蛇形（任务状态 `queued`/`running`/`succeeded`/`failed`/`cancelled`）；错误码大写蛇形；权限码 `域:资源:动作`。
-- 迁移文件 `<序号>_<动词>_<对象>`，已发布不改名、不改内容（核心 SQL 在 sand-core 包内，本仓不写迁移）。
+- 迁移文件 `<序号>_<动词>_<对象>.sql`，增量迁移配同名 `<basename>.down.sql` 回退文件（基线 0001–0003 不带回退），已发布不改名、不改内容。
 
 **代码**
 
