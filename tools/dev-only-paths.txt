@@ -72,6 +72,8 @@ rm web/src/test
 rm web/src/**/*.test.ts
 rm web/src/**/*.test.tsx
 rm web/public/mockServiceWorker.js
+rm web/e2e
+rm web/playwright.config.ts
 
 # ── sandadmin-artd/ 前端：devSurface 隐藏页机制与测试代码 ────
 rm sandadmin-artd/src/utils/devSurface.ts

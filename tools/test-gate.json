@@ -1,3 +1,4 @@
 {
-    "diff_line_coverage_min": 80
+    "diff_line_coverage_min": 80,
+    "diff_line_coverage_min_note": "已定（技术总监口径）"
 }
