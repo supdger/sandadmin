@@ -1,0 +1,31 @@
+我先调用相关技能并读取命名规范，然后开始处理。HEAD 确认为 927b7f3，工作区干净。现在看目标文件和检查脚本。先跑一次检查脚本，确认全部命中点。只有 OrgActorSource.php 两处命中。按任务要求改写注释，不点名 `DevPrincipal`。改完。重跑检查并对 `server/src` 手动扫一遍所有 dev-only 符号。检查脚本已 PASS。grep 命中的其余文件应该都在 dev-only 清单（整文件剔除或哨兵段剔除）里，确认一下。其余命中都在 `rm`/`strip` 登记项内，无新增 dev-only 引用。现在跑验证套件，先看 phpunit 套件名和 pre-merge 脚本内容。看下 check-dev-refs.php 的文件枚举口径（git ls-files 还是文件系统），以及 CI 里 release self-check 第 7 步对应什么。CI 的 release self-check 即 `build-release.sh --self-check`，在剔除后的发布树上跑 `check-dev-refs.php --dir`。现在跑本地验证套件。Unit/Contract 均通过。接着跑 PHPStan 和 pre-merge --fast。全部本地门禁通过。按命名规范跑 `naming_check.py notes --diff` 自查新注释，然后提交。自查通过。提交并推送（普通 push，已获授权）。推送成功。写 RESULT.md。完成。PR #100 发版自检失败已修复。
+
+**做了什么**：`server/src/Infra/Mcp/Biz/OrgActorSource.php` 文档注释第 18、21 行的 `DevPrincipal` 改写为「开发期身份」，纯注释改动，代码零变更。
+
+**全仓复查**：`server/src/` 全量扫 dev-only 符号表，其余命中全部在 `dev-only-paths.txt` 已登记的 `rm` 整文件剔除项或 `strip` 哨兵块内，无未登记引用；未往任何豁免/清单/CI/门禁脚本加东西。
+
+**验证**（全绿）：
+- `php tools/check-dev-refs.php` → 0，`PASS（1437 个文件）`（修复前报 2 处 DevPrincipal@18/@21）
+- `phpunit --testsuite unit` → 0，432 tests / 2868 assertions
+- `phpunit --testsuite contract` → 0，243 tests / 608 assertions（100 incomplete 为环境跳过）
+- `phpstan analyse` → 0，No errors
+- `tools/pre-merge.sh --fast` → 0，7/7 步全过
+- `naming_check.py notes/terms --diff` → 0，无 FAIL/WARN
+
+**已推送**：`927b7f3..44aaff4` → `origin/feat/mcp-business-tools`，新 SHA `44aaff41fccca667b3c22a4702f0da13d8a7d75d`。
+
+**pre-merge --fast 为何没拦住**：它第 4 步跑的就是同一个 check-dev-refs.php，跑过必拦——但它是手动脚本，`.git/hooks` 只有 sample、`core.hooksPath` 未设置、composer/仓库内无任何钩子接入，927b7f3 推送前没人跑它，最终由 CI 的 `build-release.sh --self-check`（在剔除后的发布树上 `check-dev-refs.php --dir`）拦下。
+
+RESULT.md：`~/agent-work/assistant/2g-mcp-devref-fix-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：SWE-2 High（sessions.db 未查到 generation_model 记录，按系统标识报告）
+- 子 Agent：未使用
+
+## 任务记录
+- 已修改：`server/src/Infra/Mcp/Biz/OrgActorSource.php`（仅注释 2 行）；新建 RESULT.md（任务目录，不在仓库内）
+- 已验证：check-dev-refs PASS、phpunit unit 432 通过、contract 243 通过、phpstan 无错、pre-merge --fast 全过、naming_check 无 FAIL
+- 已提交/已部署：已提交并普通推送 `44aaff4` 到 feat/mcp-business-tools；未部署（CI 状态待服务端跑出）
+- 未完成：无
+
+=== RUN COMPLETE ===
