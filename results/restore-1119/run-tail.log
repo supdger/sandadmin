@@ -1,0 +1,27 @@
+我先读上一轮任务记录和相关目录，确认 4 个文件和 6 段补文的范围。注意任务明确"不开下级会话"，所以本轮我直接执行，不派子代理。明白背景了。上一轮把 6 段补文同时写进了仓内 `.agents/skills/` 4 个文件和 `~/.shared-skills/` 的 4 个同步副本。现在要：恢复共享副本原文 → 把补文挪到不参与 skill-sync 比对的 1.x 专属文件 → 重跑校验 → 提交推送。
+
+先看仓内结构和 skill-sync 比对范围，确定"不参与比对"的落点在哪。skill-sync 是逐文件 sha256 全量比对 4 个 skill 目录——所以"不参与比对"的位置必须在 `.agents/skills/` 下那 4 个目录之外。先看仓内实际结构。`.agents/skills/` 下只有 4 个被比对目录 + COVERAGE.md（不受比对）。看更早一轮的 RESULT.md 和 COVERAGE.md，理解"1.x 专属 skill 文件"指什么。看一下上一轮提交 b7bc4c5 的实际 diff——确认 6 段补文在 4 个文件里的确切形态。现在 6 段补文的确切内容都拿到了。关键问题是：同步文件里留指针行会破坏 skill-sync 全量比对。先查上游 4 个 skill 目录与仓内 444bcd6 版本是否一致（即"写入前"基线），并找"1.x 专属 skill 文件"的候选位置。上游 4 文件与 444bcd6（写入前）版本的差异恰好就是这 6 段补文，干净。先看完 skill-sync.sh 尾部，确认有没有豁免机制。skill-sync 无豁免机制——只有 4 个具名目录全量 sha256 比对。关键设计问题：被比对文件里留指针行会再次破坏 sync。先找任务上下文里对"1.x 专属 skill 文件"的既有定义。再看一下队列/交接目录里有没有对"1.x 专属 skill 文件"落点的说明。上下文找齐了，情况明确：
+
+- **共享副本现状**：`~/.shared-skills` 4 个文件 vs 仓内 `444bcd6`（写入前基线）的 diff 恰好就是那 6 段补文，可精确恢复。
+- **skill-sync 机制**：只比对 4 个具名 skill 目录的逐文件 sha256，无豁免；`.agents/skills/` 根级文件（如 COVERAGE.md）不参与比对。
+- **关键推论**：比对目录内的文件留任何指针行都会再次 FAIL——所以"原文件里只留一行指向新位置"在同步副本内不可实现；可行落点是：同步文件恢复原文，指针落在 COVERAGE.md 6 行（新位置列）+ 新文件的各节原落点标注。这是不改共享副本、不改脚本的唯一自洽实现，我会在 RESULT.md 写明此处置依据。
+
+建任务清单开工。diff-before.txt 已存——4 个文件的差异恰好是 6 段补文。现在恢复共享副本到写入前原文。共享副本已恢复（diff-after.txt 证明与写入前逐字节一致）。接下来 git fetch 确认分支头，再恢复仓内同步副本并新建补遗文件。分支头确认 `b7bc4c5` 与远端一致。现在恢复仓内 4 个同步文件到写入前原文（`git show 444bcd6` 写回），并读 COVERAGE.md 缺口小结尾部以确定改法。4 个仓内同步文件已恢复原文。现在新建不参与比对的 1.x 专属文件，收编 6 段补文原文。新建补遗文件完成。现在更新 COVERAGE.md：缩写表加 `LA`，6 行新位置列、缺口小结落点列和说明文字跟着改。COVERAGE.md 改完。现在跑校验：skill-sync、naming_check notes、pre-merge --fast。全部校验通过。提交前复核 diff 范围。Diff 干净，只动 `.agents/skills/`。逐个 add 并提交。推送成功 `b7bc4c5 → 685b771`。写 RESULT.md 收尾。全部完成。摘要：
+
+- **共享副本恢复**：`~/.shared-skills` 4 个文件已恢复到写入前原文（基线 = 仓内 `444bcd6`），`diff-before.txt`/`diff-after.txt` 存于本任务目录，恢复后逐字节一致。
+- **补文挪位**：仓内 4 个同步副本同步还原；6 段补文挪入新建的 `.agents/skills/LEGACY-ABSORBED.md`（根级、不参与 skill-sync 比对），COVERAGE.md 6 行及缺口小结落点改指 `LA` §n。
+- **口径说明**（已写进 RESULT.md）：同步文件内无法留指针行——skill-sync 逐文件 sha256 全量比对，任何额外行会再次 FAIL 并被 `--pull` 冲掉；指针改由 LEGACY-ABSORBED 各节「原落点」标注 + COVERAGE 新位置列承担。
+- **校验**：`skill-sync.sh` exit 0（4×OK）；`naming_check.py notes` exit 0；`pre-merge.sh --fast` exit 0（7/7，不需数据库）。
+- **提交**：`685b77178e443cb13ab7368ceaf79f20c67cab31`，普通 push 到 `docs/1x-skills`，未合并。
+
+## 模型记录
+- 主 Agent：SWE-2 / high
+- 子 Agent：未使用（任务禁开下级会话）
+
+## 任务记录
+- 已修改：`~/.shared-skills` 4 文件恢复原文；仓内 `.agents/skills/` 6 文件（4 还原 + LEGACY-ABSORBED.md 新增 + COVERAGE.md）；交付 `RESULT.md`、`diff-before.txt`、`diff-after.txt`
+- 已验证：`skill-sync.sh` 0、`naming_check.py notes` 0、`pre-merge.sh --fast` 0（7/7）
+- 已提交/已部署：已提交并推送 `docs/1x-skills`（685b771）；未合并、未部署
+- 未完成：无
+
+=== RUN COMPLETE ===
