@@ -1,0 +1,31 @@
+I'm handing the read-only evidence gathering to a SWE-2 scout subagent. I'll make the call myself and write the conclusion.**可合并**
+
+PR #106 是 supdger/sandadmin 仓库的 `feat(web): artd 残留宿主页面迁移——任务中心`。审计全程只读，结论写在 [RESULT.md](file:///Users/supdger/agent-work/assistant/6a-audit-pr106-1119/RESULT.md)。
+
+- **范围：** 与描述一致。共 11 个文件，都在 `web/src/` 下，web 之外没有改动，也没有新增依赖。页面只调用契约里已有的三个 `/tasks` 接口。
+- **安全：** 没发现问题。没有 innerHTML、eval、console 输出或硬编码密钥；没有放宽任何权限检查，新路由还加了 `system:task:index` 权限码。
+- **门禁文件：** 符合只减不增。没有改 CI、门禁脚本或任何白名单/豁免文件；`eslint-disable`、`ts-ignore`、`any` 的新增数都是 0。
+- **老板已定事项总表：** 不冲突，对照了第 10、14、17、24、40 条和待确认第 4 条。
+- **`gh pr checks 106`：** 6 项全部通过。
+
+**合并前要确认一件事：** 审计时 GitHub 的可合并状态显示 `UNKNOWN`，合并时要看到它显示没有冲突。
+
+**后续可以处理，不影响合并：**
+- **权限比契约严：** 契约规定没有 `system:task:index` 的人可以看自己发起的任务，但前端路由要求必须有这个权限码，这些人在界面上看不到自己的任务。
+- **菜单可能缺：** "任务中心"菜单只加在了 mock 菜单里，后端真实菜单有没有这一项没核实到；没有的话只能直接输入网址进入。
+- **旧文件还在：** 标题写"迁移"，但 artd 的旧 crontab 页没删，PR 正文已说明。旧页是定时任务的增删改查，新页是后台任务运行情况，两者不完全等价。
+- **两个小问题：** 下载的兜底文件名固定以 `-result.csv` 结尾；任务状态的类型转换没加校验。
+
+**证据局限：** 我没有在本地跑测试或构建（本地工作区在别的分支），测试结论来自 CI 结果和 PR 自报。
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium，来自 model.txt），sessions.db 没有查，实际模型未记录
+- 子 Agent：dv-scout（读 diff、跑 gh 只读命令）= 请求 SWE-2 档案 → 实际模型未记录
+
+## 任务记录
+- 已修改：只写了 `~/agent-work/assistant/6a-audit-pr106-1119/RESULT.md`
+- 已验证：`gh pr view/diff/checks 106`、`gh api contents?ref=feat/artd-residue`，都是只读
+- 已提交/已部署：否（没有合并、推送或评论）
+- 未完成：没有
+
+=== RUN COMPLETE ===
