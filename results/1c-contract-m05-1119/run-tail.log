@@ -1,0 +1,38 @@
+我先做派发前的入口核查：读 RESULT.md 找到 v4 文件和仓库路径。RESULT.md 里没直接写 M-05。再做一次入口核查：看合同2任务的 prompt、repo 目录和我的任务说明。已确认入口：
+
+- 前序任务 RESULT 未记录 M-05 细节；v4 候选文件在 `~/agent-work/grokbot/review-1117-r3/顶层架构设计-v4.md` 和 `~/agent-work/grokbot/1x-gap-review/v4修订轮待并入.md`。
+- sandadmin 本地克隆在 `~/agent-work/grokbot/contract2-1117/repo/sandadmin`。
+- 任务 A 禁止条款已拿到（/Users/code/ 禁区、门禁文件只减不增、不强推不合并等）。
+
+按任务要求第一步：先派 `dv-scout` 只读检索 M-05 四条规则的确切定义，找不到就停下回报。`dv-scout` 找到了 M-05 四条规则的权威定义：
+
+- **出处**：`~/agent-work/grokbot/audit-fable-1117/遗漏.md:52`（必改），v4 设计稿多处细化（`顶层架构设计-v4.md:33/217/1147/1290-1291/1378`）。
+- **四规则**：①每连接一本同结构迁移账本、锁按连接加；②outbox 随业务库、relay 按连接登记拉取；③审计经事件/队列异步落内核、调用记录留插件库；④连接预算公式加「插件命名连接数」。
+- **注意**：这是「命名连接」（named DB connection）规则，不是命名风格规则；scout 提示它是原则级规则，需要自行选定静态检查点——这正是本任务的设计难点。
+- sandadmin 旧克隆在 feat 分支且有未提交噪音，本任务需从 origin/main 全新开分支。
+
+规则存在且可实现（需把机制规则落到契约检查点）。派 `dv-executor` 做设计+实现+测试+PR：实现完成：PR #101（`feat/contract-naming-m05` @ `320de4b`，基线 `977427a`）。按编排规矩，交付前必须独立验收——本任务未命中关键门槛，派 `dv-verifier-swe` 在未参与实现的上下文里复核：验收通过。我查一下模型记录，然后写任务目录的 RESULT.md。记录查不到，按规矩写"未记录"。写 RESULT.md：任务完成。汇总：
+
+**M-05 四条规则已定位并实现**——权威定义在 `~/agent-work/grokbot/audit-fable-1117/遗漏.md:52`（非自编），v4 细化在 `顶层架构设计-v4.md:33/217/1147/1290-1291/1378`。注意「命名连接」是插件独立 DB 连接，不是命名风格。
+
+**交付**：
+- PR https://github.com/supdger/sandadmin/pull/101（`feat/contract-naming-m05` → main，未合并），基线 `977427a`，最终 `320de4b`
+- 设计：契约片段新增插件专用 `x-connections` 段，`ContractDoc::parseConnections` 校验 `ledger=per_connection`、`outbox=business_database|none`+`outbox_relay`、`audit_sink=kernel_async|none`+`audit_records=local`、`connections_per_process≥1`；新产物 `connection-budget.generated.json` 透出预算明细并入完整性校验
+- 19 个新单测（14 失败用例 + 通过用例）+ KernelApi/CollectPlugins 各 +2；`contract/openapi.yaml`、门禁白名单/基线/CI 零改动
+- 现有插件契约：**无违规**（仓内插件无片段、sand-workflow 未声明命名连接）
+- 独立验收 dv-verifier-swe：**通过**（含反证实跑）
+- RESULT.md：`~/agent-work/assistant/1c-contract-m05-1119/RESULT.md`
+
+**遗留**：规则 1-3 是声明层校验，执行器/relay/审计的运行期行为需内核落地时另验；规则 4 为预算透出，阈值核对属容量评审。详见 RESULT.md 第八节。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（sessions.db 无 generation_model 记录，实际记录未查到）
+- 子 Agent：dv-scout=SWE-2 → 未记录；dv-executor=SWE-2 → 未记录；dv-verifier-swe=SWE-2 → 未记录
+
+## 任务记录
+- 已修改：sandadmin `feat/contract-naming-m05`（10 文件，+682/-3，见 RESULT.md 第三节）；任务目录 `RESULT.md`
+- 已验证：phpunit unit 429/contract 242/NamedConnection 19 全 0 失败；phpstan 0 错误；contract-build --check PASS；pre-merge --fast 7/7；naming_check FAIL=0（WARN×1 已说明）；反证 FAIL 实跑确认
+- 已提交/已部署：已提交并推送分支、开 PR #101（未合并）；未部署
+- 未完成：Integration 套件未跑（本机无 itest 库配置）；运行期侧验收属后续任务
+
+=== RUN COMPLETE ===
