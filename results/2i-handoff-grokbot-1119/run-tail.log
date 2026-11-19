@@ -1,0 +1,19 @@
+I'll handle this directly (the task forbids sub-sessions). First, let me check the source file and the grokbot directory.Source file exists. Now I'll check whether the destination exists and look for grokbot's main handoff file.Destination doesn't exist — safe to copy. Now checking the handoff candidates (`account-handoff` dir, `QUEUE-1117.txt`, and `devin-queue`).Let me search more specifically for handoff/readme-style files grokbot reads at startup.Let me check `devin-queue/wp-README.md` and how grokbot tasks get launched (to identify what it reads first).Found a `先读我.md` inside `account-handoff/account-handoff/` — the strongest "read first" candidate. Let me verify it's grokbot's main handoff file.`先读我.md` is for new-account import, not grokbot's daily startup. Let me check how grokbot is actually launched to find what it reads first.Let me search for files that mention "grokbot" or serve as the bot's operating instructions.Checking the small operational docs in devin-queue for what grokbot reads at startup.Let me check for the most recently modified files at the top level — the active handoff/status file grokbot uses.`QUEUE-1117.txt` is the most recently touched top-level file — the live handoff/queue status. Let me check its tail and the dispatch template to confirm it's the main file grokbot works from.QUEUE-1117.txt is clearly the live handoff/queue state file. Let me verify it's referenced as the thing grokbot reads — checking recent task prompts and the 进度.md handoff instruction.I now have the full picture. The Grok bots' working dir is `~/agent-work/grokbot`, and `QUEUE-1117.txt` at its root is the live session-to-session handoff/status file (most recently modified, dated entries recording what's running and what to start next — the "交接状态" file the 技术总监 bot maintains and reads when resuming work). The `先读我.md` inside `account-handoff/` is a one-time new-account import doc, already consumed on 11-11.
+
+Executing the three steps now: copy, append one line to QUEUE-1117.txt, hash verification.Copy verified — hashes match. Now writing RESULT.md.完成。三步全部执行：
+
+1. **复制**：`~/agent-work/assistant/q/docs-handoff/进度汇报口径-给grokbot-1119.md` → `~/agent-work/grokbot/交接-进度汇报口径-1119.md`（目标原先不存在，未覆盖）。SHA-256 两边一致：`84cf4eb28f788ce2550269d3adc44dc0f4323520512e10bc114b1d44c77a204e`。
+2. **追加**：在 `~/agent-work/grokbot/QUEUE-1117.txt` 末尾追加一行「给老板报进度一律照 交接-进度汇报口径-1119.md（助理 2026-11-19）」，只加这一行。判断依据：QUEUE-1117.txt 是 grokbot 目录根下唯一活跃的主交接状态文件（技术总监跨会话维护队列与下一步，最近更新 11-18 12:08）；`account-handoff/` 里的 `先读我.md` 是 11-10 新号一次性导入说明，已用完，未改。
+3. **RESULT.md**：已写入 `~/agent-work/assistant/2i-handoff-grokbot-1119/RESULT.md`，含复制路径、哈希、追加目标及判断理由。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（CLI 日志 resolved_model_uid=swe-2-high）
+- 子 Agent：未使用（任务禁止开下级会话）
+
+## 任务记录
+- 已修改：`~/agent-work/grokbot/交接-进度汇报口径-1119.md`（新建复制）；`~/agent-work/grokbot/QUEUE-1117.txt`（末尾追加 1 行）；`RESULT.md`（新建）
+- 已验证：`shasum -a 256` 源与目标哈希一致；`tail` 确认追加行在文件末尾
+- 已提交/已部署：否（无仓库改动）
+- 未完成：无
+
+=== RUN COMPLETE ===
