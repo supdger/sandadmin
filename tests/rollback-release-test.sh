@@ -98,6 +98,17 @@ SHA="$(shasum -a 256 "$DIST_C/sandadmin-v1.tar.gz" | awk '{print $1}')"
 printf 'v1\tsandadmin-v1.tar.gz\t%s\t2026-11-20T00:00:00Z\n' "$SHA" > "$DIST_C/releases.txt"
 expect "dist 校验通过退出码" 0 "$(run --dist "$DIST_C")"
 
+# 8b. 同版重建追加两条记录时按最后一条校验
+DIST_D="$WORK/dist-rebuilt"
+mkdir -p "$DIST_D"
+echo "pkg-v1-rebuilt" > "$DIST_D/sandadmin-v1.tar.gz"
+printf 'v1\n' > "$DIST_D/previous"
+SHA_LAST="$(shasum -a 256 "$DIST_D/sandadmin-v1.tar.gz" | awk '{print $1}')"
+printf 'v1\tsandadmin-v1.tar.gz\t%s\t2026-11-19T00:00:00Z\n' \
+    "0000000000000000000000000000000000000000000000000000000000000000" > "$DIST_D/releases.txt"
+printf 'v1\tsandadmin-v1.tar.gz\t%s\t2026-11-19T01:00:00Z\n' "$SHA_LAST" >> "$DIST_D/releases.txt"
+expect "同版两条记录取最后一条" 0 "$(run --dist "$DIST_D")"
+
 # 9. --root 的 current 不是符号链接拒绝
 ROOT_F="$WORK/root-notlink"
 mkdir -p "$ROOT_F/releases/v1"

@@ -25,7 +25,7 @@ TARGET=""
 DRY_RUN=0
 
 usage() {
-    sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 fail() {
@@ -74,7 +74,8 @@ if [ -n "$DIST_DIR" ]; then
     [ -n "$VERSION" ] || fail "上一版记录为空：$PREV_FILE"
     PKG="$DIST_DIR/sandadmin-$VERSION.tar.gz"
     [ -f "$PKG" ] || fail "上一版制品不存在：$PKG"
-    RECORDED="$(awk -v v="$VERSION" '$1 == v {print $3; exit}' "$DIST_DIR/releases.txt" 2>/dev/null || true)"
+    # 同版重建会追加新行，盘上 tar 对应最后一次登记，取最后一条
+    RECORDED="$(awk -v v="$VERSION" '$1 == v {rec = $3} END {print rec}' "$DIST_DIR/releases.txt" 2>/dev/null || true)"
     [ -n "$RECORDED" ] || fail "releases.txt 未登记版本 $VERSION"
     ACTUAL="$(shasum -a 256 "$PKG" | awk '{print $1}')"
     [ "$ACTUAL" = "$RECORDED" ] || fail "sha256 不符：releases.txt 登记 ${RECORDED}，实际 $ACTUAL"
@@ -121,6 +122,9 @@ fi
 # 链接移进去，rename(2) 才是替换符号链接本身，经 php 调（本仓必装）
 TMP_LINK="$ROOT_DIR/.current.new.$$"
 ln -sfn "releases/$TARGET" "$TMP_LINK"
-php -r 'rename($argv[1], $argv[2]) || exit(1);' "$TMP_LINK" "$ROOT_DIR/current"
+if ! php -r 'rename($argv[1], $argv[2]) || exit(1);' "$TMP_LINK" "$ROOT_DIR/current"; then
+    rm -f "$TMP_LINK"
+    fail "current 重指到 releases/$TARGET 失败"
+fi
 echo "OK current → releases/$TARGET"
 echo "请按运维流程重启/重载服务；本脚本不碰数据库、不执行迁移回退"
