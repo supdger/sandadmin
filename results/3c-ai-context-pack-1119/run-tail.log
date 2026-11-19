@@ -1,0 +1,20 @@
+收到任务。先调用相关 skill 并定位仓库与输入文件。仓库在 `~/agent-work/pub-sandadmin`，当前在 `feat/test-gate` 分支。先检查工作区状态并 fetch。工作区干净。基线 SHA：`977427acc285da074a443e8206309289a9bd94fb`。开分支并看仓库结构。已定事项 21/22 明确：框架与插件分开、MCP 双向在框架层。现在看契约与生成产物结构。约定清楚。看 PR #98 分支上的 skill 对这类打包的期望。检查 openapi 中 x-mcp 在接口上的用法，以及 ErrorCodeRegistry 的形状。解析管线可用（100 ops / 61 errors / 0 problems）。写代码前先读命名与注释规范。规范已读。设计定型：`tools/ai-context-pack.php`（PHP，复用 `ContractDoc` 解析器），默认输出到已被 gitignore 的 `dist/ai-context-pack.md`，带 `--self-check` 自检与 `--max-bytes` 体积上限。开始写。补上任务要求的「路由」分节（当前漏了生成路由表）。路由表里 handler 丢了命名空间（生成文件用 `use` 导入短名）。补上 use 解析还原 FQCN。改用 `SourceHash` 同一套哈希口径，并把「产物头记录的源哈希 = 重算值」加进一致性核对。自检通过且哈希口径对齐（`a8cf8b7c…`）。复查命名并跑快门禁。门禁全过。提交并开 PR。PR #108 已开。写 RESULT.md 到任务目录。完成。交付摘要：
+
+- **PR**：https://github.com/supdger/sandadmin/pull/108 （`feat/ai-context-pack` → `main`，未合并，mergeable）
+- **基线 SHA**：`977427acc285da074a443e8206309289a9bd94fb`；**最终 SHA**：`32249869d4f6ad061be2eea6fb7f9b89394d57cd`
+- **改动**：新增 `tools/ai-context-pack.php`（打包 + `--self-check`）；`.gitattributes` 追加一行 export-ignore。其余文件零改动
+- **产出**：`dist/ai-context-pack.md`（已 gitignore），28,712 字节/326 行，覆盖 100 接口、100 路由、61 错误码、4 MCP 工具，含权限树/树外码/高危码分节
+- **验证**：`--self-check` exit 0；`pre-merge.sh --fast` 7 项全过（含 PHPUnit 408、PHPStan）；naming_check 0 FAIL 0 WARN
+- **RESULT.md**：`~/agent-work/assistant/3c-ai-context-pack-1119/RESULT.md`，含用法、样例、退出码、待 #98 合并后补的 skill 行
+
+## 模型记录
+- 主 Agent：SWE-2 / High（任务书禁止开下级会话，主代理直接执行）
+- 子 Agent：未使用
+
+## 任务记录
+- 已修改：`tools/ai-context-pack.php`（新增）、`.gitattributes`（追加一行）；任务目录 `RESULT.md`
+- 已验证：`--self-check`、脚本生成、`pre-merge.sh --fast`、`naming_check.py code/notes/terms`、PR #108 OPEN/MERGEABLE
+- 已提交/已部署：已提交并推送分支、PR 已开未合并；未部署
+- 未完成：skill 引用行待 PR #98 合并后补（已写入 RESULT.md）
+
+=== RUN COMPLETE ===
