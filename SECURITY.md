@@ -21,8 +21,8 @@
 
 - 首选渠道：GitHub Private Vulnerability Reporting——本仓页面
   Security → Advisories → Report a vulnerability，报告内容仅维护方可见。
-- 备用渠道：安全联系邮箱 `security@example.invalid`（占位，开通后更新为真实地址；
-  以 `/.well-known/security.txt` 的 Contact 为准）。
+- 备用渠道：`/.well-known/security.txt` 列出的 Contact；专用安全邮箱开通后
+  写入该文件并随版本更新，开通前以 GitHub 渠道为准。
 
 报告请尽量附上：受影响版本、复现步骤、影响面、是否已有公开利用。
 
