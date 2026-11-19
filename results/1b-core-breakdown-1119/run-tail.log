@@ -1,0 +1,59 @@
+Main-agent note: the user's instruction says "不开下级会话", so I'll do this myself with read-only commands and only write RESULT.md.I've written `~/agent-work/assistant/1b-core-breakdown-1119/RESULT.md`. It holds the list for point 1 and 17 task texts for point 2, ready to queue. I didn't change any repository, start any database, or open a PR.
+
+**Paths:** the `/workspace/...` paths don't exist on this Mac, so I read the actual copies instead:
+- `~/agent-work/grokbot/review-1117-r3/` for v4, 鉴权P0-v4 and 待老板确认.
+- `~/agent-work/grokbot/plan-xref-1117/老板已定事项总表.md` for the decisions list.
+- The f1 base of 57–60 person-days has no per-item breakdown in v4, so I took its 21 items from `1x-gap-review/缺口检查.md:639–659`.
+- For the code I used the local `origin/main` snapshot at `977427a` (from 11-18; I didn't fetch). Every task text tells the worker to fetch first and record the real base.
+
+**Point 1 (§1 of RESULT.md):**
+- Most rows that aren't done need a database, need DDL, or touch an undecided item: MySQL version, two-factor scope, internationalisation, or the CLA/DCO and privacy wording that needs legal.
+- Some rows already have work in flight, so I didn't write tasks for them:
+  - MCP service remainder: task 1a, currently running.
+  - M-05 naming rules: task 1c, queued.
+  - PackageOps: PR #94/#97 with audit 1d.
+  - J-1 interfaces: PR #96.
+- Two items were delivered and independently accepted in #86 but aren't credited in the progress tally: the settings panel and the front-end part of the lock screen. The tally could add them.
+
+**Point 2 (§2): 17 tasks with no database and no undecided items, largest first.** All use SWE-2 (leave model.txt empty).
+
+| Order | Task | Remaining days | Can it start now? |
+|---|---|---|---|
+| 1 | 2-A key management + encryption service | 2–3.5 | Yes |
+| 2 | 2-B test pass/fail rules | 1.5–3 | Yes; first in the gate group |
+| 3 | 2-C "AI changes code" loop, no-DB part | 1.5–3 | After 2-B |
+| 4 | 2-D security documents | 1.3–2.5 | Yes |
+| 5 | 2-E Excel import base + formula-injection escaping | 1.2–2 | After 1c is merged |
+| 6 | 2-H middleware chain startup guard | 1–2 | After 2-G |
+| 7 | 2-G HTTP security middleware | 1–1.8 | Yes; first in the HTTP group |
+| 8 | 2-H2 audit write interfaces | 1–1.5 | After 1a is merged |
+| 9 | 2-I move remaining artd pages to web/ | 0.5–2 | Yes |
+| 10 | 2-K gate self-protection | 0.7–1.5 | After 2-C |
+| 11 | 2-J log redaction + SQL concatenation check | 0.7–1 | After 2-K |
+| 12 | 2-L outbound request guard (SSRF + certificates) | 0.5–1 | After 2-G |
+| 13 | 2-M TypePHP CI job | 0.5–1 | After #81 is merged |
+| 14 | 2-N snowflake ID generator | 0.3–0.7 | Yes |
+| 15 | 2-O AGENTS.md rewrite | 0.5 | After #98 is merged |
+| 16 | 2-P single-node file storage exception | 0.3–0.5 | After 2-H |
+| 17 | 2-Q AI context pack script | 0.3–0.5 | Yes |
+
+**Shared files:**
+- **Gate group** (2-B → 2-C → 2-K → 2-J → 2-M) all edit `tools/pre-merge.sh`, so they must run one after another.
+- **HTTP group** (2-G → 2-L → 2-H → 2-P) share `config/security.php`, `config/middleware.php` and `bootstrap`, so they also run in order.
+- 2-A, 2-D, 2-I, 2-N and 2-Q touch separate files. Within the two-slot limit, any of them can run alongside one task from either group.
+
+I suggest a separate read-only Opus security audit after 2-A, 2-H and 2-L land. I haven't written those audit tasks.
+
+The progress tally at `progress-1119/RESULT.md` should be updated for the two items above. Two other rows have existing code but no acceptance record (scheduler, gate tools). They need a read-only check before their remaining work can be sized, and I didn't put numbers on them.
+
+## 模型记录
+- 主 Agent：未记录（这一轮没有查 sessions.db；任务目录 model.txt 写的是 claude-opus-5-5-medium，那只是请求的配置）
+- 子 Agent：未使用（任务要求不开下级会话）
+
+## 任务记录
+- 已修改：`~/agent-work/assistant/1b-core-breakdown-1119/RESULT.md`（新建）
+- 已验证：RESULT.md 共 755 行，`RUN COMPLETE` 出现 17 次，对应 17 个任务；`git status` 确认 pub-sandadmin 仓库没有改动
+- 已提交/已部署：否
+- 未完成：无；需要老板或总监决定的事项已在 RESULT 里列出
+
+=== RUN COMPLETE ===
