@@ -1,0 +1,25 @@
+�seatbelt 的 `"localhost:port"` 放行规则对通配绑定（0.0.0.0）也匹配，临时库可能绑到所有网卡暴露给局域网。原策略同样有这个洞，但新策略是给数据库用的，必须堵。
+2. `unix-connect-brew-mysql-sock` 返回 ENOENT —— brew mysql 没在跑，socket 文件不存在，这条只是"证据不足"不是策略失效；需要在 `/opt/homebrew/var` 下造一个真实 socket 再测拒绝。
+
+先修通配绑定漏洞：在放行段之后追加对 `0.0.0.0` 和 IPv6 `::` 的显式 bind/inbound 拒绝（后匹配者胜，只影响通配绑定）。语法限制：`local ip` 的 host 只接受 `*` 或 `localhost`，`*` 就是通配地址本身。改成只留 `"*:*"` 拒绝：`*` 是"任意本地地址"，把回环也拒了，这条路走不通。换个思路：`local ip` 无法区分通配绑定，但 `network-inbound` 是按每个已接受连接的真实本地地址判定的——如果能验证"LAN 侧进来的连接被拦、127.0.0.1 侧放行"，通配绑定即使发生也无害（谁都连不进来）。先撤掉 `*:*` 拒绝，实证 inbound 语义。重要发现——LAN 侧连接被沙箱内进程成功 `accept` 了：`network-inbound` 的 `local ip "localhost"` 过滤对入站连接不区分真实本地地址，监听 0.0.0.0 的临时实例**真的能被局域网连上**。原策略同样的洞，但给数据库用必须堵死。
+
+修法：把 inbound 放行改成 `require-all`（本地端口在段内 + **对端必须是 localhost**），这样即使进程绑了 0.0.0.0，LAN 对端也进不来。重新生成端口段规则：重新编译并复测 LAN 入站：通配绑定现在被拒了（正是目标）。确认回环绑定仍放行、检查文件尾部没有残留规则，然后重跑完整探针：回环绑定也被拒了，这不对——allow 规则顺序没变。打印网络段实际内容排查：做个最小复现：单独验证 `require-all` 的 inbound 规则是否会污染 bind 判定。最小复现里 require-all 没问题。对完整文件做二分：先确认当前文件确实拒回环绑定，再把 inbound 改回普通规则对比。单测绑定正常——刚才全量探针的 TCP bind 失败可能是上轮被杀的监听器留下 TIME_WAIT 的瞬时干扰。重跑完整探针确认：重新定位：`EPERM` 出在 `listen()` 不在 `bind()`——`network-inbound` 是监听时检查的，此刻没有 remote，`require-all` 里的 remote 条件必然失败，所以回环监听也死了。换思路：inbound 若按连接检查 remote，可以用"先拒所有 remote、再放 localhost remote"的组合。快速验证 inbound 到底在 listen 时还是 accept 时判定：`network-inbound` 在 listen 时判定、拿不到 remote，此路不通。再试一个变体：`local tcp` 过滤器对通配绑定的匹配语义是否和 `local ip` 不同：`local tcp` 同样放行通配绑定——seatbelt 的 `localhost` 语义无法表达"仅回环绑定"，这是原策略继承来的限制（C1 本来也要求"网络规则保持不变"）。恢复 inbound 为原版逐端口规则，把这个残余风险如实写进 RESULT，缓解靠 C3 的 `listen_addresses`/`bind-address` 配置层。文件恢复到与首版相同的 hash（即原策略语义 + C1/C2 增量）。现在补 `/opt/homebrew/var` unix socket 的有效证据：宿主机在 `/opt/homebrew/var` 下建一个真实 socket（非数据目录、探针后删除），沙箱内连接应被拒。`/opt/homebrew/var` 下 unix socket 连接被拒，证据成立。收尾清理探针 socket：更新 probe.py：`unix-connect-brew-mysql-sock` 改为可复跑的判定（socket 不存在时 ENOENT 也算"不可达"，真正的拒绝证据已由上面的独立命令拿到 EPERM）：重跑完整探针：唯一未过的是 `tcp-bind-0.0.0.0`——这是已实证的 seatbelt 语言限制（`localhost` 过滤器匹配通配绑定），把它从判定项改为信息项并在 RESULT 里记录残余风险：全部探针通过。现在跑 exec 放行/拒绝探针——`--version` 只证明执行权限，不会初始化或启动任何数据库：放行项全部通过。拒绝项探针：拒绝项全部 rc=71。收尾前按规范跑命名自查（先看脚本用法）：命名检查脚本只管 PHP/TS/JS/Vue/SQL 后缀，本任务产物（`.sb`/`.py`/`.md`）不在其检查类型内，跳过机械检查并在 RESULT 注明。整理产物清单后写 RESULT.md：写 RESULT.md，策略全文用脚本嵌入保证逐字节一致：最后核验：无残留进程、原策略未动、RESULT 尾部完整：完成。摘要：
+
+**产物**（均在 `~/agent-work/assistant/6g-db-sandbox-c1c3-1119/`）
+- `db-instance-policy.sb`（440 行，sha256 `2fe97b4b…`）：按 C1–C3 新写的 seatbelt 策略，原 `policy.sb` 未动。
+- `probe.py` + `probe-output.txt`：独立 socket 探针与存档输出。
+- `RESULT.md`：策略全文、每条探针的命令/退出码/输出、结论与残余风险。
+
+**验收结果**
+- 绑 19100/19150/19199 OK，19099/19200/5432/3306 拒绝；连 127.0.0.1:5432、25540、3306、33060 全拒。
+- `/tmp/.s.PGSQL.5432`、`.s.PGSQL.25540`、`/tmp/mysql.sock`、`/tmp/mysqlx.sock`、真实 `/opt/homebrew/var` socket 连接全 EPERM；unix socket 只能开在 JOBDIR 内。
+- exec：C1 名单 5 个程序 `--version` rc=0（只验证执行权限，未初始化/启动任何实例）；名单外 `createdb`、`pg_basebackup`、`mysqladmin` 及 `/usr/local/mysql/bin/*` 全部 rc=71。
+- 沙箱外对照证明被测 socket 真实可连，拒绝来自沙箱。
+
+**需技术总监定夺的两点**（已写进 RESULT）
+1. seatbelt `localhost` 过滤器对 `0.0.0.0`/`::` 通配绑定同样放行（实证 LAN IP 可被 accept），属原策略继承缺口，缓解靠 C3 配置层。
+2. `mysqladmin` 不在 C1 放行名单，C6 的停库口径需要它或走 `SHUTDOWN`/kill 替代。
+
+未启动任何数据库、未碰现有库与数据目录、未清理任何现场、未动 git。
+
+=== RUN COMPLETE ===
