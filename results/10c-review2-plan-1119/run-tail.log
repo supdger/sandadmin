@@ -1,0 +1,25 @@
+Dispatching two read-only SWE-2 scouts in parallel: one extracts the first-round review items plus the diff table, the other checks the Go/Java benchmark section and its sources in the revised draft.结论：**改后通过**。只需改 2 处小地方，不用再开一轮复审，改完对一下就行。
+
+**15 条落实情况**：第一轮 8f 的 6 条缺项（Q-1~Q-6）和 9 条要改项（R-1~R-9）都已落实。差异表说改了的地方，在修订稿 9f 正文里都按行号找到了，没有一条是声称改了却找不到。唯一的出入是 R-5 那句"gh 搜索查不到 ≠ 没有分支"写在 9f 文首第 8 行，不在差异表说的 §4.4，内容在，不影响通过。
+
+**Go/Java 对标**：老板要的六个维度各占一行，每行 7 列都有。8f 点名的 7 个框架都出现了，Kratos 的 `x-md-global-*` 也写了。我抽查了 TFB R23 原始数据、HikariCP、go-zero、workerman 和 Spring 的默认值，除下面第 1 条外都对得上。中途一度以为 TFB 吞吐数字对不上，复查发现是拿错了测试类型（plaintext 当成了 JSON），按 JSON 测试核对是精确吻合的。
+
+**必须修改**：
+1. 9f 第 364 行，TFB R23 JSON 测试里 Spring 写的 326,579 是 256 并发那一档的数，按同一行定的"峰值"口径应改成 **328,413**。结论不受影响，仍约为 Spring 的 1.2 倍。顺手把框架在 TFB 里的条目名写准。
+2. §7.2 补充维度里，超时传播、错误码、契约生成、依赖注入、测试基建这 5 个"几成"在原稿里找不到出处。要么补上出处，要么标"我方判断"。
+
+另有 3 条不改也能过的建议，比如 Benchmarker 只给了域名，最好补具体数据链接。没有发现高危遗漏。这次只新建了 RESULT.md，没改别的文件。
+
+结果文件：`/Users/supdger/agent-work/assistant/10c-review2-plan-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：Devin 会话模型（界面显示 Fusion），实际记录没有查
+- 子 Agent：dv-scout × 3（核对 15 条、核对对标数字来源、复核 TFB 的 JSON 测试数字），请求的是 SWE-2，实际模型没有记录
+
+## 任务记录
+- 已修改：只新建了 `~/agent-work/assistant/10c-review2-plan-1119/RESULT.md`
+- 已验证：差异表和 9f 正文逐行对照；TFB R23 原始数据用 curl 管道读取，没有存到本地；抽查了几个框架的官方源码和文档
+- 已提交/已部署：否
+- 未完成：无（上面 2 处修改由 9f 作者处理）
+
+=== RUN COMPLETE ===
