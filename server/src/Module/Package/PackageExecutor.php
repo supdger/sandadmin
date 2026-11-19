@@ -66,7 +66,7 @@ final class PackageExecutor
      */
     public function uninstall(string $app, string $dataPolicy = 'keep'): array
     {
-        if ($this->locked()) {
+        if ($this->isLocked()) {
             return $this->fail($app, null, 'gate', ['编译版或生产宿主不执行插件卸载'], false);
         }
         if (!in_array($dataPolicy, self::DATA_POLICIES, true)) {
@@ -218,7 +218,7 @@ final class PackageExecutor
         string $kind,
     ): array {
         $shaOk = $this->shaMatches($zipFile, $sha256);
-        if ($this->locked()) {
+        if ($this->isLocked()) {
             return $this->fail(null, null, 'gate', ['编译版或生产宿主不执行插件安装与升级'], $shaOk);
         }
         // 先验签再解包：此时 zip 目录项都还没解析、零写入，
@@ -388,7 +388,7 @@ final class PackageExecutor
      * 生命周期闸：编译版一律拒绝；开发构建标记文件不在也按编译版拒绝——
      * SAND_COMPILED 这类环境变量能伪造，标记文件是构建产物事实。
      */
-    private function locked(): bool
+    private function isLocked(): bool
     {
         return PackageGate::compiled() || !is_file($this->devBuildMarker);
     }
