@@ -166,6 +166,32 @@ final class KernelApiTest extends TestCase
         self::assertStringContainsString('write', implode("\n", $problems));
     }
 
+    public function testNamedConnectionFragmentPasses(): void
+    {
+        // sand-hello 片段带合规 x-connections：四规则声明齐全即通过
+        $problems = FragmentCheck::check(self::fixtureDir('sand-hello'), self::hostContract());
+        self::assertSame([], $problems, implode("\n", $problems));
+    }
+
+    public function testPrivateLedgerConnectionFails(): void
+    {
+        // 命名连接账本想记到连接库之外（私有台账），违反「每连接一本同结构账本」
+        $dir = self::writeBadFragment(<<<'YAML'
+            openapi: 3.1.0
+            info: {title: bad, version: "0.1"}
+            x-connections:
+              - name: sandai
+                connections_per_process: 2
+                ledger: private
+                outbox: none
+                audit_sink: none
+            paths: {}
+            YAML);
+        $problems = FragmentCheck::check($dir, self::hostContract());
+        self::assertNotEmpty($problems);
+        self::assertStringContainsString('per_connection', implode("\n", $problems));
+    }
+
     public function testKernelApiDirMissingFragmentsFails(): void
     {
         // sand-other 无片段：kernel_api 口径逐包缺片段即失败

@@ -8,6 +8,22 @@ info:
 x-error-catalog:
   SAND_HELLO_NOTE_NOT_FOUND: {http_status: 404, summary: 记录不存在}
 
+# 命名连接声明（合规样例）：账本记在本连接的库、outbox 随业务库且 relay
+# 按连接拉取、审计经队列异步落内核、每进程占用连接数进连接预算。
+x-connections:
+  - name: hello_pg
+    connections_per_process: 2
+    ledger: per_connection
+    outbox: business_database
+    outbox_relay: per_connection
+    audit_sink: kernel_async
+    audit_records: local
+  - name: hello_ro
+    connections_per_process: 1
+    ledger: per_connection
+    outbox: none
+    audit_sink: none
+
 paths:
   /api/admin/v1/plugin/sand-hello/notes:
     get:
