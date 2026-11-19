@@ -1,0 +1,33 @@
+��认仓库位置和分支状态。仓库在 `~/agent-work/assistant/1x-skills-1119/sandadmin`，已在 `docs/1x-skills` 分支且与远端同步。现在读 COVERAGE.md 相关行。结构清楚了。先确认几个事实：PR #83 内容（11-17 定稿依据）、v4 文档里 R-1/R-6 的原文、以及表内行号是否被其他行引用。PR #83 于 11-17 合并——正是"11-17 定稿"的出处。继续找 v4 文档核对 R-1/R-6 原文。重要发现：v4 里 R-1 **和 R-6** 都有「老板 2026-11-17 已定」的后置标记（:1068/:2120/:2176/:2185 和 :1165/:2201），:33⑬ 的「待老板确认」是残留旧标。这与技术总监对 R-1 的裁定一致。我需要核对 v4 的 PHP/Node 版本口径（SCM-10）和 composer.json 实际要求。关键事实已确认：v4 :1637 (SCM-10) 规定 **PHP ≥8.4**、**Node ≥24 LTS**；而 AGENTS.md 写的是 PHP ≥8.2 / Node ≥20.19（旧口径，审计要求登记待改）。
+
+另外发现一个重要情况：v4 里 R-6 与 R-1 一样，:33⑬ 标「待老板确认」是残留，:2201/:1165 明确写【老板 2026-11-17 已定 R-6，按建议（做）】。我再查拍板处理.md 佐证，并确认两份 v4 副本是否一致。两份 v4 副本一致。查拍板处理.md 里 R-1/R-6 条目。拍板处理.md 无 R-1/R-6 专条（与审计说法一致）；R-1/R-6 的"已定"记在 v4 正文（老板 11-17 已定），并经 11-17 skill 定稿（PR #83）落实。现在看 skill 里 TOTP/R-1 的实际落点写法，并确认开发期 MCP(R-6）在 skill 里是否有落点。决定性证据找到了——skill 正文里 R-1 和 R-6 都已标【老板 2026-11-17 已定】：
+
+- `security-auth.md:36`：「【老板 2026-11-17 已定 R-1】签发 MCP 写 scope 令牌、打开网页提交通道、**开通生产 MCP 服务**这三个动作…」（skill 写的是**三**个动作，审计原义是两个）
+- `mcp.md:110`：「【老板 2026-11-17 已定 R-6】开发期 MCP 最小版（做，1.5–3 人天）」
+
+也就是说 R-6 与 R-1 情况完全相同：v4 :33⑬ 的「待确认」是定稿前残留，老板 11-17 已拍板（v4 :2201、f1-24、同步 skill mcp.md:110 三处一致）。审计建议 R-6 登记「未拍板」是同一个误判，按技术总监对 R-1 的裁定先例应登记「已定」，并在 RESULT.md 里说明。
+
+再看 COVERAGE 末尾结构和需要联动的引用点。看下 mcp.md:86 和 :110-112 上下文，把 R-1/R-6 行的落点写准。事实齐了。skill 同步副本把 R-1 落成**三动作**（含「开通生产 MCP 服务」），v4 :1068 注明第三动作「是否并入待问」——这个口径不一致正好登记进冲突表。开始改 COVERAGE.md。
+
+**改动 1**：行 2 拆出 R-1，双因素行只留 K-2① 口径；插入 R-1（#3）和 R-6（#4）两个新行。**改动 2**：重新编号旧行 3-10 → 5-12，同时做 PHP 版本两处修正（草案行删 PHP≥8.4、残留行登记 AGENTS.md 旧版本号）。**改动 3**：WDS-05 的 PHP 口径改为以 v4 SCM-10（≥8.4）为准；修两处跨行引用编号。改动完成。先看完整 diff，再确认三个校验命令的存在形式。diff 符合预期。现在跑三项校验：skill-sync、naming_check.py notes（先看用法）、pre-merge --fast。skill-sync 4/4 一致（exit 0）。看 naming_check.py `notes` 子命令对 md 文件的处理方式，再决定跑法。naming_check notes 通过（exit 0）。现在跑 `tools/pre-merge.sh --fast`（含 PHPStan、PHPUnit，可能较久）。三项校验全过。提交前按规则核对 pre-commit 接入和 scan_change_quality 工具。仓库未配置任何 Git pre-commit 框架（无 .pre-commit-config.yaml/husky/lefthook），无需接入。现在暂存文件并运行 scan_change_quality 审查流程。暂存 diff 仅 COVERAGE.md 文档改动，无新文件、无风险路径。记录审查结论。审查记录已绑定暂存树。提交并普通 push。推送成功（5875b0b）。等 CI 在新 head 上跑完，再检查合并条件。新 head 上检查正在跑（pending）。用 --watch 等待完成。6/6 检查全绿。确认无冲突后合并。合并成功。取 main 新 SHA 并写 RESULT.md。完成。PR #98 已修并合并。
+
+**改动**（仅 `.agents/skills/COVERAGE.md`，commit `5875b0b`）：
+- R-1 拆出单列、保持「已定」，来源记「11-17 定稿，见 #83」，动作数改「两个」（签发能写数据的 MCP 令牌、打开网页提交通道）；第三动作「开通生产 MCP 服务」v4 内口径不一致已登记备查。
+- R-6 已补登。**注意**：审计要求写「未拍板」，但 v4 f1-24/U-3 节和同步 skill `L/MCP:110` 均记【老板 2026-11-17 已定 R-6】——与 R-1 同类误判（:33⑬ 为定稿前残留）。我按总监对 R-1 的裁定先例登记「已定」，行内保留 :33⑬ 残留说明；若要改回「未拍板」只需翻一格。详见 RESULT.md 偏差说明。
+- PHP 版本：草案行被推翻口径删 PHP≥8.4，WDS-05 改以 v4 SCM-10（≥8.4）为准，AGENTS.md 的 PHP≥8.2/Node≥20.19 旧口径登记待改。
+
+**校验**：skill-sync 4/4 一致（exit 0）、naming_check notes（exit 0）、pre-merge --fast 7/7 通过（exit 0）、PR checks 6/6 绿、MERGEABLE/CLEAN。
+
+**合并**：`gh pr merge 98 --merge` 成功，main 新 SHA `1e5aa8fc28903e266713e9d79da1afae4cc4dbe9`。RESULT.md 已写至任务目录。
+
+## 模型记录
+- 主 Agent：SWE-2 / high
+- 子 Agent：未使用（任务禁止开下级会话）
+
+## 任务记录
+- 已修改：`.agents/skills/COVERAGE.md`（+14/−12）；交付文件 `~/agent-work/assistant/6h-fix-merge-pr98-1119/RESULT.md`、`status.log`
+- 已验证：skill-sync（0）、naming_check notes（0）、pre-merge --fast（0）、gh pr checks 6/6 pass、mergeable=CLEAN
+- 已提交/已部署：commit `5875b0b` 已 push；PR #98 已合并，main=`1e5aa8f`
+- 未完成：无（R-6 状态登记与审计字面要求有一处已说明的偏差，待总监复核）
+
+=== RUN COMPLETE ===
