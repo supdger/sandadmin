@@ -1,0 +1,33 @@
+Entry points confirmed. I'm now dispatching the read-only work to two SWE-2 scout subagents running in parallel: one reviews the M1–M4 code diff, the other checks CI, gate files and scope.Verdict: **can merge.** Order: first merge PR #97 (head `cd60208`) into `feat/kernel-api-runtime-align`, then merge PR #94 into `main`. I did not rerun any tests in this round. The test results come from the fix round's record, and those were run on `a506118`, one commit behind the PR head.
+
+- **Fixes:** M1–M4 are all fixed the way the last audit asked:
+  - **M1:** The compile gate now also requires the dev-build marker `server/.sand-dev-build`, and it runs before signature checking. `tools/package-ops` is now listed for removal from release packages.
+  - **M2:** The CLI no longer prints `SAND_DB_URL`.
+  - **M3:** `removeTree` no longer follows symlinks.
+  - **M4:** `DbalPluginRegistry` now does suspend/resume in the same transaction as the ledger write, matching the web channel's `PackageOps::apply`.
+- **Tests:** The new tests cover each fix and none of them skip themselves. No existing assertion was deleted or loosened. I checked this by reading the code.
+- **New problems:**
+  - Signature rules are not loosened.
+  - Of the gate files, only `dev-only-paths.txt` changed, with 2 added lines that remove `tools/package-ops` from release packages. That tightens the rules; no exemptions were added.
+  - All 9 changed files are inside host PackageOps.
+- **PR head differs from what the fix round reported:** PR #97's head is now `cd60208`, not `a506118`. That commit is Devin Review's automatic fix and only renames a private method from `locked()` to `isLocked()`; every call site is updated.
+- **CI:** `gh pr checks` passes on both PRs, and Devin Review passes on #97. CI has no PHPUnit or PHPStan job, so `cd60208` has no unit-test or static-check run. If you have time, run `tools/pre-merge.sh --fast` on it once.
+- **Non-blocking suggestions:**
+  - Give `recover` the same gate as install/upgrade/uninstall.
+  - The database connection error can still print the host or username; collapse it to a fixed message.
+  - The CLI also resumes on upgrade, which the web channel does not. With current data this changes nothing.
+- **Risk:** Nothing has been tested against a real database. The ledger SQL only ran on in-memory SQLite, and the Integration suite has not run on PostgreSQL or MySQL. Before calling plugin installation complete, run it once with `SAND_TEST_DB_URL`. This approval only covers #97 `cd60208` and #94 `8809904`; if either head changes before merging, it needs another review.
+
+Report: `~/agent-work/assistant/3m-reaudit-packageops-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：`model.txt` 记为 `fusion-claude-opus-5-5-medium`；`sessions.db` 没查，实际模型未记录
+- 子 Agent：3 个 dv-scout，请求配置都是 SWE-2，任务分别是 M1–M4 diff 核查、CI 与门禁核查、M4 resume 窄核查；实际模型未记录
+
+## 任务记录
+- 已修改：只有 `RESULT.md`
+- 已验证：只读运行了 `gh pr view/checks/api compare`、git diff，并读了相关源码；没有跑测试
+- 已提交/已部署：否
+- 未完成：真实库的 Integration 验证；在 `cd60208` 上补跑一次 `pre-merge --fast`（可选）
+
+=== RUN COMPLETE ===
