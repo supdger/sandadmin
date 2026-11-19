@@ -1,0 +1,24 @@
+我先读审计报告的 M1–M4 一节、加载相关技能与命名规范，然后确认仓库检出状态。任务规范已读。先确认现有检出的 remote 与状态，决定复用还是新克隆。再看 bootstrap 如何定义 `SAND_DEV_BUILD`、check-dev-refs 门禁机制、PluginRegistry 接口和现有测试写法。关键发现：发布制品里 `PackageExecutor.php` 仍要执行标记检查，但 check-dev-refs 会扫 `.sand-dev-build`/`SAND_DEV_BUILD`/`DevBuild` 符号。先看扫描匹配逻辑再定方案。机制清楚了。查 `ScheduleClaim::TABLE`、`PluginExtensionRepository::TABLE`、`ExtensionRules::pluginCode`、phpunit 套件配置，以及是否有别处构造 `PackageExecutor` 或引用 `tools/package-ops`。实现方案已定。先看 `.gitattributes` 的 export-ignore 和 bootstrap 哨兵块写法，确认 M1(b) 的剔除链路完整。修正 docblock 里的笔误（“引导引导期”），然后改 tools/package-ops。M1(a)、M2 完成。加 M1(b) 剔除项、M3 修复、M4 修复。补 PackageJournalTest 与两个新测试文件前，先确认 DBAL 4 的 `transactional` 嵌套行为（PluginResidue 内部已经有一层 transactional）。Vendor isn't in the worktree. Check DBAL transactional semantics in the sibling checkout, then `composer install` here.New M2 CLI test file.composer install 的 sand-publish 改动了 `server/webman`、`server/windows.php` —— 与任务无关，还原。跑 Package 模块的单测验证改动。pre-merge 7/7 通过。跑 naming_check、typephp_check。`pnpm` resolves via corepack inside `web/`. Running `build-release.sh --self-check` — full pipeline, takes a few minutes.自检后台跑着。自查提交的完整 diff。Diff 符合审计要求。等自检完成。推送成功 `be4e770..a506118`。写 RESULT.md。最后核对仓库状态与远端头，并查实际模型记录。M1–M4 修复完成并已推送。
+
+## 结果
+
+- **分支/提交**：`fix/packageops-lifecycle`，推送 `be4e770..a506118`（`a506118cb7c6ec6c22ac4eb5d729403acd663f4c`），普通 push，未合并。
+- **M1**：(a) `PackageExecutor` 的 install/upgrade/uninstall 闸改为 `locked()` = `PackageGate::compiled() || !is_file(devBuildMarker)`，标记路径由 `tools/package-ops` 注入（进制品的执行器不能出现 `.sand-dev-build` 等 dev 符号，白名单只减不增，故注入而非直写）；(b) `rm tools/package-ops` 登记进 `tools/dev-only-paths.txt`。
+- **M2**：`tools/package-ops` 协议不支持报错只回显 `$scheme`，不回显连接串。
+- **M3**：`PackageJournal::removeTree` 先判 `is_link`（$dir 与遍历项），链接只 `unlink` 不递归。
+- **M4**：`DbalPluginRegistry` 的 `recordUninstall(false)` 同事务 `suspend`、`recordInstall` 同事务 `resume`，purge 只删行，与 `PackageOps::apply` 逐行对齐。
+- **补测**：+11 用例（3 无标记闸、3 软链、5 sqlite 账本联动、1 CLI 泄密子进程）。
+- **门禁**：unit 517 全绿、contract 248 全绿（101 既有需库跳过）、PHPStan 0 错误、contract-build PASS、pre-merge --fast 7/7、naming code --diff 0 FAIL、typephp FAIL=0、build-release --self-check 8/8（发布树无 package-ops）。
+- **仍未验证**：真实 PG/MySQL 上的账本-残留联动与 Integration 套件（任务禁启库），详见 `~/agent-work/assistant/2a-pkgops-m1m4-1119/RESULT.md`。
+
+## 模型记录
+- 主 Agent：SWE-2 High（sessions.db 不可用，实际记录未查证）
+- 子 Agent：未使用（任务明文禁止下级会话）
+
+## 任务记录
+- 已修改：`server/src/Module/Package/{PackageExecutor,PackageJournal,DbalPluginRegistry}.php`、`tools/package-ops`、`tools/dev-only-paths.txt`、4 个测试文件（2 改 2 新）
+- 已验证：上列 9 条门禁命令全部退出码 0；自检 8/8 证明发布树剔除 `tools/package-ops` 且无 `.sand-dev-build`
+- 已提交/已部署：已提交并普通推送 `a506118` 到 `fix/packageops-lifecycle`；未部署
+- 未完成：真实库 Integration 轮次（禁启库，RESULT 已写明）
+
+=== RUN COMPLETE ===
