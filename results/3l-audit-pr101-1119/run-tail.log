@@ -1,0 +1,36 @@
+I'll run two read-only checks in parallel: a scan of the diff, rules and checks, and a separate `--check` verification in an isolated copy.**审计结论：PR #101 可合并。** 结论文件在 `~/agent-work/assistant/3l-audit-pr101-1119/RESULT.md`。
+
+1. **改动范围：通过。**
+   - 10 个文件，全部属于契约构建、契约文档、生成物和测试，没有改 CI 配置，也没碰任何白名单或豁免文件。
+   - 唯一有新增行的门禁类文件是 `GeneratedIntegrity.php`。它把新的 `connection-budget.generated.json` 加进了启动完整性校验清单，门禁因此变严了。它没有新增任何豁免，所以我判定不违反"门禁文件只减不增"。
+
+2. **生成物确认（技术总监指定项）：通过。**
+   - 读代码确认：`connection-budget.generated.json` 由 `php tools/contract-build` 生成，`--check` 会对它逐字节比对。
+   - 实际运行确认（在提交 `320de4b` 导出的 /tmp 副本里）：
+     - 把 `host_per_process` 从 4 改成 5 后跑 `--check`，报这个文件不一致，退出码 1。
+     - 还原后再跑，输出 PASS，和提交内容逐字节一致。
+     - 用写模式重新生成，结果也和提交内容一致。
+   - 临时改动只发生在 /tmp 副本里，已还原，副本目录已删除。
+
+3. **四条规则：通过。** 账本、outbox、审计、连接预算四条，与 `遗漏.md:52` 的原文一一对应，没有自编规则。与《老板已定事项总表》没有冲突。
+
+4. **检查状态：通过。** `gh pr checks 101` 两次运行共 6 条，全部 pass。我另外在隔离副本里跑了本 PR 相关的三个测试文件，以及整个 `tests/Unit`（429 个测试），全部通过。
+
+**不影响这次合并、建议另开任务跟进的问题：**
+- **CI 不跑测试，也不跑契约检查。** 现在 CI 三项只做依赖审计和发版自检，从不跑 phpunit 或 `contract-build --check`，所以"CI 全绿"证明不了测试和契约一致。这和老板"测试不过不合并"的定论有差距，建议把这两项接进 CI。
+- **没装插件时 `--check` 会报错。** 在没装插件的代码上跑，`plugin-routes.generated.json` 会报不一致。这是 main 上的老问题，不是本 PR 引入的，但接进 CI 之前要先解决。
+- **首期连接数还没重算。** M-05 第四条要求的"按 48 个进程重算首期连接数"，要在架构文档里另外算一遍；本 PR 只提供了自动汇总。
+
+另外说明：我跑过两次 `git fetch`，只写入了本地 Git 元数据，没有改动任何工作区文件。
+
+## 模型记录
+- 主 Agent：fusion-claude-opus-5-5-medium-sidekick-swe-2-medium（依据 model.txt）
+- 子 Agent：dv-scout ×1、dv-implementer ×2，请求的都是 SWE-2；实际运行的模型没有核实，记为未记录
+
+## 任务记录
+- 已修改：只有 RESULT.md，用户仓库没有任何改动
+- 已验证：checks 6 条全部 pass；`--check` 改一处报不一致、还原后 PASS；重新生成与提交一致；测试全部通过
+- 已提交/已部署：否
+- 未完成：无（上面三项是建议的跟进事项）
+
+=== RUN COMPLETE ===
