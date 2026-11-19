@@ -1179,6 +1179,17 @@ paths:
       x-permission: authenticated
       x-error-codes: [UPDATE_NOT_AVAILABLE]
       responses: {'200': {description: 契约信封}}
+  /api/admin/v1/system/update/probe:
+    get:
+      operationId: systemUpdateProbe
+      summary: 系统更新回环探测应答
+      description: >-
+        离线探测的应答端点：探测发起方是实例自身（POST /system/update/check 签发一次性挑战后回环取回），
+        只认回环来源 + 未过期挑战 + token 一致，其余一律 404。不挂会话鉴权，应答不是契约信封。
+      tags: [system]
+      x-handler: 'Sandadmin\Http\UpdateProbeController::probe'
+      x-permission: public
+      responses: {'200': {description: 回环挑战回显（非契约信封，私有探测协议）}}
   /api/admin/v1/system/update/start:
     post:
       operationId: systemUpdateStart

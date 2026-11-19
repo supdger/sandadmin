@@ -11,6 +11,7 @@ use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Plugin\InvalidExtensionException;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Package\PackageOps;
+use Sandadmin\Module\Package\UpdateProbe;
 use support\Request;
 use support\Response;
 use Throwable;
@@ -42,7 +43,7 @@ final class HostReadController
 
     public function updateCheck(Request $request): Response
     {
-        return $this->run($request, fn (string $requestId): array => $this->packages()->updateStatus($requestId));
+        return $this->run($request, fn (string $requestId): array => $this->packages()->updateCheck($requestId, UpdateProbe::fromRuntime()));
     }
 
     public function scheduledTaskUpdate(Request $request, string $code): Response

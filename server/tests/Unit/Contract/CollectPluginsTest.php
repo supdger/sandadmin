@@ -74,6 +74,24 @@ final class CollectPluginsTest extends TestCase
         self::assertFileDoesNotExist($repo . '/server/plugin/sand-bad/config/route.generated.php');
     }
 
+    public function testWriteRemovesOrphanGeneratedFiles(): void
+    {
+        // 契约不再产出的旧骨架留在 Generated 目录时，收集要把它们一并清掉：
+        // 否则产物重建不完整，--check 立即报孤儿要求手工跑 contract-build
+        $repo = $this->makeRepo();
+        $orphanDir = $repo . '/server/tests/Contract/Generated';
+        if (!is_dir($orphanDir) && !mkdir($orphanDir, 0755, true)) {
+            self::fail('无法创建生成目录');
+        }
+        file_put_contents($orphanDir . '/GhostContractTest.php', '<?php // 过期骨架');
+
+        $report = ContractBuild::collectPlugins($repo);
+
+        self::assertSame('ok', $report['result'], implode("\n", $report['warnings']));
+        self::assertFileDoesNotExist($orphanDir . '/GhostContractTest.php');
+        self::assertSame('ok', ContractBuild::check($repo)['result']);
+    }
+
     public function testConflictEntriesKeepBothSources(): void
     {
         $repo = $this->makeRepo();

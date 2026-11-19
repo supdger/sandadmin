@@ -101,6 +101,24 @@ final class PackageOps
         return ApiOutcome::ok($this->statusBody(), $requestId);
     }
 
+    /**
+     * 「检查更新」＝离线回环探测 + 状态刷新：探测只打本机回环，
+     * 明细如实进 data.probe，checked_time 记本次探测时间。
+     *
+     * @return array{status: int, body: array<string, mixed>}
+     */
+    public function updateCheck(string $requestId, ?UpdateProbe $probe = null): array
+    {
+        $status = $this->statusBody();
+        $report = $probe?->run();
+        $status['probe'] = $report;
+        if ($report !== null) {
+            $status['checked_time'] = $report['checked_time'];
+        }
+
+        return ApiOutcome::ok($status, $requestId);
+    }
+
     /** @return array{status: int, body: array<string, mixed>} */
     public function install(string $code, OrgActor $actor, string $requestId): array
     {
@@ -582,7 +600,8 @@ final class PackageOps
                 'state' => $installed ? 'installed' : 'uninstalled',
                 'task_state' => $this->taskState($entry['code']),
                 'rolled_back' => false,
-                'signature_verified' => true,
+                // 未接真验签，一律如实 false：目录条目只做了 sha256 完整性校验
+                'signature_verified' => false,
                 'description' => $entry['description'],
                 'provides' => [
                     'menus' => [
