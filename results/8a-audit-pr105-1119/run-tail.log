@@ -1,0 +1,39 @@
+I'll check the task directory first to find the repository entry point.I'm handing the read-only evidence gathering to a SWE-2 scout subagent, as the task requires.The scout reported one possible defect: an env value of `SAND_IDGEN_NODE_ID=0` being treated as missing. That affects the verdict, so I'm getting it reproduced before deciding.The defect is confirmed. I'm writing the conclusion to RESULT.md now.**Verdict: 改后可合并** — PR #105 needs two changes before merging. I audited head `d44a048450370ac5a2bec78b2e9d70f298d82196`. The full conclusion is in `~/agent-work/assistant/8a-audit-pr105-1119/RESULT.md`.
+
+**必须修改点**
+1. **Base node ID 0 is rejected at startup.** `server/config/idgen.php` reads each setting as `env(...) ?: ''`. In PHP the string `'0'` counts as false, so `SAND_IDGEN_NODE_ID=0` becomes `''` and the service refuses to start. I reproduced this: with node range `0-1023` and base 0 it throws; with base 1 it works. The docs allow base 0, and the error message itself says 0 is valid. It doesn't produce duplicate IDs; it just blocks a normal first deployment. Fix: use `env('…', '')` or `?? ''`, and add a regression test for base 0.
+2. **The PR description is out of date.** Its "剩余项" section still lists per-process node splitting for multiple workers as pending, but the second commit (`d44a048`) already implements it.
+
+**审计项**
+- **范围：** consistent with the description, apart from that out-of-date section. 18 files, +1234/−0, all for the ID generator.
+- **安全与正确性：**
+  - The ID layout fits in 63 bits.
+  - Sequence overflow and the 10ms clock-rollback limit are both handled.
+  - Node numbers per worker process match how webman names its processes at runtime.
+  - Bad configuration stops the service from starting.
+  - The 31 related tests pass locally, including a run of 7 real processes issuing 2100 IDs with no duplicates.
+- **门禁文件只减不增：** passes. No workflow, tool, whitelist, exemption or baseline file was changed. The only touched check config adds one line to `phpstan.neon.dist`, putting the new file under analysis, which tightens checking.
+- **老板已定事项总表：** no conflict with item 17 (auto-increment for predictable tables, 64-bit snowflake bigint for growing ones, output as strings, nanoid in a separate column only). One thing I can't check from the table: the PR cites a list the boss approved on 11-18, but the table was compiled on 11-17 and doesn't record it.
+- **`gh pr checks 105`：** all 6 checks pass. These are only dependency audits and the release self-check; CI does not run phpunit or phpstan.
+
+**建议项（不阻塞合并）**
+- The wait inside the generator has no upper limit.
+- Reading the identity from a real Workerman worker object isn't covered by tests.
+- Process slots are counted generously, so deployments need a wide node range.
+- Nothing detects two deployments given overlapping node ranges.
+- Mounting the generator a second time silently replaces the first one.
+- phpunit and phpstan aren't in CI.
+
+**模型说明：** the background says a local Opus audit counts as approval. Under this week's quota rule, every read and command in this audit ran on SWE-2 read-only subagents, and no Claude subagent was used. I didn't check the session records for the main agent's actual model. Whether this counts as an "Opus audit" is for the 技术总监 or the boss to decide.
+
+## 模型记录
+- 主 Agent：未记录（未核对 sessions.db）
+- 子 Agent：dv-scout ×2 = SWE-2 → 实际模型未记录
+
+## 任务记录
+- 已修改：只写了 `~/agent-work/assistant/8a-audit-pr105-1119/RESULT.md`，仓库没动
+- 已验证：`gh pr checks 105` 全部通过；发号器相关 31 个测试本地通过（3210 条断言）；base 0 问题用 `php -r` 复现
+- 已提交/已部署：否（未合并、未推送、未评论）
+- 未完成：全量测试、phpstan、pre-merge、真实 webman 启动都没跑，不在本次只读范围内
+
+=== RUN COMPLETE ===
