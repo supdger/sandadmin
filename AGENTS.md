@@ -7,7 +7,8 @@ SandAdmin 宿主：SaiAdmin 6.x 的独立 PostgreSQL fork，包含可运行的 W
 主要目录：
 
 - `server/`：可运行 Webman 宿主——`app/middleware`、`app/process`、`config/`、`public/`、`support/`、`start.php`、`composer.json`、`.env.example`。
-- `sandadmin-artd/`：管理端前端工程（Vue3 + TS + Vite + pnpm，含 package.json、pnpm-lock）。
+- `web/`：1.x 管理端前端工程（React 19 + Semi Design；规范见 `sandadmin1x-frontend`）。
+- `sandadmin-artd/`：0.x 管理端前端工程（Vue3 + TS + Vite + pnpm，含 package.json、pnpm-lock；1.x 前端在 `web/`，本目录逐步退役——见 `sandadmin1x-frontend`）。
 - `tests/`：宿主验证脚本（`http-error-data-test.php`）。
 - `catalog.json`：插件目录；`RELEASE-CHECKLIST.md`：发布清单。
 
@@ -67,6 +68,8 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 - `sandadmin1x-frontend`：管理端前端（Vue3/TS，`web/`、`sandadmin-artd/`）的写法与约束；
 - `sandadmin1x-plugin`：插件开发约定；
 - `sandadmin1x-ai-loop`：AI 参与开发的闭环流程。
+
+老版 skills 到 1.x 规范的逐条对照、冲突与未拍板事项登记见 `.agents/skills/COVERAGE.md`。
 
 配套工具在 `tools/`（发布包不含，见 `.gitattributes`）：
 
