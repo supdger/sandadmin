@@ -1,0 +1,21 @@
+我来处理这个任务。先调用相关技能并定位仓库。任务目录已有文件。现在找 sandadmin 仓库位置。有多个 checkout。找在 `feat/id-generator` 分支、位于 a7067c3 的那个工作区。工作区确认：`2e-id-generator-1119/sandadmin`，HEAD 正是 a7067c3。先看仓库入口和发号器相关代码。现在读发号器核心文件和进程配置。进程配置清楚了：`webman`（多 worker)、`monitor`、`task_worker`、`log_retention` 都会在各自进程跑 `IdGeneratorGuard`，现在全用同一个 `node_id`，这正是重号根因。继续看测试、文档、.env.example 和 webman 怎么给 worker 传 name/id。看 .env.example 上下文和 webman 给 bootstrap 传的 worker 对象带哪些标识。`worker->name`/`worker->id`/`worker->count` 可用。还要看 webman 插件进程从哪读配置，决定节点布局的数据源。方案清晰了：所有进程（含 `plugin.*`）都由 `config('process')` + `config('plugin')` 枚举出来，worker 名字和序号都在 `$worker` 上。继续看 bootstrap 机制、pre-merge/typephp 命令和命名规范。机制确认：`bootstrap.php` 对每个 worker 调 `Bootstrap::start($worker)`，`$worker->name`=进程键、`$worker->id`=组内序号、`config('plugin')` 的进程也会跑。先读命名规范（规则要求写码前必读）。发现插件进程：`plugin/sandadmin/config/process.php` 在非 macOS 上会注册 crontab `task` 进程。确认 `config('plugin')` 的实际形状。插件进程枚举方式确认了。看一下 phpstan 覆盖范围和 naming_check 用法，然后列任务清单开工。方案定了。建任务清单后动手。写 `SnowflakeNodePlan`。更新 `SnowflakeConfig`：node_id 语义改为基值，加 workerTotal 校验。`nodeId` 属性改名为 `nodeBase`，避免与实际进程节点号混淆。更新 `IdGeneratorGuard`：建布局、校验总数、按进程身份取号。更新 `docs/id-generator.md` 三处。文档更新完毕。现在改测试——先更新 ConfigTest 和 GuardTest。写 `SnowflakeNodePlanTest` 和跨进程测试。写跨进程唯一性测试。全部通过。单独验证跨进程测试确实跑了子进程。跨进程测试通过（7 子进程 × 300 号 = 2100，零重复）。跑全量门禁。PHPStan 报了 8 个错（我的测试文件至少 2 个）。看全部。修 PHPStan 报的 4 处问题。重跑 PHPStan 确认清零。全绿。跑 pre-merge --fast 和 naming/typephp 自查。pre-merge --fast 全过。跑命名自查。`$tmpDir` 被 WARN（tmp 含糊修饰），改成 `$outDir`，然后跑 notes/terms。词表干净。单独跑 typephp_check 记录输出。全部门禁通过。提交前整体过一遍 diff。无残留待决文案。检查 hook 后按规矩提交具体文件。推送成功：`a7067c3..d44a048` 普通 push，工作区干净。写 RESULT.md。完成。总结：
+
+**改动**（提交 `d44a048`，普通 push `a7067c3..d44a048` → `feat/id-generator`）：
+
+1. **节点号细分到进程**：新增 `SnowflakeNodePlan`，按 `config('process')` + `config('plugin')` 的 webman 启动顺序把进程排成连续槽位；`node_id` 改为本机基值，每个 worker 拿「基值 + 槽位偏移 + 序号」。自检校验「基值 + 进程总数 − 1 ≤ rangeEnd」，越界/未知进程/序号越界均拒启。web、task_worker、monitor、log_retention 及插件进程各占一段。
+2. **跨进程唯一性测试**：`SnowflakeCrossProcessTest` 起 7 个真实 PHP 子进程并发发 2100 个号，合并零重复、node_id 反解全部正确。
+3. **回拨阈值定 10ms**：配置保持必填，`.env.example`、`config/idgen.php`、`docs/id-generator.md` 写明推荐值与理由，「待技术总监定」全部改为已定。
+
+**门禁**：phpunit unit 439 测试 0 失败；phpstan 0 错；`pre-merge --fast` 7/7 通过；naming code/notes/terms 零 FAIL（一处 `$tmpDir` WARN 已改）；typephp diff FAIL=0。
+
+## 模型记录
+- 主 Agent：SWE-2 / high
+- 子 Agent：未使用（任务禁止开下级会话）
+
+## 任务记录
+- 已修改：`server/src/Infra/Id/SnowflakeNodePlan.php`（新）、`SnowflakeConfig.php`、`app/bootstrap/IdGeneratorGuard.php`、`config/idgen.php`、`.env.example`、`docs/id-generator.md`、4 个测试文件（2 新 1 更新 + 1 新子进程脚本）；`RESULT.md` 写入 `~/agent-work/assistant/4b-fix-pr105-idgen-1119/`
+- 已验证：phpunit unit / phpstan / pre-merge --fast / naming / typephp 全过；跨进程 7 子进程 2100 号零重复
+- 已提交/已部署：`d44a048` 已 push 到 `supdger/sandadmin` `feat/id-generator`（未合并）
+- 未完成：无
+
+=== RUN COMPLETE ===
