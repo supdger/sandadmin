@@ -1,0 +1,37 @@
+I'm sending the evidence collection (PR metadata, diff, checks, the decisions table, earlier audits) to a read-only SWE-2 subagent first. After that I'll judge.My verdict is **可合并**. I'm dispatching the merge, which re-checks the conditions right before merging.说明：本轮主代理不是 SWE-2，是 Fusion（Claude Opus 5.5 Medium + SWE-2 Medium）。本任务是审计，按老板「本地 Opus 审计通过视为批准」的口径执行；读 diff、跑命令和合并都交给 SWE-2 档案的子代理做。
+
+**结论：可合并，PR #107 已合并。** 审计时 head 是 `b878b0df985f3dfd066580e9084f2a8a8f459b0a`，合并后 main 是 `05efc923593e067683f03bc7c3375f08ea1646a8`。用的是 `--merge`，源分支没删。
+
+结果写在 [RESULT.md](file:///Users/supdger/agent-work/assistant/10e-audit-merge-pr107-1119/RESULT.md)，要点：
+
+- **范围与描述**：47 个文件，和 PR 描述逐项对得上，没有夹带别的改动；描述已经更新到 b878b0d。
+- **安全与正确性**：
+  - CSRF 只管 `/api/admin/v1` 下的写操作：先查 Origin，Origin 缺失才查 Referer，同时要求带标记头，不通过返回 403 `CSRF_REJECTED`。
+  - 本站源只读部署配置，生产环境没配就拒绝启动。
+  - CORS 只放行白名单里精确匹配的源，从不签发 Allow-Credentials。
+  - 安全头挂在最外层，fallback 和静态资源也补上了。
+  - 技术总监定的三个值都已落实：Referrer-Policy、`X-Requested-With: XMLHttpRequest`、CSP 起步值。
+- **门禁文件只减不增**：CI、门禁脚本、豁免和白名单都没改，也没加条目。
+- **老板已定事项总表**：没有冲突。
+- **上一轮审计（8c）的 3 个必改点**都已落实：前端补带标记头、并入 main 后重新生成契约产物、更新 PR 描述。8a 目录审的是 PR #105，与本 PR 无关。
+- **与新 main 的合并**：main 在这期间进了 #104 和 #111。试合并没有冲突；在合并后的代码上跑 `pre-merge.sh --fast` 8/8 全过，后端单测 705 个全过，phpstan、契约检查、前端类型检查和单测也都通过。
+  - `--fast` 第一次在 TypePHP 那步失败过，原因是本机 clone 里的 main 指针落后于远端，main 自己的改动被当成了新增行；PR #107 没碰那个文件。把指针临时指到远端 main 后重跑全过，跑完已恢复。
+  - 没跑带数据库的完整集成套件和改动行覆盖率检查，因为本任务不许启动数据库。
+- **合并前即时复核**：head 是 b878b0d，GitHub 显示可合并且无冲突，`gh pr checks` 6/6 通过，main 和审计时一致。
+
+**后续建议（不影响合并）**：
+- v1 的中间件挂法（全局挂载、再按路径前缀限定）还要做一次架构复审。
+- 8c 提出的 a–d 四个建议项另立工作包，例如旧插件路由不带安全头、反代下没有 HSTS。
+- CSP 改成强制执行之前，先补上报地址。
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium），取自系统声明，sessions.db 没查
+- 子 Agent：dv-scout 2 次（收集证据、核对合并性），dv-implementer 2 次（在合并后的代码上跑门禁、执行合并）。请求的都是 SWE-2 档案，实际模型没有记录
+
+## 任务记录
+- 已修改：RESULT.md；GitHub 上 PR #107 已合并
+- 已验证：试合并无冲突；合并后代码上 pre-merge --fast、单测、phpstan、契约检查、前端类型检查和单测全过；checks 6/6
+- 已提交/已部署：已合并到 main（05efc92）；没有部署
+- 未完成：无
+
+=== RUN COMPLETE ===
