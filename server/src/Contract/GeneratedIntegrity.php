@@ -16,7 +16,7 @@ namespace Sandadmin\Contract;
 final class GeneratedIntegrity
 {
     /**
-     * @param list<string>|null $artifactFiles 覆盖校验清单（测试用）；默认六类 PHP 产物
+     * @param list<string>|null $artifactFiles 覆盖校验清单（测试用）；默认六份产物
      * @throws \RuntimeException 不一致即抛，调用方负责拒启
      */
     public static function assert(string $serverRoot, ?array $artifactFiles = null): void
@@ -49,6 +49,7 @@ final class GeneratedIntegrity
             $serverRoot . '/src/Contract/Generated/PermissionRegistry.php',
             $serverRoot . '/src/Contract/Generated/McpToolRegistry.php',
             $serverRoot . '/src/Contract/Generated/ErrorCodeRegistry.php',
+            $serverRoot . '/config/connection-budget.generated.json',
         ];
         foreach ($files as $file) {
             if (!is_file($file)) {

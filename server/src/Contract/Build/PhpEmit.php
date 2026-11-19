@@ -23,6 +23,38 @@ use Sandadmin\Contract\SourceHash;
  */
 final class PhpEmit
 {
+    // J-4 写死值：宿主每进程连接预算 = DBAL 主从 + think-orm 主从
+    private const HOST_PER_PROCESS = 4;
+
+    /**
+     * 连接预算清单（JSON）：J-4 公式「进程数 ×（宿主连接数 + 命名连接数）」的
+     * 每进程侧输入。插件声明 x-connections 变化时本文件漂移，容量评审按
+     * plugin_per_process 重算连接账，门禁逐字节比对防漏跑收集。
+     * @param list<array{plugin: string, name: string, connections_per_process: int}> $connections
+     * @param list<string> $sourceLabels
+     */
+    public static function emitConnectionBudget(array $connections, array $sourceLabels, string $sourceHash): string
+    {
+        $pluginPerProcess = 0;
+        foreach ($connections as $conn) {
+            $pluginPerProcess += $conn['connections_per_process'];
+        }
+        $manifest = [
+            '_comment' => SourceHash::headerLines($sourceLabels, $sourceHash),
+            'formula' => 'total = processes × (host_per_process + plugin_per_process)',
+            'host_per_process' => self::HOST_PER_PROCESS,
+            'plugin_per_process' => $pluginPerProcess,
+            'total_per_process' => self::HOST_PER_PROCESS + $pluginPerProcess,
+            'connections' => $connections,
+        ];
+        $encoded = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            throw new \RuntimeException('连接预算清单 JSON 编码失败');
+        }
+
+        return $encoded . "\n";
+    }
+
     /**
      * 宿主路由表：只收 host 来源的 operation，按契约文档顺序发射。
      * 注册顺序即契约顺序（path 书写顺序、path 内方法书写顺序）。
@@ -107,17 +139,25 @@ final class PhpEmit
 
     /**
      * 插件路由薄壳：Route::load 只认 config/route.php，
-     * 契约插件由这层薄壳转发到生成的路由表。
+     * 契约插件由这层薄壳转发到生成的路由表，并关掉本插件的
+     * /app/<插件>/ 默认路由（webman 把路径里的连字符归一掉，
+     * disableDefaultRoute 实参也只收 [a-zA-Z0-9_]，连字符会静默
+     * 失效，所以一律发去连字符后的插件名）。
      * @param list<string> $sourceLabels
      */
-    public static function emitPluginRouteShell(array $sourceLabels, string $sourceHash): string
+    public static function emitPluginRouteShell(string $app, array $sourceLabels, string $sourceHash): string
     {
+        $pluginName = str_replace('-', '', $app);
         $lines = ['<?php', '', 'declare(strict_types=1);', ''];
         foreach (SourceHash::headerLines($sourceLabels, $sourceHash) as $line) {
             $lines[] = '// ' . $line;
         }
         $lines[] = '';
+        $lines[] = 'use Webman\Route;';
+        $lines[] = '';
         $lines[] = "require __DIR__ . '/route.generated.php';";
+        $lines[] = '';
+        $lines[] = 'Route::disableDefaultRoute(' . var_export($pluginName, true) . ');';
         $lines[] = '';
 
         return implode("\n", $lines);

@@ -58,6 +58,8 @@ rm tools/strip-vendor-tests.php
 rm tools/strip-vendor-extra.php
 rm tools/build-release.sh
 rm tools/pre-merge.sh
+# 离线包生命周期 CLI 是开发构建专用入口，生产只有查看/启用/停用
+rm tools/package-ops
 
 # ── 其他开发专用 ─────────────────────────────────────────────
 # Windows 本地启动器；生产部署形态是 Linux 编译制品

@@ -9,6 +9,7 @@ namespace Sandadmin\Application\Mcp;
 
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Mcp\AuditSink;
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpCall;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\PendingRequest;
@@ -87,7 +88,7 @@ final class McpKernel
             return ToolOutcome::ok(['dry_run' => true, 'tool' => $spec->name, 'arguments' => $arguments]);
         }
         try {
-            return $spec->runner->run($this->identity, $arguments);
+            return $spec->runner->run($this->identity, $arguments, new CallContext($this->requestId, $this->ip, McpIdentity::CHANNEL));
         } catch (\Throwable) {
             return ToolOutcome::fail(ErrorCodeRegistry::MCP_TOOL_FAILED, ['message' => '工具执行失败，详情见服务端日志']);
         }

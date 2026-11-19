@@ -13,8 +13,9 @@ use Sandadmin\Contract\Build\ContractDoc;
 
 /**
  * kernel_api 契约检查：对单个插件包或其契约片段做存在性、合法性、
- * 命名空间隔离与错误码声明校验。KernelApiTest 与
- * tools/contract-build --kernel-api 共用这个入口，结果零冲突才可装。
+ * 命名空间隔离与错误码声明校验，外加运行时对齐检查（RuntimeCheck）。
+ * KernelApiTest 与 tools/contract-build --kernel-api 共用这个入口，
+ * 结果零冲突才可装。
  */
 final class FragmentCheck
 {
@@ -44,6 +45,9 @@ final class FragmentCheck
         $problems = $doc['problems'];
         foreach (ConflictCheck::check($docs, $stems) as $conflict) {
             $problems[] = $conflict;
+        }
+        foreach (RuntimeCheck::check($pluginDir, $doc) as $problem) {
+            $problems[] = $problem;
         }
 
         return $problems;
