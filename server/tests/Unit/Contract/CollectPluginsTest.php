@@ -94,6 +94,47 @@ final class CollectPluginsTest extends TestCase
         self::assertStringContainsString('NOT_FOUND', $detail);
     }
 
+    public function testConnectionBudgetArtifactWritten(): void
+    {
+        $repo = $this->makeRepo();
+        self::copyTree(self::fixtureDir('sand-hello'), $repo . '/server/plugin/sand-hello');
+
+        $report = ContractBuild::build($repo);
+
+        self::assertSame('ok', $report['result'], implode("\n", $report['warnings']));
+        // sand-hello 夹具声明两条命名连接：2 + 1 = 每进程 3 条
+        self::assertSame(3, array_sum(array_column($report['named_connections'], 'connections_per_process')));
+        $file = $repo . '/server/config/connection-budget.generated.json';
+        self::assertFileExists($file);
+        $budget = json_decode((string) file_get_contents($file), true);
+        self::assertIsArray($budget);
+        self::assertSame(4, $budget['host_per_process']);
+        self::assertSame(3, $budget['plugin_per_process']);
+        self::assertSame(7, $budget['total_per_process']);
+    }
+
+    public function testBadConnectionFragmentBlocked(): void
+    {
+        $repo = $this->makeRepo();
+        $this->writeFragment($repo, 'sand-bad', <<<'YAML'
+            openapi: 3.1.0
+            info: {title: bad, version: "0.1"}
+            x-connections:
+              - name: sandai
+                connections_per_process: 2
+                ledger: private
+                outbox: none
+                audit_sink: none
+            paths: {}
+            YAML);
+
+        $report = ContractBuild::collectPlugins($repo);
+
+        self::assertSame('failed', $report['result']);
+        self::assertStringContainsString('per_connection', implode("\n", $report['warnings']));
+        self::assertFileDoesNotExist($repo . '/server/config/connection-budget.generated.json');
+    }
+
     private function makeRepo(): string
     {
         $dir = sys_get_temp_dir() . '/contract-collect-' . getmypid() . '-' . bin2hex(random_bytes(4));

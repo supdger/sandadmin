@@ -33,6 +33,7 @@ final class ContractBuild
      *   warnings: list<string>,
      *   artifacts: list<array{path: string, status: string}>,
      *   incomplete_operations: list<string>,
+     *   named_connections: list<array{plugin: string, name: string, connections_per_process: int}>,
      *   source_hash: string,
      * }
      */
@@ -46,6 +47,7 @@ final class ContractBuild
             'warnings' => [],
             'artifacts' => [],
             'incomplete_operations' => [],
+            'named_connections' => [],
             'source_hash' => '',
         ];
 
@@ -76,6 +78,7 @@ final class ContractBuild
 
         $hostOps = [];
         $pluginOps = [];
+        $connectionRows = [];
         foreach ($docs as $source => $doc) {
             foreach ($doc['operations'] as $op) {
                 if ($source === 'host') {
@@ -84,7 +87,15 @@ final class ContractBuild
                     $pluginOps[$source][] = $op;
                 }
             }
+            foreach ($doc['connections'] as $conn) {
+                $connectionRows[] = [
+                    'plugin' => $source,
+                    'name' => $conn['name'],
+                    'connections_per_process' => $conn['connections_per_process'],
+                ];
+            }
         }
+        $report['named_connections'] = $connectionRows;
 
         $permissions = ConflictCheck::collectPermissions($docs);
         $catalog = ConflictCheck::collectErrors($docs);
@@ -104,6 +115,8 @@ final class ContractBuild
             PhpEmit::emitRoutes($hostOps, $sourceLabels, $sourceHash);
         $artifacts['server/config/plugin-routes.generated.json'] =
             PhpEmit::emitPluginRoutes($collection['route_entries'], $sourceLabels, $sourceHash);
+        $artifacts['server/config/connection-budget.generated.json'] =
+            PhpEmit::emitConnectionBudget($connectionRows, $sourceLabels, $sourceHash);
         $artifacts['server/src/Contract/Generated/PermissionRegistry.php'] =
             PhpEmit::emitPermissionRegistry($permissions, $tree, $adminCodes, $sidebar, $sourceLabels, $sourceHash);
         $artifacts['server/src/Contract/Generated/McpToolRegistry.php'] =
