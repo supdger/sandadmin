@@ -231,6 +231,42 @@ final class PackageJournalTest extends TestCase
         self::assertStringContainsString('无法解析', implode("\n", $notes));
     }
 
+    public function testRemoveTreeUnlinksSymlinksWithoutFollowing(): void
+    {
+        // is_dir 跟随符号链接：不先判 is_link 会把指向外部的软链当真目录
+        // 递归进去，删掉插件目录外面的内容
+        $outside = $this->dir . '/outside';
+        mkdir($outside, 0755, true);
+        file_put_contents($outside . '/keep.txt', 'stay');
+        $tree = $this->dir . '/tree';
+        mkdir($tree . '/sub', 0755, true);
+        file_put_contents($tree . '/sub/file.txt', 'x');
+        self::assertTrue(symlink($outside, $tree . '/dir-link'));
+        self::assertTrue(symlink($outside . '/keep.txt', $tree . '/file-link'));
+        self::assertTrue(symlink($this->dir . '/missing', $tree . '/dangling'));
+
+        PackageJournal::removeTree($tree);
+
+        self::assertDirectoryDoesNotExist($tree);
+        self::assertDirectoryExists($outside);
+        self::assertSame('stay', file_get_contents($outside . '/keep.txt'));
+    }
+
+    public function testRemoveTreeOnSymlinkOnlyRemovesLink(): void
+    {
+        $target = $this->dir . '/target';
+        mkdir($target, 0755, true);
+        file_put_contents($target . '/keep.txt', 'stay');
+        $link = $this->dir . '/link';
+        self::assertTrue(symlink($target, $link));
+
+        PackageJournal::removeTree($link);
+
+        self::assertFalse(is_link($link));
+        self::assertDirectoryExists($target);
+        self::assertSame('stay', file_get_contents($target . '/keep.txt'));
+    }
+
     /** @param array<string, mixed> $data */
     private function writeJournal(string $work, string $id, array $data): void
     {
