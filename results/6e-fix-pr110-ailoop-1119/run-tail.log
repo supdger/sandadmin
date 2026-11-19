@@ -1,0 +1,19 @@
+我先看任务目录和相关上下文，确认仓库位置与 PR #110 的实际内容。任务目录里没有仓库，需要找到 `feat/ai-loop-rollback` 分支所在仓库。仓库是 `~/agent-work/pub-sandadmin`，已在 `feat/ai-loop-rollback` 分支。先读项目入口和 git 状态。我在目标仓库。按 AGENTS.md 要求先读本仓 AI 闭环 skill，同时查看本 PR 相对主干改了哪些文件。本 PR 共改 7 个文件。要删的是 Dict 测试目录（两个文件），同时检查 `module-tests.md` 和 `pre-merge.sh` 里是否有仅为 Dict 测试服务的部分。逐个读。看下两个测试文件内容，以及 main 上 `tests/Unit/Module/` 已有哪些测试、`PluginMenuTest.php` 是否真用 sqlite。Dict 测试目录整目录是本 PR 新增，两个文件都删。规范页里引用了 `DictServiceTest.php` 作样例，文件删除后该引用要一并去掉。先确认其余改动（回退脚本、pre-merge）与 phpunit 配置没有仅为 Dict 测试服务的内容。phpunit unit 套件按 `tests/Unit` 目录整扫，删目录即可无需改配置。开始执行。无残留引用。跑验证：phpunit unit、phpstan、pre-merge --fast。三项验证全过（408 tests / phpstan 无错 / pre-merge --fast 全过，未设 `SAND_TEST_DB_URL`，未启任何库）。提交并推送。远端 head 与本地一致（d3e4783），普通 push 可 fast-forward。看下本仓近期提交的落款格式再提交。本仓提交不带 agent 落款，按仓内风格提交。推送成功（d3e4783..89cd8ca）。写 RESULT.md。完成。摘要：
+
+- **删除**：`server/tests/Unit/Module/Dict/` 整目录（`DictServiceTest.php` + `DictExceptionTest.php`，均本 PR 新增）；`module-tests.md` 中指向已删文件的样例引用改指 main 上既有的 `Menu/PluginMenuTest.php`。
+- **保留**：规范页其余部分、pre-merge 命名自查段、build-release 制品登记、回退脚本与回退测试脚本。
+- **验证**（未设 `SAND_TEST_DB_URL`，未启任何库）：phpunit unit 408 tests / 2613 assertions 全过；phpstan 无错；`pre-merge --fast` 全部通过。
+- **推送**：`89cd8ca` 普通 push 到 `feat/ai-loop-rollback`（d3e4783..89cd8ca），工作区干净。
+- **合并顺序**已写入 RESULT.md：#110 须排在 #104 之后合，`tools/pre-merge.sh` 若冲突保留两边（#104 前段步骤 + #110 末尾命名自查段），本任务未 rebase 未合并。
+
+## 模型记录
+- 主 Agent：SWE-2（swe-2-high）
+- 子 Agent：未使用（任务明确「不开下级会话」）
+
+## 任务记录
+- 已修改：pub-sandadmin 仓库删 `server/tests/Unit/Module/Dict/`（2 文件）、改 `server/docs/module-tests.md`；任务目录新增 `RESULT.md`
+- 已验证：`phpunit --testsuite unit` OK(408)、`phpstan analyse` No errors、`tools/pre-merge.sh --fast` 全部通过
+- 已提交/已部署：已提交 `89cd8ca` 并 push 到 `feat/ai-loop-rollback`（仓库无部署环节）
+- 未完成：无
+
+=== RUN COMPLETE ===
