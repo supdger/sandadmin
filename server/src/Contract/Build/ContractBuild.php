@@ -133,10 +133,13 @@ final class ContractBuild
                 $report['artifacts'][] = ['path' => $rel, 'status' => 'written'];
             }
             // 契约已不产出的旧生成物一并清掉，重建才算完成，
-            // 否则 --check 立即报孤儿要求手工清理
-            foreach (self::orphanArtifacts($repoRoot, $artifacts) as $rel) {
+            // 否则 --check 立即报孤儿要求手工清理；删不掉不能装没看见
+            foreach (self::listOrphanArtifacts($repoRoot, $artifacts) as $rel) {
                 if (unlink($repoRoot . '/' . $rel)) {
                     $report['artifacts'][] = ['path' => $rel, 'status' => 'removed'];
+                } else {
+                    $report['warnings'][] = '无法删除孤儿产物：' . $rel;
+                    $report['result'] = 'failed';
                 }
             }
         } else {
@@ -353,7 +356,7 @@ final class ContractBuild
             }
         }
         // 反向：生成目录里多出孤儿文件（如已删 tag 的骨架）也算不一致
-        foreach (self::orphanArtifacts($repoRoot, $artifacts) as $rel) {
+        foreach (self::listOrphanArtifacts($repoRoot, $artifacts) as $rel) {
             $stale[] = $rel . '（孤儿产物，应删除）';
         }
 
@@ -365,7 +368,7 @@ final class ContractBuild
      * @param array<string, string> $artifacts
      * @return list<string>
      */
-    private static function orphanArtifacts(string $repoRoot, array $artifacts): array
+    private static function listOrphanArtifacts(string $repoRoot, array $artifacts): array
     {
         $orphans = [];
         $generatedDir = $repoRoot . '/server/tests/Contract/Generated';

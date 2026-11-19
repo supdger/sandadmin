@@ -11,21 +11,41 @@ namespace Sandadmin\Module\Package;
  * 内存版账本：不传 stateFile 时进程退出即丢，只作占位；
  * 传入 stateFile 后按 JSON 落盘，tools/package-ops --registry memory
  * 的无库演练靠它把装/升/卸的状态跨命令进程连起来，不能当真实登记用。
+ * 共享同一 stateFile 的进程间靠旁路锁文件串行化：后到命令排队，
+ * 读到的都是前一个命令写完的最新状态。
  */
 final class MemoryPluginRegistry implements PluginRegistry
 {
     /** @var array<string, array{version: string, state: string}> */
     private array $rows = [];
 
+    /** @var array<string, resource> 本进程已握的账本锁：flock 不可重入，同一 stateFile 二次实例化不能再 flock 死等 */
+    private static array $locks = [];
+
     public function __construct(private readonly ?string $stateFile = null)
     {
-        if ($stateFile === null || !is_file($stateFile)) {
+        if ($stateFile === null) {
             return;
         }
+        $dir = dirname($stateFile);
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException('无法创建演练账本目录：' . $dir);
+        }
+        if (!isset(self::$locks[$stateFile])) {
+            $lock = fopen($stateFile . '.lock', 'c');
+            if ($lock === false || !flock($lock, LOCK_EX)) {
+                throw new \RuntimeException('无法锁定演练账本：' . $stateFile);
+            }
+            self::$locks[$stateFile] = $lock;
+        }
+        if (!is_file($stateFile)) {
+            return;
+        }
+        // 账本存在但读不出内容时直接报错，不能装成空账本让已装记录凭空消失
         $raw = file_get_contents($stateFile);
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
         if (!is_array($decoded)) {
-            return;
+            throw new \RuntimeException('演练账本解析失败：' . $stateFile);
         }
         foreach ($decoded as $app => $row) {
             if (
@@ -78,14 +98,18 @@ final class MemoryPluginRegistry implements PluginRegistry
         }
     }
 
-    /** 落盘失败要抛出来：账本悄悄失真比直接报错更难查。 */
+    /** 先写临时文件再原子改名：进程死在半途也不会留下半个账本；写失败要抛出来。 */
     private function save(): void
     {
         if ($this->stateFile === null) {
             return;
         }
         $encoded = json_encode($this->rows, JSON_UNESCAPED_SLASHES);
-        if (!is_string($encoded) || file_put_contents($this->stateFile, $encoded) === false) {
+        if (!is_string($encoded)) {
+            throw new \RuntimeException('无法编码演练账本');
+        }
+        $stagingFile = $this->stateFile . '.staging-' . getmypid();
+        if (file_put_contents($stagingFile, $encoded) === false || !rename($stagingFile, $this->stateFile)) {
             throw new \RuntimeException('无法写演练账本：' . $this->stateFile);
         }
     }
