@@ -1,0 +1,35 @@
+我直接做这次只读审计。你说了“不开下级会话”，所以不派子代理。先确认任务目录和输入材料在不在。历史 RESULT 已读完。下面用 gh 只读查看两个 PR 的元数据、评论和检查结果。#97 的 diff 已读完。接下来用 `git show` 只读读取 #94 head 上的关键源码（复验目录里已有检出的 clone，`git show` 不改动它）。接下来对照已定事项总表、顶层架构 v4 和鉴权 P0 v4 里的相关条目。发现一个关键疑点：编译版判定只看环境变量，而 `tools/package-ops` 可能随发布包一起分发。下面用上一轮复验留下的剔除后目录树核实。证据已经齐了，现在写 RESULT.md（本次唯一写入的文件）。审计结论是**改后可合并**。验签链路本身没有放松，但有 4 处必须先修，其中 1 处违反已定事项。审计全程只读，没有重跑测试，门禁结果引用的是之前几轮复验的记录。结果已写入 `~/agent-work/assistant/1d-audit-packageops-1119/RESULT.md`。
+
+**必须修改：**
+- **M1：编译版闸能被一个环境变量绕过（违反总表第 5 条和 v4 L1611/L383）。**
+  - 编译版判定只看 `SAND_COMPILED`、`APP_ENV` 两个环境变量（`PackageGate.php:29-40`）。
+  - `tools/package-ops` 不加载 `.env`，所以生产 `.env` 里写的 `APP_ENV=production` 对它无效。
+  - 我看了上一轮留下的发布包剔除后目录，里面还带着 `tools/package-ops`，也没有开发构建标记 `.sand-dev-build`。
+  - 结论：在生产制品上执行 `SAND_COMPILED=0 … install --allow-unsigned` 就能装未签名包。这是从代码读出来的推断，按规矩没有实跑。之前 13 组场景测试没覆盖"发布制品 + SAND_COMPILED=0"这一组。
+  - 修法：安装、升级、卸载额外要求 `.sand-dev-build` 标记存在；或者把 `package-ops` 登记进 `dev-only-paths.txt`，不随发布包分发。建议两项都做。
+- **M2：泄露口令。** `tools/package-ops:142` 在协议不支持时，把整条 `SAND_DB_URL`（含口令）打到 stderr。
+- **M3：可能删到插件目录外。** `PackageJournal::removeTree` 会跟随符号链接。插件目录里只要有指向外部目录的链接，卸载、升级、回滚时就会把外部内容删掉。
+- **M4：两条通道的账本口径不一致。** 网页通道卸载和重装时会调 `PluginResidue` 停用/恢复插件的定时任务和扩展位，CLI 用的 `DbalPluginRegistry` 漏了这两步。结果是：先在网页卸载、再用 CLI 重装的插件，定时任务会永久停用。这类问题只有真实库才会暴露。
+
+**合并顺序：** M1–M4 修好（可作为新提交落在 #97 上）并独立复验后，先把 #97 合进 #94 分支 `feat/kernel-api-runtime-align`，再把 #94 合进 `main`。
+
+**逐项审查结果：**
+- **范围：** 两个 PR 都在 PackageOps 及直接相关范围内。#94 混入了 kernel_api 运行时检查和系统更新探测，前者算安装闸的一部分，后者是 v4 明列的承接项；但 PR 描述没写后 4 个提交，建议补写。
+- **验签：** Ed25519、先验签再解包、失败一律拒绝、`signature_verified` 不写假值，四条都满足。公钥目前由调用方自带，是 v4 允许的过渡口径；这样只能证明包和操作员给的公钥匹配，证明不了来源。
+- **门禁文件：** 只减不增，两个 PR 都没碰基线、白名单、CI 配置或门禁脚本。
+- **表结构：** 无 DDL、无迁移、无新表，只读写现有 `sand_system_plugin` 的现有列。
+- **其他安全项：** 没有命令注入；解包有防路径穿越；探测接口只放行本机回环；新增的公开接口 `/system/update/probe` 校验不过一律返回 404，可接受，建议登记进鉴权公开接口清单。
+
+**风险说明：** 真实库没验证，`DbalPluginRegistry` 的 SQL 从没在 PostgreSQL 或 MySQL 上跑过，M4 就是这类风险的实例。在 M1 修好、CLI 只能用于开发环境的前提下，我判断这个风险可以接受，不构成否决。但对外宣称"插件安装闭环完成"之前，必须用 `SAND_TEST_DB_URL` 跑一次 Integration。另外 CI 只跑依赖审计和发布自检，不跑测试和静态检查，`main` 分支也没开保护。迁移执行器、拒绝降级、反向依赖检查这几项还没做，详见 RESULT.md。
+
+## 模型记录
+- 主 Agent：本会话模型自报 Claude Opus 5.5；任务目录 `model.txt` 记 `claude-opus-5-5-medium`。按 Devin 规则不运行 `current_model_record.py`，`sessions.db` 里的实际 `generation_model` 本轮没有核对。
+- 子 Agent：未使用（任务要求不开下级会话）
+
+## 任务记录
+- 已修改：只有 `~/agent-work/assistant/1d-audit-packageops-1119/RESULT.md`
+- 已验证：只读查看了 PR、diff、CI 检查和评论；用 `git show 8809904:` 读源码；看了发布包剔除后的目录。复验目录里的检出 `git status` 为空、HEAD 仍是 8809904，没被改动。本轮没重跑测试，也没运行 `package-ops`。
+- 已提交/已部署：否（没合并、没评论、没推送）
+- 未完成：M1–M4 修复与复验、真实库 Integration 都不在本任务内，需要另外派活。
+
+=== RUN COMPLETE ===
