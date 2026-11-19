@@ -1,0 +1,20 @@
+收到任务。先梳理现状：定位仓库与 PR #107 分支，查看现有中间件实现、ProductionDebugGuard 做法和 contract 构建流程。任务明确禁止开下级会话，我自己执行全部工作。3a 任务的克隆在 PR 分支上且干净。按任务隔离约定，我在本任务目录克隆新副本再开工。克隆完成，分支 `feat/http-security-mw` @ 977c396。现在读相关代码。契约生成的产物包括 `ErrorCodeRegistry.php` 和前端 `contract.generated.ts`。看一下其他 Guard 的写法与既有测试风格。看一下 CsrfMiddlewareTest 的写法与测试里 `config()` 的可用性。计划已清晰。先确认 PHP/composer 环境与 vendor 状态。开始动手前按规则读命名规范与 PHP AOT 技能。仓库要求改码前读随仓 skill，读 backend 与 ai-loop 两份。规范已读。开始实现，先建任务清单。注释里的"四个通用码"要同步改成五个。`expectException` 之后的断言不会执行——改成 try/catch 才能同时断言"抛错+已停主进程"。重写测试。重新生成契约派生产物。生成的产物比预期多——可能是 composer 装的插件契约与上次生成时不同。先看 diff 判断哪些是我的改动导致、哪些是环境漂移。7 个用例全过。跑命名自查与门禁。命名自查通过。跑完整门禁，逐项记录退出码。全部门禁通过。提交前过一遍最终 diff 清单。diff 干净。按仓库约定逐文件 add（不用 -A）并提交。推送成功。写 RESULT.md。完成。PR #107 分支 `feat/http-security-mw` 上新提交 `c8fc46a`，已普通推送，未合并。
+
+**改动**
+- `contract/openapi.yaml`：`x-error-catalog` 补登 `CSRF_REJECTED`（403/common），`api-conventions.md` 与"四个通用码"注释同步改五个；全部派生产物经 `php tools/contract-build` 重新生成（ErrorCodeRegistry、contract.generated.ts 有实质变化，其余仅源哈希行）。
+- 新增 `server/app/bootstrap/SiteOriginGuard.php`：生产（`APP_ENV=production|prod`）未配置 `security.site_origin` 即拒绝启动（stderr + `haltMaster` + 重抛，同 ProductionDebugGuard）；形态非法同路拒启；开发环境放行。注册进 `config/bootstrap.php`，security.php 与 .env.example 注释同步。
+- 新增 `SiteOriginGuardTest` 7 用例；全局挂载 + 前缀自限作用域未动。
+
+**门禁**：phpunit unit 470 tests / 2731 assertions OK；phpstan 0 errors；contract-build --check PASS；pre-merge.sh --fast 7/7 通过；naming_check 0 FAIL/0 WARN。详见 `~/agent-work/assistant/6d-fix-pr107-secmw-1119/RESULT.md`。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（配置值；sessions.db 无 generation_model 字段，实际记录未查到）
+- 子 Agent：未使用（任务明确禁止开下级会话）
+
+## 任务记录
+- 已修改：`contract/openapi.yaml`、`contract/api-conventions.md`、`server/config/bootstrap.php`、`server/config/security.php`、`server/.env.example`、17 个契约派生产物（工具生成）；新增 `server/app/bootstrap/SiteOriginGuard.php`、`server/tests/Unit/App/SiteOriginGuardTest.php`
+- 已验证：naming_check code/notes/terms 全 0；phpunit unit 470 tests OK；phpstan No errors；contract-build --check PASS；pre-merge.sh --fast 全过
+- 已提交/已部署：提交 c8fc46a 并 push 到 origin/feat/http-security-mw；未合并
+- 未完成：无
+
+=== RUN COMPLETE ===
