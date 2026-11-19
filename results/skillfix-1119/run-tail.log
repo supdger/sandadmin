@@ -1,0 +1,22 @@
+我先了解现状：读上一轮 RESULT.md、确认 checkout 分支头、看 COVERAGE.md 的 6 项缺口。继续：确认分支头、读 COVERAGE.md 中 6 项缺口的登记位置。分支头确认 `444bcd6`，无新提交。读 COVERAGE.md 结构（图例、缺口小结、6 行原文）。分支头正确。现在找 6 项的老版原文出处。6 项原文都找到了。先看 `tools/pre-merge.sh --fast` 跑什么（是否含 skill-sync 比对），再定修改点。`pre-merge.sh --fast` 不查 skill-sync、不需要数据库（Integration 只在 `--full`）。但 `tools/skill-sync.sh` 会把 `.agents/skills/` 与上游 `~/.shared-skills/` 比对——只改仓内副本会让同步检查永久失败、下次 `--pull` 还会冲掉补文。所以上游权威副本必须同步改（同一内容，两落点一致），这符合仓库自描述的同步架构。
+
+先看 6 个落点文件的现状。看其余落点文件的相关小节。看 `B/BS`（backend-structure）有没有树/destroy/删除校验相关节，决定 saiadmin6-backend-31 的落点。落点定了。先确认仓内副本与上游当前一致（skill-sync check），并查 COVERAGE.md 里是否有处置统计行需要同步更新。上游一致，COVERAGE 无统计行需改。看 6 行原文精确内容。上游与仓内一致。方案：改上游 `~/.shared-skills/` 权威副本 → 用仓内 `skill-sync.sh --pull` 同步进仓（保持仓自描述的同步架构），再改 COVERAGE.md。先确认上游 4 个目标文件与仓内副本逐字节一致。一致。直接改仓内副本（已读过），完成后 cp 到上游并用 `skill-sync.sh` 校验一致。
+
+**Edit 1**: `delivery-loop.md` §0 — 补 WDS-07 分支命名 + WDS-08 commit type：**Edit 2**: `packaging.md` §4 补 ipr-12 退役前置，§8 补 ace-02 必录字段清单：4 个仓内文件改完。同步到上游权威副本并用仓内工具校验一致：同步通过。现在改 COVERAGE.md：6 行处置改「已收编」+ 缺口小结改写。改完。复查 COVERAGE 里残留「缺口」引用、跑 naming_check notes 自查。自查通过（exit 0，仅 INFO）；残留「缺口」均为词表/原规则引用/小结标题，无漏改行。现在跑 `tools/pre-merge.sh --fast`：7/7 全过（exit 0，不需数据库）。提交前核对实际 diff：Diff 干净：只动 `.agents/skills/` 下 5 个文件，未拍板 10 项原样。逐个 add 提交并推送：推送成功：`444bcd6 → b7bc4c5`（普通 push，未合并）。写 RESULT.md：全部完成。
+
+- 6 项缺口已按老版原文补进 `.agents/skills/`：WDS-07/08 → `delivery-loop.md` §0；saiadmin6-backend-31 → `backend-structure.md` §六；repo-sp-ace-02 → `packaging.md` §8；repo-sp-ipr-12 → `packaging.md` §4；SPC-17 → `database.md` §二。同一补文已同步上游 `~/.shared-skills/` 权威副本，`skill-sync.sh` 校验一致（否则仓内副本会被 `--pull` 冲掉）。
+- COVERAGE.md 6 行改「已收编」写明落点，缺口小结改「无剩余缺口」；10 项未拍板原样保留。
+- `bash tools/pre-merge.sh --fast` → exit 0，7/7 全过（不需数据库，Integration 只在 `--full`）。
+- 最终 SHA `b7bc4c5863d04f70f882dfdfcb8530a5e43e1336`，普通 push 到 `docs/1x-skills`（PR #98 未合并）。RESULT.md 在 `~/agent-work/assistant/skillfix-1119/RESULT.md`。
+
+## 模型记录
+- 主 Agent：SWE-2 / high
+- 子 Agent：未使用（任务禁开下级会话）
+
+## 任务记录
+- 已修改：`.agents/skills/` 5 文件（+上游 `~/.shared-skills/` 4 个对应同步副本）；交付 `RESULT.md`
+- 已验证：`skill-sync.sh` 0、`naming_check.py notes` 0、`pre-merge.sh --fast` 0（7/7）
+- 已提交/已部署：已提交并推送 `docs/1x-skills`（b7bc4c5）；未合并、未部署
+- 未完成：无
+
+=== RUN COMPLETE ===
