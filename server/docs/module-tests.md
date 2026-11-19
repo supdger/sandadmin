@@ -16,9 +16,8 @@
 - Unit 套件必须对 `SAND_TEST_DB_URL` 无感——不设该变量也要全过。
   要库的行为写进 Integration，用 `setUpBeforeClass` 里
   `markTestSkipped('需要 SAND_TEST_DB_URL 指向 PostgreSQL')` 的既有写法。
-- 内存库样例见 `tests/Unit/Module/Menu/PluginMenuTest.php` 与
-  `tests/Unit/Module/Dict/DictServiceTest.php`：DBAL `pdo_sqlite` 内存连接
-  + 最小建表，不引新测试框架。
+- 内存库样例见 `tests/Unit/Module/Menu/PluginMenuTest.php`：DBAL
+  `pdo_sqlite` 内存连接 + 最小建表，不引新测试框架。
 - sqlite 与 PG 行为差异要在夹具里消化（如布尔列手工写 1/0），
   不能靠改业务代码迁就 sqlite。
 
