@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full] [--typephp]
-# --fast（默认）：PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
-# --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）
+# --fast（默认）：模块测试目录检查 + PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
+# --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）+ 改动行覆盖率门禁（需要 pcov 或 xdebug）
 # --typephp：追加 TypePHP 可选编译验证；找不到编译器或项目文件时跳过不阻塞
 #   （ADR-23：编译门禁在工具链稳定前是可选的，不过不合并的硬门禁是其余几项）
+# 菜单页 Playwright 冒烟不进本脚本，单列命令：cd web && pnpm test:smoke
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,32 +23,37 @@ done
 
 cd "$ROOT/server"
 
-echo "== 1/7 PHP 语法检查（src/ app/ config/）"
+echo "== 1/8 模块测试目录检查（src/Module ↔ tests/{Unit,Integration}/Module）"
+php ../tools/check-module-tests.php
+
+echo "== 2/8 PHP 语法检查（src/ app/ config/）"
 find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null
 
-echo "== 2/7 契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
+echo "== 3/8 契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
 php ../tools/contract-build --check
 
-echo "== 3/7 危险函数白名单扫描"
+echo "== 4/8 危险函数白名单扫描"
 php tests/security/scan-dangerous-functions.php
 
-echo "== 4/7 dev-only 引用门禁（tools/dev-only-paths.txt）"
+echo "== 5/8 dev-only 引用门禁（tools/dev-only-paths.txt）"
 php ../tools/check-dev-refs.php
 
 # 存量 --all 全量会报既有可变调用/动态 include（整改是另一项工作），
 # 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
-echo "== 5/7 TypePHP 禁用写法扫描（diff 模式）"
+echo "== 6/8 TypePHP 禁用写法扫描（diff 模式）"
 php "$ROOT/tools/typephp_check.php"
 
-echo "== 6/7 PHPUnit Unit 套件"
+echo "== 7/8 PHPUnit Unit 套件"
 vendor/bin/phpunit --testsuite unit
 
-echo "== 7/7 PHPStan"
+echo "== 8/8 PHPStan"
 vendor/bin/phpstan analyse --no-progress
 
 if [ "$MODE" = "--full" ]; then
     echo "== 附加：PHPUnit Integration 套件"
     vendor/bin/phpunit --testsuite integration
+    echo "== 附加：改动行覆盖率门禁（tools/test-gate.json）"
+    php ../tools/check-diff-coverage.php
 fi
 
 if [ "$TYPEPHP" = "1" ]; then
