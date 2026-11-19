@@ -9,14 +9,16 @@ namespace Sandadmin\Infra\Id;
 
 /**
  * 发号器节点配置：解析 config('idgen') 并校验。
- * node_range 是本部署分到的节点号段（闭区间），node_id 是本机发号节点号，
- * 必须落在号段内——拿错配置的进程会和别的部署发出重复的号，启动自检拒启。
- * max_clock_backwards_ms 必填正整数，默认值待技术总监定（v4 J-3 待决项）。
+ * node_range 是本部署分到的节点号段（闭区间），node_id 是本机节点基值：
+ * 各发号进程实际节点号为「基值 + 进程槽位」（见 SnowflakeNodePlan），
+ * 基值加全部发号进程数减一必须仍落在号段内——拿错配置的进程会和别的
+ * 部署发出重复的号，启动自检拒启。
+ * max_clock_backwards_ms 必填正整数，推荐值 10（v4 J-3 已定，见 docs/id-generator.md）。
  */
 final class SnowflakeConfig
 {
     private function __construct(
-        public readonly int $nodeId,
+        public readonly int $nodeBase,
         public readonly int $rangeStart,
         public readonly int $rangeEnd,
         public readonly int $maxBackwardsMs,
@@ -25,22 +27,26 @@ final class SnowflakeConfig
 
     /**
      * @param array<mixed> $config config('idgen') 原文
+     * @param int|null $workerTotal 本机发号进程总数；提供时校验「基值 + 总数 - 1」仍在号段内
      *
      * @throws SnowflakeConfigException 任一必填项缺失或非法
      */
-    public static function fromArray(array $config): self
+    public static function fromArray(array $config, ?int $workerTotal = null): self
     {
         [$rangeStart, $rangeEnd] = self::parseRange($config['node_range'] ?? null);
-        $nodeId = self::intValue($config['node_id'] ?? null, 'node_id');
+        $nodeBase = self::intValue($config['node_id'] ?? null, 'node_id');
         $maxBackwardsMs = self::intValue($config['max_clock_backwards_ms'] ?? null, 'max_clock_backwards_ms');
         if ($maxBackwardsMs <= 0) {
-            throw new SnowflakeConfigException('idgen.max_clock_backwards_ms 必须是正整数毫秒，默认值定稿前必填');
+            throw new SnowflakeConfigException('idgen.max_clock_backwards_ms 必须是正整数毫秒，必填，推荐值 10');
         }
-        if ($nodeId < $rangeStart || $nodeId > $rangeEnd) {
-            throw new SnowflakeConfigException(sprintf('节点号 %d 不在本部署号段 %d-%d 内，疑似拿错配置', $nodeId, $rangeStart, $rangeEnd));
+        if ($nodeBase < $rangeStart || $nodeBase > $rangeEnd) {
+            throw new SnowflakeConfigException(sprintf('节点基值 %d 不在本部署号段 %d-%d 内，疑似拿错配置', $nodeBase, $rangeStart, $rangeEnd));
+        }
+        if ($workerTotal !== null && $nodeBase + $workerTotal - 1 > $rangeEnd) {
+            throw new SnowflakeConfigException(sprintf('节点基值 %d 加 %d 个发号进程需占用到 %d，超出号段上限 %d，扩号段或减少进程数', $nodeBase, $workerTotal, $nodeBase + $workerTotal - 1, $rangeEnd));
         }
 
-        return new self($nodeId, $rangeStart, $rangeEnd, $maxBackwardsMs);
+        return new self($nodeBase, $rangeStart, $rangeEnd, $maxBackwardsMs);
     }
 
     /**

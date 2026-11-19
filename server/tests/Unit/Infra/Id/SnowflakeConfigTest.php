@@ -21,7 +21,7 @@ final class SnowflakeConfigTest extends TestCase
             'node_id' => 150,
             'max_clock_backwards_ms' => 10,
         ]);
-        self::assertSame(150, $config->nodeId);
+        self::assertSame(150, $config->nodeBase);
         self::assertSame(100, $config->rangeStart);
         self::assertSame(199, $config->rangeEnd);
         self::assertSame(10, $config->maxBackwardsMs);
@@ -36,7 +36,7 @@ final class SnowflakeConfigTest extends TestCase
         ]);
         self::assertSame(0, $config->rangeStart);
         self::assertSame(1023, $config->rangeEnd);
-        self::assertSame(42, $config->nodeId);
+        self::assertSame(42, $config->nodeBase);
     }
 
     public function testNodeOutsideRangeRejected(): void
@@ -97,5 +97,26 @@ final class SnowflakeConfigTest extends TestCase
             'node_id' => '',
             'max_clock_backwards_ms' => '',
         ]);
+    }
+
+    public function testWorkerTotalWithinRangeAccepted(): void
+    {
+        $config = SnowflakeConfig::fromArray([
+            'node_range' => '0-1023',
+            'node_id' => 1000,
+            'max_clock_backwards_ms' => 10,
+        ], 24);
+        self::assertSame(1000, $config->nodeBase);
+    }
+
+    public function testWorkerTotalBeyondRangeRejected(): void
+    {
+        $this->expectException(SnowflakeConfigException::class);
+        $this->expectExceptionMessageMatches('/超出号段上限/');
+        SnowflakeConfig::fromArray([
+            'node_range' => '0-1023',
+            'node_id' => 1000,
+            'max_clock_backwards_ms' => 10,
+        ], 25);
     }
 }

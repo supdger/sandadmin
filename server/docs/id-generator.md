@@ -24,20 +24,27 @@
 
 | 配置键 | 环境变量 | 说明 |
 | --- | --- | --- |
-| `idgen.node_range` | `SAND_IDGEN_NODE_RANGE` | 本部署分到的号段，闭区间，格式 `"起始-结束"` |
-| `idgen.node_id` | `SAND_IDGEN_NODE_ID` | 本机发号节点号，必须落在号段内 |
+| `idgen.node_range` | `SAND_IDGEN_NODE_RANGE` | 本部署分到的号段，闭区间，格式 `"起始-结束"`，宽度至少容纳本机全部发号进程 |
+| `idgen.node_id` | `SAND_IDGEN_NODE_ID` | 本机节点基值，必须落在号段内 |
 | `idgen.max_clock_backwards_ms` | `SAND_IDGEN_MAX_CLOCK_BACKWARDS_MS` | 回拨拒发阈值（毫秒，正整数） |
 
-号段存在的意义是防拿错配置：节点号不在号段内即拒启。**同一号段内不同
-发号进程必须各拿不同的节点号**；webman 单配置多 worker 时各 worker 共用
-同一 `node_id`，需要按进程细分节点号的部署形态是剩余待决项（见末节）。
+号段存在的意义是防拿错配置：基值不在号段内即拒启。**`node_id` 是本机
+节点基值，不是最终节点号**：各发号进程实际节点号为「基值 + 进程槽位
+偏移 + worker 序号」，槽位由 `SnowflakeNodePlan` 按 webman 启动顺序
+连续分配——`config('process')` 各进程在前，`config('plugin')` 的
+`plugin.{firm}[.{name}].{process}` 进程在后，`enable=false` 不占槽。
+web、task_worker、monitor、log_retention 与插件自定义进程各占一段，
+互不冲突。启动自检校验「基值 + 进程总数 − 1」仍在号段内，越界拒启；
+进程不在布局内（拿不到槽位）同样拒启。
 
 ## 时钟回拨
 
 回拨量小于 `max_clock_backwards_ms`：阻塞等待时钟追上后继续发号；
 达到阈值：拒绝发号（`ClockBackwardsException`）并向 default 日志通道告警。
 
-阈值默认值**待技术总监定**（v4 J-3 待决项），定稿前部署必须显式配置
+阈值已定 **10ms**（v4 J-3，2026-11-19 技术总监定）：NTP 校时与虚拟机
+时钟抖动通常在毫秒级，10ms 内等待即可追上；更大的回拨视为时钟异常，
+宁可拒发也不发出可能重复的号。配置保持必填，部署按推荐值 10 显式配置
 `SAND_IDGEN_MAX_CLOCK_BACKWARDS_MS`。
 
 ## 两类主键
@@ -65,5 +72,4 @@ $row['id'] = (string) $row['id'];             // 输出接口字段时转字符�
 
 - 节点租约表 `sand_system_id_node` 与心跳续期；
 - 外键同型的静态检查工具；
-- PostgreSQL / MySQL 两库实测；
-- 多 worker 节点号细分方案（当前同一机内各 worker 共用 `node_id`）。
+- PostgreSQL / MySQL 两库实测。
