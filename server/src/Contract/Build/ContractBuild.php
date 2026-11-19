@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Contract\Build;
 
 use Sandadmin\Contract\SourceHash;
+use Sandadmin\Contract\KernelApi\RuntimeCheck;
 
 /**
  * 契约构建编排：收集（宿主契约 + 插件片段）→ 解析 → 冲突检查 → 发射产物。
@@ -33,6 +34,7 @@ final class ContractBuild
      *   warnings: list<string>,
      *   artifacts: list<array{path: string, status: string}>,
      *   incomplete_operations: list<string>,
+     *   named_connections: list<array{plugin: string, name: string, connections_per_process: int}>,
      *   source_hash: string,
      * }
      */
@@ -46,6 +48,7 @@ final class ContractBuild
             'warnings' => [],
             'artifacts' => [],
             'incomplete_operations' => [],
+            'named_connections' => [],
             'source_hash' => '',
         ];
 
@@ -76,6 +79,7 @@ final class ContractBuild
 
         $hostOps = [];
         $pluginOps = [];
+        $connectionRows = [];
         foreach ($docs as $source => $doc) {
             foreach ($doc['operations'] as $op) {
                 if ($source === 'host') {
@@ -84,7 +88,15 @@ final class ContractBuild
                     $pluginOps[$source][] = $op;
                 }
             }
+            foreach ($doc['connections'] as $conn) {
+                $connectionRows[] = [
+                    'plugin' => $source,
+                    'name' => $conn['name'],
+                    'connections_per_process' => $conn['connections_per_process'],
+                ];
+            }
         }
+        $report['named_connections'] = $connectionRows;
 
         $permissions = ConflictCheck::collectPermissions($docs);
         $catalog = ConflictCheck::collectErrors($docs);
@@ -104,6 +116,8 @@ final class ContractBuild
             PhpEmit::emitRoutes($hostOps, $sourceLabels, $sourceHash);
         $artifacts['server/config/plugin-routes.generated.json'] =
             PhpEmit::emitPluginRoutes($collection['route_entries'], $sourceLabels, $sourceHash);
+        $artifacts['server/config/connection-budget.generated.json'] =
+            PhpEmit::emitConnectionBudget($connectionRows, $sourceLabels, $sourceHash);
         $artifacts['server/src/Contract/Generated/PermissionRegistry.php'] =
             PhpEmit::emitPermissionRegistry($permissions, $tree, $adminCodes, $sidebar, $sourceLabels, $sourceHash);
         $artifacts['server/src/Contract/Generated/McpToolRegistry.php'] =
@@ -122,7 +136,7 @@ final class ContractBuild
             $artifacts["{$pluginBase}/route.generated.php"] =
                 PhpEmit::emitPluginRouteTable($ops, $sourceLabels, $sourceHash);
             $artifacts["{$pluginBase}/route.php"] =
-                PhpEmit::emitPluginRouteShell($sourceLabels, $sourceHash);
+                PhpEmit::emitPluginRouteShell($app, $sourceLabels, $sourceHash);
         }
 
         if ($write) {
@@ -130,6 +144,16 @@ final class ContractBuild
                 $absolute = $repoRoot . '/' . $rel;
                 self::writeFile($absolute, $content);
                 $report['artifacts'][] = ['path' => $rel, 'status' => 'written'];
+            }
+            // 契约已不产出的旧生成物一并清掉，重建才算完成，
+            // 否则 --check 立即报孤儿要求手工清理；删不掉不能装没看见
+            foreach (self::listOrphanArtifacts($repoRoot, $artifacts) as $rel) {
+                if (unlink($repoRoot . '/' . $rel)) {
+                    $report['artifacts'][] = ['path' => $rel, 'status' => 'removed'];
+                } else {
+                    $report['warnings'][] = '无法删除孤儿产物：' . $rel;
+                    $report['result'] = 'failed';
+                }
             }
         } else {
             $stale = self::compareArtifacts($repoRoot, $artifacts);
@@ -227,6 +251,10 @@ final class ContractBuild
             $fragments[] = $app;
             $doc = ContractDoc::parse($fragment, $app);
             foreach ($doc['problems'] as $problem) {
+                $problems[] = $problem;
+            }
+            // 有片段的包顺带核运行时对齐（薄壳/路由表/注解码/x-handler 文件）
+            foreach (RuntimeCheck::check($appDir, $doc) as $problem) {
                 $problems[] = $problem;
             }
             $docs[$app] = $doc;
@@ -341,20 +369,37 @@ final class ContractBuild
             }
         }
         // 反向：生成目录里多出孤儿文件（如已删 tag 的骨架）也算不一致
-        $generatedDir = $repoRoot . '/server/tests/Contract/Generated';
-        if (is_dir($generatedDir)) {
-            $files = glob($generatedDir . '/*.php');
-            if ($files !== false) {
-                foreach ($files as $file) {
-                    $rel = 'server/tests/Contract/Generated/' . basename($file);
-                    if (!isset($artifacts[$rel])) {
-                        $stale[] = $rel . '（孤儿产物，应删除）';
-                    }
-                }
-            }
+        foreach (self::listOrphanArtifacts($repoRoot, $artifacts) as $rel) {
+            $stale[] = $rel . '（孤儿产物，应删除）';
         }
 
         return $stale;
+    }
+
+    /**
+     * 生成目录里存在、但本次契约不再产出的产物相对路径。
+     * @param array<string, string> $artifacts
+     * @return list<string>
+     */
+    private static function listOrphanArtifacts(string $repoRoot, array $artifacts): array
+    {
+        $orphans = [];
+        $generatedDir = $repoRoot . '/server/tests/Contract/Generated';
+        if (!is_dir($generatedDir)) {
+            return $orphans;
+        }
+        $files = glob($generatedDir . '/*.php');
+        if ($files === false) {
+            return $orphans;
+        }
+        foreach ($files as $file) {
+            $rel = 'server/tests/Contract/Generated/' . basename($file);
+            if (!isset($artifacts[$rel])) {
+                $orphans[] = $rel;
+            }
+        }
+
+        return $orphans;
     }
 
     private static function writeFile(string $absolute, string $content): void

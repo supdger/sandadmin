@@ -13,6 +13,9 @@ use Sandadmin\Application\Mcp\McpServerFactory;
 use Sandadmin\Application\Mcp\ToolCatalog;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Stream\StreamWriterInterface;
+use Sandadmin\Infra\Mcp\Biz\BusinessCatalog;
+use Sandadmin\Infra\Mcp\Biz\KernelBizGateway;
+use Sandadmin\Infra\Mcp\Biz\OrgActorSource;
 use Sandadmin\Infra\Mcp\Dev\DevCatalog;
 use Sandadmin\Infra\Mcp\DevTokenVerifier;
 use Sandadmin\Infra\Mcp\LogAuditSink;
@@ -76,7 +79,7 @@ final class McpController
         $kernel = new McpKernel(
             $identity,
             $limiter,
-            new LogAuditSink(\support\Log::channel('default')),
+            new LogAuditSink(\support\Log::channel('security')),
             $requestId,
             $request->getRemoteIp(),
             self::intConfig('mcp.dev.tool_limit', 30),
@@ -86,11 +89,25 @@ final class McpController
             'sandadmin',
             '1.x',
             new \Sandadmin\Infra\Log\SdkQuietLogger(\support\Log::channel('default')),
-        ))->build(new ToolCatalog($this->devSpecs()), $kernel);
+        ))->build(new ToolCatalog($this->specs()), $kernel);
 
         return McpHttpBridge::fromPsr7(
             $transport->handle(McpHttpBridge::toPsr7($request, $identity)),
         );
+    }
+
+    /**
+     * 工具清单 = 开发期工具 + 业务工具（v1 接口映射）。
+     * 业务工具的 BizKernel 延迟求值，库不可用时单个工具回 INTERNAL_ERROR，
+     * 不影响 tools/list 与其余工具。
+     *
+     * @return list<\Sandadmin\Domain\Mcp\ToolSpec>
+     */
+    private function specs(): array
+    {
+        $gateway = new KernelBizGateway(BizKernel::fromWebman(...), new OrgActorSource());
+
+        return [...$this->devSpecs(), ...BusinessCatalog::specs($gateway)];
     }
 
     /** @return list<\Sandadmin\Domain\Mcp\ToolSpec> */

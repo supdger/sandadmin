@@ -5,7 +5,7 @@ declare(strict_types=1);
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:cda7bc00788ab828775ee74c9d70c0f5784bab88425f0f8999db85745a593f71
+// 源哈希: sha256:0e05c7423b5b7fd78d046ae957a741380629f10e683c91907c04c36be6a890ca
 // 生成器: contract-build v1
 
 use Sandadmin\Http\AnnouncementController;
@@ -19,6 +19,7 @@ use Sandadmin\Http\NotificationController;
 use Sandadmin\Http\OrgController;
 use Sandadmin\Http\PackageController;
 use Sandadmin\Http\TaskController;
+use Sandadmin\Http\UpdateProbeController;
 use app\controller\FileController;
 use Webman\Route;
 
@@ -128,5 +129,6 @@ Route::post('/api/admin/v1/plugins/{plugin_code}/upgrade', [PackageController::c
 Route::post('/api/admin/v1/plugins/{plugin_code}/uninstall', [PackageController::class, 'uninstall']);
 Route::get('/api/admin/v1/system/update/status', [HostReadController::class, 'updateStatus']);
 Route::post('/api/admin/v1/system/update/check', [HostReadController::class, 'updateCheck']);
+Route::get('/api/admin/v1/system/update/probe', [UpdateProbeController::class, 'probe']);
 Route::post('/api/admin/v1/system/update/start', [PackageController::class, 'startUpdate']);
 Route::put('/api/admin/v1/scheduled-tasks/{code}', [HostReadController::class, 'scheduledTaskUpdate']);

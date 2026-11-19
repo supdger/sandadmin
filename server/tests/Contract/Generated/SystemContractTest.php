@@ -5,7 +5,7 @@ declare(strict_types=1);
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:cda7bc00788ab828775ee74c9d70c0f5784bab88425f0f8999db85745a593f71
+// 源哈希: sha256:0e05c7423b5b7fd78d046ae957a741380629f10e683c91907c04c36be6a890ca
 // 生成器: contract-build v1
 
 namespace Sandadmin\Tests\Contract\Generated;
@@ -25,6 +25,7 @@ final class SystemContractTest extends TestCase
         return [
             ['systemUpdateStatus', 'GET', '/api/admin/v1/system/update/status'],
             ['systemUpdateCheck', 'POST', '/api/admin/v1/system/update/check'],
+            ['systemUpdateProbe', 'GET', '/api/admin/v1/system/update/probe'],
             ['systemUpdateStart', 'POST', '/api/admin/v1/system/update/start'],
             ['scheduledTasksUpdate', 'PUT', '/api/admin/v1/scheduled-tasks/{code}'],
         ];

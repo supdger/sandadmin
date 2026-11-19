@@ -1,7 +1,7 @@
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:cda7bc00788ab828775ee74c9d70c0f5784bab88425f0f8999db85745a593f71
+// 源哈希: sha256:0e05c7423b5b7fd78d046ae957a741380629f10e683c91907c04c36be6a890ca
 // 生成器: contract-build v1
 
 /** 成功信封：code 固定字符串 OK，成功判定只看这一个字段 */
@@ -1040,6 +1040,15 @@ export const OPERATIONS: readonly ContractOperation[] = [
     permissionKind: 'authenticated',
     permissionCodes: [],
     errorCodes: ['UPDATE_NOT_AVAILABLE'],
+    tags: ['system'],
+  },
+  {
+    method: 'GET',
+    path: '/api/admin/v1/system/update/probe',
+    operationId: 'systemUpdateProbe',
+    permissionKind: 'public',
+    permissionCodes: [],
+    errorCodes: [],
     tags: ['system'],
   },
   {

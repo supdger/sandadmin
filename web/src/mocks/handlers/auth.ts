@@ -104,6 +104,7 @@ const USERS: Record<string, MockUser> = {
       'system:dict:index',
       'system:file:index',
       'system:announcement:index',
+      'system:task:index',
     ],
     password: env.mockViewerPassword ?? undefined,
     phone: '13800000003',
