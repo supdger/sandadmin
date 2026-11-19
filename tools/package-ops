@@ -125,8 +125,9 @@ $registry = null;
 if ($command === 'recover') {
     $registry = new MemoryPluginRegistry();
 } elseif ($options['registry'] === 'memory') {
-    // 仅供本地无库演练：进程退出账本即丢，不产生真实登记
-    $registry = new MemoryPluginRegistry();
+    // 仅供本地无库演练：账本落 work-dir 下 registry.json，跨命令进程的
+    // 装/升/卸才读到同一状态；不产生真实登记
+    $registry = new MemoryPluginRegistry($workDir . '/registry.json');
 } else {
     $dbUrl = getenv('SAND_DB_URL');
     if (!is_string($dbUrl) || $dbUrl === '') {

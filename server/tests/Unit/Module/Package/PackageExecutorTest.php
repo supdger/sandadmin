@@ -489,6 +489,52 @@ final class PackageExecutorTest extends TestCase
         $this->assertNoSideEffects('sand-hello');
     }
 
+    public function testUninstallReportsFailureWhenWorkdirIsFile(): void
+    {
+        // work-dir 被同名文件占位时 journal 写不进：卸载要按失败报告返回，
+        // 不能把未捕获异常抛成 500 一类的崩溃
+        $workDir = $this->dir . '/work-file';
+        file_put_contents($workDir, 'x');
+        $registry = new FakePluginRegistry();
+        $registry->recordInstall('sand-hello', 'sand-hello', '0.1.0', 'x');
+        if (!is_dir($this->pluginPath('sand-hello')) && !mkdir($this->pluginPath('sand-hello'), 0755, true)) {
+            self::fail('无法创建插件目录');
+        }
+        $executor = new PackageExecutor($registry, $this->repoDir, $this->repoDir . '/server/plugin', $workDir, 'pgsql');
+
+        $result = $executor->uninstall('sand-hello', 'keep');
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('journal', $result['stage']);
+    }
+
+    public function testInstallReportsFailureWhenWorkdirIsFile(): void
+    {
+        $workDir = $this->dir . '/work-file';
+        file_put_contents($workDir, 'x');
+        $registry = new FakePluginRegistry();
+        $executor = new PackageExecutor($registry, $this->repoDir, $this->repoDir . '/server/plugin', $workDir, 'pgsql');
+
+        $result = $executor->install($this->zip('hello'), null, allowUnsigned: true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('journal', $result['stage']);
+    }
+
+    public function testMemoryRegistryKeepsStateAcrossInstances(): void
+    {
+        // 首次安装回执 ok 之后，下一次命令再查账本必须看到已装：
+        // state-file 落地才让「装、升、卸一轮无库演练」跨进程连贯
+        $stateFile = $this->dir . '/registry.json';
+        $first = new \Sandadmin\Module\Package\MemoryPluginRegistry($stateFile);
+        $first->recordInstall('sand-hello', 'sand-hello', '0.1.0', 'x');
+
+        $second = new \Sandadmin\Module\Package\MemoryPluginRegistry($stateFile);
+
+        self::assertSame('0.1.0', $second->installedVersion('sand-hello'));
+        self::assertSame(['sand-hello' => '0.1.0'], $second->installedVersions());
+    }
+
     public function testCompiledHostRefusesInstall(): void
     {
         putenv('SAND_COMPILED=1');

@@ -23,7 +23,7 @@ final class PackageJournal
 
     public function begin(string $kind, string $app, string $dataPolicy, string $plugin): string
     {
-        if (!is_dir($this->workDir) && !mkdir($this->workDir, 0755, true) && !is_dir($this->workDir)) {
+        if (!is_dir($this->workDir) && (file_exists($this->workDir) || !mkdir($this->workDir, 0755, true)) && !is_dir($this->workDir)) {
             throw new \RuntimeException('无法创建 journal 目录：' . $this->workDir);
         }
         $id = $kind . '-' . bin2hex(random_bytes(6));

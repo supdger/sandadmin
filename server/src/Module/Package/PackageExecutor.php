@@ -79,7 +79,12 @@ final class PackageExecutor
         }
 
         $journal = $this->journal();
-        $id = $journal->begin('uninstall', $app, $dataPolicy, $pluginPath);
+        try {
+            $id = $journal->begin('uninstall', $app, $dataPolicy, $pluginPath);
+        } catch (\Throwable $error) {
+            // journal 写不进时按失败报告返回，不把未捕获异常抛给调用方
+            return $this->fail($app, $current, 'journal', ['操作中断：' . $error->getMessage()], false);
+        }
         $backup = $this->workDir . '/backup-' . $app . '-' . $id;
         $unregistered = false;
         $stage = 'remove';
@@ -233,7 +238,11 @@ final class PackageExecutor
         }
 
         $journal = $this->journal();
-        $id = $journal->begin($kind, $app, 'keep', $pluginPath);
+        try {
+            $id = $journal->begin($kind, $app, 'keep', $pluginPath);
+        } catch (\Throwable $error) {
+            return $this->fail($app, $manifest->version, 'journal', ['操作中断：' . $error->getMessage()], $shaOk);
+        }
         $staged = $this->workDir . '/staged-' . $id;
         $backup = $this->workDir . '/backup-' . $app . '-' . $id;
         $registered = false;
