@@ -1,0 +1,54 @@
+I'll start by confirming where the inputs, repo and task directory are before handing out the work.I've fixed the checklist item numbering so the skill and the gap table use the same IDs. Now starting two parallel work packages: the skill (with benchmark research) and the v4 gap table.Both work packages are running in parallel: the skill (dv-executor) and the v4 gap table (dv-implementer). I'll wait for the results and then review them.The gap table reports 0 missing items, which seems generous, so I'll spot-check some of the "covered" claims against v4.I'll review the committed diff and the evidence file for the benchmark numbers.The structure is solid. The benchmark numbers are where a mistake would look plausible, so I'll check them against the captured sources and re-fetch a couple myself.The rework is back. I'll do a final check of the second commit, the PR state and RESULT.md.Note first: this session's lead agent is the Fusion setup (Claude Opus 5.5 Medium + SWE-2 Medium), not the `swe-2-high` that the Devin rules require. All hands-on work went to SWE-2 `dv-*` subagents. I did the review myself, including re-fetching the benchmark pages.
+
+## Result
+
+PR #109 is open and not merged: https://github.com/supdger/sandadmin/pull/109
+- Branch `docs/1x-design-standard`, cut from main at base SHA `977427acc285da074a443e8206309289a9bd94fb`.
+- Final SHA is `469caddb13ea88f8d4ac15a0c133005fb2eeaab2`.
+- The PR changes only two files: the new `.agents/skills/sandadmin1x-design-standard/SKILL.md` (247 lines) and one added sentence in `AGENTS.md`. The sentence says every design and plan must answer the checklist item by item, and any audit with gaps is sent back.
+- In the task folder: `RESULT.md`, the gap table `gap-table.md`, and the benchmark sources `sources.md`.
+
+**The checklist (54 items)**
+- It covers all 11 groups you listed, plus two more: P for high performance and G for config management.
+- Every item fills in the required columns: what 1.0 does, whether 1.1 does it, the reason, the cost of adding it later, and how it's checked.
+- Scale follows rule 8 of the boss's decisions list, quoted word for word.
+- The async and concurrency group points to the 3i design. That design had no output yet, so the skill says "細节以 3i 为准（编制中）" and will need a revision once 3i lands.
+
+**Performance targets and benchmarks**
+- The public numbers come from The Benchmarker, fetched 2026-11-19. Requests per second at 64 concurrent connections:
+
+| Framework | req/s |
+|---|---|
+| Vert.x | 199,842 |
+| Workerman (raw) | 173,597 |
+| Quarkus | 151,114 |
+| Gin | 111,896 |
+| webman | 110,952 |
+| Spring | 58,750 |
+| Laravel | 1,741 |
+
+- **Correction during review:** the first draft said webman ran 138,903 req/s and beat Gin by 1.24×. When I re-fetched the page it showed 110,952, so that claim was wrong. All the derived ratios have been recalculated. The honest comparison: about level with Gin, about 70% of Quarkus, about 56% of Vert.x. The webman framework layer costs about 36% compared with raw Workerman.
+- The benchmark site is a rolling dataset, so the skill now says to record the fetch date and re-fetch when auditing.
+- Our own pass/fail bars are only estimates until 1.0 stress tests are run and are marked "须 1.0 压测定基线". They are 80,000 req/s for hello world, 5,000 req/s with the auth chain plus one database query, recovery within 5 s after a process is killed, and memory growth ≤10% over a 24-hour soak.
+- Workerman's five strengths (resident memory, multi-process event loop, built-in WebSocket/SSE, custom processes, smooth reload) are each tied to a checklist item, along with the risk each one brings.
+- The Go/Java comparison covers six areas: throughput and latency, connection pooling, rate limiting and circuit breaking, observability, graceful shutdown and zero-downtime release, and config management. Each says how far webman can get, why it falls short, and how to close the gap.
+
+**Gap table against v4**
+- 36 items covered, 18 partly covered, 0 missing. I spot-checked 7 of the line numbers myself and they hold up.
+- The 18 partly covered items need about 9–17.5 person-days in 1.0 and about 5.5–11 in 1.1, roughly 14.5–28.5 in total.
+- Two items are not yet decided by the boss: whether 1.0 ships Chinese only, and the minimum MySQL version.
+- Five items are placed in a different version than v4 had them, so the boss or architecture owner needs to confirm. H3, O4, M1 and P1 move to 1.0; M4 moves to 1.1.
+
+**Checks:** `naming_check notes` has 0 FAIL and 0 WARN. `tools/skill-sync.sh` exits 0, and the new folder doesn't affect its comparison. `tools/pre-merge.sh --fast` passes all 7 steps (408 PHPUnit tests, PHPStan clean). `composer install` overwrote two server files during the checks; they were restored and nothing was committed.
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium），按系统说明；sessions.db 没有查，实际记录写"未记录"
+- 子 Agent：`dv-executor` 写 skill，返工一轮 → 实际模型未记录；`dv-implementer` 写差异表 → 实际模型未记录
+
+## 任务记录
+- 已修改：`.agents/skills/sandadmin1x-design-standard/SKILL.md`（新增）和 `AGENTS.md`（加一句）；任务目录里的 `RESULT.md`、`gap-table.md`、`sources.md`、`checklist-ids.md`
+- 已验证：`naming_check notes`、`skill-sync.sh`、`pre-merge.sh --fast` 退出码都是 0；我重抓了 7 个基准页，和文档里的数字一致
+- 已提交/已部署：已提交并推送到 docs 分支，PR #109 开着、没合并；没有部署
+- 未完成：A 组要等 3i 出稿后修订；2 项待老板定，5 项版本归属和 v4 不一致待确认；性能门槛要等 1.0 压测定基线
+
+=== RUN COMPLETE ===
