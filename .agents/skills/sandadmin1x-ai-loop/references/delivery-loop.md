@@ -18,7 +18,9 @@ Actions + 本地合并前必跑脚本出自 v4 T-8 / B-23（arch:1912-1925, :64�
   `server/app`=薄壳、`server/database/migrations/`=宿主迁移、`web/`=唯一前端；
   `server/plugin/` 是 Composer 产物不改）。
 - [ ] 从最新主干拉出 feature 分支。**禁止**直接在 `main`/`master`/`release/*` 上
-  提交；禁止 force push、禁止删已保护分支。
+  提交；禁止 force push、禁止删已保护分支。分支命名 `feat/<scope>-…`、
+  `fix/<scope>-…`、`chore/<scope>-…`（可 `hotfix/`）；commit 前缀 type：
+  `feat` / `fix` / `docs` / `refactor` / `test` / `chore`。
 - [ ] 改动范围只含本任务该动的文件；顺手发现的无关问题另开分支，不夹带。
 
 ## 第 1 步：测试（每个模块带测试）
