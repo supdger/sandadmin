@@ -18,3 +18,5 @@
 
 全部做完后最后单独输出一行：
 === RUN COMPLETE ===
+
+补充（老板 2026-11-19 原话要点）：目标不能只盯 PHP 的优秀框架，PHP 主流 FPM 框架只当底线；我们是基于 workerman 的高性能框架，对标 Go、Java 一流框架（Go：Gin、go-zero、Kratos；Java：Spring Boot、Spring Cloud、Vert.x、Quarkus）。对标内容至少含：吞吐与延迟、连接池、服务治理（限流、熔断、降级）、可观测、优雅停机与不停服发版、配置管理。每项写清一流框架怎么做、我们在 webman 上能做到几成、做不到的原因和以后的补法；数字用压测或公开基准定，附来源。
