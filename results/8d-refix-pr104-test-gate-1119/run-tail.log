@@ -1,0 +1,27 @@
+仓库是 `~/agent-work/pub-sandadmin`。先核实分支与远端状态。工作区在 `feat/ai-loop-rollback`，切到 `feat/test-gate` 干活。看下真实表结构与现有 Integration 测试的写法，确定搬移后怎么接 `SAND_TEST_DB_URL`。看下 autoload 与 bootstrap，再定夹具放哪。看下 announcement 相关真实列名与 OrgAudit/OrgSql 细节，随后动手改写。顺手确认 Menu 的 `PluginMenuTest`——它同样用了 sqlite 内存库，看是否也属于本次要清的口径。Menu 的 PluginMenuTest 也违例（ee08b60 里就用了 sqlite）。看下 Integration/Module/Menu 现有写法再定怎么搬。Menu 模块里有什么可纯测的类？决定 PluginMenuTest 搬走后在 Unit 留什么。设计定稿。先写共享的 `Disconnected` 工具与更新两个夹具，再改写四个 Unit 文件、新建 Integration 文件。现在改写 Unit 侧文件。先是 `DictServiceTest`（只剩入库前的校验分支）。改写 Unit `LifecycleHttpTest` 为纯前置分支。改写 Unit `PackageOpsTest` 为免库分支。新增 Unit `MenuExceptionTest`（补 PluginMenuTest 搬走后 Unit/Menu 的空位）。现在写 Integration `DictServiceTest`（sqlite → `SAND_TEST_DB_URL` + 真实列，按前缀清理）。写 Integration `LifecycleRepositoryTest`。写 Integration `NotificationRepositoryTest`（真实用户/部门种行 + 真实列）。修正 `testMarkOneReadStampsReadTime` 的时间断言——PG 回读格式带时区，按前缀断言更稳。写 Integration `NotificationWriteTest`。写 Package 的 Integration 前先确认 `OrgSql::int` 对 PG 布尔回读（`true`/`'t'`）的处理。写 Integration `PackageOpsTest`（含被推迟的 PG 方言用例：enqueue `RETURNING public_id::text`、updateStatus）。放宽 `updateStatus` 断言——基线库可能已有 `host.version` 行，不断言具体版本值。写 Integration `PluginMenuTest`（搬移 + 真实连接与插件行）。删掉已搬到 Integration 的 Unit 旧文件，然后跑语法检查。Unit 套件全绿（448 tests）。跑 PHPStan。修 PHPStan 报错：`ownTypeItems` 的 `@return` 写成规范多行 docblock；`assertContains` 第三参误用，换成 `in_array` 严格比较。PHPStan 干净。跑 check-module-tests 和 pre-merge --fast。`PackageGateTest` 无改动，工作区只含测试文件变更。按规范跑 naming_check 自查。推送成功（`8530ce2..10ac4b5`），但 `gh pr view` 还显示旧 head——可能是 API 延迟，等一下再查。远端与 PR head 均已确认到 `10ac4b5`。写 RESULT.md。完成。两处打回点均已处理并推上远端。
+
+## 结果
+
+**1. `8530ce2` 上推** — fetch 核实远端在 `ee08b60`，普通推送 `ee08b60..8530ce2`，`gh pr view 104` 确认 head 更新。
+
+**2. Unit 去库化（新提交 `10ac4b5`）** — `tests/Unit` 与 `tests/Support` 已无任何 `sqlite`/`DriverManager`/`PDO` 引用：
+
+- 新增 `Support/Disconnected.php`：免构造实例，只测入库前的校验/鉴权/提前返回分支，误触未初始化 Connection 会直接报错。
+- 改写 Dict/Lifecycle/Notification/Package 四个 Unit 文件为纯前置分支；`PackageGateTest` 未动（diff 为空）。
+- SQL 用例搬入 Integration（`SAND_TEST_DB_URL` + PG 真实列，不建表），含 PG 方言用例（`RETURNING public_id::text`、CAST jsonb、advance 阶梯）；Menu 的 `PluginMenuTest` 同口径搬移，Unit 补 `MenuExceptionTest` 保持目录非空。
+- `LifecycleFixture`/`NotificationFixture` 改为向基线真实表插行。
+
+## 验证（全部退出码 0）
+
+- PHPUnit Unit：`OK (448 tests, 2752 assertions)`
+- PHPStan：`No errors`（首轮 11 错已修）
+- `check-module-tests.php`：8 模块全过
+- `pre-merge.sh --fast`：8/8 全过
+- `build-release.sh --self-check` 第 6 步及全程：PASS
+- `naming_check.py code`：PASS
+
+## 远端状态
+
+`git ls-remote` 与 `gh pr view 104` 均确认 head = `10ac4b562faf0d45f69ae0f4fef4d845e2f80164`，PR **OPEN，未合并**。Integration 套件未跑（`SAND_TEST_DB_URL` 未设置，未建库/启库）。本轮未派子代理，主代理 SWE-2 直接执行。完整记录见 `RESULT.md`。
+
+=== RUN COMPLETE ===
