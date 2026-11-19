@@ -135,7 +135,7 @@ description: 写、审 SandAdmin 1.x 任何设计、方案、架构稿时必用�
 
 | 编号 | 条目 | 高标准要求 | 1.0 做什么 | 1.1 做或不做 | 理由 | 以后补的代价 | 验收指标 |
 |---|---|---|---|---|---|---|---|
-| P1 | 单机请求吞吐 | 裸吞吐不低于 Go 主流框架（Gin 档），业务吞吐按压测门禁 | 做：裸吞吐对标公开基准（webman 已高于 gin，见 P 节表）；业务门禁 750 请求/秒 | 不做：冲 TechEmpower 榜 | 榜单口径和业务口径不同，不混淆 | 无债务 | 见「高性能目标」P1 表 |
+| P1 | 单机请求吞吐 | 裸吞吐不低于 Go 主流框架（Gin 档），业务吞吐按压测门禁 | 做：裸吞吐对标公开基准（webman 与 Gin 持平、约为 Quarkus 七成、Vert.x 五六成，见 P 节表）；业务门禁 750 请求/秒 | 不做：冲 TechEmpower 榜 | 榜单口径和业务口径不同，不混淆 | 无债务 | 见「高性能目标」P1 表 |
 | P2 | 延迟分位 | 分类型 P95/P99 门禁，不用平均值糊弄 | 做：I-4 分类型门禁表 | 不做：P99.9 门禁 | 首期 P99 足够，P99.9 属高档位 | 加门禁档位 = 改阈值，零代码 | 压测报告每类端点 P95/P99 实测值全达标 |
 | P3 | AI 流式并发路数 | 单进程多路复用，路数上限明示，慢模型不拖死普通请求 | 做：300 路设计值，每进程 50–100 路上限按压测定，SSE 心跳 15 秒，超时 30 秒硬线 | 不做：WebSocket 双向通道（实时推送放后续版本） | v4 已把「一进程一路」前提改正为 Timer + 非阻塞写出多路复用 | 加 WebSocket 进程组 = 新进程角色，契约已留 ProcessProfileInterface | 300 路并发 + 慢模型 30 秒+：普通请求 P95 不变差；断线游标补发可查 |
 | P4 | 发版不停服 | 发布期间请求零失败，新旧并存不报错 | 做：平滑重载零失败进浸泡门禁；滚动发布先加后删；长连接进程 `reloadable=false` 分组 | 不做：蓝绿/金丝雀自动编排 | 实例级滚动已够首期 | 编排 = 部署脚本，零代码 | 浸泡段中途 reload 零失败；并存期请求不丢 |
@@ -160,10 +160,10 @@ description: 写、审 SandAdmin 1.x 任何设计、方案、架构稿时必用�
 
 | 目标 | 目标值 | 来源 | 测法 |
 |---|---|---|---|
-| 框架裸吞吐（参照系，非门禁） | webman 138,903 req/s（并发 64）已高于 gin 111,896，约为 spring 58,750 的 2.4 倍、vertx 199,842 的 70%；laravel FPM 1,741 是底线参照（约为 webman 的 1.3%） | The Benchmarker 2026-11-05，zrk 压测，并发 64/256/512：web-frameworks-benchmark.vercel.app/frameworks/php/webman/ 等页面 | —（公开数据，作对标不重复测） |
+| 框架裸吞吐（参照系，非门禁） | webman 110,952 req/s（并发 64）与 gin 111,896 持平（约 0.99 倍），约为 spring 58,750 的 1.9 倍、quarkus 151,114 的 73%、vertx 199,842 的 56%；workerman 裸 173,597 是去掉 webman 框架层后的上限参照；laravel FPM 1,741 是底线参照（约为 webman 的 1.6%） | The Benchmarker 滚动数据集，2026-11-19 抓取（页面标注数据日期 2026-11-05），zrk 压测，并发 64/256/512：web-frameworks-benchmark.vercel.app/frameworks/php/webman/ 等页面 | —（公开数据，作对标不重复测） |
 | 我方裸基线（门禁） | 4 核 4G、16 进程、本机 keep-alive：hello world ≥8 万 QPS；真实鉴权链 + 一次主库查询 ≥5,000 QPS | 推导：webman 官方手册同规格参考值 hello 8–16 万、单库查询 1–2 万（workerman.net/doc/webman/others/benchmarks.html，厂商口径）；取官方单查下限 1 万再打 5 折计入鉴权链与中间件开销得 5,000，**须 1.0 压测定基线复核** | wrk 或 k6，c=64/256/512，d≥60 秒，本机或同内网，keep-alive 开；压测库造数 ≥1.5 万用户 |
 | 业务吞吐（门禁，沿用 v4） | 设计 300、压测 750、峰值 900 请求/秒 | v4 I-2/P-4（内部口径） | P-4 三条门禁，见 Q1 |
-| 对标口径注意 | TechEmpower R23 Fortunes 顶级框架（vertx-postgres 1,040,599、quarkus+vert.x 1,028,408）与 Benchmarker 口径不同（Fortunes 含 ORM+模板+DB，56 核 + 40Gbps 硬件），两组数字不可横比；R23 中 webman 行值**待取证** | techempower.com/benchmarks（R23，2025-02-24）+ R23 硬件见官方博客 | — |
+| 对标口径注意 | TechEmpower R23 Fortunes 顶级框架（vertx-postgres 1,040,599、quarkus+vert.x 1,028,408）与 Benchmarker 口径不同（Fortunes 含 ORM+模板+DB，56 核 + 40Gbps 硬件），两组数字不可横比；R23 中 webman 行值**待取证**。**The Benchmarker 是滚动数据集**（同页 webman 值曾随数据滚动变化），引用必须记抓取日期（本表为 2026-11-19），审计时以重抓为准 | techempower.com/benchmarks（R23，2025-02-24）+ R23 硬件见官方博客；web-frameworks-benchmark.vercel.app（2026-11-19 抓取） | — |
 
 ### P2 延迟分位
 
@@ -174,7 +174,7 @@ description: 写、审 SandAdmin 1.x 任何设计、方案、架构稿时必用�
 | 写入 | 500 ms | 1 s | 同上 | 同上 |
 | 增量同步（每批 ≤1 MB） | 1 s | 3 s | 同上 | 同上 |
 | AI 首字延迟（不含上游排队） | 2 s | 5 s | 同上 | SSE 客户端计时，与上游模型延迟分开计 |
-| 框架空载参照（非门禁） | — | webman P99 0.96ms（c64）/ 4.18ms（c512） | The Benchmarker 2026-11-05 | — |
+| 框架空载参照（非门禁） | — | webman P99 1.50ms（c64）/ 6.47ms（c512） | The Benchmarker 滚动数据集，2026-11-19 抓取 | — |
 
 ### P3 AI 流式并发路数
 
@@ -222,11 +222,11 @@ description: 写、审 SandAdmin 1.x 任何设计、方案、架构稿时必用�
 
 ## 对标一流框架表（六维度）
 
-Laravel/ThinkPHP FPM 只作底线（Benchmarker：laravel 1,741 req/s @c64，约为 webman 的 1.3%）。对标对象是 Go（Gin、go-zero、Kratos）与 Java（Spring Boot、Spring Cloud、Vert.x、Quarkus）。「几成」是工程估算，依据写在每行。
+Laravel/ThinkPHP FPM 只作底线（Benchmarker：laravel 1,741 req/s @c64，约为 webman 的 1.6%）。对标对象是 Go（Gin、go-zero、Kratos）与 Java（Spring Boot、Spring Cloud、Vert.x、Quarkus）。「几成」是工程估算，依据写在每行。
 
 | 维度 | 一流框架怎么做 | webman 上能做到几成（依据） | 做不到的原因 | 以后的补法 |
 |---|---|---|---|---|
-| 吞吐与延迟 | Gin 111,896 req/s、vertx 199,842、quarkus 151,114、spring 58,750（Benchmarker c64，2026-11-05）；TFB R23 Fortunes vertx 1,040,599、quarkus 1,028,408（56 核 + 40Gbps 口径） | **十成打平 Go 档**：webman 138,903 > gin 111,896（约 1.24 倍），为 spring 约 2.4 倍；距 vertx 约七成——vertx 是 Java 响应式顶档，PHP 无等价物 | PHP 同步 IO 模型上限；业务侧瓶颈在 DB 不在框架（官方：带库单查 1–2 万 vs hello 8–16 万） | 已达标；保持 TypePHP 编译路线继续抠延迟 |
+| 吞吐与延迟 | Gin 111,896 req/s、vertx 199,842、quarkus 151,114、spring 58,750（Benchmarker c64，2026-11-19 抓取，滚动数据集）；TFB R23 Fortunes vertx 1,040,599、quarkus 1,028,408（56 核 + 40Gbps 口径） | **裸 HTTP 与 Gin 持平（约十成：webman 110,952 vs gin 111,896），约为 Quarkus 七成（73%）、Vert.x 五六成（56%）**；workerman 裸 173,597 是去掉框架层的上限——webman 框架层开销约损 36% | 框架层（路由/中间件/请求封装）相对 workerman 裸实现损耗约 36%（110,952 vs 173,597）；再往上是 PHP 同步 IO 模型上限；业务侧瓶颈在 DB 不在框架（官方：带库单查 1–2 万 vs hello 8–16 万） | 追上限靠框架层精简（路由/中间件裁剪）与 TypePHP 编译消运行时开销——效果**须压测验证**；与 Gin 持平已满足「对标 Go 主流」要求，Vert.x 档非 1.x 目标 |
 | 连接池 | Go `sql.DB` 池；Java HikariCP 池内复用 | **六七成**：做连接预算 + 启动自检 + 峰值 70% 门禁（v4 连接账公式）；没有池内动态伸缩——PHP 每进程同步持有连接，池化语义不同 | 同步驱动一连接一进程用，无跨请求借还 | 维持预算制 + 监控；远期若上异步驱动再议真池化 |
 | 服务治理（限流/熔断/降级） | go-zero：SRE 自适应熔断（K=1.5）+ Shedding 卸载 + 全中间件默认开；Kratos：服务端 BBR 自适应限流 429 + 客户端按 operation 熔断 503；Spring Cloud：Resilience4j 滑窗/半开/TimeLimiter/Retry 全配置化 | **六七成**：T1 限流（共享计数、阈值表）+ T3 超时全做；T2 熔断只对 SandIAM/AI 特判，无通用组件；无自适应卸载 | PHP 生态无现成 Resilience4j 等价物；首期外部依赖少，通用组件投入产出比低 | 1.1 做外呼统一 wrap + 熔断器接口（SRE 公式可直接移植，PHP 实现无难度）；自适应卸载依赖 O2 指标管线先行 |
 | 可观测 | Quarkus：`/q/health/live|ready|started` + micrometer-opentelemetry 统一 OTLP；go-zero：Prometheus/Trace 中间件默认开；Kratos：contrib/otel + metadata 传播 | **五六成**：O1 结构化日志 + request_id 强、X2 审计哈希链是加分项；O2 基础指标有、Prometheus 生态未接；O3 OTel 未接（注入点已留） | OTel PHP SDK 接入排期在 1.1；非单体内链路首期需求弱 | 1.1 接 OTel SDK + metrics exporter；x-request-id 传播语义参照 Kratos `x-md-global-*` 前缀规则 |
