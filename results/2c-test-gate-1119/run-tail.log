@@ -1,0 +1,34 @@
+�，并后台尝试装 pcov。pcov 编译缺 pcre2 头——用 Homebrew 的 pcre2 include 路径重试；同时看 mock 登录与 token 机制。pcov 装好。菜单树结构清楚了（可见页面约 13 个）。继续看 phpstan 配置、现有单测风格、Domain 类（工厂要服务的对象）。设计已定。查 web tsconfig/eslint 对 e2e 的覆盖、Role/DemoNote 构造签名、@playwright/test 可用版本、CI 是否调 pre-merge。`@playwright/test@1.65.0`（14 天前发布，合规）。查 ErrorState/Loading 标记与 Integration 的 DB 依赖守门，随后开工写代码。信息齐了。建任务清单并开工。写 `tools/check-module-tests.php`。模块检查生效：4 个缺口（Dict/Lifecycle/Notification/Package 缺 Unit 目录），按口径记录不加豁免。
+
+接下来写覆盖率门禁：配置文件 + diff 行覆盖脚本。空改动路径正常。用较早基准跑一次真实覆盖率流程验证 pcov 管线（会跑整个 Unit 套件，稍慢）。覆盖率管线端到端通了（pcov、58.36% < 80% 正确判失败，退出码 1）。
+
+现在写测试数据工厂。先看 Announcement 相关枚举取值。写 6 个纯内存工厂 + 两个 Unit 自测。工厂测试通过（5 tests）。现在装 Playwright 并写冒烟配置。登录请求在 msw worker 就绪前发出被 bypass。等 `#root` 渲染（bootstrap 在 worker.start 之后才 render）再登录。`/me/menus` 响应是 HTML（被 bypass 到 vite）。查 adminMe 处理器实际注册的路径。路径没错，应该是 SW 接管时序问题。把取菜单的 fetch 改成轮询重试直到拿到 JSON。13 个菜单页枚举成功，但 60s 超时截断了遍历（部分页加载未收敛吃了等待）。把单测试超时放大、每页限时、并把「加载未收敛」「错误态标题」纳入断言。5 页过、8 页报 `semi-spin` 持续存在——可能是选择器误判（Spin 组件常驻 DOM 但隐藏）。写个一次性脚本看真实 DOM。选择器误判——非激活 Spin 带 `semi-spin-hidden`。修正为只算未隐藏的 Spin。冒烟全过：13/13 菜单页无报错、无空白，17s。现在接入 `tools/pre-merge.sh`。接线完成。现在跑完整验证集。EXIT 被管道吞了，重测真实退出码并收集其余门禁输出。两门禁用例都在第 1 步正确失败（既有缺口）。继续收集其余门禁证据。后端静态与单测全绿。继续：命名自查 + 前端三项 + 本分支覆盖率。修命名单字母 WARN；`$dataScope`/`$updatedBy` 是契约字段名（实体构造参数原样），在 RESULT 说明。压脚本头注释到 6 行内；契约字段 WARN（`$updatedBy`/`$dataScope` 对应列名 `updated_by`/`data_scope`）留档说明。再压一行注释头。验证通过。处理 `web/test-results/` 产物目录的忽略与提交前钩子检查。暂存文件并跑仓级审查脚本（CLAUDE 规矩）。`risk_paths` 必须与实际快照一致（此处为空集）。修正 review 文件再录。提交完成 `ee08b60`。推送并开 PR。PR #104 已建。补跑 Integration 套件取无库实测输出，然后写 RESULT.md。全部证据齐了。写 RESULT.md。收尾核查：确认 19100 端口无残留进程、查询实际模型记录。## 交付汇总
+
+**PR #104（未合并，目标 main）**：https://github.com/supdger/sandadmin/pull/104
+- 分支 `feat/test-gate`，基线 `977427acc285da074a443e8206309289a9bd94fb`，最终 `ee08b60cc48fcd388e035eb124b772a8186e1b31`
+- RESULT：`~/agent-work/assistant/2c-test-gate-1119/RESULT.md`
+
+**四项落地**
+
+1. **模块测试目录检查** `tools/check-module-tests.php`：`src/Module/<X>` 必须同时在 `tests/Unit/Module/<X>` 与 `tests/Integration/Module/<X>` 有含 `*Test.php` 的目录，`--json` 机器可读报告。现网缺口 4 个（Dict/Lifecycle/Notification/Package 缺 Unit 目录）——按口径列清单、未加豁免，`--fast` 在主干会因此失败（预期行为）。
+2. **改动行覆盖率** `tools/check-diff-coverage.php` + `tools/test-gate.json`：只对 diff 新增行 + 未跟踪文件算覆盖率，pcov 优先 xdebug 兜底（本机原无驱动，已 `pecl install pcov` 1.0.12 完成实测）；阈值 80 起步写进配置**待总监确认**；实测旧基准 58.36% < 80% 正确判失败退出 1。
+3. **测试数据工厂** `server/tests/Support/Factory/`：6 个纯内存工厂 + `tests/Unit/Support/Factory/` 自测（5 用例过）。
+4. **菜单页 Playwright 冒烟** `web/playwright.config.ts` + `web/e2e/menu-smoke.spec.ts`：dev 服务器端口 19100 + msw，经 `/me/menus` 枚举 13 个菜单页逐个打开，断言无报错/无空白/无错误态——**13/13 通过（17s）**，单列命令 `pnpm test:smoke`。
+
+**pre-merge 接入**：`--fast` 第 1/8 步模块检查；`--full` 追加覆盖率门禁。
+
+**验证**：Unit 413 tests OK；phpstan max 0 错；typephp diff 0 命中；vitest 530 passed；tsc/eslint 干净；naming_check 无 FAIL（2 条 WARN 为契约字段 `$dataScope`/`$updatedBy`）。全程未碰库/Redis/CI/`server/src`/openapi.yaml；门禁白名单零新增。
+
+**剩余项**：主干缺口需各模块自行补 Unit 测试；阈值 80 与覆盖率套件口径（当前跑 Unit）待总监确认；冒烟未接 CI。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（swe-2-high；sessions.db 无库可查，按会话标识记录）
+- 子 Agent：未使用（任务禁止开下级会话）
+
+## 任务记录
+- 已修改：`tools/{check-module-tests.php,check-diff-coverage.php,test-gate.json,pre-merge.sh}`、`server/tests/Support/Factory/`、`server/tests/Unit/Support/`、`web/{playwright.config.ts,e2e/,package.json,pnpm-lock.yaml,vite.config.ts,.gitignore}`
+- 已验证：上列各命令与退出码（详见 RESULT.md）
+- 已提交/已部署：已提交并推送 `feat/test-gate`（ee08b60）、已开未合并 PR #104；未部署
+- 未完成：主干 4 模块缺 Unit 测试目录（列清单待补测）；阈值 80 待总监确认
+
+=== RUN COMPLETE ===
