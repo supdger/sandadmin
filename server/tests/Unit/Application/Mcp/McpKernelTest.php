@@ -10,6 +10,7 @@ namespace Sandadmin\Tests\Unit\Application\Mcp;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Application\Mcp\McpKernel;
 use Sandadmin\Domain\Mcp\AuditSink;
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpCall;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\PendingState;
@@ -127,7 +128,7 @@ final class McpKernelTest extends TestCase
     {
         $kernel = $this->kernel(new AllowLimiter(), new CollectSink());
         $spec = $this->spec(ToolTier::Read, 'boom', new class implements ToolRunner {
-            public function run(McpIdentity $identity, array $arguments): ToolOutcome
+            public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
             {
                 throw new \RuntimeException('内部错误');
             }
@@ -198,7 +199,7 @@ final class EchoRunner implements ToolRunner
 {
     public int $runs = 0;
 
-    public function run(McpIdentity $identity, array $arguments): ToolOutcome
+    public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
         $this->runs++;
 
