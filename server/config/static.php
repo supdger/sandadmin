@@ -21,6 +21,7 @@ declare(strict_types=1);
 return [
     'enable' => true,
     'middleware' => [     // Static file Middleware
-        //app\middleware\StaticFile::class,
+        // 静态资源响应同样输出 N3 安全头（后台页面验收口径）；静态链不走全局中间件。
+        Sandadmin\Http\Middleware\SecurityHeadersMiddleware::class,
     ],
 ];
