@@ -23,15 +23,17 @@
 | # | 主题 | 各方口径（出处） | 现行 skill 写法+位置 | 状态 |
 | --- | --- | --- | --- | --- |
 | 1 | MySQL 最低版本 | 老板原话「MySQL 8.0+」（总表 :13、待确认 :86）；v4 曾写「8.0.16+/8.4 LTS」；拍板处理 E-21 定「8.0+ 原话、8.4 LTS 只推荐、8.0.16 作废」；R-4「8.0 已于 2026-04 停官方支持、安装警告不拦」；R-8 三库矩阵 | `B/DB` 适用范围行与 §四末行按定稿写（8.0+ 下限、8.4 LTS 推荐、8.0.x 检出警告） | 已定-按拍板处理 E-21（总表曾列待确认，以拍板为准） |
-| 2 | 双因素适用范围 | 总表三个历史口径（:23 已推翻 / :54 产品用户短信 / :24 框架 TOTP）→ v4 K-2① 两层定稿（平台后台=TOTP+恢复码、短信只找回；产品用户=短信走 SandIAM）+ 拍板 B4 1.0 实装 + R-1 三动作须绑 TOTP | `B/SA` §四 TOTP 行 + `F/PU` §四按定稿写 | 已定-按 v4 K-2①（B4/R-1 落实） |
-| 3 | 国际化 | 总表 :89 记「未见拍板」；v4 B-30/T-9 写「1.0 只中文+留口+插件 i18n 收集点+硬编码门禁」，来源为「助理 11-17 转达」 | `B/BS` §三（message 走语言包 key，T-9，1.0 只中文）+ `F/CV` §一（文案走语言包键，1.0 只出中文包） | 未拍板存疑-按 v4 执行，老板拍板记录缺位 |
-| 4 | 工作流（sand-workflow）进框架还是插件 | 总表 :90「当前按插件在做，不要写成老板已定必须集成进框架」 | `B/BS` §二「内核不做」列工作流归插件；与「按插件做」现状一致 | 未拍板-待老板 |
-| 5 | 独立架构审计模型 Fable vs Opus | 总表 :88/:60「工具 Fable→赛米改 Opus，见待确认 3」 | 无 skill 落点（对 skill 写法无直接影响） | 未拍板-登记即可 |
-| 6 | 1x-AGENTS.md 草案 vs 现行 AGENTS | 草案（`grokbot/1x-gap-review/1x-AGENTS.md`）含被推翻口径：全表 BIGINT 雪花主键禁自增、JWT（lcobucci `Auth\TokenService`）、`plugin.manifest.php` 清单、PHP≥8.4、厚 AGENTS 形态 | 现行 `AGENTS.md` + `L/PS` §一 薄入口口径；编号两类口径见 `B/DB` §三 | 已定-草案不采纳（口径被拍板 A1、manifest.json C6、服务端会话等取代），登记说明 |
-| 7 | AGENTS.md 写老现实 vs skill 写 1.x 目标 | 现行 AGENTS.md 目录清单只提 `sandadmin-artd/`（Vue3）未提 `web/`；`L/PS` §一 必写项要求「`web/` 是唯一前端、`sandadmin-artd/` 标退役」 | 本 PR 在目录清单补 `web/`（React 19 + Semi）并给 `sandadmin-artd/` 加退役括注；首句「Vue3 管理端前端工程」、命名节「Vue3/TS 前端」、skill 简介行「Vue3/TS」仍为老口径，本 PR 按最小改范围不动 | 已定-按 `L/PS` §一 必写项补齐事实描述；其余老口径残留登记待统一修订 |
-| 8 | 插件路由前缀 `/api/admin/v1/plugin/<name>/` | 继承表 saiadmin6-frontend-03 注「随 C7 待总监定」；拍板处理 C7 判「已定（总监 11-17，采纳建议）」 | `P/CT` §5、`B/BS` §五、`F/CV` §4.2 均已写死该前缀 | 已定-按拍板处理 C7（继承表注为历史遗留措辞，落判已生效） |
-| 9 | 继承表判「继承」但现行落点缺失/冲突 | 聚合仓拆仓与退役步骤（repo-sp-ipr-06/07/09、ipr-16~21）继承表判继承；现行 `P/PK` §9 明示「聚合仓迁移/退役流程属 0.x 历史材料，不进 1.x 契约」 | 本表按现行 skill 口径改判「不适用」，逐条见 A4 节 | 已定-以现行 skill（P/PK§9）为准，属继承表之后的口径演进 |
-| 10 | Semi 官方手册的继承式扩展建议 | `~/.shared-skills/semi-ui-skills/BEST_PRACTICES.md` 推荐 class 组件继承 Semi 组件；1.x 组件规范为函数组件 + `PascalCase.tsx` | `F/CV` §二/§六（函数式组件、`<组件名>Props`） | 未拍板-手册留仓外使用，继承式扩展与 1.x 组件惯例兼容性未评审，登记备查 |
+| 2 | 双因素适用范围 | 总表三个历史口径（:23 已推翻 / :54 产品用户短信 / :24 框架 TOTP）→ v4 K-2① 两层定稿（平台后台=TOTP+恢复码、短信只找回；产品用户=短信走 SandIAM）+ 拍板 B4 1.0 实装 | `B/SA` §四 TOTP 行 + `F/PU` §四按定稿写 | 已定-按 v4 K-2①（B4 落实） |
+| 3 | R-1 高危开关绑 TOTP | 审计原义为「签发能写数据的 MCP 令牌、打开网页提交通道」两个高危开关须绑 TOTP（v4 :383、audit-fable-1117 遗漏）；v4 :33⑬ 曾列【待老板确认】，同稿 :1068/:2176 记【老板 2026-11-17 已定 R-1，按建议】；v4 :1068 末注「开通生产 MCP 服务」是否并入待问，:2120/:2185 已按三动作并入 | `B/SA` §四 + `L/MCP` §二已按三动作写（含开通生产 MCP 服务） | 已定-11-17 定稿（见 #83；:33⑬ 待确认标为定稿前残留）；第三动作并入范围 v4 内口径不一致，登记备查 |
+| 4 | 开发期 MCP 最小版范围（R-6） | v4 :33⑬ 曾列【待老板确认 R-x】；同稿 f1 第 24 行记「老板 11-17 定做」、U-3 节末记【老板 2026-11-17 已定 R-6，按建议】——开发构建加开发专用工具（查路由/契约、看最近错误与慢请求、跑指定测试、跑门禁脚本），不做代码生成、`SAND_DEV_BUILD` 编译期剔除 | `L/MCP` §二已按定稿写 | 已定-老板 2026-11-17（11-17 定稿，见 #83；:33⑬ 待确认标为定稿前残留） |
+| 5 | 国际化 | 总表 :89 记「未见拍板」；v4 B-30/T-9 写「1.0 只中文+留口+插件 i18n 收集点+硬编码门禁」，来源为「助理 11-17 转达」 | `B/BS` §三（message 走语言包 key，T-9，1.0 只中文）+ `F/CV` §一（文案走语言包键，1.0 只出中文包） | 未拍板存疑-按 v4 执行，老板拍板记录缺位 |
+| 6 | 工作流（sand-workflow）进框架还是插件 | 总表 :90「当前按插件在做，不要写成老板已定必须集成进框架」 | `B/BS` §二「内核不做」列工作流归插件；与「按插件做」现状一致 | 未拍板-待老板 |
+| 7 | 独立架构审计模型 Fable vs Opus | 总表 :88/:60「工具 Fable→赛米改 Opus，见待确认 3」 | 无 skill 落点（对 skill 写法无直接影响） | 未拍板-登记即可 |
+| 8 | 1x-AGENTS.md 草案 vs 现行 AGENTS | 草案（`grokbot/1x-gap-review/1x-AGENTS.md`）含被推翻口径：全表 BIGINT 雪花主键禁自增、JWT（lcobucci `Auth\TokenService`）、`plugin.manifest.php` 清单、厚 AGENTS 形态；草案 PHP≥8.4 与 v4 SCM-10 现行口径一致，不属被推翻 | 现行 `AGENTS.md` + `L/PS` §一 薄入口口径；编号两类口径见 `B/DB` §三 | 已定-草案不采纳（口径被拍板 A1、manifest.json C6、服务端会话等取代），登记说明 |
+| 9 | AGENTS.md 写老现实 vs skill 写 1.x 目标 | 现行 AGENTS.md 目录清单只提 `sandadmin-artd/`（Vue3）未提 `web/`；`L/PS` §一 必写项要求「`web/` 是唯一前端、`sandadmin-artd/` 标退役」 | 本 PR 在目录清单补 `web/`（React 19 + Semi）并给 `sandadmin-artd/` 加退役括注；首句「Vue3 管理端前端工程」、命名节「Vue3/TS 前端」、skill 简介行「Vue3/TS」仍为老口径；另 `AGENTS.md` :19「PHP ≥8.2」、:57「Node ≥20.19」低于 v4 SCM-10（PHP ≥8.4、Node ≥24 LTS）同属旧口径，本 PR 按最小改范围不动，登记待改 | 已定-按 `L/PS` §一 必写项补齐事实描述；其余老口径残留登记待统一修订 |
+| 10 | 插件路由前缀 `/api/admin/v1/plugin/<name>/` | 继承表 saiadmin6-frontend-03 注「随 C7 待总监定」；拍板处理 C7 判「已定（总监 11-17，采纳建议）」 | `P/CT` §5、`B/BS` §五、`F/CV` §4.2 均已写死该前缀 | 已定-按拍板处理 C7（继承表注为历史遗留措辞，落判已生效） |
+| 11 | 继承表判「继承」但现行落点缺失/冲突 | 聚合仓拆仓与退役步骤（repo-sp-ipr-06/07/09、ipr-16~21）继承表判继承；现行 `P/PK` §9 明示「聚合仓迁移/退役流程属 0.x 历史材料，不进 1.x 契约」 | 本表按现行 skill 口径改判「不适用」，逐条见 A4 节 | 已定-以现行 skill（P/PK§9）为准，属继承表之后的口径演进 |
+| 12 | Semi 官方手册的继承式扩展建议 | `~/.shared-skills/semi-ui-skills/BEST_PRACTICES.md` 推荐 class 组件继承 Semi 组件；1.x 组件规范为函数组件 + `PascalCase.tsx` | `F/CV` §二/§六（函数式组件、`<组件名>Props`） | 未拍板-手册留仓外使用，继承式扩展与 1.x 组件惯例兼容性未评审，登记备查 |
 
 ## A. 底稿 298 条对照
 
@@ -439,7 +441,7 @@
 | WDS-02 | SKILL.md:11 | Webman+ThinkORM+SaiAdmin 栈禁当 Laravel | 不适用（sandpet 栈说明；1.x 栈见 `B/SK` description） | — |
 | WDS-03 | SKILL.md:13 | 按动作选读章节；仓内契约优先 | 已收编 | `L/SK` 接到任务加载表 + `B/SK` 上手顺序 + `F/SK` 动手前必读 |
 | WDS-04 | SKILL.md:13 | 外围规则（sandpet-*）存在才读 | 不适用（sandpet rules 引用面） | — |
-| WDS-05 | SKILL.md:15-21 | PHP≥8.1/Webman2/MySQL8.0+/Asia/Shanghai/start.php | 被取代（PHP≥8.2 见 AGENTS.md；MySQL 8.0+ 见 `B/DB` 适用范围；时区/start.php 属 sandpet 运行参数，1.x 时间统一 UTC `B/DB` §四） | `B/DB` + `AGENTS.md` |
+| WDS-05 | SKILL.md:15-21 | PHP≥8.1/Webman2/MySQL8.0+/Asia/Shanghai/start.php | 被取代（PHP ≥8.4 以 v4 SCM-10 为准，1.x 生命周期内规划升 8.5；`AGENTS.md` :19 仍写 ≥8.2，属旧口径登记待改；MySQL 8.0+ 见 `B/DB` 适用范围；时区/start.php 属 sandpet 运行参数，1.x 时间统一 UTC `B/DB` §四） | `B/DB` + `AGENTS.md` |
 | WDS-06 | SKILL.md:23-26 | 保护分支禁直推，功能分支+PR | 已收编 | `L/SK` 总纲 + `L/DL` §0 |
 | WDS-07 | SKILL.md:26 | 分支命名 feat\|fix\|chore/<scope>（可 hotfix/） | 已收编（落文于 `LA`） | `LA` §1 |
 | WDS-08 | SKILL.md:27 | Commit type feat/fix/docs/refactor/test/chore | 已收编（与分支命名同条收编于 `LA`，不进 `L/DL` §4 门禁硬条件） | `LA` §1 |
@@ -504,7 +506,7 @@ Semi Design 官方组件使用手册（MCP 工具流程+最佳实践）。1.x �
 | SEMI-15 | BEST_PRACTICES.md:5-24 | 组件/图标按需 import | 保留仓外（插件前端依赖白名单见 `P/CT` §9/§11 条 10） | — |
 | SEMI-16 | BEST_PRACTICES.md:25-42 | 主题定制查官方文档 | 保留仓外（1.x 主色已定 Semi 默认蓝 `F/SK` 技术栈） | — |
 | SEMI-17 | BEST_PRACTICES.md:44-63 | React 19 兼容查询 | 保留仓外 | — |
-| SEMI-18 | BEST_PRACTICES.md:64-160 | class 组件继承扩展 Semi 组件 | 保留仓外（与 1.x 函数组件惯例兼容性未评审，记冲突与未拍板第 10 项） | — |
+| SEMI-18 | BEST_PRACTICES.md:64-160 | class 组件继承扩展 Semi 组件 | 保留仓外（与 1.x 函数组件惯例兼容性未评审，记冲突与未拍板第 12 项） | — |
 | SEMI-19 | BEST_PRACTICES.md:161-183 | 注意事项：优先 props、只覆盖必要方法 | 保留仓外 | — |
 | SEMI-20 | BEST_PRACTICES.md:186-196 | tailwind 文档查询 | 保留仓外（1.x Tailwind 已定 `F/CV` §一） | — |
 | SEMI-21 | SKILL.md 全文 | 配合 Semi MCP 使用的定位 | 保留仓外（通用工具手册，与 1.x 栈一致可继续用） | — |
@@ -670,5 +672,5 @@ Webman/Workerman 生产运行基线（SLO/IO/事件循环/连接池/背压/容�
 
 另有两类说明性注记（非缺口，登记备查）：
 
-- 聚合仓拆仓/退役步骤（repo-sp-ipr-06/07/09、ipr-16~21）继承表判「继承」，现行 `P/PK` §9 已明示聚合仓流程属 0.x 历史材料——按现行口径判「不适用」，见冲突与未拍板第 9 项。
+- 聚合仓拆仓/退役步骤（repo-sp-ipr-06/07/09、ipr-16~21）继承表判「继承」，现行 `P/PK` §9 已明示聚合仓流程属 0.x 历史材料——按现行口径判「不适用」，见冲突与未拍板第 11 项。
 - `openai.yaml` 展示元数据形态（repo-sp-yaml-01/02）未带入 1.x 仓 skill，等效物为 frontmatter（`L/PS` §二）。
