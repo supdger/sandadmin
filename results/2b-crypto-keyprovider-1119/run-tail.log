@@ -1,0 +1,28 @@
+我先调用相关技能并读取输入文档。注意任务明确禁止"开下级会话"，本次由我直接执行，不派子代理。现在读取输入文档、命名规范，并定位仓库。仓库应该在 `~/agent-work/pub-sandadmin/`。继续读 J-10 节、命名规范和总表相关条目。我刚才误把 `tools/pre-merge.sh` 加进了暂存区，先撤销。继续看代码约定。约定已清楚。再看几个细节：异常风格、危险函数白名单、deptrac、docs 目录、测试 autoload。`tools/naming_check.py` 在 main 上、当前旧分支没有，正常。建分支开工。基线 SHA `977427acc285da074a443e8206309289a9bd94fb`。看下 TypePHP 检查规则和 Stream 接口样例。设计定型。建任务清单后开始写代码。现在写单测。测试文件里有两处写岔了，重写干净版本：现在写文档和 .env.example 键名。21 个用例全过。跑完整门禁。看下失败是否与本次改动有关。失败都是本地 vendor 缺包（`mcp/sdk`、`symfony/yaml` 未装）的既有环境问题，与改动无关。确认 Crypto 文件零告警后跑其余门禁。我的文件零命中。跑命名检查和其余门禁项。本地 vendor 缺 dev 依赖（`symfony/yaml`、`mcp/sdk` 在 lock 里但没装）。跑一次 `composer install` 补齐。`server/webman` 被发布脚本改动了，查看差异并还原（不属于本次改动）。重跑完整门禁。全绿。跑 pre-merge --fast、contract-build 和 naming_check。两件事处理：① 本地 `main` 引用过期导致 typephp diff 误扫存量代码，把本地 main 快进到 origin/main（无独有提交，安全）；② naming_check 直接传新文件。修命名告警：`$badList` FAIL 必改；`Data`/`$m` WARN 顺手消掉。把 `dataKey`/`invalidDataKey` 改名为 `$secret`/`emptySecret`，消掉 Data WARN：命名零告警、测试全过。重跑 pre-merge --fast。门禁全过。看下提交信息风格再提交。提交完成（`2b5125d`）。按规则跑一次暂存内容质量扫描，然后推分支开 PR。推送分支并开 PR。PR #102 已开。写 RESULT.md 到任务目录。任务完成。交付摘要：
+
+**PR**: https://github.com/supdger/sandadmin/pull/102（`feat/crypto-keyprovider` → `main`，未合并），基线 `977427a`，最终 `2b5125d`，9 文件 +638 行。
+
+**实现**
+- `Domain/Crypto/KeyProviderInterface`：信封加密端口（`currentKeyVersion`/`masterKey`/`wrapKey`/`unwrapKey`，`orgId` 恒 `'default'` 并作 GCM AAD 绑定）；KMS/Vault 唯一替换点
+- `Infra/Crypto/EnvKeyProvider`：`SAND_CRYPTO_KEY` + `SAND_CRYPTO_PREVIOUS_KEYS`，条目 `v<序号>=<base64 32B>`，只读 env，缺失/长度错装配即拒绝
+- `Infra/Crypto/Crypto` + `GcmCipher`：AES-256-GCM，密文 `v<keyver>:<nonce>:<ct>:<tag>`，按 keyver 轮换解密
+- `server/docs/crypto-encrypted-fields.md` 字段清单 + `.env.example` 只加键名
+- 21 个单测全过：格式、篡改 tag/ct/nonce、旧 keyver、新写入新 keyver、缺钥/长度拒绝
+
+**门禁**: phpunit 429/429、phpstan 0 errors、pre-merge --fast 七步全过、naming_check FAIL/WARN 均 0、typephp diff 0 命中。
+
+**环境记录**: 本地 vendor 缺 dev 依赖导致 3 个 Contract 用例/20 条 phpstan 误报，`composer install` 后全绿；本地 `main` 过期致 typephp diff 误扫存量，已快进 main 至 origin/main 消除；`sand:publish` 改写的 `server/webman` 已还原。
+
+**剩余**: `bin/sand crypto:rotate`（需库）、KMS/Vault 实现、业务字段接入——已列入 RESULT.md。
+
+## 模型记录
+- 主 Agent：SWE-2（swe-2-high）/ — / 本地 Devin CLI（sessions.db 无 generation_model 记录，查询超时，记录缺口如实报告）
+- 子 Agent：未使用（任务明令"不开下级会话"）
+
+## 任务记录
+- 已修改：`server/src/Domain/Crypto/`（2 文件）、`server/src/Infra/Crypto/`（3 文件）、`server/tests/Unit/Infra/Crypto/`（2 文件）、`server/docs/crypto-encrypted-fields.md`、`server/.env.example`；任务目录 `RESULT.md`
+- 已验证：`phpunit --testsuite unit` 429 全过、`phpstan` 0 errors、`pre-merge.sh --fast` 全过、`naming_check.py` 0 FAIL/WARN、`typephp_check.php` 新文件 0 命中、scan_change_quality 已记录
+- 已提交/已部署：已提交 `2b5125d` 并推送分支、开 PR #102（未合并）；未部署
+- 未完成：`crypto:rotate`（需库）、KMS/Vault 实现、业务字段接入（范围外，列 RESULT 剩余项）
+
+=== RUN COMPLETE ===
