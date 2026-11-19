@@ -10,6 +10,9 @@
 #
 # --self-check 跑完整剔除链与全部自检断言但不打 tar.gz、不产出制品，
 # 供 CI 快档复用本脚本做发布门禁。
+# 打出的包追加登记进 dist/releases.txt（版本号、包名、sha256、构建时间，
+# 一行一版），并维护 dist/previous 记录上一版版本号，供
+# tools/rollback-release.sh 取回退目标；旧包不清理，至少保留上一版。
 # 版本号默认取 git describe --tags --always（在标签上即纯版本号）。
 # vendor 打进包里：发布形态是开箱即用的编译制品（skill：生产环境不安装、
 # 不编译），--no-dev 保证 phpunit/phpstan 等开发依赖不进包。
@@ -140,4 +143,13 @@ fi
 rm -f "$OUT"
 COPYFILE_DISABLE=1 tar -czf "$OUT" -C "$WORK" "$PKG"
 rm -rf "$WORK"
+
+# 制品登记：追加不覆盖；previous 写本版之前的最后一版，回退脚本据此取目标
+PKG_SHA256="$(shasum -a 256 "$OUT" | awk '{print $1}')"
+PREV_VERSION="$(awk -v v="$VERSION" '$1 != v {last = $1} END {print last}' "$DIST/releases.txt" 2>/dev/null || true)"
+if [ -n "$PREV_VERSION" ]; then
+    printf '%s\n' "$PREV_VERSION" > "$DIST/previous"
+fi
+printf '%s\t%s\t%s\t%s\n' "$VERSION" "$PKG.tar.gz" "$PKG_SHA256" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$DIST/releases.txt"
+
 echo "OK $OUT"
