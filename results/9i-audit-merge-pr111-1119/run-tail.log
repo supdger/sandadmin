@@ -1,0 +1,40 @@
+I'll start by checking the task directory and locating the reference files. Per the routing rules, reading the diff and running commands go to SWE-2 subagents, and I keep the judgment.My three pre-dispatch checks are used up. I'm handing evidence-gathering to a read-only SWE-2 scout.The core evidence holds up. Before I decide, I want four specific code paths checked, so I'm sending a short follow-up to the scout.The merge went through. I'm writing RESULT.md with my verdict.PR #111 passed the audit and is merged into main as a normal merge commit. The new main SHA is `3b2f7be3488a6f242a93fbacc6965da0504e8a2b`. The `feat/migration-runner` branch was kept and still points at the PR head.
+
+**Audit (head `36759180d8ea798d25d0292569ab22d0aacdf6be`)**, which matches the final SHA in the 8e RESULT.md:
+- **Scope:** the 35 changed files are all ones the PR description names.
+- **Checksum check:** each migration file's sha256 is stored in the ledger. If an applied file, or the down file of a rolled-back one, has been edited, the runner refuses to run.
+- **Lock without queuing:** it uses `pg_try_advisory_lock` on the same connection that runs the migrations. If the lock is taken it exits at once instead of waiting.
+- **Half-built database:** before running anything, `upgrade` and `downgrade` refuse if the ledger has a failed record, a checksum mismatch or a gap in the sequence.
+- **Down files:** 0004–0007 each have a `.down.sql`. The 0001–0003 baseline has none, and rolling back below it is refused.
+- **0001–0003 hash lock:** I recomputed the hashes at the head and they match the lock list and the 8e RESULT.
+- **database.php:** the `127.0.0.1:5432` default is gone, and the Dbal/File/Task connection helpers now refuse to connect when the address is missing.
+- **Gate files:** the PR doesn't touch CI, gate scripts, whitelists or exemptions.
+- **Boss's decision list:** no conflict. The runner supports only PostgreSQL for now and explicitly refuses MySQL, which fits "MySQL in a later batch."
+- **Database testing:** this was only ever done on a temporary database. I did not create, start or connect to any database.
+
+**Merge gate:** the head matched, all 6 checks in `gh pr checks 111` passed, and GitHub reported no conflicts (MERGEABLE / CLEAN). I then ran `gh pr merge 111 --repo supdger/sandadmin --merge`, without `--admin` and without deleting the branch.
+
+**Things the merge doesn't cover:**
+- Main had moved on from the branch's starting point before the merge (now `a18fef94` instead of `c506398`). The temporary-database test ran on the PR head only, not on the merged main.
+- CI does not run the unit tests, so the 0001–0003 hash test is only enforced when someone runs it locally. The ledger checksum check at run time still applies.
+
+**Leftover issues for a later batch (none block this PR):**
+1. **Old local-DB default in two other files:** `think-orm.php` and `TaskCli.php` still default to `127.0.0.1:5432`; this code predates the PR. `TaskCli` fills in that default before calling `TaskConnection`, which bypasses this PR's new refusal. With DB settings missing, a task command would still connect to the local 5432 instance.
+2. **Lost error detail:** if writing the "failed" record itself fails (for example the connection dropped), the original SQL error is lost and the exit code becomes 1 instead of 5. The schema change is still rolled back, so data is safe, but diagnosis gets harder.
+3. **Unit tests not in CI:** adding them, including the hash test, is for the tech director to decide; this task forbade changing CI.
+4. **AGENTS.md wording:** it still says there is no CI, which is out of date.
+5. **MySQL support:** it still needs to be added in a later batch.
+
+The full report is in `~/agent-work/assistant/9i-audit-merge-pr111-1119/RESULT.md`, with the verdict and audited head on the first line.
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium，见 model.txt）；实际记录未查询，写"未记录"
+- 子 Agent：dv-scout = SWE-2，2 次（diff 证据收集、定点代码核查）；dv-implementer = SWE-2，1 次（带门槛的合并）；实际模型未记录
+
+## 任务记录
+- 已修改：任务目录下的 RESULT.md；子代理另写了只读 diff 副本 /tmp/pr111.diff
+- 已验证：gh/git 只读核查；合并门槛 7 项全部通过；合并后 PR 为 MERGED，分支保留
+- 已提交/已部署：PR #111 已合入 main（3b2f7be）；未部署
+- 未完成：上面列的 5 项遗留，留给后续批次
+
+=== RUN COMPLETE ===
