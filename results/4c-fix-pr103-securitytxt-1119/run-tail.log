@@ -1,0 +1,25 @@
+我来梳理任务：在 `docs/security-policy` 分支（基于 b5c4aa5）上修复 `security.txt` 占位邮箱问题，把“发版前必须填写联系方式”写进 `RELEASE-CHECKLIST.md`，跑 `pre-merge --fast`，push 新 SHA，再用 `gh api` 开启 Private Vulnerability Reporting，最后写 RESULT.md。全程不开下级会话。
+
+先加载 sandadmin 1.x 仓库的闭环 skill，并找到本地仓库位置。查看发布打包逻辑和 `.gitattributes`，确认 security.txt 是否进发布产物。`security.txt` 在 `server/public/` 下、不在 export-ignore 名单里——会随 `git archive` 进发布包并部署到站点。占位邮箱确认只出现在 `security.txt` 和 `SECURITY.md`。看一下 `strip-vendor-extra.php` 里对 security.txt 的引用和 vendor 是否就绪（pre-merge 需要）。环境就绪：HEAD 正好在 b5c4aa5，vendor 已装可跑 pre-merge；`strip-vendor-extra.php` 里的 `security.txt` 名单是剔除 vendor 包自带文件的，与我们的 public 文件无关——它确认会进发布包。
+
+改法定为：`security.txt` 删掉占位 mailto，保留真实可用的 GitHub Private Vulnerability Reporting 入口作为 Contact（配合任务第 2 步开启 PVR 后即真实有效）；`SECURITY.md` 同步去掉占位邮箱表述；`RELEASE-CHECKLIST.md` 加发版前核对项，并把工信部报送责任人、法务复核记为未勾选剩余项。占位邮箱已全部清除（剩下的“占位”是清单里的禁止条款）。跑 `pre-merge --fast`：`pre-merge --fast` 全部通过。提交三个文件并推送：最后核对远端已推送的文件内容：完成。摘要：
+
+- **`security.txt`**：删除 `Contact: mailto:security@example.invalid`，保留 GitHub advisories 入口作为唯一 Contact。文件随 `git archive` 进发布包，现为可直接发布的最终形态，未编造邮箱，未加非标准标记行。
+- **`SECURITY.md`**：备用渠道改为引用 `security.txt` 的 Contact，占位邮箱表述清除。
+- **`RELEASE-CHECKLIST.md`**：新增发版前核对项（Contact 必须为可用渠道、禁止占位联系方式进发布物），并把工信部报送责任人、法务复核记为未勾选剩余项。
+- **校验**：`tools/pre-merge.sh --fast` 全过（契约一致性、危险函数、dev-only、TypePHP diff、PHPUnit 408 tests、PHPStan）；占位域名扫描零命中。
+- **提交/推送**：`ba4dca7` 在 `b5c4aa5` 之上，普通 push 至 `docs/security-policy`，远端内容已复核。
+- **PVR**：`PUT /repos/supdger/sandadmin/private-vulnerability-reporting` → 204，读回 `{"enabled":true}`。
+- **RESULT.md**：已写入任务目录，含改法、校验结果与剩余项。
+
+## 模型记录
+- 主 Agent：SWE-2 High（系统信息声明；sessions.db 未查询，记录方式以界面为准）
+- 子 Agent：未使用（任务禁止开下级会话）
+
+## 任务记录
+- 已修改：`server/public/.well-known/security.txt`、`SECURITY.md`、`RELEASE-CHECKLIST.md`（supdger/sandadmin @ ba4dca7）；`~/agent-work/assistant/4c-fix-pr103-securitytxt-1119/RESULT.md`
+- 已验证：`tools/pre-merge.sh --fast` 全部通过；`git push` 成功且远端文件内容复核一致；`gh api` PVR 读回 `{"enabled":true}`
+- 已提交/已部署：已提交并推送同分支新 SHA `ba4dca7`；未部署、未合并
+- 未完成：工信部报送责任人指定、SECURITY.md 法务复核（已记入 RELEASE-CHECKLIST 剩余项，不阻塞合并）
+
+=== RUN COMPLETE ===
