@@ -8,33 +8,15 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Support;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 
 /**
- * sand_system_lifecycle_request 内存表夹具：sqlite 最小建表 +
- * 一行合法默认值，模块 Unit 测试共享，不连外部库。
- * 布尔列写整数 1/0，与服务侧 true/'t'/1/'1' 归一口径一致。
+ * sand_system_lifecycle_request 种行夹具：Integration 测试共享，
+ * 不建表（表结构由基线迁移负责）、只管按真实列种入合法行。
+ * request_id 每次随机，便于按前缀清理；布尔列按真实类型写。
  */
 final class LifecycleFixture
 {
-    public static function createTable(Connection $conn): void
-    {
-        $conn->executeStatement(
-            'CREATE TABLE sand_system_lifecycle_request (id integer primary key autoincrement,
-                public_id varchar(36) not null, kind varchar(32) not null,
-                target_code varchar(128) not null, source varchar(16) not null,
-                from_version varchar(32) null, to_version varchar(32) null,
-                purge_data integer not null default 0, package_file_id integer null,
-                items text null, state varchar(16) not null default \'queued\',
-                stage varchar(64) null, stage_key varchar(32) null,
-                progress integer not null default 0, rolled_back integer not null default 0,
-                error_code varchar(64) null, error_message text null,
-                requested_by integer not null default 0, request_id varchar(64) null,
-                executor_id varchar(64) null,
-                create_time text null, start_time text null, finish_time text null,
-                heartbeat_time text null)',
-        );
-    }
-
     /** @param array<string, mixed> $override */
     public static function insert(Connection $conn, string $publicId, array $override = []): void
     {
@@ -45,23 +27,26 @@ final class LifecycleFixture
             'source' => 'official',
             'from_version' => null,
             'to_version' => '1.1.0',
-            'purge_data' => 0,
+            'purge_data' => false,
             'package_file_id' => null,
             'items' => null,
             'state' => 'running',
             'stage' => '正在下载',
             'stage_key' => null,
             'progress' => 60,
-            'rolled_back' => 0,
+            'rolled_back' => false,
             'error_code' => null,
             'error_message' => null,
             'requested_by' => 9,
-            'request_id' => 'pkg_test_fixture',
+            'request_id' => 'fx_' . bin2hex(random_bytes(8)),
             'executor_id' => 'package-ops',
             'create_time' => '2026-01-02T03:04:05+00:00',
             'start_time' => '2026-01-02T03:05:00+00:00',
             'finish_time' => null,
             'heartbeat_time' => null,
-        ], $override));
+        ], $override), [
+            'purge_data' => ParameterType::BOOLEAN,
+            'rolled_back' => ParameterType::BOOLEAN,
+        ]);
     }
 }
