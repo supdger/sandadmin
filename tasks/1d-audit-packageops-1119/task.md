@@ -15,3 +15,5 @@
 === RUN COMPLETE ===
 
 补充：任务目录是 ~/agent-work/assistant/1d-audit-packageops-1119/，RESULT.md 写在这里。
+
+模型分工（老板定的 Fusion 搭法）：主代理用 Claude Opus 5.5，只做判断和写结论；读文件、查 diff、跑只读命令这些执行全部派给 SWE-2 子代理（按 ~/.config/devin/AGENTS.md 的 dv-* 子代理），主代理自己不执行。注意这里的子代理是本机 Devin 的子代理，不算“下级会话”，可以用。
