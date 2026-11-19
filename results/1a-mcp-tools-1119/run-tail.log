@@ -1,0 +1,13 @@
+我先加载相关技能并勘察环境（输入文档路径、sandadmin 仓库位置）。main 上没有 `contract/openapi.yaml`。查其他 sandadmin 副本和相关任务目录：继续取证：鉴权 P0 的 N4 高危清单、候选接口的 x-permission、测试套件配置。再看 dev 工具的 ToolRunner 实现/测试调用方式（决定调用上下文如何传给业务 runner），以及 AnnouncementController 用的服务：设计已清楚。最后确认几个装配点：日志通道、门禁脚本、命名规范要点。看一下 `DeptService::tree`/`DictService::listTypes`/`MenuService::loadTree` 内部用什么 DBAL 调用（决定 mock 能否跑通 dispatch 冒烟）：设计定型，开工。先建任务清单、开分支、看 McpKernelTest 里 ToolRunner 的用法（要同步改签名）。分支已开（基线 `977427a`）。查 dev runner 的未用参数习惯与 dicts/menus 入参口径：现在写代码。先 Domain 端口：更新 `ToolRunner` 签名与 `McpKernel` 调用点：查 `OrgSql`/`OrgInput` 签名和 naming_check.py 对函数名的判定规则，避免返工：现在写显式登记表 `BusinessCatalog`（27 个业务工具）：给 write/high_risk 工具的 input schema 补上 `idempotency_key`/`dry_run` 声明，并接线 `McpController`：看下既有单测风格再写测试：写单测：写契约测试：vendor 过期（缺 symfony/yaml）。跑 `composer install` 同步：单测全过（432/2868）。跑契约套件和 PHPStan：修 PHPStan 报的 8 处：PHPStan 通过。跑完整单测 + 契约套件 + 快速门禁：全部门禁通过。跑命名自查（code/notes/terms）：修两个 WARN：`composer install` 按骨架覆盖了 `webman`（删掉了 gssencmode 注入）。恢复被删的代码块：代码复核通过。提交（只加具体文件）：推送分支并开 PR：PR #100 已开。补跑 typephp 独立命令取证，然后写 RESULT.md：取工具清单实际名单写 RESULT：27 个工具确认（11 read / 12 write / 4 high_risk）。写 RESULT.md：完成。交付摘要：
+
+- **分支/PR**：`feat/mcp-business-tools` → PR [#100](https://github.com/supdger/sandadmin/pull/100)（目标 `main`，未合并）
+- **基线** `977427a` → **最终** `927b7f3`
+- **27 个业务工具**显式登记：11 read（menus/depts/roles/users/posts/dicts 查询）/ 12 write（dept/post/dict/menu 增改）/ 4 high_risk（N4 高危：导出、重置密码、分配角色、改权限）
+- **权限**：外闸 `McpKernel` scope + 内闸 `OrgActor::can`（账号权限 ∩ scope，只能缩小），派发走 v1 同一套业务服务，无旁路
+- **审计**：`security` 日志通道，参数 SHA-256 摘要，不建表
+- **验证**：unit 432/2868 OK、contract 243/608 OK（100 incomplete 为既有）、PHPStan 0 错、pre-merge --fast 全过、naming code/notes/terms 全净、typephp FAIL=0
+- **剩余项**：机器令牌、持久幂等存储、流式（已写进 `~/agent-work/assistant/1a-mcp-tools-1119/RESULT.md`）
+
+一处环境修复说明：`composer install` 曾按骨架覆盖 `server/webman`，被删的 gssencmode 注入块已还原，未进提交。
+
+=== RUN COMPLETE ===
