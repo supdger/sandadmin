@@ -61,8 +61,8 @@ require __DIR__ . '/route.generated.php';
 
 // SPA 回退：非 /api、非真实文件的 GET 返回 index.html（见 SpaFallback 注释）；
 // /api/** 未命中与非 GET 在其内重抛 404，与反代部署不冲突。
-// fallback 回调不经全局中间件（webman getFallback 固定 withGlobalMiddleware=false），
-// 安全头与 CORS 改挂路由级：SPA/404 响应同样输出 N3 头；v1 的 OPTIONS 预检
-// 在 FastRoute 层因方法未注册即落 fallback，只有这里挂 CorsMiddleware 预检才可达。
+
+// fallback 回调不经全局中间件（getFallback 固定 withGlobalMiddleware=false）：
+// 安全头与 CORS 改挂路由级，否则 SPA/404 无 N3 头、v1 OPTIONS 预检不可达。
 Route::fallback([SpaFallback::class, 'respond'])
     ->middleware([SecurityHeadersMiddleware::class, CorsMiddleware::class]);

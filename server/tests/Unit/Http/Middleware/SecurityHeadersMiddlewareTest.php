@@ -109,6 +109,41 @@ final class SecurityHeadersMiddlewareTest extends TestCase
         self::assertSame('strict-origin-when-cross-origin', $response->getHeader('Referrer-Policy'));
     }
 
+    public function testSameNameHeadersDeduplicatedCaseInsensitively(): void
+    {
+        // workerman 头表按字面键存储：小写旧头不清理会并出双份
+        $response = $this->dispatch(
+            self::request('GET', '/'),
+            new Response(200, ['x-frame-options' => 'SAMEORIGIN', 'x-content-type-options' => 'sniff']),
+        );
+
+        $frameKeys = 0;
+        $nosniffKeys = 0;
+        foreach ($response->getHeaders() as $key => $value) {
+            if (is_string($key) && strcasecmp($key, 'x-frame-options') === 0) {
+                $frameKeys++;
+            }
+            if (is_string($key) && strcasecmp($key, 'x-content-type-options') === 0) {
+                $nosniffKeys++;
+            }
+        }
+        self::assertSame(1, $frameKeys);
+        self::assertSame(1, $nosniffKeys);
+        self::assertSame('DENY', $response->getHeader('X-Frame-Options'));
+        self::assertSame('nosniff', $response->getHeader('X-Content-Type-Options'));
+    }
+
+    public function testJsonLikeContentTypesGetApiCsp(): void
+    {
+        foreach (['application/json; charset=utf-8', 'application/vnd.api+json', 'text/json'] as $contentType) {
+            $response = $this->dispatch(
+                self::request('GET', '/'),
+                new Response(200, ['Content-Type' => $contentType], '{}'),
+            );
+            self::assertSame("default-src 'none'", $response->getHeader('Content-Security-Policy-Report-Only'), "ct={$contentType}");
+        }
+    }
+
     private function dispatch(Request $request, Response $downstream): Response
     {
         return (new SecurityHeadersMiddleware(SecurityHeadersConfig::fromArray([])))

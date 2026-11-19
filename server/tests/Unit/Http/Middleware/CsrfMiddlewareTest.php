@@ -133,6 +133,73 @@ final class CsrfMiddlewareTest extends TestCase
         self::assertSame(204, $this->dispatch($request, self::config())->getStatusCode());
     }
 
+    public function testV1PrefixDoesNotOvermatch(): void
+    {
+        // /api/admin/v1x 不是 v1 组：必须等长或以 /api/admin/v1/ 开头
+        $request = self::request('POST', '/api/admin/v1x/users', []);
+        $root = self::request('POST', '/api/admin/v1', []);
+
+        self::assertSame(204, $this->dispatch($request, self::config())->getStatusCode());
+        self::assertSame(403, $this->dispatch($root, self::config())->getStatusCode());
+    }
+
+    public function testUserinfoOriginRejected(): void
+    {
+        // parse_url 会把 https://evil.com@host 的 userinfo 吞掉，严格形态必须拦
+        $request = self::request('POST', '/api/admin/v1/me/profile', [
+            'Origin' => 'https://evil.com@' . parse_url(self::SITE, PHP_URL_HOST),
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        self::assertSame(403, $this->dispatch($request, self::config())->getStatusCode());
+    }
+
+    public function testNormalizedOriginFormsStillMatch(): void
+    {
+        // 尾斜杠、大小写、显式默认端口归一后按规范值比对
+        foreach (['https://admin.example.com/', 'HTTPS://ADMIN.EXAMPLE.COM', 'https://admin.example.com:443'] as $origin) {
+            $request = self::request('POST', '/api/admin/v1/me/profile', [
+                'Origin' => $origin,
+                'X-Requested-With' => 'XMLHttpRequest',
+            ]);
+            self::assertSame(204, $this->dispatch($request, self::config())->getStatusCode(), "origin={$origin}");
+        }
+    }
+
+    public function testMarkerValueConfigIsTrimmed(): void
+    {
+        $config = CsrfConfig::fromArray([
+            'site_origin' => self::SITE,
+            'csrf' => ['required_header_value' => "  fetch\t"],
+        ]);
+        $request = self::request('POST', '/api/admin/v1/me/profile', [
+            'Origin' => self::SITE,
+            'X-Requested-With' => 'fetch',
+        ]);
+
+        self::assertSame('fetch', $config->requiredHeaderValue);
+        self::assertSame(204, $this->dispatch($request, $config)->getStatusCode());
+    }
+
+    public function testInvalidSiteOriginConfigIsDiagnosable(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CsrfConfig::fromArray(['site_origin' => 'https://admin.example.com/dashboard']);
+    }
+
+    public function testUserinfoSiteOriginConfigThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CsrfConfig::fromArray(['site_origin' => 'https://u:p@admin.example.com']);
+    }
+
+    public function testSiteOriginFoldsDefaultPort(): void
+    {
+        $config = CsrfConfig::fromArray(['site_origin' => 'https://admin.example.com:443/']);
+
+        self::assertSame('https://admin.example.com', $config->siteOrigin);
+    }
+
     public function testUnconfiguredSiteOriginSkipsOriginCheckButKeepsMarker(): void
     {
         $config = CsrfConfig::fromArray([]); // site_origin 未配置

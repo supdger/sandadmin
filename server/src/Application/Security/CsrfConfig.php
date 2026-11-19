@@ -10,7 +10,7 @@ namespace Sandadmin\Application\Security;
 /**
  * A-5 CSRF 配置视图：本站源（site_origin）+ 写操作必带的自定义请求头。
  * siteOrigin 为 null 表示未配置——中间件跳过 Origin/Referer 校验但仍要求标记头。
- * 源一律小写规范（scheme+host[:port]），与请求头比对用严格相等。
+ * 源一律经 parseOrigin 归一（小写、无尾斜杠、折叠 http/https 默认端口），比对用严格相等。
  */
 final readonly class CsrfConfig
 {
@@ -28,14 +28,15 @@ final readonly class CsrfConfig
     {
         $csrf = is_array($config['csrf'] ?? null) ? $config['csrf'] : [];
         $siteOrigin = $config['site_origin'] ?? null;
+        $headerName = $csrf['required_header_name'] ?? null;
         $headerValue = $csrf['required_header_value'] ?? null;
 
         return new self(
-            siteOrigin: is_string($siteOrigin) && trim($siteOrigin) !== '' ? self::normalizeOrigin($siteOrigin) : null,
-            requiredHeaderName: is_string($csrf['required_header_name'] ?? null) && trim($csrf['required_header_name']) !== ''
-                ? trim($csrf['required_header_name'])
+            siteOrigin: self::readSiteOrigin($siteOrigin),
+            requiredHeaderName: is_string($headerName) && trim($headerName) !== ''
+                ? trim($headerName)
                 : 'X-Requested-With',
-            requiredHeaderValue: is_string($headerValue) && trim($headerValue) !== '' ? $headerValue : null,
+            requiredHeaderValue: is_string($headerValue) && trim($headerValue) !== '' ? trim($headerValue) : null,
         );
     }
 
@@ -47,9 +48,71 @@ final readonly class CsrfConfig
         return self::fromArray(is_array($raw) ? $raw : []);
     }
 
-    /** 部署值容错：去空白、去尾部斜杠、统一小写（scheme/host 大小写不敏感）。 */
-    public static function normalizeOrigin(string $origin): string
+    /**
+     * 严格形态校验：只允许 scheme://host[:port]，含 userinfo/路径/query/fragment 即 null。
+     * Origin 头与配置值走此口径；parse_url 会吞掉 userinfo，宽松解析有伪装面。
+     */
+    public static function parseStrictOrigin(string $origin): ?string
     {
-        return strtolower(rtrim(trim($origin), '/'));
+        $parts = parse_url(trim($origin));
+        if (
+            !is_array($parts)
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || (isset($parts['path']) && $parts['path'] !== '' && $parts['path'] !== '/')
+        ) {
+            return null;
+        }
+
+        return self::parseOrigin($origin);
+    }
+
+    /**
+     * 归一化 origin/URL 为 scheme://host[:port]：小写、去尾斜杠、折叠默认端口。
+     * 解析不出 scheme+host 即返回 null（调用方按不匹配处理）。
+     */
+    public static function parseOrigin(string $url): ?string
+    {
+        $parts = parse_url(trim($url));
+        if (!is_array($parts)) {
+            return null;
+        }
+        $scheme = $parts['scheme'] ?? null;
+        $host = $parts['host'] ?? null;
+        if (!is_string($scheme) || $scheme === '' || !is_string($host) || $host === '') {
+            return null;
+        }
+        $scheme = strtolower($scheme);
+        $origin = $scheme . '://' . strtolower($host);
+        $port = $parts['port'] ?? null;
+        if (is_int($port) && !self::isDefaultPort($scheme, $port)) {
+            $origin .= ':' . $port;
+        }
+
+        return $origin;
+    }
+
+    /** 部署值容错后的形态校验：只允许 scheme://host[:port]，路径/认证信息视为配置错误。 */
+    private static function readSiteOrigin(mixed $raw): ?string
+    {
+        if (!is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+        $value = trim($raw);
+        $parsed = self::parseStrictOrigin($value);
+        if ($parsed === null) {
+            throw new \InvalidArgumentException(
+                "security.site_origin 配置非法：{$value}（应为 scheme://host[:port]，不含路径/认证信息）",
+            );
+        }
+
+        return $parsed;
+    }
+
+    private static function isDefaultPort(string $scheme, int $port): bool
+    {
+        return ($scheme === 'https' && $port === 443) || ($scheme === 'http' && $port === 80);
     }
 }

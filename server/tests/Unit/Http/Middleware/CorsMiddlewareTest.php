@@ -117,6 +117,62 @@ final class CorsMiddlewareTest extends TestCase
         self::assertNull($response->getHeader('Access-Control-Allow-Origin'));
     }
 
+    public function testAcaoEmitsCanonicalWhitelistEntry(): void
+    {
+        // 回写命中白名单的规范值，不回显请求的大小写/尾斜杠/默认端口形式
+        foreach (['HTTPS://ADMIN.EXAMPLE.COM', 'https://admin.example.com/', 'https://admin.example.com:443'] as $origin) {
+            $response = $this->dispatch(self::request('GET', '/api/admin/v1/me', ['Origin' => $origin]));
+            self::assertSame(self::ALLOWED, $response->getHeader('Access-Control-Allow-Origin'), "origin={$origin}");
+        }
+    }
+
+    public function testUserinfoOriginNotWhitelisted(): void
+    {
+        $request = self::request('OPTIONS', '/api/admin/v1/auth/login', [
+            'Origin' => 'https://evil.com@admin.example.com',
+        ]);
+        $response = $this->dispatch($request);
+
+        self::assertSame(204, $response->getStatusCode());
+        self::assertNull($response->getHeader('Access-Control-Allow-Origin'));
+    }
+
+    public function testV1PrefixDoesNotOvermatch(): void
+    {
+        $request = self::request('OPTIONS', '/api/admin/v1x/files', ['Origin' => self::ALLOWED]);
+        $response = $this->dispatch($request);
+
+        // 非 v1 前缀：直通下游（204 桩），不签发预检 Allow-* 头
+        self::assertNull($response->getHeader('Access-Control-Allow-Origin'));
+        self::assertNull($response->getHeader('Access-Control-Allow-Methods'));
+    }
+
+    public function testVaryMergesInsteadOfOverwriting(): void
+    {
+        $middleware = new CorsMiddleware(self::config(), CsrfConfig::fromArray([]));
+        $withExisting = $middleware->process(
+            self::request('GET', '/api/admin/v1/me', ['Origin' => self::ALLOWED]),
+            static fn (Request $request): Response => new Response(204, ['Vary' => 'Accept-Encoding']),
+        );
+        $alreadyHas = $middleware->process(
+            self::request('GET', '/api/admin/v1/me', ['Origin' => self::ALLOWED]),
+            static fn (Request $request): Response => new Response(204, ['Vary' => 'accept-encoding, origin']),
+        );
+
+        self::assertSame('Accept-Encoding, Origin', $withExisting->getHeader('Vary'));
+        self::assertSame('accept-encoding, origin', $alreadyHas->getHeader('Vary'));
+    }
+
+    public function testAllowHeadersDefaultsCoverContractHeaders(): void
+    {
+        $config = self::config();
+        $headers = $config->allowHeaders('X-Requested-With');
+
+        self::assertContains('Idempotency-Key', $headers);
+        self::assertContains('X-Request-Id', $headers);
+        self::assertContains('Authorization', $headers);
+    }
+
     private function dispatch(Request $request): Response
     {
         return (new CorsMiddleware(self::config(), CsrfConfig::fromArray([])))

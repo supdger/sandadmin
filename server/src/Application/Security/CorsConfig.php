@@ -14,7 +14,7 @@ namespace Sandadmin\Application\Security;
 final readonly class CorsConfig
 {
     /**
-     * @param list<string> $allowedOrigins 精确匹配的 Origin 白名单（已小写规范化）
+     * @param list<string> $allowedOrigins 精确匹配的 Origin 白名单（已 parseOrigin 归一）
      * @param list<string> $allowedMethods
      * @param list<string> $allowedHeaders
      */
@@ -36,7 +36,10 @@ final readonly class CorsConfig
         return new self(
             allowedOrigins: self::readOrigins($cors['allowed_origins'] ?? null),
             allowedMethods: self::readStrings($cors['allowed_methods'] ?? null, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
-            allowedHeaders: self::readStrings($cors['allowed_headers'] ?? null, ['Content-Type', 'Authorization', 'X-Requested-With']),
+            allowedHeaders: self::readStrings(
+                $cors['allowed_headers'] ?? null,
+                ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key', 'X-Request-Id'],
+            ),
             maxAge: self::readInt($cors, 'max_age', 600, 0, 86400),
         );
     }
@@ -49,10 +52,18 @@ final readonly class CorsConfig
         return self::fromArray(is_array($raw) ? $raw : []);
     }
 
-    /** 白名单判定：与请求 Origin 规范化后严格相等，不反射、不子串、不通配。 */
-    public function allows(string $origin): bool
+    /**
+     * 白名单命中判定：返回规范后的白名单条目（用于回写 ACAO，不回显请求原值）；
+     * 未命中返回 null。不反射、不子串、不通配。
+     */
+    public function match(string $origin): ?string
     {
-        return in_array(CsrfConfig::normalizeOrigin($origin), $this->allowedOrigins, true);
+        $normalized = CsrfConfig::parseStrictOrigin($origin);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return in_array($normalized, $this->allowedOrigins, true) ? $normalized : null;
     }
 
     /**
@@ -78,8 +89,17 @@ final readonly class CorsConfig
     {
         $origins = [];
         foreach (is_array($raw) ? $raw : [] as $origin) {
-            if (is_string($origin) && trim($origin) !== '') {
-                $origins[] = CsrfConfig::normalizeOrigin($origin);
+            if (!is_string($origin) || trim($origin) === '') {
+                continue;
+            }
+            $parsed = CsrfConfig::parseStrictOrigin($origin);
+            if ($parsed === null) {
+                throw new \InvalidArgumentException(
+                    "security.cors.allowed_origins 含非法源：{$origin}（应为 scheme://host[:port]）",
+                );
+            }
+            if (!in_array($parsed, $origins, true)) {
+                $origins[] = $parsed;
             }
         }
 

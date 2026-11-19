@@ -50,7 +50,8 @@ final readonly class SecurityHeadersConfig
     }
 
     /**
-     * 按响应 Content-Type 选 CSP 值与头名；JSON API 收紧为 default-src 'none'。
+     * 按响应 Content-Type 选 CSP 值与头名；含 json（application/json、
+     * application/*+json、text/json 等）一律按 API 档收紧。
      *
      * @return array{name: string, value: string}
      */
@@ -58,7 +59,7 @@ final readonly class SecurityHeadersConfig
     {
         return [
             'name' => $this->cspEnforce ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only',
-            'value' => str_contains(strtolower($contentType), 'application/json') ? $this->cspApi : $this->cspPage,
+            'value' => str_contains(strtolower($contentType), 'json') ? $this->cspApi : $this->cspPage,
         ];
     }
 
