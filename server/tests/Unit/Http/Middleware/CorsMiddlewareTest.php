@@ -173,6 +173,24 @@ final class CorsMiddlewareTest extends TestCase
         self::assertContains('Authorization', $headers);
     }
 
+    public function testWildcardWhitelistEntryThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CorsConfig::fromArray(['cors' => ['allowed_origins' => ['https://*.example.com']]]);
+    }
+
+    public function testBareWildcardWhitelistEntryThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CorsConfig::fromArray(['cors' => ['allowed_origins' => ['*']]]);
+    }
+
+    public function testNonHttpWhitelistEntryThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CorsConfig::fromArray(['cors' => ['allowed_origins' => ['ftp://admin.example.com']]]);
+    }
+
     private function dispatch(Request $request): Response
     {
         return (new CorsMiddleware(self::config(), CsrfConfig::fromArray([])))

@@ -20,8 +20,8 @@ return [
     // N3 统一安全响应头（SecurityHeadersMiddleware 全局输出）。
     'headers' => [
         'referrer_policy' => env('SAND_REFERRER_POLICY') ?: 'strict-origin-when-cross-origin',
-        // env 默认值实参写法（不用 ?: 吞 '0'）：显式配置 0 = 关闭 HSTS
-        'hsts_max_age' => (int) env('SAND_HSTS_MAX_AGE', 15552000),
+        // 原样透传 env：显式 '0' = 关闭 HSTS；空串/非整数由装载层落默认（不提前 (int) 吞错）
+        'hsts_max_age' => env('SAND_HSTS_MAX_AGE'),
         // NET-01 两步上线：enforce=false 发 Content-Security-Policy-Report-Only 灰度。
         'csp' => [
             'enforce' => filter_var(env('SAND_CSP_ENFORCE', false), FILTER_VALIDATE_BOOLEAN),
@@ -46,6 +46,6 @@ return [
         ), static fn (string $value): bool => $value !== '')),
         'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key', 'X-Request-Id'],
-        'max_age' => (int) env('SAND_CORS_MAX_AGE', 600),
+        'max_age' => env('SAND_CORS_MAX_AGE'),
     ],
 ];

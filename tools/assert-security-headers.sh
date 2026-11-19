@@ -6,6 +6,7 @@
 set -uo pipefail
 
 PORT="${1:-19107}"
+CHANNEL_PORT=$((PORT + 1))
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER="$ROOT/server"
 FAILED=0
@@ -15,18 +16,22 @@ log() { # <PASS|FAIL> <目标> <说明>
     printf '%s\t%s\t%s\n' "$1" "$2" "$3"
 }
 
-if [ "$PORT" -lt 19100 ] || [ "$PORT" -gt 19199 ]; then
-    log FAIL "-" "端口 $PORT 不在 19100–19199 段" >&2
+# webman 起服会带 channel 进程（config/plugin/webman/channel/process.php），
+# 端口走 SANDADMIN_CHANNEL_PORT：HTTP 口与 channel 口都要落在段内。
+if [ "$PORT" -lt 19100 ] || [ "$PORT" -gt 19198 ]; then
+    log FAIL "-" "端口 $PORT 需在 19100–19198（channel 口取 PORT+1）" >&2
     exit 2
 fi
 if ! command -v curl >/dev/null 2>&1; then
     log FAIL "-" "缺少 curl" >&2
     exit 2
 fi
-if lsof -nP -i ":$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    log FAIL "-" "端口 $PORT 已被占用，不会借用或顶替" >&2
-    exit 2
-fi
+for p in "$PORT" "$CHANNEL_PORT"; do
+    if lsof -nP -i ":$p" -sTCP:LISTEN >/dev/null 2>&1; then
+        log FAIL "-" "端口 $p 已被占用，不会借用或顶替" >&2
+        exit 2
+    fi
+done
 
 # 只停掉本脚本在本目录启动的实例：核对该服务 pid 文件里的进程确实是 php。
 stop_server() {
@@ -44,9 +49,16 @@ stop_server() {
 trap stop_server EXIT
 
 # .env 缺失时 env() 全走默认值；SANDADMIN_SERVER_LISTEN 覆盖监听并只绑回环。
-SANDADMIN_SERVER_LISTEN="http://127.0.0.1:$PORT" \
+# 启动命令成功即计清理责任：进程是我们起的，就绪超时退出也必须收尸；
+# 启动失败则什么也没起来，直接退出不清场。
+if ! SANDADMIN_SERVER_LISTEN="http://127.0.0.1:$PORT" \
+    SANDADMIN_CHANNEL_PORT="$CHANNEL_PORT" \
     SANDADMIN_WEB_WORKERS=1 SANDADMIN_TASK_WORKERS=0 \
-    php "$SERVER/start.php" start -d >/dev/null 2>&1
+    php "$SERVER/start.php" start -d >/dev/null 2>&1; then
+    log FAIL "-" "webman 启动命令失败" >&2
+    exit 1
+fi
+STARTED=1
 
 READY=0
 for _ in $(seq 1 50); do
@@ -60,8 +72,33 @@ if [ "$READY" != "1" ]; then
     log FAIL "-" "服务未在预期时间内监听 127.0.0.1:$PORT" >&2
     exit 1
 fi
-# 确认监听后才开始计脚本责任：此前退出不清场（理论上也不存在可清的实例）
-STARTED=1
+
+# 段外监听断言：本实例（master+子孙进程）全部 TCP 监听口必须落在 19100–19199
+master_pid="$(head -1 "$SERVER/runtime/webman.pid" 2>/dev/null | tr -d '[:space:]')"
+if [ -z "$master_pid" ]; then
+    log FAIL "listen" "读不到 webman master pid，无法断言段内监听"
+    FAILED=1
+else
+    tree_pids="$master_pid"
+    for child in $(pgrep -P "$master_pid" 2>/dev/null); do
+        tree_pids="$tree_pids $child"
+        for grand in $(pgrep -P "$child" 2>/dev/null); do
+            tree_pids="$tree_pids $grand"
+        done
+    done
+    listen_ok=1
+    for port in $(lsof -nP -iTCP -sTCP:LISTEN -a -p "${tree_pids// /,}" 2>/dev/null \
+        | awk '{print $9}' | grep -oE '[0-9]+$' | sort -u); do
+        if [ "$port" -lt 19100 ] || [ "$port" -gt 19199 ]; then
+            log FAIL "listen" "实例监听段外端口 ${port}（约束 19100–19199）"
+            listen_ok=0
+            FAILED=1
+        fi
+    done
+    if [ "$listen_ok" = "1" ]; then
+        log PASS "listen" "实例全部监听口均在 19100–19199（HTTP ${PORT} + channel ${CHANNEL_PORT}）"
+    fi
+fi
 
 # <目标> <头名> <期望值|EMPTY=必须缺席> <路径> <Accept>
 check() {

@@ -200,6 +200,18 @@ final class CsrfMiddlewareTest extends TestCase
         self::assertSame('https://admin.example.com', $config->siteOrigin);
     }
 
+    public function testNonHttpSiteOriginThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CsrfConfig::fromArray(['site_origin' => 'ftp://admin.example.com']);
+    }
+
+    public function testWildcardSiteOriginThrows(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        CsrfConfig::fromArray(['site_origin' => 'https://*.example.com']);
+    }
+
     public function testUnconfiguredSiteOriginSkipsOriginCheckButKeepsMarker(): void
     {
         $config = CsrfConfig::fromArray([]); // site_origin 未配置

@@ -49,12 +49,13 @@ final readonly class CsrfConfig
     }
 
     /**
-     * 严格形态校验：只允许 scheme://host[:port]，含 userinfo/路径/query/fragment 即 null。
-     * Origin 头与配置值走此口径；parse_url 会吞掉 userinfo，宽松解析有伪装面。
+     * 严格形态校验：只允许 http(s)://host[:port]，含 userinfo/路径/query/fragment、
+     * 通配符或非 http/https scheme 即 null；parse_url 会吞掉 userinfo，宽松解析有伪装面。
      */
     public static function parseStrictOrigin(string $origin): ?string
     {
-        $parts = parse_url(trim($origin));
+        $origin = trim($origin);
+        $parts = parse_url($origin);
         if (
             !is_array($parts)
             || isset($parts['user'])
@@ -62,7 +63,12 @@ final readonly class CsrfConfig
             || isset($parts['query'])
             || isset($parts['fragment'])
             || (isset($parts['path']) && $parts['path'] !== '' && $parts['path'] !== '/')
+            || str_contains($origin, '*')
         ) {
+            return null;
+        }
+        $scheme = $parts['scheme'] ?? null;
+        if (!is_string($scheme) || !in_array(strtolower($scheme), ['http', 'https'], true)) {
             return null;
         }
 

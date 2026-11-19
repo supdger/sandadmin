@@ -74,11 +74,15 @@ final readonly class SecurityHeadersConfig
     }
 
     /**
+     * env 原值是字符串：整数字符串（含 '0'）转 int，空串/非整数/缺失一律落默认。
      * @param array<array-key, mixed> $config
      */
     private static function readInt(array $config, string $key, int $default, int $min, int $max): int
     {
         $value = $config[$key] ?? null;
+        if (is_string($value)) {
+            $value = filter_var($value, FILTER_VALIDATE_INT);
+        }
         if (!is_int($value)) {
             return $default;
         }
