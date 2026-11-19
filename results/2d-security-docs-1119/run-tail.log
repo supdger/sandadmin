@@ -1,0 +1,22 @@
+收到。本任务为只写文档：在 supdger/sandadmin 仓库 `docs/security-policy` 分支上新增 SECURITY.md、security.txt、插件签名密钥管理规范，并更新 RELEASE-CHECKLIST.md，交付指向 main 的未合并 PR + RESULT.md。任务明确"不开下级会话"，我在本会话内直接执行。
+
+先定位仓库并读输入材料。仓库有多个本地副本；为隔离，我在本任务目录下全新克隆。克隆可能仍在进行，检查后台任务状态。PLG-02 与 K-8 要求已拿到。接着读仓库入口文件、RELEASE-CHECKLIST、构建脚本和命名规范。PR #94 确认。现在用 gh 只读拉取签名相关文件在 PR 分支上的内容。材料齐了。再确认 `server/docs/` 现状、`.well-known` 不被忽略、命名规范要点。`server/docs/` 已有 `mcp-dev.md`，看一眼风格；同时查仓库主页信息。仓库为公开仓。写文档前确认 `server/composer.json` 依赖来源与 `server/.gitignore`（评估 pre-merge 能否真实跑通）。环境清楚。现在写三个文档并改清单。先写根目录 `SECURITY.md`。四个文件就绪。跑命名自查与 pre-merge 门禁并记录输出。命名检查通过（仅 INFO）。pre-merge 需要 `server/vendor`，先跑 `composer install`。门禁全过。提交四个文件并推送、开 PR。全部完成。交付摘要：
+
+- **PR #103**（`docs/security-policy` → main，未合并）：https://github.com/supdger/sandadmin/pull/103
+- 基线 `977427a`（origin/main @ 2026-11-18）→ 最终 `b5c4aa5`，4 文件 +148 行：`SECURITY.md`、`server/public/.well-known/security.txt`、`server/docs/plugin-signing-keys.md`、`RELEASE-CHECKLIST.md`
+- 验收：`naming_check.py notes` exit 0（仅 INFO）；`tools/pre-merge.sh --fast` exit 0（7/7，PHPUnit 408 tests、PHPStan 无错）
+- PR #94 对照：先验签后解包、验签失败拒绝、编译版拒装一致；公钥内嵌信任根、kid/多密钥、吊销列表、公钥白名单+审计为未实现差距（规范已写明目标，未改 #94）
+- 待总监：开启 Private Vulnerability Reporting、填真实安全邮箱（`security@example.invalid` 占位）、指定报送责任人、法务复核措辞、指定签名私钥保管人
+- 完整对照与命令证据在 `~/agent-work/assistant/2d-security-docs-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：SWE-2 / High（按任务明示「不开下级会话」在本会话直接执行）
+- 子 Agent：未使用
+
+## 任务记录
+- 已修改：sandadmin 仓 `SECURITY.md`、`server/public/.well-known/security.txt`、`server/docs/plugin-signing-keys.md`、`RELEASE-CHECKLIST.md`；任务目录 `RESULT.md`
+- 已验证：`naming_check.py notes` exit 0；`tools/pre-merge.sh --fast` exit 0（7/7 全过）；`git show --stat` 仅 4 文件
+- 已提交/已部署：已提交并推送分支、已开 PR #103（未合并）；未部署
+- 未完成：见 RESULT 第三节待总监 5 项
+
+=== RUN COMPLETE ===
