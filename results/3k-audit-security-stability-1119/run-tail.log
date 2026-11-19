@@ -1,0 +1,47 @@
+I'll start by confirming the input paths, then send the reading and cross-checking to SWE-2 subagents in parallel.RESULT.md is written. **Conclusion: with the current design, this cannot yet be called a "secure, stable, high-level framework."** The v4 design text already covers most of ASVS L2. What's missing falls into three areas: some design items are undecided or left out; nothing enforces that what the docs say actually ends up in code; and several key capabilities exist only as interfaces in the main repo, or only in other repos.
+
+The 10 most critical gaps, by severity:
+1. **High: plugin signing has no trust root.** v4 says "trust root details TBD" (顶层:405). There is no key ID, no revocation list and no deployer allowlist, and the PackageOps environment-variable bypass of the build gate still stands.
+2. **High: no threat modeling or list of security rules that must always hold.** The three PackageOps flaws (env-variable bypass, error output showing the DB password, uninstall following symlinks) all trace back to this.
+3. **High: gates aren't actually enforced.** CI doesn't run PHPUnit/PHPStan and main has no branch protection, so the dependency and release rules (SCM-01~11) exist only on paper.
+4. **High: the production login chain isn't in the main repo, and `data_scope` doesn't filter queries.** This risks users reading other users' data.
+5. **High: crash self-healing is barely designed.** There's no daemon setup, no restart time limit and no `/healthz`.
+6. **High: graceful shutdown and zero-downtime release are principles only.** `stop_timeout=2`, nothing drains in-flight requests, and `max_requests=0`.
+7. **High: rate limiting and connection pooling don't really work in code.** The limiter is per-process and re-created on every request; DB connections are opened fresh each time and never reused.
+8. **Medium-high: no database failover design, and the migration executor has no code.**
+9. **Medium-high: observability is the furthest behind first-class frameworks.** No JSON logs, no metrics endpoint, no tracing.
+10. **Medium: loose ASVS L2 items.** No output-encoding rules, no bans on deserialization or mass assignment, `trusted_proxies` not done, no zip bomb limit, no audit-log hash chain.
+
+**Workload:** fixing all of this in 1.0 adds about 34–48 person-days, roughly 24–38 after removing overlap with 3j. That excludes work already counted in 3i, 3j, 1d and 3d. 1.1 adds about another 10.
+
+**Go/Java comparison:**
+- **Throughput:** a third-party benchmark (The Benchmarker, simple route, 16 cores, data dated 2026-11-05) shows webman's raw HTTP speed about equal to Gin, about 55% of Vert.x, about 1.9× Spring MVC, and 30–60× Laravel/Symfony.
+- **Other capabilities**, in tenths of what first-class frameworks offer, are my own qualitative judgement:
+
+| Capability | Now | After v4 is done |
+|---|---|---|
+| Connection pool | 2 | 6 |
+| Rate limiting, circuit breaking, degradation | 1 | 6 |
+| Observability | 2 | 4 in 1.0, 7 after 1.1 |
+| Graceful shutdown / zero-downtime release | 3 | 8 once crash recovery and release draining are added |
+| Config management | 4 | 6 |
+
+  The report gives the reasons and the later fix for each.
+- **Missing numbers:** I couldn't get TechEmpower R23's raw results; the site was unreachable from here by three separate routes. So there are no official numbers for database-heavy cases, and I didn't estimate them. They need our own baseline benchmark first.
+
+**Notes:**
+- One apparent conflict is resolved in the report. The PackageGate in main can't be bypassed in production. The 1d bypass applies to the sand-package side in PR #94. Before merging #94, keep a single production check that trusts only a build-time marker.
+- To confirm the code baseline, I ran one `git fetch` in the 3j audit's sandadmin clone. It only updates the remote branch reference, not working files, and origin/main stayed at `977427a`.
+- Not covered: the sand-core and sand-package repos weren't read, so login lockout, signature checks, the installer and the migration executor are marked "outside this repo, can't verify". 3j was still running, so I cited its partial results as they stood.
+
+## Model record
+- Main agent: not recorded (sessions.db wasn't queried)
+- Sub-agents: A, B, C, D, E and F all used dv-scout (SWE-2); actual model not recorded. They did all the reading, code search and web fetching (TechEmpower and benchmark pages); I wrote the conclusions.
+
+## Task record
+- Changed: only `~/agent-work/assistant/3k-audit-security-stability-1119/RESULT.md`
+- Verified: evidence came from the six read-only sub-agent reports, each with file and line references. naming_check wasn't run because this is a report, not code.
+- Committed/deployed: no
+- Not done: TechEmpower R23 raw numbers (re-check once the site is reachable); the sand-core and sand-package repos weren't audited.
+
+=== RUN COMPLETE ===
