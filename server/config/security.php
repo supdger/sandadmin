@@ -14,7 +14,7 @@ return [
 
     // A-5：本站源，形如 https://admin.example.com（scheme://host[:port]，无尾斜杠）。
     // v1 组写操作要求 Origin 与之精确相等；只认本配置，不从 Host/转发头推导。
-    // 留空 = 未启用源校验（自定义头仍必查），生产部署必须配置。
+    // 留空 = 未启用源校验（自定义头仍必查），生产环境未配置即拒绝启动（SiteOriginGuard）。
     'site_origin' => env('SAND_SITE_ORIGIN') ?: null,
 
     // N3 统一安全响应头（SecurityHeadersMiddleware 全局输出）。

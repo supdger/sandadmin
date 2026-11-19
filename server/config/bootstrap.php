@@ -24,6 +24,8 @@ return [
     app\bootstrap\WeakPasswordGuard::class,
     // 日志留存下限自检：通道 retention.days 低于类别下限即拒绝启动（T-4/N9）。
     app\bootstrap\LogRetentionGuard::class,
+    // A-5：生产环境未配置 security.site_origin 即拒绝启动。
+    app\bootstrap\SiteOriginGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];

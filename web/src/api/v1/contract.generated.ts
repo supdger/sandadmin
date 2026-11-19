@@ -1,7 +1,7 @@
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:a8cf8b7cebf97fe5e9c8c4776d63005e670511b7bf4f09d8eef32e619405f18f
+// 源哈希: sha256:cda7bc00788ab828775ee74c9d70c0f5784bab88425f0f8999db85745a593f71
 // 生成器: contract-build v1
 
 /** 成功信封：code 固定字符串 OK，成功判定只看这一个字段 */
@@ -25,6 +25,7 @@ export type ApiEnvelope<T = unknown> = ApiSuccess<T> | ApiFailure
 /** 契约登记的错误码（x-error-catalog 全集） */
 export type ErrorCode =
   | 'ANNOUNCEMENT_NOT_FOUND'
+  | 'CSRF_REJECTED'
   | 'DATA_SCOPE_INVALID'
   | 'DEPT_NAME_TAKEN'
   | 'DEPT_NOT_EMPTY'
