@@ -12,11 +12,13 @@ use Sandadmin\Contract\KernelApi\KernelApiVersion;
 
 /**
  * 离线包安装/升级/卸载执行器（CLI 通道）。顺序：
- * 编译版闸 → Ed25519 验签 → 检查 zip → 安装闸 → journal → 解包暂存
- * → 落位 → 记账本 → 契约收集。验签在解包前，拒绝零副作用；
+ * 开发构建标记 + 编译版闸 → Ed25519 验签 → 检查 zip → 安装闸 → journal
+ * → 解包暂存 → 落位 → 记账本 → 契约收集。验签在解包前，拒绝零副作用；
  * 任何一步失败都回滚到操作前状态；进程中断由 journal 恢复。
  * signature_verified 如实反映验签结果：真验签通过才为 true，
  * 未签名放行（仅非编译版 + 显式 allowUnsigned）为 false。
+ * devBuildMarker 由调用方给出开发构建标记文件路径：环境变量可伪造，
+ * 标记文件不在就按编译版拒绝，与引导期常量判定同一口径。
  */
 final class PackageExecutor
 {
@@ -28,6 +30,7 @@ final class PackageExecutor
         private readonly string $pluginDir,
         private readonly string $workDir,
         private readonly string $dbDriver,
+        private readonly string $devBuildMarker,
     ) {
     }
 
@@ -63,7 +66,7 @@ final class PackageExecutor
      */
     public function uninstall(string $app, string $dataPolicy = 'keep'): array
     {
-        if (PackageGate::compiled()) {
+        if ($this->isLocked()) {
             return $this->fail($app, null, 'gate', ['编译版或生产宿主不执行插件卸载'], false);
         }
         if (!in_array($dataPolicy, self::DATA_POLICIES, true)) {
@@ -79,7 +82,12 @@ final class PackageExecutor
         }
 
         $journal = $this->journal();
-        $id = $journal->begin('uninstall', $app, $dataPolicy, $pluginPath);
+        try {
+            $id = $journal->begin('uninstall', $app, $dataPolicy, $pluginPath);
+        } catch (\Throwable $error) {
+            // journal 写不进时按失败报告返回，不把未捕获异常抛给调用方
+            return $this->fail($app, $current, 'journal', ['操作中断：' . $error->getMessage()], false);
+        }
         $backup = $this->workDir . '/backup-' . $app . '-' . $id;
         $unregistered = false;
         $stage = 'remove';
@@ -210,7 +218,7 @@ final class PackageExecutor
         string $kind,
     ): array {
         $shaOk = $this->shaMatches($zipFile, $sha256);
-        if (PackageGate::compiled()) {
+        if ($this->isLocked()) {
             return $this->fail(null, null, 'gate', ['编译版或生产宿主不执行插件安装与升级'], $shaOk);
         }
         // 先验签再解包：此时 zip 目录项都还没解析、零写入，
@@ -233,7 +241,11 @@ final class PackageExecutor
         }
 
         $journal = $this->journal();
-        $id = $journal->begin($kind, $app, 'keep', $pluginPath);
+        try {
+            $id = $journal->begin($kind, $app, 'keep', $pluginPath);
+        } catch (\Throwable $error) {
+            return $this->fail($app, $manifest->version, 'journal', ['操作中断：' . $error->getMessage()], $shaOk);
+        }
         $staged = $this->workDir . '/staged-' . $id;
         $backup = $this->workDir . '/backup-' . $app . '-' . $id;
         $registered = false;
@@ -370,6 +382,15 @@ final class PackageExecutor
         } catch (\Throwable $error) {
             $problems[] = '账本回写失败：' . $error->getMessage();
         }
+    }
+
+    /**
+     * 生命周期闸：编译版一律拒绝；开发构建标记文件不在也按编译版拒绝——
+     * SAND_COMPILED 这类环境变量能伪造，标记文件是构建产物事实。
+     */
+    private function isLocked(): bool
+    {
+        return PackageGate::compiled() || !is_file($this->devBuildMarker);
     }
 
     private function shaMatches(string $zipFile, ?string $sha256): bool

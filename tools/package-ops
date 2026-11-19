@@ -125,8 +125,16 @@ $registry = null;
 if ($command === 'recover') {
     $registry = new MemoryPluginRegistry();
 } elseif ($options['registry'] === 'memory') {
-    // 仅供本地无库演练：进程退出账本即丢，不产生真实登记
-    $registry = new MemoryPluginRegistry();
+    // 仅供本地无库演练：账本落 work-dir 下 registry.state（刻意不叫
+    // .json，免得被 recoverPending 当成 journal 扫描），跨命令进程的
+    // 装/升/卸才读到同一状态；不产生真实登记
+    try {
+        $registry = new MemoryPluginRegistry($workDir . '/registry.state');
+    } catch (\RuntimeException $error) {
+        // 账本打不开时报干净失败退出，不能让构造异常以裸错误冒出来
+        fwrite(STDERR, '  操作中断：' . $error->getMessage() . "\n");
+        exit(1);
+    }
 } else {
     $dbUrl = getenv('SAND_DB_URL');
     if (!is_string($dbUrl) || $dbUrl === '') {
@@ -139,7 +147,9 @@ if ($command === 'recover') {
         'mysql' => 'pdo-mysql', 'mysqli' => 'pdo-mysql',
     ];
     if (!is_string($scheme) || !isset($map[$scheme])) {
-        fwrite(STDERR, "SAND_DB_URL 协议不支持：{$dbUrl}（只认 pgsql/mysql）\n");
+        // 不回显整条连接串：串里带口令，报错会进终端与日志
+        $shown = is_string($scheme) && $scheme !== '' ? $scheme : '无法解析';
+        fwrite(STDERR, "SAND_DB_URL 协议不支持：{$shown}（只认 pgsql/mysql）\n");
         exit(2);
     }
     $connection = DriverManager::getConnection(['url' => $map[$scheme] . substr($dbUrl, strlen($scheme))]);
@@ -152,7 +162,16 @@ if (!in_array($dbDriver, ['pgsql', 'mysql'], true)) {
     exit(2);
 }
 
-$executor = new PackageExecutor($registry, $repoRoot, $pluginDir, $workDir, $dbDriver);
+// 开发构建标记是生命周期闸的一部分：发布制品剔除标记与本工具后
+// 仍有人把工具搬进去跑，也过不了 is_file 这道闸
+$executor = new PackageExecutor(
+    $registry,
+    $repoRoot,
+    $pluginDir,
+    $workDir,
+    $dbDriver,
+    $repoRoot . '/server/.sand-dev-build',
+);
 
 if ($command === 'recover') {
     $result = $executor->recover();

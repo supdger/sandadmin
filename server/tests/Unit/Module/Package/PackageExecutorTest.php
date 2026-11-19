@@ -59,6 +59,9 @@ final class PackageExecutorTest extends TestCase
         if (!copy($source, $this->repoDir . '/contract/openapi.yaml')) {
             self::fail('无法复制宿主契约到临时仓');
         }
+        // 开发构建标记：与源码检出同口径，临时仓默认带上；
+        // 需要验证「标记不在按编译版拒绝」的用例自行 unlink
+        file_put_contents($this->markerPath(), '');
         $this->registry = new FakePluginRegistry();
     }
 
@@ -489,6 +492,52 @@ final class PackageExecutorTest extends TestCase
         $this->assertNoSideEffects('sand-hello');
     }
 
+    public function testUninstallReportsFailureWhenWorkdirIsFile(): void
+    {
+        // work-dir 被同名文件占位时 journal 写不进：卸载要按失败报告返回，
+        // 不能把未捕获异常抛成 500 一类的崩溃
+        $workDir = $this->dir . '/work-file';
+        file_put_contents($workDir, 'x');
+        $registry = new FakePluginRegistry();
+        $registry->recordInstall('sand-hello', 'sand-hello', '0.1.0', 'x');
+        if (!is_dir($this->pluginPath('sand-hello')) && !mkdir($this->pluginPath('sand-hello'), 0755, true)) {
+            self::fail('无法创建插件目录');
+        }
+        $executor = new PackageExecutor($registry, $this->repoDir, $this->repoDir . '/server/plugin', $workDir, 'pgsql', $this->markerPath());
+
+        $result = $executor->uninstall('sand-hello', 'keep');
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('journal', $result['stage']);
+    }
+
+    public function testInstallReportsFailureWhenWorkdirIsFile(): void
+    {
+        $workDir = $this->dir . '/work-file';
+        file_put_contents($workDir, 'x');
+        $registry = new FakePluginRegistry();
+        $executor = new PackageExecutor($registry, $this->repoDir, $this->repoDir . '/server/plugin', $workDir, 'pgsql', $this->markerPath());
+
+        $result = $executor->install($this->zip('hello'), null, allowUnsigned: true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('journal', $result['stage']);
+    }
+
+    public function testMemoryRegistryKeepsStateAcrossInstances(): void
+    {
+        // 首次安装回执 ok 之后，下一次命令再查账本必须看到已装：
+        // state-file 落地才让「装、升、卸一轮无库演练」跨进程连贯
+        $stateFile = $this->dir . '/registry.json';
+        $first = new \Sandadmin\Module\Package\MemoryPluginRegistry($stateFile);
+        $first->recordInstall('sand-hello', 'sand-hello', '0.1.0', 'x');
+
+        $second = new \Sandadmin\Module\Package\MemoryPluginRegistry($stateFile);
+
+        self::assertSame('0.1.0', $second->installedVersion('sand-hello'));
+        self::assertSame(['sand-hello' => '0.1.0'], $second->installedVersions());
+    }
+
     public function testCompiledHostRefusesInstall(): void
     {
         putenv('SAND_COMPILED=1');
@@ -499,6 +548,65 @@ final class PackageExecutorTest extends TestCase
         self::assertSame('failed', $result['result']);
         self::assertSame('gate', $result['stage']);
         self::assertDirectoryDoesNotExist($this->pluginPath('sand-hello'));
+    }
+
+    public function testMissingDevBuildMarkerRefusesUnsignedInstall(): void
+    {
+        // 发布制品没有开发构建标记：就算伪造 SAND_COMPILED=0 + --allow-unsigned，
+        // 也在 gate 阶段拒绝且零副作用
+        unlink($this->markerPath());
+
+        $result = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('gate', $result['stage']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testMissingDevBuildMarkerRefusesSignedInstall(): void
+    {
+        unlink($this->markerPath());
+        $signed = $this->signedZip('hello-signed');
+
+        $result = $this->executor()->install($signed['zip'], null, $signed['signature'], $signed['pubkey']);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('gate', $result['stage']);
+        self::assertFalse($result['signature_verified']);
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testMissingDevBuildMarkerRefusesUninstall(): void
+    {
+        $installed = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
+        self::assertSame('ok', $installed['result'], implode("\n", $installed['problems']));
+        unlink($this->markerPath());
+
+        $result = $this->executor()->uninstall('sand-hello', 'keep');
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('gate', $result['stage']);
+        self::assertDirectoryExists($this->pluginPath('sand-hello'));
+        self::assertSame('0.1.0', $this->registry->installedVersion('sand-hello'));
+    }
+
+    public function testUninstallKeepsExternalSymlinkTarget(): void
+    {
+        // 插件目录里的软链可能指向插件目录外（path 仓库软链、插件自建）：
+        // 卸载删目录时不许跟随链接删掉外部内容
+        $installed = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
+        self::assertSame('ok', $installed['result'], implode("\n", $installed['problems']));
+        $outside = $this->dir . '/outside';
+        mkdir($outside, 0755, true);
+        file_put_contents($outside . '/keep.txt', 'stay');
+        $link = $this->pluginPath('sand-hello') . '/linked';
+        self::assertTrue(symlink($outside, $link), '无法创建符号链接夹具');
+
+        $result = $this->executor()->uninstall('sand-hello', 'keep');
+
+        self::assertSame('ok', $result['result'], implode("\n", $result['problems']));
+        self::assertDirectoryDoesNotExist($this->pluginPath('sand-hello'));
+        self::assertSame('stay', file_get_contents($outside . '/keep.txt'));
     }
 
     /**
@@ -539,7 +647,13 @@ final class PackageExecutorTest extends TestCase
             $this->repoDir . '/server/plugin',
             $this->dir . '/work',
             $dbDriver,
+            $this->markerPath(),
         );
+    }
+
+    private function markerPath(): string
+    {
+        return $this->repoDir . '/server/.sand-dev-build';
     }
 
     private function pluginPath(string $app): string

@@ -23,7 +23,7 @@ final class PackageJournal
 
     public function begin(string $kind, string $app, string $dataPolicy, string $plugin): string
     {
-        if (!is_dir($this->workDir) && !mkdir($this->workDir, 0755, true) && !is_dir($this->workDir)) {
+        if (!is_dir($this->workDir) && (file_exists($this->workDir) || !mkdir($this->workDir, 0755, true)) && !is_dir($this->workDir)) {
             throw new \RuntimeException('无法创建 journal 目录：' . $this->workDir);
         }
         $id = $kind . '-' . bin2hex(random_bytes(6));
@@ -155,8 +155,17 @@ final class PackageJournal
         return $notes;
     }
 
+    /**
+     * 符号链接只删链接本身，绝不递归：is_dir 跟随链接，不先判 is_link
+     * 会把插件目录里指向外部的软链当成真目录，删到插件目录外面。
+     */
     public static function removeTree(string $dir): void
     {
+        if (is_link($dir)) {
+            unlink($dir);
+
+            return;
+        }
         if (!is_dir($dir)) {
             return;
         }
@@ -169,10 +178,10 @@ final class PackageJournal
                 continue;
             }
             $path = $dir . '/' . $item;
-            if (is_dir($path)) {
-                self::removeTree($path);
-            } else {
+            if (is_link($path) || !is_dir($path)) {
                 unlink($path);
+            } else {
+                self::removeTree($path);
             }
         }
         rmdir($dir);

@@ -9,11 +9,14 @@ namespace Sandadmin\Module\Package;
 
 use Doctrine\DBAL\Connection;
 use Sandadmin\Contract\KernelApi\KernelApiVersion;
+use Sandadmin\Infra\Plugin\PluginResidue;
 
 /**
  * sand_system_plugin 的 DBAL 账本。SQL 口径与 PackageOps::apply 一致：
  * 行存在就更新否则插入，state 只写 installed/uninstalled；
  * host_constraint 记安装时宿主的 kernel_api 版本。
+ * 不删数据的卸载同步 suspend 定时任务与扩展位覆盖，安装（含重装
+ * 与失败回滚的账本恢复）同步 resume——与网页通道共用同一残留口径。
  */
 final class DbalPluginRegistry implements PluginRegistry
 {
@@ -49,33 +52,35 @@ final class DbalPluginRegistry implements PluginRegistry
 
     public function recordInstall(string $app, string $name, string $version, string $manifestSha256): void
     {
-        $kept = $this->connection->fetchOne('SELECT id FROM sand_system_plugin WHERE code = ?', [$app]);
-        if ($kept === false) {
-            $this->connection->executeStatement(
-                'INSERT INTO sand_system_plugin (code, name, version, host_constraint, manifest_sha256, state)'
-                . ' VALUES (:code, :name, :version, :host, :sha, \'installed\')',
-                [
-                    'code' => $app,
-                    'name' => $name,
-                    'version' => $version,
-                    'host' => KernelApiVersion::CURRENT,
-                    'sha' => $manifestSha256,
-                ],
-            );
-
-            return;
-        }
-        // 不删数据的卸载留 uninstalled 行，再装只更新，不插新行
-        $this->connection->executeStatement(
-            'UPDATE sand_system_plugin SET name = :name, version = :version, manifest_sha256 = :sha,'
-            . ' state = \'installed\', uninstall_time = NULL, update_time = CURRENT_TIMESTAMP WHERE code = :code',
-            [
-                'name' => $name,
-                'version' => $version,
-                'sha' => $manifestSha256,
-                'code' => $app,
-            ],
-        );
+        $this->connection->transactional(function (Connection $connection) use ($app, $name, $version, $manifestSha256): void {
+            $kept = $connection->fetchOne('SELECT id FROM sand_system_plugin WHERE code = ?', [$app]);
+            if ($kept === false) {
+                $connection->executeStatement(
+                    'INSERT INTO sand_system_plugin (code, name, version, host_constraint, manifest_sha256, state)'
+                    . ' VALUES (:code, :name, :version, :host, :sha, \'installed\')',
+                    [
+                        'code' => $app,
+                        'name' => $name,
+                        'version' => $version,
+                        'host' => KernelApiVersion::CURRENT,
+                        'sha' => $manifestSha256,
+                    ],
+                );
+            } else {
+                // 不删数据的卸载留 uninstalled 行，再装只更新，不插新行
+                $connection->executeStatement(
+                    'UPDATE sand_system_plugin SET name = :name, version = :version, manifest_sha256 = :sha,'
+                    . ' state = \'installed\', uninstall_time = NULL, update_time = CURRENT_TIMESTAMP WHERE code = :code',
+                    [
+                        'name' => $name,
+                        'version' => $version,
+                        'sha' => $manifestSha256,
+                        'code' => $app,
+                    ],
+                );
+            }
+            (new PluginResidue($connection))->resume($app, new \DateTimeImmutable());
+        });
     }
 
     public function recordUninstall(string $app, bool $purge): void
@@ -85,10 +90,13 @@ final class DbalPluginRegistry implements PluginRegistry
 
             return;
         }
-        $this->connection->executeStatement(
-            'UPDATE sand_system_plugin SET state = \'uninstalled\', uninstall_time = CURRENT_TIMESTAMP,'
-            . ' update_time = CURRENT_TIMESTAMP WHERE code = ?',
-            [$app],
-        );
+        $this->connection->transactional(function (Connection $connection) use ($app): void {
+            $connection->executeStatement(
+                'UPDATE sand_system_plugin SET state = \'uninstalled\', uninstall_time = CURRENT_TIMESTAMP,'
+                . ' update_time = CURRENT_TIMESTAMP WHERE code = ?',
+                [$app],
+            );
+            (new PluginResidue($connection))->suspend($app, new \DateTimeImmutable());
+        });
     }
 }
