@@ -8,6 +8,8 @@ dist-ssr/
 # Test / coverage output
 coverage/
 *.lcov
+test-results/
+playwright-report/
 
 # Local env files — never commit real secrets; only .env.example is tracked
 .env

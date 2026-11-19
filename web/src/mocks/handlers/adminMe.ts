@@ -43,6 +43,7 @@ const MENU_PERMISSION: Record<string, string> = {
   'system:post': 'system:post:index',
   'system:role': 'system:role:index',
   'system:menu': 'system:menu:index',
+  'system:task': 'system:task:index',
   preferences: 'preferences:view',
   'system:dict': 'system:dict:index',
   'system:file': 'system:file:index',

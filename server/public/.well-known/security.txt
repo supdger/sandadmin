@@ -1,0 +1,4 @@
+Contact: https://github.com/supdger/sandadmin/security/advisories/new
+Expires: 2027-11-30T00:00:00.000Z
+Preferred-Languages: zh, en
+Policy: https://github.com/supdger/sandadmin/blob/main/SECURITY.md

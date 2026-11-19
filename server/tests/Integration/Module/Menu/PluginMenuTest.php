@@ -5,10 +5,11 @@ declare(strict_types=1);
 // Copyright (c) 2026 青岛沙盒创意网络科技有限公司
 // SPDX-License-Identifier: MIT
 
-namespace Sandadmin\Tests\Unit\Module\Menu;
+namespace Sandadmin\Tests\Integration\Module\Menu;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Tools\DsnParser;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Infra\Idempotency\ConnectionIdempotencyStore;
 use Sandadmin\Application\Plugin\PluginManifestLoader;
@@ -17,19 +18,50 @@ use Sandadmin\Module\Org\OrgActor;
 use Sandadmin\Module\Org\OrgAudit;
 use Sandadmin\Module\Org\OrgIdempotency;
 
-/** 插件菜单收集点：installed 插件按 manifest 声明展开，无声明保持单自动页。 */
+/**
+ * 插件菜单收集点：installed 插件按 manifest 声明展开，无声明保持单自动页。
+ * 需要 SAND_TEST_DB_URL 指向已应用基线迁移的 PostgreSQL；
+ * 插件行按 code 清理，菜单只读不写。
+ */
 final class PluginMenuTest extends TestCase
 {
     private const FIXTURES = __DIR__ . '/../../../Fixtures/plugin';
     private const TMP = __DIR__ . '/../../../tmp/menu-plugin';
+    private const PLUGIN_CODES = ['sand-hello', 'sand-ghost', 'sand-bad', 'sand-closed'];
 
-    private Connection $conn;
+    private static Connection $conn;
     private OrgActor $super;
+
+    public static function setUpBeforeClass(): void
+    {
+        $url = getenv('SAND_TEST_DB_URL');
+        if (!is_string($url) || $url === '') {
+            self::markTestSkipped('需要 SAND_TEST_DB_URL 指向 PostgreSQL');
+        }
+        self::$conn = DriverManager::getConnection((new DsnParser())->parse($url));
+        self::wipe();
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        if (isset(self::$conn)) {
+            self::wipe();
+            self::$conn->close();
+        }
+        self::clearDir(self::TMP);
+    }
+
+    private static function wipe(): void
+    {
+        self::$conn->executeStatement(
+            'DELETE FROM sand_system_plugin WHERE code IN (?, ?, ?, ?)',
+            self::PLUGIN_CODES,
+        );
+    }
 
     protected function setUp(): void
     {
-        $this->conn = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]);
-        $this->schema();
+        self::wipe();
         $this->super = new OrgActor(1, '超管', null, true, ['*']);
         self::clearDir(self::TMP);
         mkdir(self::TMP, 0777, true);
@@ -37,40 +69,27 @@ final class PluginMenuTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->conn->close();
         self::clearDir(self::TMP);
-    }
-
-    private function schema(): void
-    {
-        $this->conn->executeStatement(
-            'CREATE TABLE sand_system_plugin (code varchar(64) PRIMARY KEY, name varchar(128) NOT NULL, state varchar(32) NOT NULL)',
-        );
-        $this->conn->executeStatement(
-            'CREATE TABLE sand_system_menu_custom (menu_key varchar(128) PRIMARY KEY, kind varchar(16) NOT NULL,
-                title varchar(64) NOT NULL, icon varchar(64) NULL, parent_key varchar(128) NULL,
-                url varchar(2048) NULL, sort int NOT NULL DEFAULT 0, visible boolean NOT NULL DEFAULT true)',
-        );
-        $this->conn->executeStatement(
-            'CREATE TABLE sand_system_menu_override (menu_key varchar(128) PRIMARY KEY, title varchar(64) NULL,
-                icon varchar(64) NULL, parent_key varchar(128) NULL, sort int NULL, visible boolean NULL)',
-        );
-        $this->conn->executeStatement(
-            'CREATE TABLE sand_system_setting (key varchar(64) PRIMARY KEY, value text NULL, group_code varchar(32) NULL)',
-        );
     }
 
     private function install(string $code, string $name, string $state = 'installed'): void
     {
-        $this->conn->insert('sand_system_plugin', ['code' => $code, 'name' => $name, 'state' => $state]);
+        self::$conn->insert('sand_system_plugin', [
+            'code' => $code,
+            'name' => $name,
+            'version' => '1.0.0',
+            'host_constraint' => '^1.0',
+            'manifest_sha256' => hash('sha256', $code),
+            'state' => $state,
+        ]);
     }
 
     private function service(?string $dir = null): MenuService
     {
         return new MenuService(
-            $this->conn,
-            new OrgAudit($this->conn),
-            new OrgIdempotency(new ConnectionIdempotencyStore($this->conn)),
+            self::$conn,
+            new OrgAudit(self::$conn),
+            new OrgIdempotency(new ConnectionIdempotencyStore(self::$conn)),
             new PluginManifestLoader($dir ?? self::FIXTURES, static function (string $message): void {
             }),
         );
