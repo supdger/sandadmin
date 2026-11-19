@@ -1,0 +1,29 @@
+I'll check the task directory first to find the repo and the context for the PR.Dispatching a read-only SWE-2 scout to find the repo and collect the PR facts (metadata, diff, checks, gate files). A second scout will pull the relevant entries from the boss decision table.审计结论：**改后可合并**。审计时 PR head 是 `c8fc46a11a22cf05e992746bd12988abb26385aa`。结论已写入 `~/agent-work/assistant/8c-audit-pr107-1119/RESULT.md`。
+
+**必须修改点：**
+1. **前端没发 CSRF 校验头，合并后后台增删改都会 403（阻断）。** 新中间件要求 `/api/admin/v1` 的写请求都带 `X-Requested-With`，但前端唯一的 v1 客户端 `web/src/lib/adminClient.ts` 不发这个头，PR 分支和 main 上都一样。受影响的是约 60 个写调用：用户、角色、菜单、上传、插件安装、系统更新、改密码等。PR 的端到端实测只用 curl 测了一条 POST，所以没发现；技术总监复验也没覆盖到这一点。要在客户端常规请求和上传里补上这个头，并补前端测试。
+2. **和当前 main 有冲突，契约产物要重新生成（阻断）。** main 已前移 14 个提交，也改了 `contract/openapi.yaml`。本地试合并显示 19 个自动生成的契约文件冲突。即使手工解决冲突，源哈希也和两边都对不上：契约一致性检查会失败，服务启动自检会拒绝启动。需要先 rebase 最新 main，重跑 `tools/contract-build` 和 `tools/pre-merge.sh --fast`，CI 在新 head 上重新跑过。
+3. **PR 描述过期，要按最终 head 重写。** 描述里的最终 SHA、置顶待办（CSRF_REJECTED 未登记，实际已登记）、"生产缺 site_origin 策略待确认"（实际已改为拒绝启动）都过时了。变更清单也漏了 `process.php`、`static.php`、`SiteOriginGuard`、`api-conventions.md` 等文件，测试数量也对不上。
+
+**其余审计项：**
+- **范围**：代码本身集中在安全中间件，没有夹带无关业务改动。
+- **安全**：核过的几项都成立：路径编码或 `//`、`../` 变体绕不过 CSRF；v1 写路由全部挂上了 CSRF；Origin 严格比对；CORS 精确白名单、不发 Allow-Credentials；403 返回格式符合约定。
+- **门禁文件**：符合只减不增。CI、门禁脚本、豁免和白名单文件都没动。契约里新增的 `CSRF_REJECTED` 是错误码登记，不放宽任何检查。
+- **老板已定事项总表**：58 条里没有冲突，第 6、10、18、24、41 条已在 RESULT 里逐条对照。
+- **`gh pr checks 107`**：3/3 通过。但这三项是按旧 base 跑的，不包含和最新 main 合并后的情况，也不跑单元测试和契约检查。
+
+另外记了 4 条不阻断的跟进建议：旧插件 `/core/*` 等路由没有安全头；走 TLS 反代时不会输出 HSTS；CSP 灰度期没有配上报地址；dev-login 的 v1 路由也在 CSRF 范围内。
+
+审计全程只读：没有合并、推送、评论，没有改仓库文件，也没有起服务或建库。第 1 点是按代码核实的结论，没有在浏览器里实际跑过。
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium，取自本会话声明和 model.txt）；实际生成模型没有从 sessions.db 核实，记为未记录
+- 子 Agent：`dv-scout` ×4（PR 事实收集、老板事项摘录、针对性风险核查、前端 CSRF 头核查），请求档位都是 SWE-2；实际模型未记录
+
+## 任务记录
+- 已修改：只有 `~/agent-work/assistant/8c-audit-pr107-1119/RESULT.md`，仓库文件没有改
+- 已验证：`gh pr view/checks/diff 107`、`git merge-tree`（退出码 1，19 个冲突）、两次 `git grep -i x-requested-with`、阅读 vendor 路由和中间件源码
+- 已提交/已部署：否
+- 未完成：没有在浏览器里实际验证；反代层行为无法从仓库验证
+
+=== RUN COMPLETE ===
