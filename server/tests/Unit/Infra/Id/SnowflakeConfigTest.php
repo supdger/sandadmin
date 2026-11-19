@@ -99,6 +99,26 @@ final class SnowflakeConfigTest extends TestCase
         ]);
     }
 
+    public function testEnvZeroNodeBaseAccepted(): void
+    {
+        putenv('SAND_IDGEN_NODE_RANGE=0-1023');
+        putenv('SAND_IDGEN_NODE_ID=0');
+        putenv('SAND_IDGEN_MAX_CLOCK_BACKWARDS_MS=10');
+        try {
+            $configFile = require dirname(__DIR__, 4) . '/config/idgen.php';
+            if (!is_array($configFile)) {
+                self::fail('config/idgen.php 未返回数组');
+            }
+            // env 读到字符串 '0' 时必须原样透传：?: '' 写法会把 '0' 吞成 '' 误报必填缺失。
+            $config = SnowflakeConfig::fromArray($configFile);
+            self::assertSame(0, $config->nodeBase);
+        } finally {
+            putenv('SAND_IDGEN_NODE_RANGE');
+            putenv('SAND_IDGEN_NODE_ID');
+            putenv('SAND_IDGEN_MAX_CLOCK_BACKWARDS_MS');
+        }
+    }
+
     public function testWorkerTotalWithinRangeAccepted(): void
     {
         $config = SnowflakeConfig::fromArray([
