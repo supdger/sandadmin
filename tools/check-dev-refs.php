@@ -64,6 +64,8 @@ const DEV_REF_WHITELIST = [
     '.agents',
     'CHANGELOG.md',
     'RELEASE-NOTES-0.2.4.md',
+    // 发布验收清单登记免登录入口断言本身，属门禁说明文字
+    'RELEASE-CHECKLIST.md',
     'web/README.md',
     // TypePHP 整改盘点报告，逐条点名开发专用类作保留项说明，纯文档
     'tools/typephp-盘点.md',

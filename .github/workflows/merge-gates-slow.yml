@@ -16,9 +16,10 @@ permissions:
   contents: read
 
 jobs:
-  # PHPUnit 三库矩阵（v4 L-1 / T-8）：PG 最新 LTS + MySQL 8.0 系列最后版本
-  # + MySQL 8.4 LTS。当前仓库迁移与测试连接只有 PG 方言，MySQL 两档先占
-  # 槽位并记为已知失败（允许失败，不阻断合并），方言层落地后撤掉允许标记。
+  # PHPUnit 三库矩阵（v4 L-1 / T-8）：PG 最低支持版本 15 + PG 新主线 17
+  # + MySQL 8.4 LTS（8.0 系列已停更，不再占槽位）。当前仓库迁移与测试
+  # 连接只有 PG 方言，MySQL 档先占槽位并记为已知失败（允许失败，不阻断
+  # 合并），方言层落地后撤掉允许标记。
   phpunit:
     name: 慢档：PHPUnit 三库矩阵（${{ matrix.db }}）
     runs-on: ubuntu-latest
@@ -27,21 +28,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - db: postgres-16
+          - db: postgres-15
+            family: pgsql
             known_failure: false
-            image: postgres:16
+            image: postgres:15
             db_port: 5432
             health_cmd: "pg_isready -U postgres"
             test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
-          # MySQL 8.0 系列最后一个版本（8.0.46）；镜像标签 mysql:8.0 即该系列末版。
-          - db: mysql-8.0
-            known_failure: true
-            image: mysql:8.0
-            db_port: 3306
-            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
-            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
-          # MySQL 8.4 LTS 推荐线。
+          - db: postgres-17
+            family: pgsql
+            known_failure: false
+            image: postgres:17
+            db_port: 5432
+            health_cmd: "pg_isready -U postgres"
+            test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
+          # MySQL 8.4 LTS 推荐线（8.0 系列不再占槽位）。
           - db: mysql-8.4
+            family: mysql
             known_failure: true
             image: mysql:8.4
             db_port: 3306
@@ -81,12 +84,12 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       # 铺测试库：基线迁移 0001–0003 尚未随仓发布，仓内 0004–0007 单独
-      # 应用必失败；MySQL 两档同理且仓内迁移只有 PG 方言。失败只作记录
+      # 应用必失败；MySQL 档同理且仓内迁移只有 PG 方言。失败只作记录
       # （不阻断），基线/方言进仓后本步自然转绿。
       - name: 应用仓内迁移到测试库（缺基线/方言时降级为记录）
         continue-on-error: true
         run: |
-          if [ "${{ matrix.db }}" = "postgres-16" ]; then
+          if [ "${{ matrix.family }}" = "pgsql" ]; then
             export PGPASSWORD=gate_test_pw
             for f in database/migrations/*.sql; do
               echo "应用 $f"
@@ -108,7 +111,7 @@ jobs:
       # 基线落库后这里自动写入 URL，集成测试随之真实开跑。
       - name: 判定集成测试库就绪（缺基线则跳过集成用例）
         run: |
-          if [ "${{ matrix.db }}" = "postgres-16" ]; then
+          if [ "${{ matrix.family }}" = "pgsql" ]; then
             PGPASSWORD=gate_test_pw psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" \
               -tAc "SELECT to_regclass('sand_system_user')" > /tmp/db_ready.txt
           else
@@ -129,7 +132,7 @@ jobs:
       - name: PHPUnit
         run: vendor/bin/phpunit
 
-      # MySQL 两档（已知失败槽位）：前面允许失败处只作记录，这里把
+      # MySQL 档（已知失败槽位）：前面允许失败处只作记录，这里把
       # 「迁移与测试连接只有 PG 方言」落成明确的失败信号，挡住
       # 「全跳过显示绿」的误导。方言落地后撤掉本档位的 continue-on-error。
       - name: MySQL 方言就绪断言（已知失败：迁移仅 PG 方言）

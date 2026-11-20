@@ -136,37 +136,15 @@ else
     python3 tools/naming_check.py sql --allow naming-allow.txt $MIGRATIONS || fail "naming_check sql"
   fi
 
-  # 基线只减不增：对照 BASE 行数不得变多；BASE 侧不存在按 0 行计。
-  # bootstrap 语义（与快档 CI 同一条规则）：BASE 侧 pre-merge.sh 含
-  # strict-types-baseline = 本闸已存在于 BASE；grep 不到 = 本闸首次
-  # 登记，行数增长随 PR 人审只 WARN 不拦；进了 main 之后一律硬 fail。
+  # 基线只减不增：对照 BASE 行数不得变多；判定口径（含 BASE 侧
+  # pre-merge.sh 缺失时的 fail-closed 与首次登记 bootstrap）收敛在
+  # tools/check-baseline-shrink.sh，本地与 CI 同一份实现。
   step "基线只减不增（对照 ${BASE}）"
-  BASE_SCRIPT=$(git show "$BASE:tools/pre-merge.sh" 2>/dev/null || true)
-  BOOTSTRAP=0
-  if ! printf '%s' "$BASE_SCRIPT" | grep -q 'strict-types-baseline'; then
-    BOOTSTRAP=1
-    echo "基线闸首次落地，增长部分随本 PR 人审；合并入 main 后本检查生效"
-  fi
-  for f in server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt; do
-    BEFORE=0
-    if git cat-file -e "$BASE:$f" 2>/dev/null; then
-      BEFORE=$(git show "$BASE:$f" | wc -l | tr -d ' ')
-    fi
-    AFTER=0
-    if [ -f "$f" ]; then
-      AFTER=$(wc -l < "$f" | tr -d ' ')
-    fi
-    if [ "$AFTER" -gt "$BEFORE" ]; then
-      if [ "$BOOTSTRAP" -eq 1 ]; then
-        echo "WARN: $f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))，首次登记不拦）"
-      else
-        echo "$f 行数 ${BEFORE} -> ${AFTER}（+$((AFTER - BEFORE))）"
-        fail "基线只减不增：$f"
-      fi
-    else
-      echo "OK: $f 行数 ${BEFORE} -> ${AFTER}"
-    fi
-  done
+  # 显式传文件清单：BASE 侧 bootstrap 判据 grep 的是 pre-merge.sh 本文，
+  # strict-types-baseline 字样必须留在本文件里，否则闸永远停在 bootstrap。
+  tools/check-baseline-shrink.sh "$BASE" \
+    server/phpstan-baseline.neon tools/strict-types-baseline.txt naming-allow.txt \
+    || fail "基线只减不增（BASE=${BASE}）"
 fi
 
 # ---------- 11. 前端三道（web/ 存在才跑） ----------

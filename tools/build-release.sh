@@ -57,6 +57,10 @@ php "$ROOT/tools/strip-vendor-tests.php" "$SRC"
 php "$ROOT/tools/strip-vendor-extra.php" "$SRC"
 # 剔除后重建类映射，清掉指向已删文件的 optimized classmap 项
 ( cd "$SRC/server" && composer dump-autoload --no-dev --optimize --no-interaction )
+# 免登录入口兜底：剔除链与类映射重建都跑完后，全包（含 vendor/plugin，
+# check-dev-refs 的 DEV_REF_SKIP 不覆盖这两处）再扫一遍 dev 链符号；
+# 必须在 dump-autoload 之后，否则 classmap 里的已删文件条目会误报
+php "$ROOT/tools/check-no-dev-login.php" --dir "$SRC"
 
 echo "== 5/8 web/ 前端构建（剔除后源码 → dist → 并入 server/public）"
 # 发布包必须带构建产物，Node/pnpm 不满足直接失败
@@ -115,6 +119,8 @@ echo "== 7/8 自检：PHP 语法与 dev-only 引用扫描"
 find "$SRC" -name '*.php' -not -path '*/vendor/*' -not -path '*/node_modules/*' -print0 \
     | xargs -0 -n 50 php -l > /dev/null
 php "$ROOT/tools/check-dev-refs.php" --dir "$SRC"
+# 前端产物已并入 server/public，免登录入口断言对全包再扫一遍
+php "$ROOT/tools/check-no-dev-login.php" --dir "$SRC"
 
 echo "== 8/8 自检：生产启动守卫路径（ProductionDebugGuard）"
 php -r '
