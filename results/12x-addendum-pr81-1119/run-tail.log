@@ -1,0 +1,60 @@
+Worktree 就绪（`wt/` @ f5c35c4 = PR #81 head）。这是多步骤长程包（改 workflow、自检门禁、i18n、baseline 闸修复+测试、推送、CI 等待、红 PR 演示），派 `dv-implementer-sonnet` 后台执行。已派发实现子代理（后台，`dv-implementer-sonnet`），负责 worktree `/Users/supdger/agent-work/assistant/12x-addendum-pr81-1119/wt` 上 feat/merge-gates 的全部 5 项追加条款、验证、push、演示 PR 和 RESULT.md。等它完成后我会核对子代理产物（新 SHA、check 结果、演示 PR）再汇报。
+
+## 模型记录
+- 主 Agent：SWE-2 Flash / 未记录 effort / Cognition
+- 子 Agent：12x addendum PR81 = dv-implementer-sonnet（SWE-2）→ 运行中，实际模型以 sessions.db 记录为准
+
+## 任务记录
+- 已修改：无（等待子代理）
+- 已验证：无
+- 已提交/已部署：否
+- 未完成：全部 5 项追加条款 + 重跑验证 + 演示 PR + RESULT.md`dv-implementer-sonnet` 两次派发均因 `swe-2-high` 模型不可用失败（`model is no longer available for your account`），已改用 `subagent_general`（继承主代理 SWE-2 Flash）重派，当前正在运行中。
+
+说明一下偏差：按 Devin 默认模式应派 `dv-*` 档案，但它们全部配置 `swe-2-high`，该模型当前对账号不可用；未升级到任何 Claude 模型，`subagent_general` 与主代理同模型、无额外档位提升。如需严格按档案执行，请先恢复 `swe-2-high` 可用性。
+
+等子代理完成后我会核对产物（新 SHA、check、演示 PR）并写 RESULT.md。
+
+## 模型记录
+- 主 Agent：SWE-2 Flash / 未记录 effort / Cognition
+- 子 Agent：dv-implementer-sonnet ×2 = swe-2-high → 模型不可用，未执行；12x addendum PR81 exec = subagent_general（继承 SWE-2 Flash）→ 运行中
+
+## 任务记录
+- 已修改：无
+- 已验证：无
+- 已提交/已部署：否
+- 未完成：全部 5 项追加条款 + 验证 + push + 演示 PR + RESULT.md子代理报告完成。核对关键产物：远端 head、演示 PR 状态、RESULT.md。全部完成并已外部核对。最终交付：
+
+## 结果
+
+**新 head SHA**：`2f93f05241cddb3818ff1b9128577d1724f96e62`（feat/merge-gates，在 `f5c35c4` 上一个提交 `2f93f05`，普通 push，PR #81 保持 OPEN 未合并）
+
+**演示 PR**：https://github.com/supdger/sandadmin/pull/119 — 已关闭、临时分支已删；注入 `DevLoginProbe.php` 后 **`dependency-audit` 判 FAILURE**（`check-no-dev-login` 断言命中），快档 pre-merge 连带判红，其余 check 绿。
+
+**五项条款落地**：
+1. 慢档矩阵：删 mysql:8.0，留 mysql:8.4；PG 拆 postgres:15 + postgres:17（family 字段重构，槽位语义不变）。
+2. 免登录门禁：新增 `tools/check-no-dev-login.php`，在 `build-release.sh --self-check` 的 dump-autoload 后与 public 合并后各扫一遍；RELEASE-CHECKLIST 已登记。
+3. 语言包：仓内已有 i18n（web/ i18next zh-CN、artd/ vue-i18n zh/en）；本轮无产品用户可见文案新增，未写死中文；存量硬编码中文如实记录（web/src ~201、artd ~308 文件，多为注释），未擅自全仓改写。
+4. PR #81 body 已重写至现状（pg15/pg17+mysql8.4、29 行存量、删慢档 audit job 描述）。
+5. baseline 闸：抽出 `tools/check-baseline-shrink.sh`，BASE 缺 pre-merge.sh blob → fail-closed；新增 `tests/pre-merge-baseline-test.sh` 6 断言全过。
+
+**验证退出码**：phpunit unit 0（737 tests）、phpstan 0、`build-release.sh --self-check` 0、`pre-merge-baseline-test.sh` 0（6/6）、`pre-merge.sh --fast` 本地 1（仅陈旧本地 main/origin 基线噪音，与 PR diff 交集为 0；CI 全绿）。**#81 @2f93f05 CI 全部 SUCCESS**（push+PR 双跑）。
+
+**外部核对**（我亲自跑的）：`git ls-remote`/`gh pr view` 确认远端 head=PR head=2f93f05、PR OPEN、#119 CLOSED、其 check 结果与报告一致、worktree 干净、无遗留临时分支。
+
+**遗留风险**（详见 RESULT.md）：phpstan 共享 tmpDir 跨 worktree 污染、本地 main/origin 陈旧致 typephp 噪音、check-no-dev-login 对 tools/ 目录段豁免、语言包存量未甄别、慢档新矩阵未实跑（不挂 PR，沿用既有口径）。
+
+**偏差说明**：`dv-implementer-sonnet` 两次派发均失败（`swe-2-high` 模型对账号不可用），改用 `subagent_general`（继承主代理 SWE-2 Flash）执行；未用任何 Claude 模型、未升级档位。
+
+RESULT.md：`/Users/supdger/agent-work/assistant/12x-addendum-pr81-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：SWE-2 Flash / 未记录 effort / Cognition
+- 子 Agent：dv-implementer-sonnet ×2 = swe-2-high → 模型不可用未执行；12x addendum PR81 exec = subagent_general（SWE-2 Flash）→ 完成，实际模型以 sessions.db 为准
+
+## 任务记录
+- 已修改：feat/merge-gates commit `2f93f05`（8 files，+302/−47，已推送）
+- 已验证：phpunit/phpstan/self-check/baseline-test/pre-merge --fast 本地 + #81 CI 全绿 + #119 演示判红，均已核对
+- 已提交/已部署：已提交并 push（未合并、未部署）
+- 未完成：无；合并与分支保护 HR3-SET 仍按原计划另排
+
+=== RUN COMPLETE ===
