@@ -1,0 +1,24 @@
+我先了解任务目录和相关上下文，再决定派发方案。我已理解任务对应计划 1-4 = 3I-5a（M-11/M-12/M-13 非库部分 + HR5-a/HR6-a）。现在找仓库和细节依据。需求已明确：本任务 = 计划队列 1-4「3I-5a」，对应 M-11（P2/P6 非库部分 + S10）、M-12 的 `/health/live`（HR5-a）、M-13 的 max_requests/水位（HR6-a），依赖 #81 只卡合并不卡开工。
+
+先做开工准备：克隆 sandadmin 最新 main 到任务目录、记基线 SHA、查 #81/#109 状态和本机 PHP 环境。仓库结构已确认（`src/Domain|Http|Infra|...`，`RequestContextStore`、`StreamRuntime`、`WeakPasswordRuntime` 都在）。基线 SHA `5360129`（origin/main，含 #110 合并）。#81 仍 OPEN——按规则只卡合并不卡开工，本任务交付未合并 PR。
+
+现在派发实现子代理（契约已明确、跨多文件、需多轮改-测，给长程档 dv-implementer-sonnet）。实现子代理已在后台开工（dv-implementer，SWE-2）。等待其完成。子代理仍在运行（已约 10 分钟），继续等待。子代理已交付 PR #114。我先做主控核对（分支、PR、diff 概况），再派独立验收。验收通过。清理检查：19120 端口还有个 php 监听，确认是否本任务残留。任务完成。交付摘要：
+
+- **PR #114**（未合并）：`feat/runtime-context`，基线 `5360129`（最新 main），实现提交 `08274d6`，52 files +1205/−89。
+- 四块全部落地：ContextStore 每请求隔离 + 请求末残留断言（`RuntimeGuardMiddleware`）、web `max_requests=10000` + `runtime.memory_watermark_bytes` 软回收（80%/256MiB 兜底）、PHPStan `ResidentStateRule` 禁可变 static/`$GLOBALS`、启动配置校验拒启、`/health/live`。
+- 三条硬验收独立复跑确认：故意残留用例被 `ContextResidueException` 拦下；探针 `phpstan analyse app/phpstan` 判红 2 errors；19151 端口实测 `/health/live` 返回 200。
+- 门禁：phpunit unit 751 tests OK、phpstan 0 errors、pre-merge --fast 8/8、naming exit 0。
+- 注意：dv-* 全部子代理档案报 model unavailable，改用跟随主模型的 `subagent_general` 完成实现与独立验收（均为 SWE-2，未用 Claude）。PHPStan 白名单扩到 5 处既有可变静态经验收裁决为可接受（计划枚举不完整），遗留建议已记入 RESULT。
+- RESULT.md 已写入任务目录，逐项回答了 #109 清单 P6/H4/H5（D2 连接池属 3I-5b 未做）。
+
+## 模型记录
+- 主 Agent：SWE-2
+- 子 Agent：dv-implementer-sonnet / dv-implementer / dv-scout = 请求 → 实际不可用（model no longer available，三次）；subagent_general 实现 = 跟随主模型 SWE-2 → 完成；subagent_general 独立验收 = 跟随主模型 SWE-2 → 完成
+
+## 任务记录
+- 已修改：sandadmin `feat/runtime-context`（08274d6）；`~/agent-work/assistant/12a-runtime-context-1119/RESULT.md`
+- 已验证：phpunit unit、phpstan、pre-merge --fast、naming --diff、残留用例、探针判红、/health/live 19151 实测 200（独立验收复跑）
+- 已提交/已部署：已提交并 push、PR #114 已开（未合并、未部署）
+- 未完成：合并待 #81 合并后走 merge main + CI 绿 + Fusion 审计；`/health/ready`、连接复用属 3I-5b（需库）
+
+=== RUN COMPLETE ===
