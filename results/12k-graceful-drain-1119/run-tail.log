@@ -1,0 +1,20 @@
+前置不满足，已按规则结束。
+
+- 12j 的 RESULT 结论是「等 12a」：它从未建分支、没有 PR。
+- 12j 的前置 12a 对应 supdger/sandadmin **PR #114**，实测仍 `OPEN`、`mergedAt: null`。
+- 仓内搜索 `12j OR systemd OR drain` 无任何 PR。
+- 因此 12k 前置「12j 已合并」不满足 → 写「等 12j」结束，未动仓库。
+
+RESULT 已写入 `~/agent-work/assistant/12k-graceful-drain-1119/RESULT.md`，含解锁链（#114 合并 → 12j 完成合并 → 重派）。
+
+## 模型记录
+- 主 Agent：SWE-2 / 未记录 effort / Devin
+- 子 Agent：未使用
+
+## 任务记录
+- 已修改：`~/agent-work/assistant/12k-graceful-drain-1119/RESULT.md`（新增）
+- 已验证：`gh pr view 114`（OPEN）、`gh pr list --search`（无 12j PR）、读 12j RESULT（等 12a）
+- 已提交/已部署：否
+- 未完成：全部实现，等 12j（其上游等 PR #114）
+
+=== RUN COMPLETE ===
