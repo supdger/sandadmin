@@ -8,25 +8,44 @@ declare(strict_types=1);
 namespace Sandadmin\Http;
 
 use Sandadmin\Domain\Auth\RequestContext;
-use Webman\Http\Request;
+use Sandadmin\Domain\Runtime\ContextStoreInterface;
+use Sandadmin\Infra\Runtime\ScopedContextStore;
 
 /**
- * 把 RequestContext 放在 Workerman Request::$context 上。
- * 该数组属于当前请求对象，Request::destroy() 会清空；这里不使用静态属性。
+ * RequestContext 的类型化取放口：实际存储走 ContextStoreInterface
+ * （请求作用域，由 webman 每请求 Context::reset/destroy 隔离），
+ * 不再直接写 Request::$context。请求收尾由 RuntimeGuardMiddleware
+ * 统一清键并断言无残留。
  */
 final class RequestContextStore
 {
-    public const ATTRIBUTE = 'sandadmin.request_context';
+    private const KEY = 'request_context';
 
-    public function set(Request $request, RequestContext $context): void
-    {
-        $request->context[self::ATTRIBUTE] = $context;
+    public function __construct(
+        private readonly ContextStoreInterface $store = new ScopedContextStore(),
+    ) {
     }
 
-    public function get(Request $request): ?RequestContext
+    public function set(RequestContext $context): void
     {
-        $value = $request->context[self::ATTRIBUTE] ?? null;
+        $this->store->set(self::KEY, $context);
+    }
+
+    public function get(): ?RequestContext
+    {
+        $value = $this->store->get(self::KEY);
 
         return $value instanceof RequestContext ? $value : null;
+    }
+
+    public function clear(): void
+    {
+        $this->store->remove(self::KEY);
+    }
+
+    /** 请求收尾断言：除生命周期自有键外不允许有任何残留。 */
+    public function assertResidueFree(): void
+    {
+        $this->store->assertEmpty();
     }
 }

@@ -10,7 +10,6 @@ namespace Sandadmin\Tests\Unit\Http\Middleware;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Domain\Auth\AuthenticatedUser;
 use Sandadmin\Domain\Auth\SessionCookie;
-use Sandadmin\Http\RequestContextStore;
 use Sandadmin\Tests\Support\HttpStack;
 use Sandadmin\Tests\Support\MapAuthenticator;
 use Webman\Http\Request;
@@ -23,21 +22,27 @@ final class AuthMiddlewareTest extends TestCase
         $user = new AuthenticatedUser('user-7', 4);
         $stack = HttpStack::create(new MapAuthenticator(['good-token' => $user]));
         $request = self::request("Cookie: sandadmin_session=good-token\r\nX-Request-Id: req-12345678\r\n");
+        $stored = null;
 
-        $response = $stack->auth->process($request, static function (Request $current) use ($stack): Response {
-            $context = $stack->contexts->get($current);
+        $response = $stack->dispatch($request, function (Request $current) use ($stack, &$stored): Response {
+            return $stack->auth->process($current, static function (Request $authenticated) use ($stack, &$stored): Response {
+            $context = $stack->contexts->get();
             self::assertNotNull($context);
             self::assertSame('user-7', $context->user?->id);
             self::assertSame(4, $context->authzVersion());
             self::assertSame('req-12345678', $context->requestId);
+            $stored = $context;
 
-            return new Response(204);
+                return new Response(204);
+            });
         });
 
         self::assertSame(204, $response->getStatusCode());
         self::assertSame('4', $response->getHeader('X-Authz-Version'));
-        $stored = $request->context[RequestContextStore::ATTRIBUTE] ?? null;
-        self::assertSame($stack->contexts->get($request), $stored);
+        self::assertInstanceOf(\Sandadmin\Domain\Auth\RequestContext::class, $stored);
+        self::assertSame('req-12345678', $stored->requestId);
+        // dispatch 收尾已 destroy 上下文：取放口此时应读不到任何请求态
+        self::assertNull($stack->contexts->get());
     }
 
     public function testIgnoresAuthorizationHeaderAndReadsOnlySessionCookie(): void
@@ -46,7 +51,7 @@ final class AuthMiddlewareTest extends TestCase
         $request = self::request("Authorization: Bearer good-token\r\n");
 
         $this->expectException(\Sandadmin\Domain\Exception\UnauthenticatedException::class);
-        $stack->auth->process($request, static fn (Request $request): Response => new Response(204));
+        $stack->dispatch($request, fn (Request $current): Response => $stack->auth->process($current, static fn (Request $request): Response => new Response(204)));
     }
 
     public function testMissingAndInvalidCredentialsThrowBeforeTheHandler(): void
@@ -67,7 +72,7 @@ final class AuthMiddlewareTest extends TestCase
         ];
         foreach ($cases as $headers) {
             try {
-                $stack->auth->process(self::request($headers), $handler);
+                $stack->dispatch(self::request($headers), fn (Request $current): Response => $stack->auth->process($current, $handler));
                 self::fail('应当拒绝未认证请求');
             } catch (\Sandadmin\Domain\Exception\UnauthenticatedException $e) {
                 self::assertSame('请先登录', $e->getMessage());

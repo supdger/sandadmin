@@ -36,10 +36,10 @@ final class AuthMiddleware implements MiddlewareInterface
     public function process(Request $request, callable $handler): Response
     {
         $requestId = $this->requestId($request);
-        $this->contexts->set($request, new RequestContext(null, $requestId));
+        $this->contexts->set(new RequestContext(null, $requestId));
 
         $user = $this->authenticator->authenticate($this->credential($request));
-        $this->contexts->set($request, new RequestContext($user, $requestId));
+        $this->contexts->set(new RequestContext($user, $requestId));
 
         $response = $handler($request);
         if (!$response instanceof Response) {
@@ -51,7 +51,7 @@ final class AuthMiddleware implements MiddlewareInterface
 
     private function requestId(Request $request): string
     {
-        $existing = $this->contexts->get($request);
+        $existing = $this->contexts->get();
         if ($existing !== null) {
             return $existing->requestId;
         }

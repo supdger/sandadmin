@@ -23,9 +23,9 @@ final class ErrorMiddlewareTest extends TestCase
     {
         $stack = $this->stack();
         $request = self::request('X-Request-Id: req-12345678');
-        $response = $stack->errors->process($request, static function (Request $request): Response {
-            throw new InvalidQueryException('page_size 超出范围', ['page_size' => '每页条数最多 100']);
-        });
+        $response = $stack->dispatch($request, fn (Request $current): Response => $stack->errors->process($current, static function (Request $request): Response {
+                throw new InvalidQueryException('page_size 超出范围', ['page_size' => '每页条数最多 100']);
+            }));
 
         self::assertSame(422, $response->getStatusCode());
         self::assertSame(
@@ -45,9 +45,9 @@ final class ErrorMiddlewareTest extends TestCase
     public function testMapsAuthenticationFailuresToContractCodes(): void
     {
         $stack = $this->stack();
-        $missing = $stack->errors->process(
+        $missing = $stack->dispatch(
             self::request('X-Request-Id: req-12345678'),
-            fn (Request $request): Response => $stack->auth->process($request, static fn (Request $request): Response => new Response(204)),
+            fn (Request $current): Response => $stack->errors->process($current, fn (Request $request): Response => $stack->auth->process($request, static fn (Request $authenticated): Response => new Response(204))),
         );
         self::assertSame(
             '{"code":"UNAUTHENTICATED","message":"请先登录","fields":{},"request_id":"req-12345678"}',
@@ -66,9 +66,9 @@ final class ErrorMiddlewareTest extends TestCase
             }
         });
         $request = self::request("Cookie: sandadmin_session=old-token\r\nX-Request-Id: req-87654321\r\n");
-        $response = $stack->errors->process(
+        $response = $stack->dispatch(
             $request,
-            fn (Request $request): Response => $stack->auth->process($request, static fn (Request $request): Response => new Response(204)),
+            fn (Request $current): Response => $stack->errors->process($current, fn (Request $next): Response => $stack->auth->process($next, static fn (Request $authenticated): Response => new Response(204))),
         );
 
         self::assertSame(401, $response->getStatusCode());
@@ -86,9 +86,9 @@ final class ErrorMiddlewareTest extends TestCase
     public function testMapsInvalidRequestExceptionToValidationFailed(): void
     {
         $stack = $this->stack();
-        $response = $stack->errors->process(self::request('X-Request-Id: req-12345678'), static function (Request $request): Response {
+        $response = $stack->dispatch(self::request('X-Request-Id: req-12345678'), fn (Request $current): Response => $stack->errors->process($current, static function (Request $request): Response {
             throw new InvalidRequestException('请求头不合法', ['idempotency_key' => '长度不能超过 128']);
-        });
+        }));
 
         self::assertSame(400, $response->getStatusCode());
         self::assertSame(
@@ -105,9 +105,9 @@ final class ErrorMiddlewareTest extends TestCase
     public function testUnknownErrorsOmitInternalsAndStillReturnRequestId(): void
     {
         $stack = $this->stack();
-        $response = $stack->errors->process(self::request(''), static function (Request $request): Response {
+        $response = $stack->dispatch(self::request(''), fn (Request $current): Response => $stack->errors->process($current, static function (Request $request): Response {
             throw new \RuntimeException('db password is secret');
-        });
+        }));
         $body = $this->decode($response);
 
         self::assertSame(500, $response->getStatusCode());

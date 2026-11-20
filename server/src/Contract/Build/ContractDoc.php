@@ -71,6 +71,9 @@ final class ContractDoc
     private const TOOL_NAME_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
     private const ROUTE_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
     private const V1_PREFIX = '/api/admin/v1';
+    // 宿主独占的存活探针前缀（3i HR5-a）：/health/live 不进 v1 业务面，
+    // 只允许 host 契约在此前缀下声明，插件契约一律不许。
+    private const HEALTH_PREFIX = '/health/';
     private const CONNECTION_NAME_PATTERN = '/^[a-z][a-z0-9_]{0,63}$/';
     // 宿主连接键（config/database.php 的 default/pgsql/mysql）不许被插件命名连接占用
     private const HOST_CONNECTION_NAMES = ['default', 'pgsql', 'mysql'];
@@ -322,8 +325,9 @@ final class ContractDoc
         }
         foreach ($raw as $path => $item) {
             $routePath = (string) $path;
-            if (!str_starts_with($routePath, self::V1_PREFIX)) {
-                $problems[] = "{$source}: 路径 {$routePath} 不在 " . self::V1_PREFIX . ' 前缀下';
+            $isHealthPath = $source === 'host' && str_starts_with($routePath, self::HEALTH_PREFIX);
+            if (!str_starts_with($routePath, self::V1_PREFIX) && !$isHealthPath) {
+                $problems[] = "{$source}: 路径 {$routePath} 不在 " . self::V1_PREFIX . ' 或 ' . self::HEALTH_PREFIX . ' 前缀下';
                 continue;
             }
             if ($source !== 'host') {
