@@ -10,16 +10,14 @@
 
 | 目录 | 套件 | 依赖 | 写什么 |
 | --- | --- | --- | --- |
-| `server/tests/Unit/Module/<模块>` | `vendor/bin/phpunit --testsuite unit` | 纯内存，不连外部库 | 无依赖可达的逻辑：入参校验、异常工厂、纯计算、用 sqlite 内存库或 `tests/Support/` Fake 能盖住的服务路径 |
+| `server/tests/Unit/Module/<模块>` | `vendor/bin/phpunit --testsuite unit` | 纯内存，不连外部库 | 无依赖可达的逻辑：入参校验、异常工厂、纯计算、用 `tests/Support/` 的工厂、Fake 和 `Disconnected` 能盖住的服务路径；要走 SQL 的用例一律放 Integration |
 | `server/tests/Integration/Module/<模块>` | `vendor/bin/phpunit --testsuite integration` | `SAND_TEST_DB_URL` 指向已应用基线迁移的 PostgreSQL | 必须真实库才能验的行为：方言 SQL（ILIKE、jsonb、RETURNING 语义）、约束违例映射、跨表事务 |
 
 - Unit 套件必须对 `SAND_TEST_DB_URL` 无感——不设该变量也要全过。
   要库的行为写进 Integration，用 `setUpBeforeClass` 里
   `markTestSkipped('需要 SAND_TEST_DB_URL 指向 PostgreSQL')` 的既有写法。
-- 内存库样例见 `tests/Unit/Module/Menu/PluginMenuTest.php`：DBAL
-  `pdo_sqlite` 内存连接 + 最小建表，不引新测试框架。
-- sqlite 与 PG 行为差异要在夹具里消化（如布尔列手工写 1/0），
-  不能靠改业务代码迁就 sqlite。
+- Unit 只用 `tests/Support/` 的工厂、Fake 和 `Disconnected`，不建任何库连接；
+  要走 SQL 的用例一律放 Integration。
 
 ## 硬性要求
 
