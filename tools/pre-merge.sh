@@ -85,4 +85,21 @@ if [ "$TYPEPHP" = "1" ]; then
     fi
 fi
 
+# 命名规范自查：只查相对 origin/main 合并基线的新增行；
+# 找不到基线（本地未取 origin/main）时跳过不误报。terms 需要仓内词表。
+# 放在末尾是为避开未合并 PR 对前面步骤编号的改动区间；fail 即退出，
+# 打不到「全部通过」，门禁效力不变。
+echo "== 命名自查（diff 模式）"
+NAMING_BASE="$(git -C "$ROOT" merge-base origin/main HEAD 2>/dev/null || true)"
+if [ -z "$NAMING_BASE" ]; then
+    echo "未找到 origin/main 合并基线，跳过命名自查"
+else
+    NAMING_DIFF="$(mktemp -t sandadmin-naming)"
+    git -C "$ROOT" diff -U0 "$NAMING_BASE"...HEAD > "$NAMING_DIFF"
+    python3 "$ROOT/tools/naming_check.py" code --allow "$ROOT/naming-allow.txt" --diff "$NAMING_DIFF"
+    python3 "$ROOT/tools/naming_check.py" notes --diff "$NAMING_DIFF"
+    python3 "$ROOT/tools/naming_check.py" terms "$ROOT/tools/naming-terms.tsv" --allow "$ROOT/naming-allow.txt" --diff "$NAMING_DIFF"
+    rm -f "$NAMING_DIFF"
+fi
+
 echo "pre-merge ${MODE} 全部通过"
