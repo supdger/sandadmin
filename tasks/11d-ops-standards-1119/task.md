@@ -6,6 +6,9 @@
 
 通用条款（技术总监定）：不建库、不启库，不往任何豁免、白名单或 baseline 里新增条目，不强推，不 reset --hard，不 --no-verify，不 git add -A，不用云端，不用 Cursor，不开下级会话，不读秘密。不合并（合并前另排 Fusion 审计）。
 
+【技术总监 11-19 补充条款（老板定案后）】
+- 数据库版本口径统一写成 MySQL 8.4 LTS 起、PG 15 起。
+
 任务目录是 ~/agent-work/assistant/11d-ops-standards-1119/，RESULT.md 写在这里。
 
 全部做完后最后单独输出一行：

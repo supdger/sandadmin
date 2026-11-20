@@ -12,6 +12,9 @@
 - 合并前先确认 #81 已合并，再 merge main，CI 里 phpunit 和 phpstan 两个 job 都绿了，过 Fusion 审计才合。
 - 这一批都不碰前端。如果做到一半发现要改 web，就停下写进 RESULT，前端部分另排，并先用 Semi MCP。
 
+【技术总监 11-19 补充条款（老板定案后）】
+- 面向用户的文字一律走语言包，1.0 只出 zh-CN，不许写死中文字符串；错误信息也走语言包或错误码。
+
 任务目录是 ~/agent-work/assistant/12e-outbound-http-1119/，RESULT.md 写在这里。
 
 全部做完后最后单独输出一行：
