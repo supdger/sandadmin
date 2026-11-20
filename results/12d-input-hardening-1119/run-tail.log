@@ -1,0 +1,25 @@
+trusted_proxies 工作包完成。等禁令门禁工作包。两个工作包都完成了。现在核对产物：先看改动清单和关键文件。两个工作包都完成了。现在核对 diff 并跑完整门禁。现在跑完整门禁：unit、phpstan、pre-merge --fast、naming --diff。门禁全绿。推送分支并开 PR。完成。交付 **未合并 PR #115**（supdger/sandadmin，`feat/input-hardening`，基线 `5360129`）。
+
+**做了什么**
+- `ClientIpResolver` + `security.trusted_proxies`（env `SAND_TRUSTED_PROXIES`）：对端不在 CIDR 名单只认 TCP 对端、伪造 XFF/Forwarded 无效；可信对端 Forwarded 优先、XFF 从右往左剥可信段；空名单转发头全忽略。40+ 处 `getRemoteIp()` 客户端 IP 取值收口；`DevLoginGate`/`McpGate` 保留对端语义并注释。
+- `scan-input-bans.php` 三条禁令（unserialize、请求数组直灌持久层、前端未消毒 HTML 新增行）接入 `pre-merge.sh --fast` 第 5 步。
+
+**验收**：三条禁令各有反例测试被拦下（`InputBanScanTest` 12 例）；不可信来源伪造 XFF 返回对端 IP（`ClientIpResolverTest` 8 例）。
+
+**门禁**：unit 757 tests OK、phpstan 0 errors、pre-merge --fast 9/9、naming --diff exit 0（WARN×1 为既有契约字段）。
+
+**注意**：`dv-scout` 两次派发均报 `model is no longer available`（swe-2-high 档案不可用），改用 `subagent_general`（SWE-2 Flash Medium，未用 Claude）完成三个工作包。#81 仍 OPEN，只卡合并；本任务不合并。
+
+RESULT.md 已写入任务目录。
+
+## 模型记录
+- 主 Agent：SWE-2 Flash Medium
+- 子 Agent：dv-scout ×2（请求 swe-2-high → 失败：model not_found）；subagent_general ×3（跟随主代理 SWE-2 Flash Medium → 调研/实现完成）
+
+## 任务记录
+- 已修改：supdger/sandadmin 分支 feat/input-hardening（2 commits，17 files）；RESULT.md
+- 已验证：phpunit unit 757 tests OK；phpstan 0 errors；pre-merge --fast 9/9；naming code/notes/terms --diff 全 0
+- 已提交/已部署：已推送分支并开 PR #115（未合并）；未部署
+- 未完成：合并（等 #81 合并 + CI phpunit/phpstan 绿 + Fusion 审计）
+
+=== RUN COMPLETE ===
