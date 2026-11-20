@@ -1,0 +1,19 @@
+任务完成。交付摘要：
+
+- **PR #118**（supdger/sandadmin，`feat/observability-base` → `main`，OPEN 未合并）：https://github.com/supdger/sandadmin/pull/118 ，基线 `5360129`，3 个提交（7369bd4 / 022ea09 / 3fbee6f），38 文件全在 `server/`。
+- **内容**：日志双通道改 JSON 行格式 + `RequestScope` processor 自动注入 request_id/task_id/attempt；request_id 全站收口（`RequestContextStore::ensure` 唯一入口，清掉 10 个控制器 + BizToolRunner 等第二套编号）；任务经 `__context.request_id` 贯穿（不改表结构）；`server/docs/observability/` 下 alerts.yml（10 条 Prometheus 规则：5xx 率/P99/DB 连接/任务堆积/进程重启/DB CPU/漏跑/错误预算冻结发版）、指标名契约 README、trace-context 传播规则文档（Kratos 式 `x-md-global-*`/`x-md-local-*` 语义）。
+- **验收**：独立验收初判发现 B1 阻断（控制器编号分叉）→ 返工收口 → 复验通过；`promtool check rules` → SUCCESS 10 rules；request_id 串联经实测 + 单测确认。
+- **门禁**：phpunit unit 765 tests OK、phpstan 0 errors、pre-merge --fast 全过、naming exit 0。
+- **说明**：dv-* 子代理档案报 model unavailable（与 12a 相同），全程用跟随主模型的 subagent_general，未用 Claude；#81 仍 OPEN，只卡合并不卡开工，本任务不合并。RESULT.md 已写入任务目录。
+
+## 模型记录
+- 主 Agent：SWE-2（本会话模型）
+- 子 Agent：subagent_general ×5（调研 d9c394c7、实现 63a0e195、返工 f1a82af8、验收 bc156633、复验 98f0e310）= 跟随主模型 SWE-2；dv-scout 请求被拒（model unavailable）
+
+## 任务记录
+- 已修改：sandadmin 分支 feat/observability-base（3 commits）；本目录 RESULT.md
+- 已验证：上述门禁与验收证据均见 RESULT.md
+- 已提交/已部署：已提交并 push、PR #118 OPEN 未合并未部署
+- 未完成：合并待 #81 合并后 merge main + CI 双绿 + Fusion 审计
+
+=== RUN COMPLETE ===
