@@ -7,16 +7,31 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Package;
 
+use Sandadmin\Domain\Http\OutboundException;
+use Sandadmin\Domain\Http\OutboundHttpClientInterface;
+use Sandadmin\Domain\Http\OutboundRequest;
+use Sandadmin\Infra\Http\CurlOutboundClient;
+
 /**
- * cURL 回环出站。只放行字面回环地址：不解析 DNS、不接受任意主机名，
+ * 回环出站探测。只放行字面回环地址：不解析 DNS、不接受任意主机名，
  * 任何外部更新源地址在这一层直接被拒（防 SSRF、防变相在线更新）。
- * 超时口径沿用旧实现：连接 1 秒、整体 3 秒，不走代理、不跟跳转。
+ * 传输走统一出站客户端（src/Infra/Http），超时口径沿用旧实现：
+ * 连接 1 秒、整体 3 秒、不跟跳转、不重试；回环地址进 SSRF 白名单。
  */
 final class CurlProbeTransport implements ProbeTransport
 {
-    private const CONNECT_TIMEOUT = 1;
+    private const CONNECT_TIMEOUT_MS = 1000;
 
-    private const TOTAL_TIMEOUT = 3;
+    private const TOTAL_TIMEOUT_MS = 3000;
+
+    private const ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '::1', '[::1]'];
+
+    private ?OutboundHttpClientInterface $client;
+
+    public function __construct(?OutboundHttpClientInterface $client = null)
+    {
+        $this->client = $client;
+    }
 
     /**
      * @param array<string, string> $headers
@@ -28,35 +43,26 @@ final class CurlProbeTransport implements ProbeTransport
         if (!self::isLoopbackUrl($url)) {
             throw new \InvalidArgumentException('探测目标不是本机回环地址，已拒绝发起请求');
         }
-        if (!function_exists('curl_init')) {
-            throw new \RuntimeException('PHP cURL 不可用，无法发起回环探测');
-        }
-        $lines = [];
-        foreach ($headers as $name => $value) {
-            $lines[] = $name . ': ' . $value;
-        }
-        $handle = curl_init($url);
-        if ($handle === false) {
-            throw new \RuntimeException('无法初始化回环请求');
-        }
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => self::TOTAL_TIMEOUT,
-            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
-            CURLOPT_FOLLOWLOCATION => false,
-            // 置空代理：回环请求必须直达本机，不能经环境变量里的代理转发
-            CURLOPT_PROXY => '',
-            CURLOPT_HTTPHEADER => $lines,
-        ]);
-        $body = curl_exec($handle);
-        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($handle);
-        curl_close($handle);
-        if (!is_string($body)) {
-            throw new \RuntimeException('回环请求失败：' . $error);
+        try {
+            $response = $this->outbound()->request(new OutboundRequest('GET', $url, $headers));
+        } catch (OutboundException $error) {
+            throw new \RuntimeException('回环请求失败：' . $error->getMessage(), 0, $error);
         }
 
-        return ['status' => $status, 'body' => $body];
+        return ['status' => $response->status, 'body' => $response->body];
+    }
+
+    private function outbound(): OutboundHttpClientInterface
+    {
+        return $this->client ??= CurlOutboundClient::fromConfig([
+            'connect_timeout_ms' => self::CONNECT_TIMEOUT_MS,
+            'read_timeout_ms' => self::TOTAL_TIMEOUT_MS,
+            'total_timeout_ms' => self::TOTAL_TIMEOUT_MS,
+            'max_attempts' => 1,
+            'allow_private_hosts' => self::ALLOWED_HOSTS,
+            // 禁用代理：回环探测绝不允许被环境变量代理转发到外部
+            'proxy' => '',
+        ]);
     }
 
     public static function isLoopbackUrl(string $url): bool
