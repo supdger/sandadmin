@@ -44,6 +44,10 @@ final class OutboundRequest
             if (!is_string($name) || $name === '' || !is_string($value)) {
                 throw new \InvalidArgumentException('出站请求头必须是非空字符串键与字符串值');
             }
+            // 键值含 CR/LF 会让 "Name: value" 行被拆成多行注入额外头，构造期直接拒绝
+            if (strpbrk($name, "\r\n") !== false || strpbrk($value, "\r\n") !== false) {
+                throw new \InvalidArgumentException('出站请求头键值不得包含换行符');
+            }
             $clean[$name] = $value;
         }
         $normalized = strtoupper(trim($method));

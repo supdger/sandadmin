@@ -52,6 +52,8 @@ final class CurlOutboundClient implements OutboundHttpClientInterface
     /** @var list<int> */
     private readonly array $retryStatuses;
 
+    private readonly ?string $proxy;
+
     /**
      * @param array<string, mixed> $config outbound.php 配置数组，键缺失回落默认值
      * @param null|\Closure(int): void $sleeper 重试退避睡眠替身（微秒入参），测试注入
@@ -80,6 +82,10 @@ final class CurlOutboundClient implements OutboundHttpClientInterface
         $this->backoffMaxMs = max($this->backoffBaseMs, self::intOption($config, 'backoff_max_ms', 2000));
         $this->maxBodyBytes = max(1, self::intOption($config, 'max_body_bytes', self::DEFAULT_MAX_BODY_BYTES));
         $this->retryStatuses = self::intList($config, 'retry_statuses', [502, 503, 504]);
+        // proxy 语义：缺省/null 不设置 CURLOPT_PROXY（沿用 curl 默认即环境变量代理）；
+        // 字符串原样作为 CURLOPT_PROXY 值，'' 显式禁用代理
+        $proxy = $config['proxy'] ?? null;
+        $this->proxy = is_string($proxy) ? $proxy : null;
     }
 
     /**
@@ -186,6 +192,9 @@ final class CurlOutboundClient implements OutboundHttpClientInterface
         $resolve = $this->resolveEntries($request->url, $ips);
         if ($resolve !== null) {
             $options[CURLOPT_RESOLVE] = [$resolve];
+        }
+        if ($this->proxy !== null) {
+            $options[CURLOPT_PROXY] = $this->proxy;
         }
         if (defined('CURLOPT_PROTOCOLS_STR')) {
             $options[CURLOPT_PROTOCOLS_STR] = 'http,https';

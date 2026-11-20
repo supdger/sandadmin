@@ -60,6 +60,8 @@ final class CurlProbeTransport implements ProbeTransport
             'total_timeout_ms' => self::TOTAL_TIMEOUT_MS,
             'max_attempts' => 1,
             'allow_private_hosts' => self::ALLOWED_HOSTS,
+            // 禁用代理：回环探测绝不允许被环境变量代理转发到外部
+            'proxy' => '',
         ]);
     }
 

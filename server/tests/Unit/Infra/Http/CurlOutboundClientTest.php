@@ -342,4 +342,50 @@ final class CurlOutboundClientTest extends TestCase
         self::assertSame(200, $response->status);
         self::assertSame('via-localhost', $response->body);
     }
+
+    public function testProxyAddressRoutesThroughProxy(): void
+    {
+        // 假代理收到 absolute-form 请求行即证明 CURLOPT_PROXY 生效；
+        // 目标服务器应零请求（流量全部进代理）
+        $proxy = $this->server();
+        $target = $this->server(['body' => 'direct']);
+        $client = $this->client(['proxy' => 'http://127.0.0.1:' . $proxy->port]);
+        $response = $client->request(new OutboundRequest('GET', $this->url($target, '/via-proxy')));
+
+        self::assertSame(200, $response->status);
+        $requests = $proxy->requests();
+        self::assertCount(1, $requests);
+        self::assertStringContainsString(
+            'GET http://127.0.0.1:' . $target->port . '/via-proxy HTTP/1.1',
+            $requests[0]['head'],
+        );
+        self::assertSame(0, $target->requestCount());
+    }
+
+    public function testEmptyProxyDisablesEnvironmentProxy(): void
+    {
+        // 环境变量代理指向死端口：proxy='' 必须显式禁用，否则回环探测等
+        // 场景会被代理转发出去（SSRF/语义回归）
+        putenv('http_proxy=http://127.0.0.1:9');
+        putenv('no_proxy=');
+        try {
+            $server = $this->server();
+            $response = $this->client(['proxy' => ''])
+                ->request(new OutboundRequest('GET', $this->url($server)));
+
+            self::assertSame(200, $response->status);
+            self::assertSame(1, $server->requestCount());
+
+            // 对照：不设 proxy 时 curl 读环境变量代理，死代理应产生传输错误
+            try {
+                $this->client()->request(new OutboundRequest('GET', $this->url($server)));
+                self::fail('环境变量代理未按 curl 默认生效');
+            } catch (OutboundException $error) {
+                self::assertSame('transport', $error->kind());
+            }
+        } finally {
+            putenv('http_proxy');
+            putenv('no_proxy');
+        }
+    }
 }

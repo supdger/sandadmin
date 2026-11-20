@@ -45,4 +45,24 @@ final class CurlProbeTransportTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         (new CurlProbeTransport())->get('http://192.168.1.1:8787/x', []);
     }
+
+    public function testLoopbackProbeBypassesEnvironmentProxy(): void
+    {
+        // 环境变量代理指向死端口：探测必须显式禁用代理，否则回环请求会被转发出去
+        putenv('http_proxy=http://127.0.0.1:9');
+        putenv('no_proxy=');
+        try {
+            $this->server = FakeHttpServer::start(['status' => 200, 'body' => '{"ok":true}']);
+            $reply = (new CurlProbeTransport())->get(
+                'http://127.0.0.1:' . $this->server->port . '/api/admin/v1/system/update/probe',
+                [],
+            );
+
+            self::assertSame(200, $reply['status']);
+            self::assertSame('{"ok":true}', $reply['body']);
+        } finally {
+            putenv('http_proxy');
+            putenv('no_proxy');
+        }
+    }
 }

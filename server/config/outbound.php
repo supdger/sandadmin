@@ -22,6 +22,9 @@ return [
     'max_body_bytes' => (int) env('SAND_OUTBOUND_MAX_BODY_BYTES', 10 * 1024 * 1024),
     // 触发重试的 HTTP 状态码
     'retry_statuses' => [502, 503, 504],
+    // 出站代理：缺省不设置 CURLOPT_PROXY（沿用 curl 默认读环境变量 http_proxy 等）；
+    // 设为代理地址走该代理，设为空串显式禁用代理（回环探测等场景用 ''）
+    'proxy' => env('SAND_OUTBOUND_PROXY'),
     // SSRF 白名单：精确 host 或 *.后缀（大小写不敏感），逗号分隔；
     // 命中后该主机解析到的内网/保留地址才放行，公网主机不受影响
     'allow_private_hosts' => array_values(array_filter(array_map(
