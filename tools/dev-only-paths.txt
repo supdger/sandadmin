@@ -52,6 +52,7 @@ rm tools/dev-only-paths.txt
 rm tools/dev-only-paths.sand-core.txt
 rm tools/dev-manifest.php
 rm tools/check-dev-refs.php
+rm tools/check-route-permission.php
 rm tools/strip-dev.php
 rm tools/strip-sand-core.php
 rm tools/strip-vendor-tests.php
