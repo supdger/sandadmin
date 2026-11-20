@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Tests\Unit\Module\Package;
 
 use PHPUnit\Framework\TestCase;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Package\PackageArchive;
 use Sandadmin\Module\Package\PluginPackageManifest;
 use Sandadmin\Tests\Support\FileKit;
@@ -203,6 +204,91 @@ final class PackageArchiveTest extends TestCase
         self::assertIsString($written);
         $parsed = PluginPackageManifest::parse($written);
         self::assertSame('sand-hello', $parsed['manifest']?->app);
+    }
+
+    public function testMigrationsEntryRejected(): void
+    {
+        // 迁移执行器未实现：payload 子树里的 migrations 目录段必须拒收，
+        // 且 error_code 固定为 PLUGIN_MIGRATIONS_FORBIDDEN 供机读区分
+        $file = $this->zip('migrations');
+        PackageKit::fixtureZip($file, 'sand-hello', null, [
+            'plugin/sand-hello/migrations/0001_init.sql' => 'create table t(id int)',
+        ]);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertNull($seen['manifest']);
+        self::assertNull($seen['payload']);
+        self::assertStringContainsString('migrations', implode("\n", $seen['problems']));
+        self::assertSame(ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $seen['error_code']);
+    }
+
+    public function testMigrationsEntryOutsidePayloadRejected(): void
+    {
+        // 判定不限 payload 子树：包里任何位置出现 migrations 段都拒，口径零歧义
+        $file = $this->zip('migrations-outside');
+        PackageKit::fixtureZip($file, 'sand-hello', null, [
+            'docs/migrations/notes.md' => 'x',
+        ]);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertNull($seen['manifest']);
+        self::assertSame(ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $seen['error_code']);
+    }
+
+    public function testServerPayloadMigrationsEntryRejected(): void
+    {
+        $file = $this->zip('server-migrations');
+        PackageKit::makeZip($file, [
+            'manifest.json' => PackageKit::fixtureManifest('sand-hello'),
+            'server/app/x.php' => '<?php',
+            'server/database/migrations/0001_init.sql' => 'create table t(id int)',
+        ]);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertNull($seen['payload']);
+        self::assertSame(ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $seen['error_code']);
+    }
+
+    public function testManifestMigrationsFieldRejected(): void
+    {
+        // manifest 显式声明非空 migrations 字段同样算带迁移内容
+        $file = $this->zip('manifest-migrations');
+        $manifest = PackageKit::fixtureManifest('sand-hello', ['migrations' => ['0001_init.sql']]);
+        PackageKit::fixtureZip($file, 'sand-hello', $manifest);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertNull($seen['manifest']);
+        self::assertStringContainsString('migrations', implode("\n", $seen['problems']));
+        self::assertSame(ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $seen['error_code']);
+    }
+
+    public function testManifestEmptyMigrationsFieldAllowed(): void
+    {
+        // 空数组视为未声明，不误伤
+        $file = $this->zip('manifest-empty-migrations');
+        $manifest = PackageKit::fixtureManifest('sand-hello', ['migrations' => []]);
+        PackageKit::fixtureZip($file, 'sand-hello', $manifest);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertSame([], $seen['problems']);
+        self::assertNull($seen['error_code']);
+    }
+
+    public function testOtherProblemsKeepNullErrorCode(): void
+    {
+        // 非迁移类拒因不回填 error_code，保持向后兼容
+        $file = $this->zip('rejected-other');
+        PackageKit::fixtureZip($file, 'sand-hello', null, ['plugin/sand-hello/install.sql' => 'select 1']);
+
+        $seen = PackageArchive::inspect($file, null);
+
+        self::assertNull($seen['manifest']);
+        self::assertNull($seen['error_code']);
     }
 
     private function zip(string $name): string

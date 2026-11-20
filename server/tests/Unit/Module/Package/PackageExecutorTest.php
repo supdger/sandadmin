@@ -170,6 +170,42 @@ final class PackageExecutorTest extends TestCase
         self::assertDirectoryDoesNotExist($this->pluginPath('sand-hello'));
     }
 
+    public function testInstallRejectsPackageWithMigrations(): void
+    {
+        // 迁移执行器未实现前的过渡闸：带 migrations 的包装了也建不出表，
+        // install 在 inspect 阶段拒收，零副作用且 error_code 可机读
+        $zip = $this->zip('migrations', null, ['plugin/sand-hello/migrations/0001_init.sql' => 'create table t(id int)']);
+
+        $result = $this->executor()->install($zip, null, allowUnsigned: true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('inspect', $result['stage']);
+        self::assertSame(\Sandadmin\Contract\Generated\ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $result['error_code']);
+        self::assertStringContainsString('migrations', implode("\n", $result['problems']));
+        $this->assertNoSideEffects('sand-hello');
+    }
+
+    public function testUpgradeRejectsPackageWithMigrations(): void
+    {
+        // install/upgrade 共用 applyPackage 一处闸：升级带 migrations 的包同样拒，
+        // 已装旧版原样保留
+        $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);
+        self::assertSame('ok', $first['result'], implode("\n", $first['problems']));
+        $zip = $this->zip('hello-migrations', ['version' => '0.2.0'], [
+            'plugin/sand-hello/migrations/0001_init.sql' => 'create table t(id int)',
+        ]);
+
+        $result = $this->executor()->upgrade($zip, null, allowUnsigned: true);
+
+        self::assertSame('failed', $result['result']);
+        self::assertSame('inspect', $result['stage']);
+        self::assertSame(\Sandadmin\Contract\Generated\ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN, $result['error_code']);
+        self::assertSame('0.1.0', $this->registry->installedVersion('sand-hello'));
+        $manifest = file_get_contents($this->pluginPath('sand-hello') . '/manifest.json');
+        self::assertIsString($manifest);
+        self::assertStringContainsString('0.1.0', $manifest);
+    }
+
     public function testInstallTwiceRejected(): void
     {
         $first = $this->executor()->install($this->zip('hello'), null, allowUnsigned: true);

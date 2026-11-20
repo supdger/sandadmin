@@ -1,7 +1,7 @@
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:0e05c7423b5b7fd78d046ae957a741380629f10e683c91907c04c36be6a890ca
+// 源哈希: sha256:37ab83381b7353514761d4e11ad746e34a5f53ba5a4f3b278e844bf7bd45bdd7
 // 生成器: contract-build v1
 
 /** 成功信封：code 固定字符串 OK，成功判定只看这一个字段 */
@@ -59,6 +59,7 @@ export type ErrorCode =
   | 'PLUGIN_ALREADY_INSTALLED'
   | 'PLUGIN_BUSY'
   | 'PLUGIN_CONTRACT_CONFLICT'
+  | 'PLUGIN_MIGRATIONS_FORBIDDEN'
   | 'PLUGIN_NOT_FOUND'
   | 'PLUGIN_NOT_INSTALLED'
   | 'PLUGIN_OPERATION_FORBIDDEN'
@@ -985,7 +986,7 @@ export const OPERATIONS: readonly ContractOperation[] = [
     operationId: 'pluginsUpload',
     permissionKind: 'super',
     permissionCodes: [],
-    errorCodes: ['PLUGIN_PACKAGE_INVALID', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN', 'PLUGIN_ALREADY_INSTALLED'],
+    errorCodes: ['PLUGIN_PACKAGE_INVALID', 'PLUGIN_MIGRATIONS_FORBIDDEN', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN', 'PLUGIN_ALREADY_INSTALLED'],
     tags: ['plugins'],
   },
   {
@@ -1003,7 +1004,7 @@ export const OPERATIONS: readonly ContractOperation[] = [
     operationId: 'pluginsInstall',
     permissionKind: 'super',
     permissionCodes: [],
-    errorCodes: ['PLUGIN_NOT_FOUND', 'PLUGIN_ALREADY_INSTALLED', 'PLUGIN_VERSION_INCOMPATIBLE', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN'],
+    errorCodes: ['PLUGIN_NOT_FOUND', 'PLUGIN_ALREADY_INSTALLED', 'PLUGIN_VERSION_INCOMPATIBLE', 'PLUGIN_MIGRATIONS_FORBIDDEN', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN'],
     tags: ['plugins'],
   },
   {
@@ -1012,7 +1013,7 @@ export const OPERATIONS: readonly ContractOperation[] = [
     operationId: 'pluginsUpgrade',
     permissionKind: 'super',
     permissionCodes: [],
-    errorCodes: ['PLUGIN_NOT_FOUND', 'PLUGIN_NOT_INSTALLED', 'PLUGIN_VERSION_INCOMPATIBLE', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN'],
+    errorCodes: ['PLUGIN_NOT_FOUND', 'PLUGIN_NOT_INSTALLED', 'PLUGIN_VERSION_INCOMPATIBLE', 'PLUGIN_MIGRATIONS_FORBIDDEN', 'PLUGIN_BUSY', 'PLUGIN_OPERATION_FORBIDDEN'],
     tags: ['plugins'],
   },
   {

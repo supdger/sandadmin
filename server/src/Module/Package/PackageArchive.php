@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Package;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 /**
  * 发行 zip 的只读检查与解包。完整性只靠 sha256，不做验签。
  * 检查全在内存里读目录项，不 extractTo：条目逐个过白名单后
@@ -19,12 +21,18 @@ final class PackageArchive
     private const BANNED_FILES = ['install.sql', 'update.sql', 'uninstall.sql'];
 
     /**
-     * @return array{manifest: ?PluginPackageManifest, payload: ?string, problems: list<string>}
+     * migrations 判定口径（迁移执行器未实现前的过渡闸）：zip 任一条目路径含
+     * migrations 目录段即拒（不限 payload 子树，口径零歧义），manifest.json
+     * 显式声明非空 migrations 字段同样拒（空数组视为未声明）。都在内存目录项
+     * 扫描阶段命中，早于 extract 零副作用；命中时 error_code 固定为
+     * PLUGIN_MIGRATIONS_FORBIDDEN，其余问题为 null。
+     *
+     * @return array{manifest: ?PluginPackageManifest, payload: ?string, problems: list<string>, error_code: ?string}
      *         payload 是 zip 内插件目录前缀（plugin/<app>/ 或 server/）
      */
     public static function inspect(string $zipFile, ?string $expectedSha256): array
     {
-        $empty = ['manifest' => null, 'payload' => null, 'problems' => []];
+        $empty = ['manifest' => null, 'payload' => null, 'problems' => [], 'error_code' => null];
         if (!is_file($zipFile)) {
             $empty['problems'][] = '安装包不存在：' . $zipFile;
 
@@ -40,7 +48,7 @@ final class PackageArchive
         }
         $zip = new \ZipArchive();
         if ($zip->open($zipFile, \ZipArchive::RDONLY) !== true) {
-            return ['manifest' => null, 'payload' => null, 'problems' => array_merge($problems, ['安装包不是可读取的 zip 文件'])];
+            return ['manifest' => null, 'payload' => null, 'problems' => array_merge($problems, ['安装包不是可读取的 zip 文件']), 'error_code' => null];
         }
 
         $names = [];
@@ -52,31 +60,42 @@ final class PackageArchive
             $names[] = str_replace('\\', '/', $name);
         }
 
+        $errorCode = null;
         foreach ($names as $name) {
             $issue = self::entryProblem($name);
             if ($issue !== null) {
                 $problems[] = $issue;
+                if (self::isMigrationsEntry($name)) {
+                    $errorCode = ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN;
+                }
             }
         }
         if ($problems !== []) {
             $zip->close();
 
-            return ['manifest' => null, 'payload' => null, 'problems' => $problems];
+            return ['manifest' => null, 'payload' => null, 'problems' => $problems, 'error_code' => $errorCode];
         }
 
         $rawManifest = $zip->getFromName('manifest.json');
         if (!is_string($rawManifest)) {
             $zip->close();
 
-            return ['manifest' => null, 'payload' => null, 'problems' => ['zip 根缺少 manifest.json']];
+            return ['manifest' => null, 'payload' => null, 'problems' => ['zip 根缺少 manifest.json'], 'error_code' => null];
         }
         $parsed = PluginPackageManifest::parse($rawManifest);
         if ($parsed['manifest'] === null) {
             $zip->close();
 
-            return ['manifest' => null, 'payload' => null, 'problems' => $parsed['problems']];
+            return ['manifest' => null, 'payload' => null, 'problems' => $parsed['problems'], 'error_code' => null];
         }
         $manifest = $parsed['manifest'];
+
+        // manifest 显式声明 migrations 也是迁移内容：parse 不消费未知字段，这里单独看一眼
+        $decodedManifest = json_decode($rawManifest, true);
+        if (is_array($decodedManifest) && !empty($decodedManifest['migrations'])) {
+            $problems[] = 'manifest.json 声明了 migrations 字段，迁移执行器未实现，暂不支持';
+            $errorCode = ErrorCodeRegistry::PLUGIN_MIGRATIONS_FORBIDDEN;
+        }
 
         $hasPluginTree = false;
         $hasServerTree = false;
@@ -101,10 +120,10 @@ final class PackageArchive
         $zip->close();
 
         if ($problems !== []) {
-            return ['manifest' => null, 'payload' => null, 'problems' => $problems];
+            return ['manifest' => null, 'payload' => null, 'problems' => $problems, 'error_code' => $errorCode];
         }
 
-        return ['manifest' => $manifest, 'payload' => $payload, 'problems' => []];
+        return ['manifest' => $manifest, 'payload' => $payload, 'problems' => [], 'error_code' => null];
     }
 
     /**
@@ -181,6 +200,11 @@ final class PackageArchive
             if (in_array($segment, self::BANNED_SEGMENTS, true)) {
                 return 'zip 条目含禁带目录 ' . $segment . '/：' . $name;
             }
+            // migrations 段单独成条：拒因不是「禁带文件」而是「执行器未实现」，
+            // inspect 据此回填 error_code，文案要让安装方看懂
+            if ($segment === 'migrations') {
+                return 'zip 条目含 migrations 迁移目录，迁移执行器未实现，暂不支持：' . $name;
+            }
         }
         if (in_array($base, self::BANNED_FILES, true)) {
             return 'zip 条目含禁带迁移脚本：' . $name;
@@ -193,6 +217,18 @@ final class PackageArchive
         }
 
         return null;
+    }
+
+    /** 条目路径是否含 migrations 目录段（目录项自身也算）。 */
+    private static function isMigrationsEntry(string $name): bool
+    {
+        foreach (explode('/', $name) as $segment) {
+            if ($segment === 'migrations') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function writeEntry(\ZipArchive $zip, string $name, string $dest): void
