@@ -1,11 +1,15 @@
-# 1.x 合并前门禁·快档（v4 T-8 / L-1 / U-6 / R-8）：直接调用
+# 1.x 合并前门禁·快档（v4 T-8 / L-1 / U-6 / R-8）：pre-merge job 直接调用
 # tools/pre-merge.sh --fast，本地和 CI 是同一套命令——红了先在本地
 # 跑 tools/pre-merge.sh --fast 复现再改，别只在 CI 上猜。
-# 快档内容（步序见脚本）：php -l、危险函数白名单扫描、TypePHP 禁用
-# 写法 diff 扫描、strict types、PHPStan、deptrac 依赖方向、命名自查、
-# 基线只减不增、前端三道（tsc/eslint/vitest）、PHPUnit unit 套件，
-# 挂在 PR 与所有分支推送上，全过才允许合并。
-# 慢档（PHPUnit 三库矩阵、依赖审计、e2e 槽位）在 merge-gates-slow.yml，
+# 快档内容（步序见脚本）：php -l、模块测试目录检查、契约一致性、危险函数
+# 白名单扫描、dev-only 引用门禁、TypePHP 禁用写法 diff 扫描、strict types、
+# PHPStan、deptrac 依赖方向、命名自查、基线只减不增、前端三道
+# （tsc/eslint/vitest）、PHPUnit unit 套件，挂在 PR 与所有分支推送上，
+# 全过才允许合并。
+# phpunit / phpstan / security-regression 三个独立 job 与 pre-merge 重复
+# 部分是刻意拆分：分支保护按这四个 check 名单独要求必过，单 job 失败
+# 能直接看出是哪个环节。
+# 慢档（PHPUnit 三库矩阵、e2e 槽位）在 merge-gates-slow.yml，
 # 只在 main 推送、每日定时与手动触发上跑。
 name: merge-gates
 
@@ -34,7 +38,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.2"
+          php-version: "8.4"
           extensions: pdo_pgsql, pdo_mysql
           tools: composer:v2
           coverage: none
@@ -59,3 +63,92 @@ jobs:
       # web/ 的 pnpm install 在脚本内部跑（--frozen-lockfile），这里不重复装。
       - name: pre-merge --fast
         run: tools/pre-merge.sh --fast
+
+  # unit 套件不需要数据库；contract 套件只比对契约产物，同样不连库。
+  phpunit:
+    name: phpunit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pdo_mysql
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: PHPUnit unit + contract
+        run: vendor/bin/phpunit --testsuite unit,contract
+
+  phpstan:
+    name: phpstan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # level 与路径由 phpstan.neon.dist 固定（level max），仓库不设 baseline 文件
+      - name: PHPStan level max
+        run: vendor/bin/phpstan analyse --no-progress
+
+  # 安全回归（#107）：中间件与配置单测 + 生产 debug 直跑用例 +
+  # 真起 webman 断言安全响应头。SAND_IDGEN_* 是发号器启动自检的必填项，
+  # 测试环境给固定值即可，与真实部署号段无关。
+  security-regression:
+    name: security-regression
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pdo_mysql
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Security middleware & config unit tests
+        run: >-
+          vendor/bin/phpunit --testsuite unit
+          --filter 'SecurityHeadersMiddlewareTest|CsrfMiddlewareTest|CorsMiddlewareTest|SecurityConfigFileTest'
+
+      - name: Production debug guard test
+        run: php tests/security/ProductionDebugTest.php
+
+      - name: Assert security headers on a live webman
+        working-directory: ${{ github.workspace }}
+        env:
+          SAND_IDGEN_NODE_RANGE: "0-1023"
+          SAND_IDGEN_NODE_ID: "0"
+          SAND_IDGEN_MAX_CLOCK_BACKWARDS_MS: "10"
+        run: bash tools/assert-security-headers.sh

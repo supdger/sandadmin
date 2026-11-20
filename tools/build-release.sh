@@ -134,6 +134,9 @@ echo "PASS 生产启动守卫自检通过\n";
 ' "$SRC"
 
 if [ "$SELF_CHECK" = "1" ]; then
+    # --self-check 也产出 SBOM 与 provenance（subjects 只含 sbom），
+    # 供 dependency-audit job 上传 artifact 验证元数据链可用
+    php "$ROOT/tools/build-release-metadata.php" --src "$SRC" --dist "$DIST" --version "$VERSION"
     rm -rf "$WORK"
     # $ 变量名后紧跟全角字符时必须加大括号，否则 bash 把多字节首字节并进变量名
     echo "OK 自检通过（${PKG}，未产出制品）"
@@ -142,6 +145,9 @@ fi
 
 rm -f "$OUT"
 COPYFILE_DISABLE=1 tar -czf "$OUT" -C "$WORK" "$PKG"
+# subjects 含 tar.gz 与 sbom 的 sha256，须在 $WORK 清理前生成
+# （SBOM 读剥离副本内的 lockfile，口径与制品内容一致）
+php "$ROOT/tools/build-release-metadata.php" --src "$SRC" --dist "$DIST" --version "$VERSION" --artifact "$OUT"
 rm -rf "$WORK"
 
 # 制品登记：追加不覆盖；previous 写本版之前的最后一版，回退脚本据此取目标
