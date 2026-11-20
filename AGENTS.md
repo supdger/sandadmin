@@ -73,6 +73,8 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 
 读 delivery-loop、backend-structure、packaging、database 这几份同步 skill 时，以 `.agents/skills/LEGACY-ABSORBED.md` 对应小节为必守补充条款。
 
+写、审 1.x 任何设计和方案时，另有一份本仓自有 skill `sandadmin1x-design-standard`（不在上面 skill-sync 比对的四个目录内）：所有设计和方案必须逐项回答 `.agents/skills/sandadmin1x-design-standard/` 清单，缺项的审计一律打回。
+
 配套工具在 `tools/`（发布包不含，见 `.gitattributes`）：
 
 - `tools/skill-sync.sh`：比对 `.agents/skills/` 与上游 `~/.shared-skills/` 是否一致；不一致时列出差异文件，`--pull` 用上游覆盖本仓副本后复核。
