@@ -255,7 +255,7 @@ final class PackageExecutor
             if (!is_dir($this->pluginDir) && !mkdir($this->pluginDir, 0755, true) && !is_dir($this->pluginDir)) {
                 throw new \RuntimeException('无法创建插件目录：' . $this->pluginDir);
             }
-            PackageArchive::extract($zipFile, $seen['payload'], $staged, $manifest);
+            PackageArchive::unpack($zipFile, $seen['payload'], $staged, $manifest);
             $journal->setPaths($id, staged: $staged);
             $journal->mark($id, 'staged');
             $stage = 'place';

@@ -121,7 +121,11 @@ final class FakeTaskStore implements TaskStore
             if ($limit > 0 && $running >= $limit) {
                 continue;
             }
-            $leaseUntil = $now->modify(sprintf('+%d seconds', $policy->leaseSeconds));
+            try {
+                $leaseUntil = $now->modify(sprintf('+%d seconds', $policy->leaseSeconds));
+            } catch (\DateMalformedStringException) {
+                $leaseUntil = $now;
+            }
             $claimed = new TaskRun(
                 publicId: $candidate->publicId,
                 type: $candidate->type,
@@ -136,7 +140,7 @@ final class FakeTaskStore implements TaskStore
                 idempotencyKey: $candidate->idempotencyKey,
                 attempt: $candidate->attempt + 1,
                 lockedBy: $workerId,
-                leaseExpireTime: $leaseUntil === false ? $now : $leaseUntil,
+                leaseExpireTime: $leaseUntil,
                 startTime: $candidate->startTime ?? $now,
                 finishTime: $candidate->finishTime,
                 createTime: $candidate->createTime,
@@ -160,7 +164,11 @@ final class FakeTaskStore implements TaskStore
         int $leaseSeconds,
     ): void {
         $task = $this->requireRunning($publicId, $workerId);
-        $leaseUntil = $now->modify(sprintf('+%d seconds', $leaseSeconds));
+        try {
+            $leaseUntil = $now->modify(sprintf('+%d seconds', $leaseSeconds));
+        } catch (\DateMalformedStringException) {
+            $leaseUntil = $now;
+        }
         $this->tasks[$publicId] = new TaskRun(
             publicId: $task->publicId,
             type: $task->type,
@@ -175,7 +183,7 @@ final class FakeTaskStore implements TaskStore
             idempotencyKey: $task->idempotencyKey,
             attempt: $task->attempt,
             lockedBy: $task->lockedBy,
-            leaseExpireTime: $leaseUntil === false ? $now : $leaseUntil,
+            leaseExpireTime: $leaseUntil,
             startTime: $task->startTime,
             finishTime: $task->finishTime,
             createTime: $task->createTime,

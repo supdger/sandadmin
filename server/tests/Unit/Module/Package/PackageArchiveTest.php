@@ -194,7 +194,7 @@ final class PackageArchiveTest extends TestCase
         self::assertNotNull($payload);
 
         $target = $this->dir . '/staged';
-        PackageArchive::extract($file, $payload, $target, $manifest);
+        PackageArchive::unpack($file, $payload, $target, $manifest);
 
         self::assertFileExists($target . '/manifest.json');
         self::assertFileExists($target . '/contract/openapi.yaml');

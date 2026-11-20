@@ -151,10 +151,14 @@ final class PdoTaskStore implements TaskStore
                    AND (state = \'queued\'
                         OR (state = \'running\' AND lease_expire_time IS NOT NULL AND lease_expire_time <= :now3))'
             );
-            $leaseUntil = $now->modify(sprintf('+%d seconds', $policy->leaseSeconds));
+            try {
+                $leaseUntil = $now->modify(sprintf('+%d seconds', $policy->leaseSeconds));
+            } catch (\DateMalformedStringException) {
+                $leaseUntil = $now;
+            }
             $update->execute([
                 'worker' => $workerId,
-                'lease' => $this->time($leaseUntil instanceof \DateTimeImmutable ? $leaseUntil : $now),
+                'lease' => $this->time($leaseUntil),
                 'now' => $this->time($now),
                 'now2' => $this->time($now),
                 'public_id' => $publicId,
@@ -238,11 +242,15 @@ final class PdoTaskStore implements TaskStore
              WHERE public_id = CAST(:public_id AS uuid)
                AND state = \'running\' AND locked_by = :worker'
         );
-        $leaseUntil = $now->modify(sprintf('+%d seconds', $leaseSeconds));
+        try {
+            $leaseUntil = $now->modify(sprintf('+%d seconds', $leaseSeconds));
+        } catch (\DateMalformedStringException) {
+            $leaseUntil = $now;
+        }
         $statement->execute([
             'stage' => $stage,
             'progress' => $progress,
-            'lease' => $this->time($leaseUntil instanceof \DateTimeImmutable ? $leaseUntil : $now),
+            'lease' => $this->time($leaseUntil),
             'now' => $this->time($now),
             'public_id' => $publicId,
             'worker' => $workerId,

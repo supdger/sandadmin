@@ -38,8 +38,9 @@ final class TaskProgress
         if ($this->deadline !== null && $now >= $this->deadline) {
             throw new TaskTimeoutException('任务执行超时');
         }
-        $leaseUntil = $now->modify(sprintf('+%d seconds', $this->leaseSeconds));
-        if ($leaseUntil === false) {
+        try {
+            $leaseUntil = $now->modify(sprintf('+%d seconds', $this->leaseSeconds));
+        } catch (\DateMalformedStringException) {
             throw new TaskStorageException('无法计算任务租约');
         }
         $this->store->reportProgress($this->publicId, $this->workerId, $stage, $progress, $now, $this->leaseSeconds);
