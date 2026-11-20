@@ -1,3 +1,8 @@
+# 依赖与发布链审计（快档必过 check：dependency-audit）。
+# 一个 job 串完原先三个检查的并集：composer 校验与漏洞审计、release tag
+# 断言、vendor 树拒收、sandadmin-artd 生产依赖审计、build-release.sh
+# --self-check 全剔除链自检；末尾上传 SBOM 与构建 provenance（artifact
+# 名 release-metadata），证明发版元数据链可用。
 name: dependency-audit
 
 on:
@@ -8,34 +13,37 @@ permissions:
   contents: read
 
 jobs:
-  composer-audit:
-    name: composer audit
+  dependency-audit:
+    name: dependency-audit
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # build-release.sh 用 git describe 取版本号、git archive 导出头；
+          # 浅克隆缺标签时虽有日期兜底，但完整历史更贴近发版口径
+          fetch-depth: 0
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
-          php-version: "8.2"
+          php-version: "8.4"
           coverage: none
           tools: composer:v2
 
       - name: Validate composer.json
+        working-directory: server
         run: composer validate --strict --no-check-publish
 
       - name: Audit locked dependencies
+        working-directory: server
         run: composer audit --locked
 
       - name: Require workerman and webman release tags
+        working-directory: server
         run: php bin/ci/check-release-tags.php
 
       - name: Reject committed vendor trees
-        working-directory: ${{ github.workspace }}
         run: |
           tracked="$(git ls-files -- 'vendor' 'server/vendor')"
           if [ -n "$tracked" ]; then
@@ -44,17 +52,7 @@ jobs:
             exit 1
           fi
 
-  frontend-prod-audit:
-    name: frontend prod audit
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sandadmin-artd
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup pnpm
+      - name: Setup pnpm (sandadmin-artd)
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           # The repo root has no package.json; the pnpm version is declared
@@ -72,40 +70,30 @@ jobs:
       # optionalDependencies. devDependencies (Vite, ESLint, TypeScript,
       # Tailwind) are build tooling and are outside this gate.
       - name: Install from the lockfile
+        working-directory: sandadmin-artd
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Audit production dependencies
+        working-directory: sandadmin-artd
         run: pnpm audit --prod
 
-  release-self-check:
-    name: release self-check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          # build-release.sh 用 git describe 取版本号、git archive 导出头；
-          # 浅克隆缺标签时虽有日期兜底，但完整历史更贴近发版口径
-          fetch-depth: 0
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
-        with:
-          php-version: "8.2"
-          coverage: none
-          tools: composer:v2
-
-      - name: Setup pnpm
+      # build-release.sh 在剥离副本的 web/ 里跑 pnpm，版本须切到
+      # web/package.json 固定的 pnpm@12.16.1；action 再装一次即覆盖 PATH
+      - name: Setup pnpm (web)
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
-          # pnpm 版本由 web/package.json 的 packageManager 字段固定（pnpm@12.16.1）
           package_json_file: web/package.json
 
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "22"
-
-      # 只跑剔除链与全部自检断言，不打 tar.gz、不上传制品
+      # 只跑剔除链与全部自检断言，不打 tar.gz；dist/ 下仍产出
+      # SBOM 与 provenance，供下一步上传 artifact
       - name: Run release pipeline self-check
         run: bash tools/build-release.sh --self-check
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: |
+            dist/*.sbom.json
+            dist/*.provenance.json
+          if-no-files-found: error

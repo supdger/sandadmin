@@ -112,7 +112,7 @@ final class PackageArchive
      * 并把 zip 根 manifest.json 写进 $targetDir/manifest.json。
      * 只在 inspect 通过后调用；IO 失败抛 RuntimeException。
      */
-    public static function extract(
+    public static function unpack(
         string $zipFile,
         string $payloadPrefix,
         string $targetDir,

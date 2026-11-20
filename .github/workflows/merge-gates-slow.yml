@@ -1,0 +1,171 @@
+# 1.x 合并前门禁·慢档（R-8）：PHPUnit 三库矩阵、e2e 槽位。
+# 只在 main 推送、每日定时（UTC 18:00 = 北京时间凌晨 2 点）与手动触发
+# 上跑；PR 与各分支推送由快档 merge-gates.yml 覆盖。依赖审计与
+# 发布链自检已并入 dependency-audit.yml 快档必过项，这里不重复跑。
+# 本地对应 tools/pre-merge.sh --full（PHPUnit 段需先配库）。
+name: merge-gates-slow
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # PHPUnit 三库矩阵（v4 L-1 / T-8）：PG 最低支持版本 15 + PG 新主线 17
+  # + MySQL 8.4 LTS（8.0 系列已停更，不再占槽位）。当前仓库迁移与测试
+  # 连接只有 PG 方言，MySQL 档先占槽位并记为已知失败（允许失败，不阻断
+  # 合并），方言层落地后撤掉允许标记。
+  phpunit:
+    name: 慢档：PHPUnit 三库矩阵（${{ matrix.db }}）
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.known_failure }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: postgres-15
+            family: pgsql
+            known_failure: false
+            image: postgres:15
+            db_port: 5432
+            health_cmd: "pg_isready -U postgres"
+            test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
+          - db: postgres-17
+            family: pgsql
+            known_failure: false
+            image: postgres:17
+            db_port: 5432
+            health_cmd: "pg_isready -U postgres"
+            test_db_url: pgsql://postgres:gate_test_pw@127.0.0.1:5432/sand_test
+          # MySQL 8.4 LTS 推荐线（8.0 系列不再占槽位）。
+          - db: mysql-8.4
+            family: mysql
+            known_failure: true
+            image: mysql:8.4
+            db_port: 3306
+            health_cmd: "mysqladmin ping -h 127.0.0.1 -uroot -pgate_test_pw"
+            test_db_url: mysql://root:gate_test_pw@127.0.0.1:3306/sand_test
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env:
+          POSTGRES_PASSWORD: gate_test_pw
+          POSTGRES_DB: sand_test
+          MYSQL_ROOT_PASSWORD: gate_test_pw
+          MYSQL_DATABASE: sand_test
+        ports:
+          - ${{ matrix.db_port }}:${{ matrix.db_port }}
+        options: >-
+          --health-cmd "${{ matrix.health_cmd }}"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: "8.4"
+          coverage: none
+          tools: composer:v2
+          extensions: pdo_pgsql, pdo_mysql
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # 铺测试库：基线迁移 0001–0003 尚未随仓发布，仓内 0004–0007 单独
+      # 应用必失败；MySQL 档同理且仓内迁移只有 PG 方言。失败只作记录
+      # （不阻断），基线/方言进仓后本步自然转绿。
+      - name: 应用仓内迁移到测试库（缺基线/方言时降级为记录）
+        continue-on-error: true
+        run: |
+          if [ "${{ matrix.family }}" = "pgsql" ]; then
+            export PGPASSWORD=gate_test_pw
+            for f in database/migrations/*.sql; do
+              echo "应用 $f"
+              psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" -v ON_ERROR_STOP=1 -f "$f"
+            done
+          else
+            php -r '
+              $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
+              foreach (glob("database/migrations/*.sql") as $file) {
+                fwrite(STDERR, "应用 {$file}\n");
+                $pdo->exec(file_get_contents($file));
+              }'
+          fi
+        env:
+          DB_PORT: ${{ matrix.db_port }}
+
+      # 基线没铺上的库不设 SAND_TEST_DB_URL：连得通但无表结构时部分
+      # 集成用例会报错而非跳过，不设 URL 才是仓库约定的跳过口径；
+      # 基线落库后这里自动写入 URL，集成测试随之真实开跑。
+      - name: 判定集成测试库就绪（缺基线则跳过集成用例）
+        run: |
+          if [ "${{ matrix.family }}" = "pgsql" ]; then
+            PGPASSWORD=gate_test_pw psql "host=127.0.0.1 port=${{ matrix.db_port }} user=postgres dbname=sand_test" \
+              -tAc "SELECT to_regclass('sand_system_user')" > /tmp/db_ready.txt
+          else
+            php -r 'try {
+                $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
+                echo (int) (bool) $pdo->query("SHOW TABLES LIKE \"sand_system_user\"")->fetchColumn();
+              } catch (Throwable) { echo "0"; }' > /tmp/db_ready.txt
+          fi
+          if grep -qE "sand_system_user|^1$" /tmp/db_ready.txt; then
+            echo "SAND_TEST_DB_URL=${{ matrix.test_db_url }}" >> "$GITHUB_ENV"
+            echo "基线就绪：集成测试真实执行"
+          else
+            echo "基线未就位（0001–0003 或 MySQL 方言未落地）：依赖数据库的用例按仓库约定跳过"
+          fi
+        env:
+          DB_PORT: ${{ matrix.db_port }}
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
+
+      # MySQL 档（已知失败槽位）：前面允许失败处只作记录，这里把
+      # 「迁移与测试连接只有 PG 方言」落成明确的失败信号，挡住
+      # 「全跳过显示绿」的误导。方言落地后撤掉本档位的 continue-on-error。
+      - name: MySQL 方言就绪断言（已知失败：迁移仅 PG 方言）
+        if: matrix.known_failure
+        run: |
+          php -r 'try {
+              $pdo = new PDO("mysql:host=127.0.0.1;port=" . (int) getenv("DB_PORT") . ";dbname=sand_test", "root", "gate_test_pw");
+              $ready = (bool) $pdo->query("SHOW TABLES LIKE \"sand_system_user\"")->fetchColumn();
+            } catch (Throwable) { $ready = false; }
+            if (!$ready) {
+              fwrite(STDERR, "基线模式缺失：MySQL 方言迁移未落地（v4 L-1 双库矩阵槽位）\n");
+              exit(1);
+            }'
+        env:
+          DB_PORT: ${{ matrix.db_port }}
+
+  # e2e 槽位：仓内暂无 playwright/cypress 套件。沿用已知失败槽位模式——
+  # continue-on-error 让缺口如实显示又不阻断；套件落地后把断言换成
+  # 真实执行并撤掉 continue-on-error。
+  e2e-slot:
+    name: 慢档：e2e（仓内暂无套件，槽位）
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: e2e 套件存在性断言
+        run: |
+          if ls web/playwright.config.* sandadmin-artd/playwright.config.* >/dev/null 2>&1 \
+              || [ -d tests/e2e ]; then
+            echo "e2e 套件已落地：本档位应改为真实执行，并撤掉 continue-on-error"
+          else
+            echo "e2e 套件未落地，槽位先占"
+            exit 1
+          fi

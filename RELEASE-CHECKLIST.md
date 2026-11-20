@@ -23,3 +23,11 @@
 - [ ] `server/public/.well-known/security.txt` 的每个 Contact 都是当前可用渠道；新增安全邮箱等联系方式必须先填真实地址再发布，发布物不得携带占位联系方式。
 - [ ] 已指定《网络产品安全漏洞管理规定》要求的工信部漏洞报送责任人（剩余项：未指定前不得勾选）。
 - [ ] `SECURITY.md` 的报送条款与披露政策表述已经法务复核（剩余项：未复核前不得勾选）。
+
+## CI 门禁与发布产物
+
+- [ ] 合并前必过 check（名称一字不差，分支保护按此清单配置）：`phpunit`、`phpstan`、`dependency-audit`、`security-regression`。
+- [ ] 发布产物文件名核对：`sandadmin-<版本>.tar.gz`、`sandadmin-<版本>.sbom.json`（CycloneDX 1.5）、`sandadmin-<版本>.provenance.json`。
+- [ ] SBOM 与 provenance 已由 `dependency-audit` job 经 `build-release.sh --self-check` 产出，并以 artifact `release-metadata` 上传，可下载核对。
+- [ ] 免登录入口断言已随 `build-release.sh --self-check` 生效：`tools/check-no-dev-login.php` 对全包（含 vendor/plugin 与前端产物）扫描 dev-login 路由、DevPrincipal 等 dev 链符号，命中即判红；发布包中不应存在任何免登录入口。
+- [ ] M-27 核对项：`server/composer.json` 的 `require.php` 为 `>=8.4` 且 `config.platform.php` 为 `8.4.x`；composer.lock 的 `platform` 与 `platform-overrides` 与之一致；CI 全部 `setup-php` 使用 `8.4`。

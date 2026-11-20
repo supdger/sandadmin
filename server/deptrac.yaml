@@ -1,0 +1,19 @@
+# deptrac 分层依赖检查（合并门禁）
+# 目前只锁一条规则：内核（Sandadmin\ 命名空间，server/src）不许反向依赖
+# 插件层（plugin\ 命名空间，server/plugin 下 Composer 发布的插件代码）。
+# 分层扩到 Service/Repository 等粒度前先补设计，别把历史存量一次打红。
+deptrac:
+  paths:
+    - ./src
+    - ./plugin
+  layers:
+    - name: Kernel
+      collectors:
+        - type: classNameRegex
+          value: '~^Sandadmin\\~'
+    - name: Plugin
+      collectors:
+        - type: classNameRegex
+          value: '~^plugin\\~'
+  ruleset:
+    Kernel: []
