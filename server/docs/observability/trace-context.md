@@ -65,3 +65,7 @@
   均已是 RequestScope/RequestContext 可达的位置。
 - 审计日志（security 通道）同受 RequestScope 注入，安全事件可凭
   request_id 与业务日志对账。
+- 边界：`Webman\Context` 按 Fiber 隔离，第三方 SDK 在自建 Fiber 内
+  执行的代码（如 MCP SDK 的 StatelessProtocol）看不到请求作用域；
+  这类路径必须像 `McpKernel → LogAuditSink` 一样把 request_id 显式
+  放进日志 context，不能依赖 processor 自动注入。
