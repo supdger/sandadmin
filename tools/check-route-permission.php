@@ -72,21 +72,16 @@ const SUPER_EVIDENCE = [
     '/SUPER_ADMIN\b/',
 ];
 
-/** public 路由不挂会话鉴权，必须自带等价门禁证据（回环/令牌/显式拒绝）。 */
+/** public 路由不挂会话鉴权，必须自带等价门禁证据（回环/令牌/显式拒绝）。只认调用形态，不认裸词。 */
 const PUBLIC_GUARD_EVIDENCE = [
     '/Response\(404/',
     '/Response\(403/',
-    '/UpdateChallenge/',
+    '/UpdateChallenge::/',
+    '/->answer\s*\(/',
     '/DevBuild::enabled/',
     '/getRemoteIp\s*\(/',
     '/isLoopback/',
-    '/FORWARD/',
-    '/TOKEN/',
-    '/Challenge/',
-    '/challenge/',
     '/deny\s*\(/',
-    '/forbidden/i',
-    '/unauthorized/i',
 ];
 
 $root = dirname(__DIR__);
@@ -129,6 +124,17 @@ foreach ($routeFiles as $rel => $file) {
     foreach (HOST_DEV_PATHS as $devPath) {
         if (str_contains($content, $devPath)) {
             $violations[] = "{$rel}: 出现宿主 dev 路径 {$devPath}";
+        }
+    }
+    // 形态兜底：token 口径枚举所有 Route::<name>( 调用点（注释/字符串不产生
+    // 标识符）；凡不是「动词 + 单引号路径 + [Class::class,'m']」的形态一律判违规。
+    foreach (routeCallSites($content) as $site) {
+        $tail = substr($content, $site['offset']);
+        if (preg_match(
+            '/^(?:\\\\?[\\w\\\\]+\\\\)?Route::(?:' . implode('|', ROUTE_METHODS) . ")\\s*\\(\\s*'[^']+'\\s*,\\s*\\[[^\\]]+\\]/",
+            $tail,
+        ) !== 1) {
+            $violations[] = "{$rel}:{$site['line']} 未识别的 Route::{$site['method']} 形态，门禁无法对账";
         }
     }
     $fileUses = parseUseLines($content);
@@ -558,6 +564,10 @@ function indexPhpFile(string $path): array
                 $bodyText = '';
                 for ($textPos = $bodyStart; $textPos <= $bodyEnd; $textPos++) {
                     $bt = $tokens[$textPos];
+                    // 注释与字符串字面量不算证据：判定调用必须落在可执行 token 上
+                    if (is_array($bt) && in_array($bt[0], [T_COMMENT, T_DOC_COMMENT, T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE], true)) {
+                        continue;
+                    }
                     $bodyText .= is_array($bt) ? $bt[1] : $bt;
                 }
                 $params = [];
@@ -627,6 +637,64 @@ function parseUseLines(string $content): array
     }
 
     return $uses;
+}
+
+/**
+ * 枚举 PHP 文本里所有 `Route::<name>(` 调用点（token 口径：注释、字符串
+ * 字面量不产生标识符，天然排除误报）。返回 method/offset/line 供形态对账。
+ *
+ * @return list<array{method: string, offset: int, line: int}>
+ */
+function routeCallSites(string $content): array
+{
+    $tokens = token_get_all($content);
+    $count = count($tokens);
+    $offsets = [];
+    $pos = 0;
+    foreach ($tokens as $index => $token) {
+        $offsets[$index] = $pos;
+        $pos += strlen(is_array($token) ? $token[1] : $token);
+    }
+    $nameTokens = [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED];
+    $sites = [];
+    for ($i = 0; $i < $count; $i++) {
+        $token = $tokens[$i];
+        if (!is_array($token) || !in_array($token[0], $nameTokens, true)) {
+            continue;
+        }
+        $isRoute = $token[1] === 'Route'
+            || str_ends_with($token[1], '\\Route')
+            || $token[1] === '\\Route';
+        if (!$isRoute) {
+            continue;
+        }
+        $j = $i + 1;
+        while ($j < $count && is_array($tokens[$j]) && in_array($tokens[$j][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            $j++;
+        }
+        if ($j >= $count || !is_array($tokens[$j]) || $tokens[$j][0] !== T_DOUBLE_COLON) {
+            continue;
+        }
+        $k = $j + 1;
+        while ($k < $count && is_array($tokens[$k]) && in_array($tokens[$k][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            $k++;
+        }
+        if ($k >= $count || !is_array($tokens[$k]) || $tokens[$k][0] !== T_STRING) {
+            continue; // Route::class 之类不是调用
+        }
+        $method = $tokens[$k][1];
+        $openParen = $k + 1;
+        while ($openParen < $count && is_array($tokens[$openParen]) && in_array($tokens[$openParen][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            $openParen++;
+        }
+        if ($openParen >= $count || $tokens[$openParen] !== '(') {
+            continue;
+        }
+        $sites[] = ['method' => $method, 'offset' => $offsets[$i], 'line' => $token[2]];
+        $i = $openParen;
+    }
+
+    return $sites;
 }
 
 /**
