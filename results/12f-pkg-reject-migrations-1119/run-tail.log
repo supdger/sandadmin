@@ -1,0 +1,37 @@
+工作区就绪：worktree 在 `~/agent-work/assistant/12f-pkg-reject-migrations-1119/wt`，分支 `feat/package-reject-migrations`，基线 `5360129`（origin/main 最新）。主检出有别的任务未提交改动，不受影响。现在派 `dv-implementer` 执行实现与验证。`dv-*` 档案派发在协议层报模型不可用；改用内置 `subagent_general`（跟随主代理 SWE-2，不违反禁 Claude 额度规矩）。完成。交付摘要：
+
+## 结果
+
+- **PR #116**（OPEN，未合并）：https://github.com/supdger/sandadmin/pull/116 ，分支 `feat/package-reject-migrations`，基线 `5360129`（origin/main），提交 `00c772d`
+- **RESULT.md**：`~/agent-work/assistant/12f-pkg-reject-migrations-1119/RESULT.md`
+
+## 实现要点
+
+- `PackageArchive::inspect` 在内存目录项扫描阶段拒收：zip 任一条目路径含 `migrations` 目录段即拒，`manifest.json` 显式声明非空 `migrations` 字段同样拒——早于 extract，零文件系统副作用；install/upgrade 共用 `applyPackage` 一处生效。
+- 结构化报告新增 `error_code` 字段，迁移拒收固定 `PLUGIN_MIGRATIONS_FORBIDDEN`（契约新登记，422），其余路径 `null` 保持兼容；`tools/package-ops` 失败时透出 `error_code:`。
+- 契约只经 `contract/openapi.yaml` x-error-catalog 登记，派生产物全部由 `php tools/contract-build` 生成。
+
+## 验证（子代理执行 + 我复核）
+
+- PHPUnit Unit 745 tests / 6906 assertions 全绿；PHPStan 无错；`contract-build --check` PASS（我复跑确认）；`pre-merge.sh --fast` 8/8 过；naming --diff FAIL=0（2 条 WARN 已在 RESULT 逐条说明）。
+- 我复核：重跑 `contract-build --check` PASS；`phpunit --filter PackageArchiveTest|PackageExecutorTest` 59/59 OK；diff 与 PR #116 一致。
+
+## 需知悉
+
+- `dv-*` 子代理档案派发报 "model no longer available"，改用内置 `subagent_general`（跟随主代理 SWE-2，未用 Claude）。
+- 子代理把落后 67 个提交的本地 `main` 引用快进到 `origin/main`（纯 fast-forward，无工作区影响），否则 typephp_check 误报。
+- Integration 套件需 `SAND_TEST_DB_URL`，未建库故未跑（授权边界内）。
+- #81 仍 OPEN——本任务不合并，无影响；合并前需按条款确认 #81 已合并。
+- 迁移执行器落地时需拆除本过渡闸，已在 RESULT 列为显式事项。
+
+## 模型记录
+- 主 Agent：SWE-2 Flash Medium / swe-2-high / Cognition
+- 子 Agent：subagent_general（SWE-2，跟随主代理）= 实现与验证 → 已完成；dv-implementer/dv-implementer-sonnet 档案派发失败（协议层 model not available，未实际运行）
+
+## 任务记录
+- 已修改：`feat/package-reject-migrations` 分支（worktree `~/agent-work/assistant/12f-pkg-reject-migrations-1119/wt`）——PackageArchive.php、PackageExecutor.php、tools/package-ops、contract/openapi.yaml、contract-build 生成物、2 个测试文件；RESULT.md 在任务目录
+- 已验证：composer install、phpunit unit（745 过）、phpstan、contract-build --check、pre-merge --fast、naming --diff（复核：contract-build --check PASS、Package 单测 59/59）
+- 已提交/已部署：已提交并推送，PR #116 未合并；未部署
+- 未完成：Integration 套件（需数据库，授权外）；等 #81 合并后才可走合并流程
+
+=== RUN COMPLETE ===
