@@ -219,6 +219,7 @@ async function request<T>(
   eventBus.emit('request:begin', { url, method });
   try {
     const headers: Record<string, string> = { Accept: 'application/json' };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
@@ -330,6 +331,7 @@ async function requestDownload(
   eventBus.emit('request:begin', { url, method: 'GET' });
   try {
     const headers: Record<string, string> = { Accept: '*/*' };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     const token = getToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -439,6 +441,7 @@ export async function adminUpload<T>(
       Accept: 'application/json',
       'Idempotency-Key': options?.idempotencyKey ?? crypto.randomUUID(),
     };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     const token = getToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;

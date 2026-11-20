@@ -11,6 +11,7 @@ import {
   adminPatch,
   adminPost,
   adminPut,
+  adminUpload,
   isAdminSystemError,
   resetAuthzVersion,
   subscribeAuthzVersion,
@@ -150,6 +151,45 @@ describe('adminClient', () => {
       expect(seen[method]).toMatch(/^[0-9a-f-]{36}$/i);
     }
     expect(seen.get).toBeNull();
+  });
+
+  it('sends the configured CSRF marker header on every request', async () => {
+    const seen: Record<string, string | null> = {};
+    const capture =
+      (key: string) =>
+      ({ request }: { request: Request }) => {
+        seen[key] = request.headers.get(env.csrfHeaderName);
+        return ok({});
+      };
+    server.use(
+      http.post(`${base}/test/csrf`, capture('post')),
+      http.put(`${base}/test/csrf`, capture('put')),
+      http.patch(`${base}/test/csrf`, capture('patch')),
+      http.delete(`${base}/test/csrf`, capture('delete')),
+      http.get(`${base}/test/csrf`, capture('get')),
+    );
+
+    await adminPost('/test/csrf', {});
+    await adminPut('/test/csrf', {});
+    await adminPatch('/test/csrf', {});
+    await adminDelete('/test/csrf');
+    await adminGet('/test/csrf');
+
+    for (const method of ['post', 'put', 'patch', 'delete', 'get'] as const) {
+      expect(seen[method]).toBe(env.csrfHeaderValue);
+    }
+  });
+
+  it('sends the CSRF marker header on multipart uploads', async () => {
+    let seen: string | null = null;
+    server.use(
+      http.post(`${base}/test/upload-csrf`, ({ request }) => {
+        seen = request.headers.get(env.csrfHeaderName);
+        return ok({});
+      }),
+    );
+    await adminUpload('/test/upload-csrf', new FormData());
+    expect(seen).toBe(env.csrfHeaderValue);
   });
 
   it('honours an explicit idempotencyKey override', async () => {
