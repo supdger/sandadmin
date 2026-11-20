@@ -137,13 +137,13 @@ else
   fi
 
   # 基线只减不增：对照 BASE 行数不得变多；BASE 侧不存在按 0 行计。
-  # bootstrap 语义（与快档 CI 同一条规则）：BASE 侧 merge-gates.yml
-  # grep 不到 baseline-shrink = 本闸首次登记，行数增长随 PR 人审，
-  # 只 WARN 不拦；门禁进了 main 之后一律硬 fail。
+  # bootstrap 语义（与快档 CI 同一条规则）：BASE 侧 pre-merge.sh 含
+  # strict-types-baseline = 本闸已存在于 BASE；grep 不到 = 本闸首次
+  # 登记，行数增长随 PR 人审只 WARN 不拦；进了 main 之后一律硬 fail。
   step "基线只减不增（对照 ${BASE}）"
-  BASE_GATE=$(git show "$BASE:.github/workflows/merge-gates.yml" 2>/dev/null || true)
+  BASE_SCRIPT=$(git show "$BASE:tools/pre-merge.sh" 2>/dev/null || true)
   BOOTSTRAP=0
-  if ! printf '%s' "$BASE_GATE" | grep -q 'baseline-shrink'; then
+  if ! printf '%s' "$BASE_SCRIPT" | grep -q 'strict-types-baseline'; then
     BOOTSTRAP=1
     echo "基线闸首次落地，增长部分随本 PR 人审；合并入 main 后本检查生效"
   fi
