@@ -9,11 +9,9 @@ namespace Sandadmin\Http\Middleware;
 
 use Sandadmin\Application\Error\ErrorBody;
 use Sandadmin\Application\Security\CsrfConfig;
-use Sandadmin\Domain\Auth\RequestContext;
 use Sandadmin\Http\JsonErrorResponse;
 use Sandadmin\Http\RequestContextStore;
 use Sandadmin\Http\RequestHeaders;
-use Sandadmin\Http\RequestIds;
 use Webman\Http\Request;
 use Webman\Http\Response;
 use Webman\MiddlewareInterface;
@@ -38,8 +36,6 @@ final class CsrfMiddleware implements MiddlewareInterface
 
     private readonly RequestContextStore $contexts;
 
-    private readonly RequestIds $requestIds;
-
     private readonly RequestHeaders $headers;
 
     public function __construct(?CsrfConfig $config = null)
@@ -47,7 +43,6 @@ final class CsrfMiddleware implements MiddlewareInterface
         $this->config = $config ?? CsrfConfig::fromConfig();
         $this->json = new JsonErrorResponse();
         $this->contexts = new RequestContextStore();
-        $this->requestIds = new RequestIds();
         $this->headers = new RequestHeaders();
     }
 
@@ -116,19 +111,7 @@ final class CsrfMiddleware implements MiddlewareInterface
     private function reject(Request $request, string $message): Response
     {
         return $this->json->fromBody(
-            new ErrorBody(403, 'CSRF_REJECTED', $message, [], $this->ensureRequestId($request)),
+            new ErrorBody(403, 'CSRF_REJECTED', $message, [], $this->contexts->ensure($request)->requestId),
         );
-    }
-
-    private function ensureRequestId(Request $request): string
-    {
-        $existing = $this->contexts->get($request);
-        if ($existing !== null) {
-            return $existing->requestId;
-        }
-        $requestId = $this->requestIds->resolve($this->headers->optional($request, 'x-request-id'));
-        $this->contexts->set($request, new RequestContext(null, $requestId));
-
-        return $requestId;
     }
 }

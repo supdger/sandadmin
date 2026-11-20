@@ -8,18 +8,16 @@ declare(strict_types=1);
 namespace Sandadmin\Http\Middleware;
 
 use Sandadmin\Application\Error\ErrorResponder;
-use Sandadmin\Domain\Auth\RequestContext;
 use Sandadmin\Http\JsonErrorResponse;
 use Sandadmin\Http\RequestContextStore;
-use Sandadmin\Http\RequestHeaders;
-use Sandadmin\Http\RequestIds;
 use Webman\Http\Request;
 use Webman\Http\Response;
 use Webman\MiddlewareInterface;
 
 /**
  * 捕获下游异常并输出 {code,message,fields,request_id}。
- * 成功响应补上 X-Request-Id。request id 写在当前请求对象上。
+ * 成功响应补上 X-Request-Id。request id 由 RequestContextStore::ensure
+ * 统一解析并写在当前请求对象上。
  *
  * Webman 在每一层中间件外包了 try/catch，控制器异常会进 config/exception.php，
  * 到不了外层中间件。现有站点仍使用 {code,msg} 处理器，这里不替换它。
@@ -30,14 +28,12 @@ final class ErrorMiddleware implements MiddlewareInterface
         private readonly ErrorResponder $responder,
         private readonly JsonErrorResponse $json,
         private readonly RequestContextStore $contexts,
-        private readonly RequestIds $requestIds,
-        private readonly RequestHeaders $headers,
     ) {
     }
 
     public function process(Request $request, callable $handler): Response
     {
-        $fallbackRequestId = $this->ensureRequestId($request);
+        $fallbackRequestId = $this->contexts->ensure($request)->requestId;
         try {
             $response = $handler($request);
         } catch (\Throwable $error) {
@@ -50,18 +46,6 @@ final class ErrorMiddleware implements MiddlewareInterface
         }
 
         return $this->json->stamp($response, $this->currentRequestId($request, $fallbackRequestId));
-    }
-
-    private function ensureRequestId(Request $request): string
-    {
-        $existing = $this->contexts->get($request);
-        if ($existing !== null) {
-            return $existing->requestId;
-        }
-        $requestId = $this->requestIds->resolve($this->headers->optional($request, 'x-request-id'));
-        $this->contexts->set($request, new RequestContext(null, $requestId));
-
-        return $requestId;
     }
 
     private function currentRequestId(Request $request, string $fallback): string

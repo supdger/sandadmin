@@ -18,11 +18,16 @@ use Throwable;
 /**
  * /api/admin/v1/announcements 与 /me/announcements/popup。
  * 鉴权由路由默认中间件收口（B2）；权限码在 AnnouncementHttp 内判定。
- * request_id 暂由控制器生成，B2 合入后改从请求上下文取。
+ * request_id 与全站统一走 RequestContextStore::ensure，不再单独生成。
  */
 final class AnnouncementController
 {
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?RequestContextStore $contexts = null)
+    {
+        $this->contexts = $contexts ?? new RequestContextStore();
+    }
 
     public function index(Request $request): Response
     {
@@ -135,7 +140,7 @@ final class AnnouncementController
      */
     private function handle(Request $request, callable $work): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $runtime = AnnouncementRuntime::fromWebman();
             if ($runtime === null) {
@@ -182,16 +187,6 @@ final class AnnouncementController
         $agent = $request->header('user-agent');
 
         return is_string($agent) ? mb_substr($agent, 0, 64) : null;
-    }
-
-    private function requestId(Request $request): string
-    {
-        $incoming = $request->header('x-request-id');
-        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
-            return $incoming;
-        }
-
-        return 'req_' . bin2hex(random_bytes(8));
     }
 
     /** @param array<string, mixed> $body */

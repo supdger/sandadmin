@@ -43,9 +43,12 @@ final class McpController
      */
     private readonly StreamWriterInterface $streamWriter;
 
-    public function __construct(?StreamWriterInterface $streamWriter = null)
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?StreamWriterInterface $streamWriter = null, ?RequestContextStore $contexts = null)
     {
         $this->streamWriter = $streamWriter ?? new MemoryStreamWriter();
+        $this->contexts = $contexts ?? new RequestContextStore();
     }
 
     public function streamWriter(): StreamWriterInterface
@@ -69,8 +72,7 @@ final class McpController
             return $this->json(401, ErrorCodeRegistry::MCP_UNAUTHORIZED, '凭据无效或未配置')
                 ->withHeader('WWW-Authenticate', 'Bearer realm="mcp"');
         }
-        $incomingId = $request->header('x-request-id');
-        $requestId = (new RequestIds())->resolve(is_string($incomingId) ? $incomingId : null);
+        $requestId = $this->contexts->ensure($request)->requestId;
         $limiter = new WindowRateLimiter();
         $window = self::intConfig('mcp.dev.window_seconds', 60);
         if (!$limiter->hit('mcp:credential:' . $identity->credential, self::intConfig('mcp.dev.credential_limit', 60), $window)) {

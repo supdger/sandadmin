@@ -21,6 +21,11 @@ return [
         // days 缺省 183；低于下限由 LogRetentionGuard 拒绝启动。库表日志
         // （审计、登录日志表）清理同样从 LogRetentionPolicy 取天数。
         'retention' => ['kind' => 'general', 'days' => 183],
+        // RequestScope processor：请求/任务执行期把 request_id（任务另带
+        // task_id、attempt）注入 record.extra，无绑定时不产生字段、不报错。
+        'processors' => [
+            ['class' => Sandadmin\Infra\Log\RequestScope::class, 'constructor' => []],
+        ],
         'handlers' => [
             [
                 'class' => Monolog\Handler\RotatingFileHandler::class,
@@ -30,9 +35,11 @@ return [
                     181, //$maxFiles
                     Monolog\Logger::DEBUG,
                 ],
+                // 单行 JSON（time/level/channel/message/context/request_id…），
+                // 供日志平台直接检索；契约见 docs/observability/。
                 'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
-                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                    'class' => Sandadmin\Infra\Log\JsonLogFormatter::class,
+                    'constructor' => [],
                 ],
             ]
         ],
@@ -40,6 +47,9 @@ return [
     // 安全类日志通道：登录、操作、审计等安全事件写这里（下限 183 天）
     'security' => [
         'retention' => ['kind' => 'security', 'days' => 183],
+        'processors' => [
+            ['class' => Sandadmin\Infra\Log\RequestScope::class, 'constructor' => []],
+        ],
         'handlers' => [
             [
                 'class' => Monolog\Handler\RotatingFileHandler::class,
@@ -49,8 +59,8 @@ return [
                     Monolog\Logger::INFO,
                 ],
                 'formatter' => [
-                    'class' => Monolog\Formatter\LineFormatter::class,
-                    'constructor' => [null, 'Y-m-d H:i:s', true],
+                    'class' => Sandadmin\Infra\Log\JsonLogFormatter::class,
+                    'constructor' => [],
                 ],
             ]
         ],

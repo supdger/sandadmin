@@ -1,0 +1,154 @@
+# SandAdmin 基础告警规则（Prometheus alerting rules）
+#
+# 出处：顶层架构设计 v4 O 组（O2 指标、O4 告警与错误预算）+ 队列 1-15（M-18a）。
+# 指标名契约见同目录 README.md「指标名契约」一节——/metrics 端点实现
+# （队列 2-6）必须按该表逐字输出，本文件不得私自改名。
+# 本文件只交规则文本；告警通道接入（Alertmanager/邮件/webhook）属 1.1（L-03）。
+#
+# 校验：promtool check rules server/docs/observability/alerts.yml
+
+groups:
+  - name: sandadmin.http
+    rules:
+      # 5xx 率：5 分钟窗口 5xx 占比超过 1% 持续 10 分钟告警。
+      # 阈值依据：v4 I-4 常规接口错误率预算远低于 1%，1% 已属事故级。
+      - alert: SandadminHigh5xxRate
+        expr: |
+          sum(rate(sandadmin_http_requests_total{status_class="5xx"}[5m]))
+            / sum(rate(sandadmin_http_requests_total[5m])) > 0.01
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SandAdmin 5xx 率超阈值"
+          description: "近 5 分钟 5xx 响应占比 >1% 且持续 10 分钟，当前值 {{ $value | humanizePercentage }}。先查 sandadmin_http_requests_total 按 route/status_class 拆分定位端点。"
+
+      # P99 延迟：全路由合计直方图 P99 超过 2 秒持续 10 分钟。
+      # 阈值依据：v4 I-4 常规接口 P99 目标 ≤2s（压测复核口径），
+      # 慢模型/AI 类端点如需豁免应在 /metrics 侧拆 route 标签后另立规则。
+      - alert: SandadminHighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le) (rate(sandadmin_http_request_duration_seconds_bucket[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SandAdmin P99 延迟超阈值"
+          description: "近 5 分钟全路由 P99 延迟 >2s 且持续 10 分钟，当前 {{ $value }}s。按 route 拆分 sandadmin_http_request_duration_seconds 定位慢端点。"
+
+  - name: sandadmin.infra
+    rules:
+      # 主库连接数水位：active 连接超过 max_connections 的 70%（O4 升档线）。
+      - alert: SandadminDbConnectionsHigh
+        expr: |
+          sandadmin_db_connections{state="active"}
+            / sandadmin_db_connection_limit > 0.7
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SandAdmin 主库连接数超 70% 水位"
+          description: "主库 active 连接占 max_connections 比例 {{ $value | humanizePercentage }} 持续 10 分钟，触及 v4 O4 升档线，评估扩容或排查连接泄漏。"
+
+      # 主库 CPU：node exporter 标准指标 node_cpu_seconds_total，
+      # instance 标签须经录制规则/联邦把「主库所在节点」筛出来
+      # （见 README「指标名契约」部署注意）；未部署 node exporter 时
+      # 本规则无数据不触发。
+      - alert: SandadminDbCpuHigh
+        expr: |
+          avg by (instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m])) > 0.6
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SandAdmin 主库节点 CPU 超 60% 升档线"
+          description: "节点 {{ $labels.instance }} CPU 非 idle 占比 {{ $value | humanizePercentage }} 持续 10 分钟，确认该 instance 为主库节点。"
+
+      # 任务堆积：queued 状态任务数超过 100 持续 15 分钟。
+      # 阈值依据：首期任务为低频后台作业（导出/清理/通知），正常积压应
+      # 远低于该值；100 仅为起步哨兵线，按实际业务量在压测后校准。
+      - alert: SandadminTaskQueueBacklog
+        expr: sandadmin_task_queue_depth{state="queued"} > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SandAdmin 任务队列积压"
+          description: "queued 任务数 {{ $value }} 持续 15 分钟超 100，检查 task_worker 进程存活与 sandadmin_task_oldest_queued_seconds。"
+
+      # 进程重启：worker_id（hostname-pid）对应进程启动不足 5 分钟即视为
+      # 刚重启（崩溃拉起或发版滚动重启都会命中，发版窗口可临时静默）。
+      - alert: SandadminProcessRestarted
+        expr: time() - sandadmin_process_start_time_seconds < 300
+        labels:
+          severity: info
+        annotations:
+          summary: "SandAdmin 进程 {{ $labels.worker_id }} 刚重启"
+          description: "进程 {{ $labels.worker_id }} 启动于 {{ $value | humanizeDuration }} 前，若非发版窗口请排查崩溃原因。"
+
+      # 漏跑告警（M-15 计划行）：定时调度超过 2 个周期没有成功
+      # schedule_run 记录。last_success 与 interval 均由 /metrics 侧从
+      # sand_system_schedule_run 表导出；任务从未成功过时指标缺失，
+      # 由 sandadmin_schedule_last_run_timestamp_seconds 兜底另行监控。
+      - alert: SandadminScheduleMissedRun
+        expr: |
+          time() - sandadmin_schedule_last_success_timestamp_seconds
+            > 2 * sandadmin_schedule_interval_seconds
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SandAdmin 定时任务 {{ $labels.schedule }} 疑似漏跑"
+          description: "schedule {{ $labels.schedule }} 距上次成功 schedule_run 已超过 2 个周期（interval={{ $value }}s 口径见指标标签），检查调度器与任务执行日志（request_id/task_id 可串联）。"
+
+  - name: sandadmin.error-budget
+    rules:
+      # 30 天滚动可用性 = 成功请求数 / 总请求数（按 class 拆分）。
+      - record: sandadmin:slo_availability:30d
+        expr: |
+          sum by (class) (
+            increase(sandadmin_slo_requests_total{result="success"}[30d])
+          )
+          /
+          sum by (class) (
+            increase(sandadmin_slo_requests_total[30d])
+          )
+
+      # 剩余错误预算（分钟）= (可用性 - SLO目标) × 30天分钟数(43200)。
+      # 99.9% 档预算总量 = 0.001 × 43200 ≈ 43 分钟；99.5% 档 ≈ 216 分钟。
+      # 归零即预算用完 → 冻结发版；负值表示已透支。
+      # SLO 目标按 class 内联：> bool 0 把「该 class 有流量」物化成 0/1
+      # 向量，与可用性序列按 class 标签对齐相乘；录制规则名不允许内嵌
+      # 标签，同名 record 多规则会被 promtool lint 拒绝，故合并为一条。
+      - record: sandadmin:error_budget_remaining_minutes:30d
+        expr: |
+          (
+            sum by (class) (
+              increase(sandadmin_slo_requests_total{result="success"}[30d])
+            )
+            /
+            sum by (class) (
+              increase(sandadmin_slo_requests_total[30d])
+            )
+            -
+            (
+              0.999
+              * (sum by (class) (increase(sandadmin_slo_requests_total{class=~"login|authz|sync"}[30d])) > bool 0)
+              +
+              0.995
+              * (sum by (class) (increase(sandadmin_slo_requests_total{class="ai"}[30d])) > bool 0)
+            )
+          ) * 43200
+
+      # 错误预算冻结发版（O4）：任一 SLO 分类预算用完即告警，
+      # 值班/发版负责人据此冻结当次发版，恢复可用性后预算回升自动解除。
+      - alert: SandadminErrorBudgetFreeze
+        expr: sandadmin:error_budget_remaining_minutes:30d <= 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SandAdmin {{ $labels.class }} 错误预算用完，冻结发版"
+          description: "class={{ $labels.class }} 30 天滚动可用性已低于 SLO 目标，43/216 分钟预算口径见 docs/observability/README.md；发版冻结至预算回升。"

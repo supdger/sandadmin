@@ -18,7 +18,12 @@ use Webman\Http\UploadFile;
 /** 插件安装、升级、卸载和系统升级。生产环境在 PackageGate 里直接拒绝。 */
 final class PackageController
 {
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?RequestContextStore $contexts = null)
+    {
+        $this->contexts = $contexts ?? new RequestContextStore();
+    }
 
     public function install(Request $request, string $plugin_code): Response
     {
@@ -74,7 +79,7 @@ final class PackageController
      */
     private function run(Request $request, callable $work): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
@@ -100,7 +105,7 @@ final class PackageController
      */
     private function read(Request $request, callable $work): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
@@ -122,17 +127,7 @@ final class PackageController
 
     private function failEarly(Request $request, int $status, string $code, string $message): Response
     {
-        return $this->send(ApiOutcome::fail($status, $code, $message, [], $this->requestId($request)));
-    }
-
-    private function requestId(Request $request): string
-    {
-        $incoming = $request->header('x-request-id');
-        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
-            return $incoming;
-        }
-
-        return 'req_' . bin2hex(random_bytes(8));
+        return $this->send(ApiOutcome::fail($status, $code, $message, [], $this->contexts->ensure($request)->requestId));
     }
 
     /** @param array{status: int, body: array<string, mixed>} $outcome */

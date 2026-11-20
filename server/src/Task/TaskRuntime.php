@@ -74,9 +74,27 @@ final readonly class TaskRuntime
         return new self(
             store: $store,
             dispatcher: new TaskDispatcher($store, $clock),
-            executor: new TaskExecutor($store, $handlers, $clock, $workerId, $config),
+            executor: new TaskExecutor($store, $handlers, $clock, $workerId, $config, null, self::taskLogger()),
             handlers: $handlers,
             config: $config,
         );
+    }
+
+    /**
+     * 任务执行日志走 default 通道（结构化 JSON + RequestScope 注入）；
+     * 配置未装载（裸 CLI/测试）时返回 null，执行器回落 error_log。
+     */
+    private static function taskLogger(): ?\Psr\Log\LoggerInterface
+    {
+        try {
+            $log = function_exists('config') ? config('log') : null;
+            if (!is_array($log) || !isset($log['default']) || !is_array($log['default'])) {
+                return null;
+            }
+
+            return \support\Log::channel('default');
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

@@ -12,6 +12,7 @@ use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
+use Sandadmin\Http\RequestIds;
 
 /**
  * 业务工具的统一执行器：只把「操作键 + 参数 + 调用上下文」交给网关，
@@ -29,7 +30,7 @@ final class BizToolRunner implements ToolRunner
     /** @param array<string, mixed> $arguments */
     public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
-        $context ??= new CallContext('req_' . bin2hex(random_bytes(8)), null, McpIdentity::CHANNEL);
+        $context ??= new CallContext((new RequestIds())->resolve(null), null, McpIdentity::CHANNEL);
         $reply = $this->gateway->call($identity, $this->operation, $arguments, $context);
         if ($reply->succeeded()) {
             return ToolOutcome::ok($reply->data);

@@ -18,7 +18,12 @@ use Throwable;
 /** /api/admin/v1/notifications。鉴权由默认中间件收口，这里只组装消息列表。 */
 final class NotificationController
 {
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?RequestContextStore $contexts = null)
+    {
+        $this->contexts = $contexts ?? new RequestContextStore();
+    }
 
     public function index(Request $request): Response
     {
@@ -69,7 +74,7 @@ final class NotificationController
      */
     private function handle(Request $request, callable $work): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $runtime = NotificationRuntime::fromWebman();
             if ($runtime === null) {
@@ -92,16 +97,6 @@ final class NotificationController
         $key = $request->header('idempotency-key');
 
         return is_string($key) ? $key : null;
-    }
-
-    private function requestId(Request $request): string
-    {
-        $incoming = $request->header('x-request-id');
-        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
-            return $incoming;
-        }
-
-        return 'req_' . bin2hex(random_bytes(8));
     }
 
     /** @param array<string, mixed> $body */

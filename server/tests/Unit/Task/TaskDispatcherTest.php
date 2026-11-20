@@ -11,6 +11,7 @@ namespace Sandadmin\Tests\Unit\Task;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Sandadmin\Infra\Log\RequestScope;
 use Sandadmin\Task\InvalidTaskException;
 use Sandadmin\Task\TaskDispatcher;
 use Sandadmin\Task\TaskState;
@@ -109,5 +110,78 @@ final class TaskDispatcherTest extends TestCase
     {
         $this->expectException(InvalidTaskException::class);
         $this->dispatcher->dispatch('noop', [], 7, 'bad key with spaces');
+    }
+
+    public function testDispatchStoresRequestIdInReservedContext(): void
+    {
+        $task = $this->dispatcher->dispatch('noop', ['a' => 1], 7, null, 'req-trace0001');
+        $context = $task->payload['__context'] ?? null;
+        self::assertIsArray($context);
+
+        self::assertSame('req-trace0001', $context['request_id'] ?? null);
+        self::assertSame(1, $task->payload['a'] ?? null);
+    }
+
+    public function testDispatchWithoutRequestIdKeepsPayloadClean(): void
+    {
+        $task = $this->dispatcher->dispatch('noop', ['a' => 1], 7);
+
+        self::assertArrayNotHasKey('__context', $task->payload);
+    }
+
+    public function testDispatchDropsCallerProvidedContext(): void
+    {
+        // __context 归 dispatcher 独占：调用方自带的一律剥掉，
+        // 防止伪造 request_id 在无 requestId 时绕过格式校验落库
+        $task = $this->dispatcher->dispatch('noop', [
+            '__context' => ['request_id' => "bad\nid", 'extra' => 'x'],
+            'a' => 1,
+        ], 7);
+
+        self::assertArrayNotHasKey('__context', $task->payload);
+        self::assertSame(1, $task->payload['a'] ?? null);
+    }
+
+    public function testDispatchContextKeepsOnlyDispatcherRequestId(): void
+    {
+        $task = $this->dispatcher->dispatch('noop', [
+            '__context' => ['request_id' => 'req-forged001', 'extra' => 'x'],
+        ], 7, null, 'req-real000001');
+
+        self::assertSame(['request_id' => 'req-real000001'], $task->payload['__context'] ?? null);
+    }
+
+    public function testDispatchRejectsMalformedRequestId(): void
+    {
+        $this->expectException(InvalidTaskException::class);
+        $this->dispatcher->dispatch('noop', [], 7, null, "bad\nid");
+    }
+
+    public function testDispatchDerivesRequestIdFromScope(): void
+    {
+        $scope = new RequestScope();
+        $scope->bind('req-scope0001');
+        try {
+            $task = $this->dispatcher->dispatch('noop', ['a' => 1], 7);
+            $context = $task->payload['__context'] ?? null;
+            self::assertIsArray($context);
+            self::assertSame('req-scope0001', $context['request_id'] ?? null);
+        } finally {
+            $scope->clear();
+        }
+    }
+
+    public function testDispatchExplicitRequestIdWinsOverScope(): void
+    {
+        $scope = new RequestScope();
+        $scope->bind('req-scope0001');
+        try {
+            $task = $this->dispatcher->dispatch('noop', [], 7, null, 'req-explicit01');
+            $context = $task->payload['__context'] ?? null;
+            self::assertIsArray($context);
+            self::assertSame('req-explicit01', $context['request_id'] ?? null);
+        } finally {
+            $scope->clear();
+        }
     }
 }
