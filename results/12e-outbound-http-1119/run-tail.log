@@ -1,0 +1,24 @@
+dv-scout 档案报错（模型不可用）。先试内置只读档案做调研。实现已完成并提交。现在核对产物与差异。验收通过。推送分支并建未合并 PR。## 结果
+
+12e M-10 OutboundHttpClient 已完成并交付为**未合并 PR #117**（supdger/sandadmin，分支 `feat/outbound-http`，基线 `5360129`）。
+
+- **实现**：`src/Domain/Http/` 契约 + `src/Infra/Http/` curl 实现——connect/read 停滞/total 三超时、指数退避重试（幂等默认、POST 不重试）、W3C traceparent/tracestate + X-Request-Id 透传、SSRF 闸门（DNS 全结果校验 + IPv4/IPv6 保留段 + 白名单 + CURLOPT_RESOLVE 防 rebinding）、响应体 10MB 上限、不跟随重定向、proxy 可配。
+- **改造**：宿主唯一出站调用 `CurlProbeTransport` 已迁移且保持旧语义；真实出站都在 gitignored plugin/（sand-core/sand-package 上游包），本仓无可迁移对象，已在 RESULT 声明。
+- **门禁**：`scan-outbound-http.php` 挂进 `pre-merge.sh --fast`（9 步），实测拦截 curl/Guzzle/SoapClient/socket，`src/Infra/Http/` 唯一豁免，Psr7 不误伤。
+- **验证**：unit 798 tests / phpstan 0 errors / pre-merge 9/9 / naming 0 FAIL；独立验收（新上下文）12 项全过，判定**通过**。
+- **偏差**：dv-scout/dv-implementer/dv-verifier 档案均报模型不可用，调研/实现/验收改用 `subagent_general`（SWE-2）完成，已在 RESULT 记录。
+- **阻塞项**：#81 仍 OPEN，只卡合并；本任务不合并。
+
+RESULT：`~/agent-work/assistant/12e-outbound-http-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：SWE-2 Flash Medium（系统自报；sessions.db 未逐条核对）
+- 子 Agent：调研/实现/返工/独立验收均用 `subagent_general`（跟随主模型 SWE-2；dv-* 档案报模型不可用）→ 实际记录：未单独核对
+
+## 任务记录
+- 已修改：`~/agent-work/pub-sandadmin` feat/outbound-http，2 commits（b09a74c、41670cd），21 文件
+- 已验证：phpunit unit、phpstan、pre-merge --fast、naming_check、门禁探针实测，均 exit 0
+- 已提交/已部署：已提交并推送；PR #117 未合并；未部署
+- 未完成：合并（等 #81 + CI + Fusion 审计，本任务不合并）
+
+=== RUN COMPLETE ===
