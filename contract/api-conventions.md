@@ -57,8 +57,10 @@
   `MCP_HIGH_RISK_NOT_OPEN` → `ErrorCodeRegistry::MCP_HIGH_RISK_CLOSED`）；
   不写 `const` 时常量名即码名。两个码声明同一 `const` 构建失败。
 
-- 四个通用码 `VALIDATION_FAILED`/`UNAUTHENTICATED`/`PERMISSION_DENIED`/
-  `INTERNAL_ERROR` 标 `common: true`，接口不用逐个在 `x-error-codes` 声明。
+- 五个通用码 `VALIDATION_FAILED`/`UNAUTHENTICATED`/`PERMISSION_DENIED`/
+  `CSRF_REJECTED`/`INTERNAL_ERROR` 标 `common: true`，接口不用逐个在
+  `x-error-codes` 声明。`CSRF_REJECTED` 由全局 CsrfMiddleware 对
+  `/api/admin/v1` 写操作发出。
 - 业务码必须在 `x-error-catalog` 先登记再在接口 `x-error-codes` 引用；
   未登记引用直接构建失败（「码先登记再使用」是门禁不是纪律）。
 - `VALIDATION_FAILED` 在装配层有 400/422 两种状态取值，语义相同。

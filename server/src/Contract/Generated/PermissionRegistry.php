@@ -5,7 +5,7 @@ declare(strict_types=1);
 // <contract-generated> 本文件由 tools/contract-build 生成，请勿手改；
 // 改了会在契约一致性门禁（tools/contract-build --check）被打回。
 // 源: contract/openapi.yaml
-// 源哈希: sha256:2833307d8f669083fdd94ffb32fa12fe611a563123a1b737e4977ff218fdc6f6
+// 源哈希: sha256:0e05c7423b5b7fd78d046ae957a741380629f10e683c91907c04c36be6a890ca
 // 生成器: contract-build v1
 
 namespace Sandadmin\Contract\Generated;

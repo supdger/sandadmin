@@ -9,6 +9,13 @@ export interface AppEnv {
   appLogo: string | null;
   copyright: string;
   defaultLocale: string;
+  /**
+   * v1 写操作必带的 CSRF 标记头（服务端 CsrfMiddleware 只认这一对）。
+   * 必须与后端 SAND_CSRF_HEADER_NAME / SAND_CSRF_HEADER_VALUE 一致，
+   * 后端只要求存在时值可以是任意非空串（默认沿用 XHR 惯例值）。
+   */
+  csrfHeaderName: string;
+  csrfHeaderValue: string;
   // SAND-DEV-BEGIN
   enableMocks: boolean;
   /**
@@ -45,6 +52,8 @@ export const env: AppEnv = {
     '© 2026 青岛沙盒创意网络科技有限公司',
   ),
   defaultLocale: readString(import.meta.env.VITE_DEFAULT_LOCALE, 'zh-CN'),
+  csrfHeaderName: readString(import.meta.env.VITE_CSRF_HEADER_NAME, 'X-Requested-With'),
+  csrfHeaderValue: readString(import.meta.env.VITE_CSRF_HEADER_VALUE, 'XMLHttpRequest'),
   // SAND-DEV-BEGIN
   // Mocks default on in dev, off in production builds.
   enableMocks: readBool(import.meta.env.VITE_ENABLE_MOCKS, import.meta.env.DEV),

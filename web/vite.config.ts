@@ -2,7 +2,7 @@ import { rmSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
 import { loadEnv } from 'vite';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -65,6 +65,8 @@ export default defineConfig(({ mode }) => {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // e2e/ 是 Playwright 冒烟，不进 vitest。
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 };
 });
