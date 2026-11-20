@@ -88,22 +88,22 @@ describe('WorkbenchPage', () => {
 
   it('renders empty states when dashboard lists are missing', async () => {
     server.use(
-      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/summary', () => HttpResponse.json({ code: 'OK', data: {}, request_id: 'empty' })),
       http.get('/api/admin/v1/dashboard/todos', () =>
-        HttpResponse.json({ data: { items: null, total: 0 }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { items: null, total: 0 }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/charts', () =>
-        HttpResponse.json({ data: { charts: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { charts: null }, request_id: 'empty' }),
       ),
-      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.json({ data: {}, request_id: 'empty' })),
+      http.get('/api/admin/v1/dashboard/activities', () => HttpResponse.json({ code: 'OK', data: {}, request_id: 'empty' })),
       http.get('/api/admin/v1/dashboard/notices', () =>
-        HttpResponse.json({ data: { items: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { items: null }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/shortcuts', () =>
-        HttpResponse.json({ data: { mode: 'auto', items: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { mode: 'auto', items: null }, request_id: 'empty' }),
       ),
       http.get('/api/admin/v1/dashboard/onboarding', () =>
-        HttpResponse.json({ data: { done: false, steps: null }, request_id: 'empty' }),
+        HttpResponse.json({ code: 'OK', data: { done: false, steps: null }, request_id: 'empty' }),
       ),
     );
     setToken('mock-admin-token');
@@ -113,7 +113,7 @@ describe('WorkbenchPage', () => {
     expect(await screen.findByText('都处理完了，没有要你处理的事')).toBeInTheDocument();
     expect(screen.getByText('数据会在明天出现')).toBeInTheDocument();
     expect(screen.getByText('还没有动态，有人操作后会显示在这里')).toBeInTheDocument();
-    expect(screen.getByText('还没有快捷入口')).toBeInTheDocument();
+    expect(screen.getByText('暂无快捷入口')).toBeInTheDocument();
     expect(screen.queryByText('这张卡没能加载出来')).not.toBeInTheDocument();
   });
 

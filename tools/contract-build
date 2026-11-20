@@ -1,0 +1,110 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Copyright (c) 2026 青岛沙盒创意网络科技有限公司
+// SPDX-License-Identifier: MIT
+
+// 契约构建薄壳：全部逻辑在 Sandadmin\Contract\Build，这里只解析参数。
+//   php tools/contract-build                    生成/覆盖全部产物
+//   php tools/contract-build --check            逐字节比对产物与源，不一致列文件并退出 1
+//   php tools/contract-build --plugins <dir>    校验 <dir>/*/contract/openapi.yaml 片段
+//   php tools/contract-build --kernel-api <dir> 校验外部插件仓 <dir>/plugin/*/contract/openapi.yaml
+//   php tools/contract-build [--check] --report <file>  把 JSON 报告写到 <file>
+
+require __DIR__ . '/../server/vendor/autoload.php';
+
+use Sandadmin\Contract\Build\ContractBuild;
+
+$args = $_SERVER['argv'];
+array_shift($args);
+
+$check = false;
+$reportFile = null;
+$pluginsDir = null;
+$kernelRoot = null;
+
+for ($i = 0; $i < count($args); $i++) {
+    switch ($args[$i]) {
+        case '--check':
+            $check = true;
+            break;
+        case '--report':
+            $reportFile = $args[++$i] ?? null;
+            break;
+        case '--plugins':
+            $pluginsDir = $args[++$i] ?? null;
+            break;
+        case '--kernel-api':
+            $kernelRoot = $args[++$i] ?? null;
+            break;
+        case '--help':
+        case '-h':
+            echo "用法：php tools/contract-build [--check] [--plugins <dir>] [--kernel-api <dir>] [--report <file>]\n";
+            exit(0);
+        default:
+            fwrite(STDERR, "未知参数：{$args[$i]}\n");
+            exit(2);
+    }
+}
+
+$repoRoot = dirname(__DIR__);
+$hostContract = $repoRoot . '/contract/openapi.yaml';
+$exitCode = 0;
+$report = [];
+
+if ($kernelRoot !== null || $pluginsDir !== null) {
+    // --kernel-api 指向插件仓根（片段在 <根>/plugin/<app>/contract/），
+    // --plugins 直接指向插件容器目录（片段在 <dir>/<app>/contract/）
+    $pluginRoot = $kernelRoot !== null ? $kernelRoot . '/plugin' : (string) $pluginsDir;
+    $report = ContractBuild::checkKernelApi($pluginRoot, $hostContract);
+    foreach ($report['problems'] as $problem) {
+        fwrite(STDERR, '  ' . $problem . "\n");
+    }
+    if ($report['result'] === 'ok') {
+        echo 'PASS 契约片段检查通过（' . count($report['fragments']) . ' 份）' . "\n";
+    } else {
+        fwrite(STDERR, "FAIL 契约片段检查未通过\n");
+        $exitCode = 1;
+    }
+} elseif ($check) {
+    $report = ContractBuild::check($repoRoot);
+    foreach ($report['mismatches'] as $file) {
+        fwrite(STDERR, '  不一致：' . $file . "\n");
+    }
+    foreach ($report['problems'] as $problem) {
+        fwrite(STDERR, '  ' . $problem . "\n");
+    }
+    if ($report['result'] === 'ok') {
+        echo "PASS 产物与契约源一致\n";
+    } else {
+        fwrite(STDERR, "FAIL 产物与契约源不一致，请运行 php tools/contract-build\n");
+        $exitCode = 1;
+    }
+} else {
+    $report = ContractBuild::build($repoRoot, write: true);
+    foreach ($report['warnings'] as $warning) {
+        fwrite(STDERR, '  warning: ' . $warning . "\n");
+    }
+    foreach (array_merge($report['problems'], $report['conflicts']) as $problem) {
+        fwrite(STDERR, '  ' . $problem . "\n");
+    }
+    if ($report['result'] === 'ok') {
+        echo 'PASS 契约构建完成（' . count($report['artifacts']) . ' 个产物，'
+            . count($report['incomplete_operations']) . ' 个 operation）' . "\n";
+    } else {
+        fwrite(STDERR, "FAIL 契约构建失败\n");
+        $exitCode = 1;
+    }
+}
+
+if ($reportFile !== null) {
+    $json = json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || file_put_contents($reportFile, $json . "\n") === false) {
+        fwrite(STDERR, '无法写报告：' . $reportFile . "\n");
+        $exitCode = 1;
+    }
+}
+
+exit($exitCode);

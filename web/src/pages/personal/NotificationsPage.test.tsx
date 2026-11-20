@@ -72,7 +72,7 @@ describe('NotificationsPage', () => {
     server.use(
       http.post(`${base}/notifications/ntf-001/read`, () => {
         readCalls += 1;
-        return HttpResponse.json({ data: { read: true }, request_id: 't' });
+        return HttpResponse.json({ code: 'OK', data: { read: true }, request_id: 't' });
       }),
     );
     renderPage();

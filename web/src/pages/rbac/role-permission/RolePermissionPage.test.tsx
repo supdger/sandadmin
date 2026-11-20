@@ -70,7 +70,7 @@ describe('RolePermissionPage', () => {
     server.use(
       http.put(`${v1}/roles/role-ops/permissions`, async ({ request }) => {
         putBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({
+        return HttpResponse.json({ code: 'OK',
           data: { affected_users: 4 },
           request_id: 'test',
         });

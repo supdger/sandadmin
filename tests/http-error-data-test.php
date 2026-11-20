@@ -3,37 +3,42 @@
 declare(strict_types=1);
 
 /**
- * HTTP 业务错误 data 透传断言（开发用；不随包发布）。
+ * v1 信封静态契约断言（开发用；不随包发布）。
  *
  *   php tests/http-error-data-test.php
  *
- * sandadmin-artd 前端无 vitest/jest 基建，HTTP 层无法在本仓直接执行，
- * 因此沿用本仓 tests/ 既有约定，对前端源文件做静态契约断言：
+ * 原断言对象是已退役的 sandadmin-artd HTTP 层；v1 契约统一后改扫
+ * web/ 前端与 server/ 后端的真实信封实现：
  *
- *   1. 业务错误路径（HTTP 200 但 body code!==200）把响应信封的业务
- *      负载 response.data.data 透传进 HttpError（error.data），供
- *      sand-ai egressBlockedDetails 等结构化消费方识别出站拦截等场景。
- *   2. createHttpError 扩展为可选第三参 data 并透传给 HttpError options；
- *      401 防抖路径与请求拦截器保持原有调用（最小改动）。
- *   3. HttpError 构造函数支持 options.data；handleError 的 HTTP 状态码
- *      路径仍透传 error.response.data（回归不破坏）。
- *   4. isRecoverableInitializationError 仍要求 method==='GET' 且带
- *      transport 标记：业务错误 HttpError 无 method/transport，新增
- *      data 不会被误判为可重试初始化错误。
+ *   1. 后端成功信封单点（ApiOutcome::ok / JsonSuccessResponse）输出
+ *      {code:"OK", message:"操作成功", data, request_id}；
+ *   2. 后端模块侧不再散落手写成功信封（除两个单点外无 {data, request_id}
+ *      成功体）；
+ *   3. 前端 adminClient 成功判定只看 code === 'OK'，
+ *      "存在 data 即成功"的旧宽松判定已移除；
+ *   4. 前端业务错误仍把 code/message/fields/request_id 映射进
+ *      AdminApiError（data 透传语义不破坏）；
+ *   5. v1 mock okV1 与契约信封一致，测试与实现不脱节。
  */
 
 namespace {
     $root = dirname(__DIR__);
-    $httpIndex = $root . '/sandadmin-artd/src/utils/http/index.ts';
-    $httpError = $root . '/sandadmin-artd/src/utils/http/error.ts';
-    foreach ([$httpIndex, $httpError] as $file) {
+    $files = [
+        'adminClient' => $root . '/web/src/lib/adminClient.ts',
+        'okV1' => $root . '/web/src/mocks/handlers/_v1.ts',
+        'apiOutcome' => $root . '/server/src/Http/ApiOutcome.php',
+        'jsonSuccess' => $root . '/server/src/Http/JsonSuccessResponse.php',
+    ];
+    foreach ($files as $name => $file) {
         if (!is_file($file)) {
-            fwrite(STDERR, "[FAIL] 前端源文件不存在：{$file}\n");
+            fwrite(STDERR, "[FAIL] 源文件不存在：{$file}\n");
             exit(1);
         }
     }
-    $index = (string) file_get_contents($httpIndex);
-    $error = (string) file_get_contents($httpError);
+    $adminClient = (string) file_get_contents($files['adminClient']);
+    $okV1 = (string) file_get_contents($files['okV1']);
+    $apiOutcome = (string) file_get_contents($files['apiOutcome']);
+    $jsonSuccess = (string) file_get_contents($files['jsonSuccess']);
 
     $assert = static function (bool $cond, string $message): void {
         if (!$cond) {
@@ -44,35 +49,60 @@ namespace {
     };
     $has = static fn (string $haystack, string $needle): bool => str_contains($haystack, $needle);
 
-    // 1. 业务错误路径透传信封内层 data（BaseResponse.data），而非整个信封。
-    $assert($has($index, 'const { code, message, data } = response.data'),
-        '响应拦截器解构出响应信封的 data 字段');
-    $assert($has($index, "throw createHttpError(hideRawDatabaseMessage(message || \$t('httpMsg.requestFailed')), code, data)"),
-        '业务错误路径把过滤后的 message 与业务负载传入 createHttpError');
-    $assert(!$has($index, "createHttpError(message || \$t('httpMsg.requestFailed'), code, response.data)"),
-        '业务错误路径不透传整个响应信封');
+    // 1. 后端成功信封单点形状
+    $assert($has($apiOutcome, "'code' => ErrorCodeRegistry::OK"),
+        'ApiOutcome::ok 输出成功码 OK（来自注册表常量）');
+    $assert($has($apiOutcome, "'message' => self::OK_MESSAGE")
+        && $has($apiOutcome, "private const OK_MESSAGE = '操作成功'"),
+        'ApiOutcome::ok 输出固定文案「操作成功」');
+    $assert($has($apiOutcome, '\'data\' => $data') && $has($apiOutcome, '\'request_id\' => $requestId'),
+        'ApiOutcome::ok 保留 data 与 request_id');
+    $assert($has($apiOutcome, '\'code\' => $code') && $has($apiOutcome, '\'fields\' => $fields'),
+        'ApiOutcome::fail 保留失败信封 {code, message, fields, request_id}');
+    $assert($has($jsonSuccess, '\'code\' => ErrorCodeRegistry::OK')
+        && $has($jsonSuccess, '\'data\' => $payload'),
+        'JsonSuccessResponse 同步输出 OK 成功信封');
 
-    // 2. createHttpError 签名扩展并转发 HttpError options.data。
-    $assert($has($index, 'function createHttpError(message: string, code: number, data?: unknown)'),
-        'createHttpError 签名含可选第三参 data?: unknown');
-    $assert($has($index, 'return new HttpError(message, code, { data })'),
-        'createHttpError 把 data 放入 HttpError options');
-    $assert($has($index, "const error = createHttpError(message || \$t('httpMsg.unauthorized'), ApiStatus.unauthorized)"),
-        '401 防抖路径保持两参调用（最小改动，不透传 data）');
+    // 2. 模块侧不再散落手写成功信封：除单点外 server/src、app 无 {data, request_id} 成功体
+    $leaks = [];
+    foreach (['server/src', 'server/app'] as $dir) {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root . '/' . $dir, FilesystemIterator::SKIP_DOTS),
+        );
+        foreach ($iterator as $file) {
+            if (!($file instanceof SplFileInfo) || $file->getExtension() !== 'php') {
+                continue;
+            }
+            $path = $file->getPathname();
+            if (str_ends_with($path, 'ApiOutcome.php') || str_ends_with($path, 'JsonSuccessResponse.php')) {
+                continue;
+            }
+            $content = (string) file_get_contents($path);
+            if (preg_match("/'data'\\s*=>[^\\n]+'request_id'\\s*=>/", $content)) {
+                $leaks[] = substr($path, strlen($root) + 1);
+            }
+        }
+    }
+    $assert($leaks === [], 'src/app 无散落 {data, request_id} 手写成功信封'
+        . ($leaks === [] ? '' : '：' . implode('、', $leaks)));
 
-    // 3. HttpError 支持 options.data；handleError HTTP 状态码路径回归不破坏。
-    $assert($has($error, 'data?: unknown') && $has($error, 'this.data = options?.data'),
-        'HttpError 构造函数支持 options.data');
-    $assert($has($error, 'data: error.response.data'),
-        'handleError HTTP 状态码路径仍透传 error.response.data');
+    // 3. 前端成功判定只看 code === 'OK'
+    $assert(substr_count($adminClient, ".code !== 'OK'") >= 2,
+        'adminClient 请求与上传路径都按 code===OK 判成功');
+    $assert(!$has($adminClient, "'data' in payload"),
+        'adminClient 已移除「存在 data 即成功」的旧宽松判定');
 
-    // 4. isRecoverableInitializationError 判定不受新增 data 影响：
-    //    业务错误 HttpError 无 method/transport，第一道守卫即排除。
-    $assert($has($error, "if (!isHttpError(error) || error.method !== 'GET') return false"),
-        '可恢复初始化错误仍要求 method===GET（业务错误无 method，天然排除）');
-    $assert($has($error, "error.transport === 'http'")
-        && $has($error, "(error.data === '' || error.data === null || error.data === undefined)"),
-        'http transport 的空 body 判定保持原口径');
+    // 4. 失败信封映射不破坏（code/message/fields/request_id 进 AdminApiError）
+    $assert($has($adminClient, 'code: errPayload.code')
+        && $has($adminClient, 'fields: errPayload.fields')
+        && $has($adminClient, 'requestId,'),
+        'adminClient 失败信封仍把 code/message/fields/request_id 透传进 AdminApiError');
+    $assert($has($adminClient, "errPayload.message || i18n.t('errors.system.message')"),
+        'adminClient 失败文案兜底逻辑保持');
+
+    // 5. v1 mock 与契约一致
+    $assert($has($okV1, "code: 'OK'") && $has($okV1, "'操作成功'"),
+        'okV1 mock 输出 {code:OK, message:操作成功, data, request_id}');
 
     echo "ALL HTTP-ERROR-DATA ASSERTIONS PASSED\n";
 }

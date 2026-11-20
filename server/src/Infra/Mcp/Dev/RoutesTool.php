@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Infra\Mcp\Dev;
 
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
@@ -34,7 +35,7 @@ final class RoutesTool implements ToolRunner
     }
 
     /** @param array<string, mixed> $arguments */
-    public function run(McpIdentity $identity, array $arguments): ToolOutcome
+    public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
         return ToolOutcome::ok([
             'routes' => ($this->routeReader)(),

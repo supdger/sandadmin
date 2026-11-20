@@ -8,6 +8,20 @@ export interface BundledPlugin {
   name: string;
 }
 
+/** 回环探测单项检查明细（probe.checks 元素）。 */
+export interface UpdateProbeCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+/** 离线回环探测结果（POST /system/update/check 的 data.probe）。 */
+export interface UpdateProbeReport {
+  ok: boolean;
+  checked_time: string;
+  checks: UpdateProbeCheck[];
+}
+
 /** 系统版本与更新状态（GET /system/update/status）。 */
 export interface UpdateStatus {
   current_version: string;
@@ -19,6 +33,8 @@ export interface UpdateStatus {
   checked_time: string | null;
   compiled: boolean;
   package_ops_enabled: boolean;
+  /** 最近一次「检查」的回环探测结果；未探测过为 null。 */
+  probe?: UpdateProbeReport | null;
   /** 进行中的系统升级生命周期申请；无则 null。 */
   running_request: LifecycleRequest | null;
   /** 最近一次失败的升级；没有进行中的申请时用来展示失败页。 */

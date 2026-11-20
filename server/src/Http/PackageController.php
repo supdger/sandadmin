@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Org\OrgException;
 use Sandadmin\Module\Package\PackageOps;
 use support\Request;
@@ -46,12 +47,12 @@ final class PackageController
     {
         $upload = $request->file('package');
         if (!$upload instanceof UploadFile || !$upload->isValid()) {
-            return $this->failEarly($request, 422, 'PLUGIN_PACKAGE_INVALID', '这个文件不是能用的安装包，请检查后再试');
+            return $this->failEarly($request, 422, ErrorCodeRegistry::PLUGIN_PACKAGE_INVALID, '这个文件不是能用的安装包，请检查后再试');
         }
         $name = $upload->getUploadName();
         $bytes = file_get_contents($upload->getPathname());
         if (!is_string($bytes)) {
-            return $this->failEarly($request, 422, 'PLUGIN_PACKAGE_INVALID', '这个文件不是能用的安装包，请检查后再试');
+            return $this->failEarly($request, 422, ErrorCodeRegistry::PLUGIN_PACKAGE_INVALID, '这个文件不是能用的安装包，请检查后再试');
         }
         $fileName = is_string($name) && $name !== '' ? $name : 'package';
 
@@ -77,7 +78,7 @@ final class PackageController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             $actor = $kernel->principal->resolve($request);
             if ($actor === null) {
@@ -90,7 +91,7 @@ final class PackageController
         } catch (Throwable $error) {
             error_log('PackageController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 
@@ -103,7 +104,7 @@ final class PackageController
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
-                return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+                return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
             }
             if ($kernel->principal->resolve($request) === null) {
                 throw OrgException::unauthenticated();
@@ -115,7 +116,7 @@ final class PackageController
         } catch (Throwable $error) {
             error_log('PackageController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->send(ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId));
+            return $this->send(ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId));
         }
     }
 

@@ -11,6 +11,7 @@ import {
   adminPatch,
   adminPost,
   adminPut,
+  adminUpload,
   isAdminSystemError,
   resetAuthzVersion,
   subscribeAuthzVersion,
@@ -21,7 +22,10 @@ import { onAppEvent } from './eventBus';
 const base = `${env.apiBaseUrl}/admin/v1`;
 
 function ok(data: unknown, init?: { headers?: Record<string, string> }) {
-  return HttpResponse.json({ data, request_id: 'req-1' }, init);
+  return HttpResponse.json(
+    { code: 'OK', message: '操作成功', data, request_id: 'req-1' },
+    init,
+  );
 }
 
 function fail(
@@ -33,7 +37,7 @@ function fail(
 }
 
 describe('adminClient', () => {
-  it('unwraps data from the {data, request_id} envelope', async () => {
+  it('unwraps data from the {code:OK, data, request_id} envelope', async () => {
     server.use(http.get(`${base}/test/ok`, () => ok({ hello: 'world' })));
     await expect(adminGet<{ hello: string }>('/test/ok')).resolves.toEqual({
       hello: 'world',
@@ -101,8 +105,12 @@ describe('adminClient', () => {
     expect((htmlErr as AdminApiError).system).toBe(true);
   });
 
-  it('rejects a 200 payload missing the data key', async () => {
-    server.use(http.get(`${base}/test/no-data`, () => HttpResponse.json({ request_id: 'r' })));
+  it('rejects a 200 payload without the OK code', async () => {
+    server.use(
+      http.get(`${base}/test/no-data`, () =>
+        HttpResponse.json({ data: { hello: 'world' }, request_id: 'r' }),
+      ),
+    );
     const err = await adminGet('/test/no-data').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AdminApiError);
     expect((err as AdminApiError).system).toBe(true);
@@ -143,6 +151,45 @@ describe('adminClient', () => {
       expect(seen[method]).toMatch(/^[0-9a-f-]{36}$/i);
     }
     expect(seen.get).toBeNull();
+  });
+
+  it('sends the configured CSRF marker header on every request', async () => {
+    const seen: Record<string, string | null> = {};
+    const capture =
+      (key: string) =>
+      ({ request }: { request: Request }) => {
+        seen[key] = request.headers.get(env.csrfHeaderName);
+        return ok({});
+      };
+    server.use(
+      http.post(`${base}/test/csrf`, capture('post')),
+      http.put(`${base}/test/csrf`, capture('put')),
+      http.patch(`${base}/test/csrf`, capture('patch')),
+      http.delete(`${base}/test/csrf`, capture('delete')),
+      http.get(`${base}/test/csrf`, capture('get')),
+    );
+
+    await adminPost('/test/csrf', {});
+    await adminPut('/test/csrf', {});
+    await adminPatch('/test/csrf', {});
+    await adminDelete('/test/csrf');
+    await adminGet('/test/csrf');
+
+    for (const method of ['post', 'put', 'patch', 'delete', 'get'] as const) {
+      expect(seen[method]).toBe(env.csrfHeaderValue);
+    }
+  });
+
+  it('sends the CSRF marker header on multipart uploads', async () => {
+    let seen: string | null = null;
+    server.use(
+      http.post(`${base}/test/upload-csrf`, ({ request }) => {
+        seen = request.headers.get(env.csrfHeaderName);
+        return ok({});
+      }),
+    );
+    await adminUpload('/test/upload-csrf', new FormData());
+    expect(seen).toBe(env.csrfHeaderValue);
   });
 
   it('honours an explicit idempotencyKey override', async () => {

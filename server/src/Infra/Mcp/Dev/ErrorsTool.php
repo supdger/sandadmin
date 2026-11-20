@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Infra\Mcp\Dev;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
@@ -35,15 +37,15 @@ final class ErrorsTool implements ToolRunner
     }
 
     /** @param array<string, mixed> $arguments */
-    public function run(McpIdentity $identity, array $arguments): ToolOutcome
+    public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
         $kind = $arguments['kind'] ?? 'all';
         if (!is_string($kind) || !in_array($kind, self::KINDS, true)) {
-            return ToolOutcome::fail('MCP_BAD_ARGUMENT', ['message' => 'kind 只能是 error / slow / all']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_BAD_ARGUMENT, ['message' => 'kind 只能是 error / slow / all']);
         }
         $lines = $arguments['lines'] ?? 50;
         if (!is_int($lines) || $lines < 1 || $lines > 200) {
-            return ToolOutcome::fail('MCP_BAD_ARGUMENT', ['message' => 'lines 必须是 1-200 的整数']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_BAD_ARGUMENT, ['message' => 'lines 必须是 1-200 的整数']);
         }
 
         return ToolOutcome::ok([

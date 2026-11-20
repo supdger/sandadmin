@@ -197,6 +197,7 @@ function dispatchAdminError(error: AdminApiError): void {
 }
 
 interface SuccessEnvelope {
+  code?: string;
   data?: unknown;
   request_id?: string;
 }
@@ -218,6 +219,7 @@ async function request<T>(
   eventBus.emit('request:begin', { url, method });
   try {
     const headers: Record<string, string> = { Accept: 'application/json' };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
     }
@@ -294,13 +296,13 @@ async function request<T>(
       throw error;
     }
 
-    // 成功信封两种合法形态：{data, request_id}（现行 mock/契约），
-    // 或带成功码的完整信封 {code:'OK', data, request_id}。
+    // 成功信封唯一合法形态：{code:'OK', message, data, request_id}；
+    // 成功判定只看 code==='OK'，"只要存在 data 就算成功"的旧宽松判定已撤。
     if (
       typeof payload !== 'object' ||
       payload === null ||
       Array.isArray(payload) ||
-      (!('data' in payload) && (payload as ErrorEnvelope).code !== 'OK')
+      (payload as SuccessEnvelope).code !== 'OK'
     ) {
       const headerId =
         typeof payload === 'object' && payload !== null
@@ -329,6 +331,7 @@ async function requestDownload(
   eventBus.emit('request:begin', { url, method: 'GET' });
   try {
     const headers: Record<string, string> = { Accept: '*/*' };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     const token = getToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -438,6 +441,7 @@ export async function adminUpload<T>(
       Accept: 'application/json',
       'Idempotency-Key': options?.idempotencyKey ?? crypto.randomUUID(),
     };
+    headers[env.csrfHeaderName] = env.csrfHeaderValue;
     const token = getToken();
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -502,7 +506,7 @@ export async function adminUpload<T>(
       typeof payload !== 'object' ||
       payload === null ||
       Array.isArray(payload) ||
-      (!('data' in payload) && (payload as ErrorEnvelope).code !== 'OK')
+      (payload as SuccessEnvelope).code !== 'OK'
     ) {
       throw systemError({ requestId: headerRequestId, method: 'POST', url, httpStatus: status });
     }

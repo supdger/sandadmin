@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Infra\Db\DbalConnection;
 // SAND-DEV-BEGIN
 use Sandadmin\Task\DevTaskActorProvider;
@@ -41,7 +42,7 @@ final class TaskController
         try {
             $runtime = TaskRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $requestId);
             }
             $query = $request->get();
             $outcome = TaskHttp::index(
@@ -63,7 +64,7 @@ final class TaskController
         try {
             $runtime = TaskRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $requestId);
             }
             $outcome = TaskHttp::show($runtime->store, $this->actor($request), $task_id, $requestId);
 
@@ -79,7 +80,7 @@ final class TaskController
         try {
             $runtime = TaskRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $requestId);
             }
             $outcome = TaskHttp::download(
                 $runtime->store,
@@ -172,7 +173,7 @@ final class TaskController
             // 解析后文件被清理：按契约返回不可下载错误，任务存在故用 409
             $failure = TaskHttp::failure(
                 409,
-                'TASK_RUN_NOT_DOWNLOADABLE',
+                ErrorCodeRegistry::TASK_RUN_NOT_DOWNLOADABLE,
                 '结果文件已过期或不存在',
                 [],
                 $requestId,
@@ -204,6 +205,6 @@ final class TaskController
     {
         error_log('TaskController 异常 ' . $exception::class . ': ' . $exception->getMessage());
 
-        return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', $requestId);
+        return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $requestId);
     }
 }

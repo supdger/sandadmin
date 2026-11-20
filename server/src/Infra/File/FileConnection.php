@@ -26,17 +26,17 @@ final class FileConnection
         if ($driver !== 'pgsql' && $driver !== 'pdo_pgsql') {
             throw FileException::internal('文件模块只支持 PostgreSQL');
         }
-        $host = $databaseConfig['host'] ?? '127.0.0.1';
-        $port = $databaseConfig['port'] ?? 5432;
+        $host = $databaseConfig['host'] ?? '';
+        $port = $databaseConfig['port'] ?? 0;
         $database = $databaseConfig['database'] ?? '';
         $username = $databaseConfig['username'] ?? '';
         $password = $databaseConfig['password'] ?? '';
-        $host = is_string($host) && $host !== '' ? $host : '127.0.0.1';
-        $port = is_int($port) ? $port : (is_string($port) && preg_match('/^\d+$/', $port) === 1 ? (int) $port : 5432);
+        $host = is_string($host) ? $host : '';
+        $port = is_int($port) ? $port : (is_string($port) && preg_match('/^\d+$/', $port) === 1 ? (int) $port : 0);
         $database = is_string($database) ? $database : '';
         $username = is_string($username) ? $username : '';
         $password = is_string($password) ? $password : '';
-        if ($database === '' || $username === '') {
+        if ($host === '' || $port < 1 || $database === '' || $username === '') {
             throw FileException::internal('数据库配置不完整');
         }
 

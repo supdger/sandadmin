@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Announcement;
 
+use Sandadmin\Contract\Generated\PermissionRegistry;
+use Sandadmin\Http\ApiOutcome;
 use Sandadmin\Infra\Db\Exception\InvalidQueryException;
 
 /**
@@ -26,7 +28,7 @@ final class AnnouncementHttp
      */
     public static function index(AnnouncementService $service, ?AnnouncementActor $actor, array $query, string $requestId): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:index');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_INDEX);
         try {
             $list = AnnouncementQuery::fromQuery($query);
         } catch (InvalidQueryException $exception) {
@@ -50,7 +52,7 @@ final class AnnouncementHttp
     /** @return array{status: int, body: array<string, mixed>} */
     public static function show(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, string $requestId): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:index');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_INDEX);
         $id = self::id($announcementId);
 
         return self::success($service->detail($id)->toApi(new \DateTimeImmutable()), $requestId);
@@ -63,7 +65,7 @@ final class AnnouncementHttp
      */
     public static function create(AnnouncementService $service, ?AnnouncementActor $actor, array $body, ?string $idempotencyKey, string $requestId, ?string $ip, ?string $deviceLabel): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:create');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_CREATE);
         self::checkKey($idempotencyKey);
         $draft = AnnouncementDraft::fromArray($body);
         $item = $service->create($draft, $actor, $body, $requestId, $ip, $deviceLabel, $idempotencyKey);
@@ -78,7 +80,7 @@ final class AnnouncementHttp
      */
     public static function update(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, array $body, ?string $idempotencyKey, string $requestId, ?string $ip, ?string $deviceLabel): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:update');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_UPDATE);
         self::checkKey($idempotencyKey);
         $id = self::id($announcementId);
         $draft = AnnouncementDraft::fromArray($body);
@@ -90,7 +92,7 @@ final class AnnouncementHttp
     /** @return array{status: int, body: array<string, mixed>} */
     public static function destroy(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, ?string $idempotencyKey, string $requestId, ?string $ip, ?string $deviceLabel): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:delete');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_DELETE);
         self::checkKey($idempotencyKey);
         $service->remove(self::id($announcementId), $actor, $requestId, $ip, $deviceLabel, $idempotencyKey);
 
@@ -100,7 +102,7 @@ final class AnnouncementHttp
     /** @return array{status: int, body: array<string, mixed>} */
     public static function publish(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, ?string $idempotencyKey, string $requestId, ?string $ip, ?string $deviceLabel): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:publish');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_PUBLISH);
         self::checkKey($idempotencyKey);
         $item = $service->publish(self::id($announcementId), $actor, $requestId, $ip, $deviceLabel, $idempotencyKey);
 
@@ -110,7 +112,7 @@ final class AnnouncementHttp
     /** @return array{status: int, body: array<string, mixed>} */
     public static function revoke(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, ?string $idempotencyKey, string $requestId, ?string $ip, ?string $deviceLabel): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:revoke');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_REVOKE);
         self::checkKey($idempotencyKey);
         $item = $service->revoke(self::id($announcementId), $actor, $requestId, $ip, $deviceLabel, $idempotencyKey);
 
@@ -132,7 +134,7 @@ final class AnnouncementHttp
     /** @return array{status: int, body: array<string, mixed>} */
     public static function readStats(AnnouncementService $service, ?AnnouncementActor $actor, string $announcementId, string $requestId): array
     {
-        $actor = self::requirePermission($actor, 'system:announcement:index');
+        $actor = self::requirePermission($actor, PermissionRegistry::ANNOUNCEMENT_INDEX);
 
         return self::success($service->readStats(self::id($announcementId)), $requestId);
     }
@@ -214,10 +216,8 @@ final class AnnouncementHttp
      */
     private static function success(mixed $data, string $requestId): array
     {
-        return [
-            'status' => 200,
-            'body' => ['data' => $data, 'request_id' => $requestId],
-        ];
+        // 成功信封统一走 ApiOutcome 单点（code=OK + message）
+        return ApiOutcome::ok($data, $requestId);
     }
 
     /**

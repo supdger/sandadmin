@@ -9,6 +9,9 @@ declare(strict_types=1);
 
 namespace Sandadmin\Task;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Http\ApiOutcome;
+
 /**
  * /api/admin/v1/tasks 契约形状的组装层：入参校验、可见性判定、
  * Task/PageTask/ErrorEnvelope 输出。不含 HTTP 传输细节。
@@ -31,7 +34,7 @@ final class TaskHttp
     public static function index(TaskStore $store, ?TaskActor $actor, array $query, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         $fields = [];
         $type = self::stringParam($query, 'type');
@@ -46,7 +49,7 @@ final class TaskHttp
         $page = self::intParam($query, 'page', 1, 1, 1000000, 'page', $fields);
         $pageSize = self::intParam($query, 'page_size', 20, 1, 100, 'page_size', $fields);
         if ($fields !== []) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', $fields, $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', $fields, $requestId);
         }
 
         // 可见范围：管理员（system:task:index 等效 viewAll）看全部；
@@ -70,15 +73,15 @@ final class TaskHttp
     public static function show(TaskStore $store, ?TaskActor $actor, string $taskId, string $requestId): array
     {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (preg_match(self::UUID_PATTERN, $taskId) !== 1) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['task_id' => ['任务编号不正确']], $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['task_id' => ['任务编号不正确']], $requestId);
         }
         $task = $store->findByPublicId($taskId);
         if ($task === null || !self::visible($task, $actor)) {
             // 不可见与不存在同样返回 404，不泄露任务是否存在
-            return self::failure(404, 'TASK_RUN_NOT_FOUND', '任务不存在或已过期', [], $requestId);
+            return self::failure(404, ErrorCodeRegistry::TASK_RUN_NOT_FOUND, '任务不存在或已过期', [], $requestId);
         }
 
         return self::success(self::task($task), $requestId);
@@ -97,19 +100,19 @@ final class TaskHttp
         string $requestId,
     ): array {
         if ($actor === null) {
-            return self::failure(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return self::failure(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (preg_match(self::UUID_PATTERN, $taskId) !== 1) {
-            return self::failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['task_id' => ['任务编号不正确']], $requestId);
+            return self::failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['task_id' => ['任务编号不正确']], $requestId);
         }
         $task = $store->findByPublicId($taskId);
         if ($task === null || !self::visible($task, $actor)) {
-            return self::failure(404, 'TASK_RUN_NOT_FOUND', '任务不存在或已过期', [], $requestId);
+            return self::failure(404, ErrorCodeRegistry::TASK_RUN_NOT_FOUND, '任务不存在或已过期', [], $requestId);
         }
         $artifact = $task->state === TaskState::Succeeded ? $resolver->resolve($task) : null;
         if ($artifact === null) {
             // 未成功、产物已清理、无产物统一按不可下载处理；任务已存在，按契约用 409 表示状态冲突
-            return self::failure(409, 'TASK_RUN_NOT_DOWNLOADABLE', '结果文件已过期或不存在', [], $requestId);
+            return self::failure(409, ErrorCodeRegistry::TASK_RUN_NOT_DOWNLOADABLE, '结果文件已过期或不存在', [], $requestId);
         }
 
         return ['status' => 200, 'artifact' => $artifact];
@@ -152,10 +155,8 @@ final class TaskHttp
      */
     private static function success(array $data, string $requestId): array
     {
-        return [
-            'status' => 200,
-            'body' => ['data' => $data, 'request_id' => $requestId],
-        ];
+        // 成功信封统一走 ApiOutcome 单点（code=OK + message）
+        return ApiOutcome::ok($data, $requestId);
     }
 
     /**

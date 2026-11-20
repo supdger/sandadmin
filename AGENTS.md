@@ -7,11 +7,12 @@ SandAdmin 宿主：SaiAdmin 6.x 的独立 PostgreSQL fork，包含可运行的 W
 主要目录：
 
 - `server/`：可运行 Webman 宿主——`app/middleware`、`app/process`、`config/`、`public/`、`support/`、`start.php`、`composer.json`、`.env.example`。
-- `sandadmin-artd/`：管理端前端工程（Vue3 + TS + Vite + pnpm，含 package.json、pnpm-lock）。
+- `web/`：1.x 管理端前端工程（React 19 + Semi Design；规范见 `sandadmin1x-frontend`）。
+- `sandadmin-artd/`：0.x 管理端前端工程（Vue3 + TS + Vite + pnpm，含 package.json、pnpm-lock；1.x 前端在 `web/`，本目录逐步退役——见 `sandadmin1x-frontend`）。
 - `tests/`：宿主验证脚本（`http-error-data-test.php`）。
 - `catalog.json`：插件目录；`RELEASE-CHECKLIST.md`：发布清单。
 
-注意：核心业务后端与插件安装器不在本仓——由 `supdger/sand-core`、`supdger/sand-package` 经 Composer 安装到 `server/plugin/`（运行目录，非源码权威）。本仓无 migrations；新增插件表前缀 `sand_<域>_*`，历史 `sa_*` 表保留原名不改。
+注意：核心业务后端与插件安装器不在本仓——由 `supdger/sand-core`、`supdger/sand-package` 经 Composer 安装到 `server/plugin/`（运行目录，非源码权威）。宿主迁移在 `server/database/migrations/`（0001–0003 基线 + 增量，增量带同名 `.down.sql` 回退文件），由统一迁移执行器 `server/bin/migrate.php` 按账本 `sand_system_schema_migration` 执行；新增插件表前缀 `sand_<域>_*`，历史 `sa_*` 表保留原名不改。
 
 ## 命名与注释规范
 
@@ -27,7 +28,7 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 
 - 路径全小写连字符、资源用复数；JSON/查询参数小写蛇形、与列同名。
 - 枚举小写蛇形（任务状态 `queued`/`running`/`succeeded`/`failed`/`cancelled`）；错误码大写蛇形；权限码 `域:资源:动作`。
-- 迁移文件 `<序号>_<动词>_<对象>`，已发布不改名、不改内容（核心 SQL 在 sand-core 包内，本仓不写迁移）。
+- 迁移文件 `<序号>_<动词>_<对象>.sql`，增量迁移配同名 `<basename>.down.sql` 回退文件（基线 0001–0003 不带回退），已发布不改名、不改内容。
 
 **代码**
 
@@ -67,6 +68,12 @@ PHP ≥8.2（Webman/Workerman，PSR-12/PSR-4）+ Vue3/TS 前端。完整规范�
 - `sandadmin1x-frontend`：管理端前端（Vue3/TS，`web/`、`sandadmin-artd/`）的写法与约束；
 - `sandadmin1x-plugin`：插件开发约定；
 - `sandadmin1x-ai-loop`：AI 参与开发的闭环流程。
+
+老版 skills 到 1.x 规范的逐条对照、冲突与未拍板事项登记见 `.agents/skills/COVERAGE.md`。
+
+读 delivery-loop、backend-structure、packaging、database 这几份同步 skill 时，以 `.agents/skills/LEGACY-ABSORBED.md` 对应小节为必守补充条款。
+
+写、审 1.x 任何设计和方案时，另有一份本仓自有 skill `sandadmin1x-design-standard`（不在上面 skill-sync 比对的四个目录内）：所有设计和方案必须逐项回答 `.agents/skills/sandadmin1x-design-standard/` 清单，缺项的审计一律打回。
 
 配套工具在 `tools/`（发布包不含，见 `.gitattributes`）：
 

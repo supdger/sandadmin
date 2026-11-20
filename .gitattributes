@@ -10,6 +10,7 @@
 /tools/naming_check.py export-ignore
 /tools/naming-terms.tsv export-ignore
 /tools/skill-sync.sh export-ignore
+/tools/ai-context-pack.php export-ignore
 /sandadmin-artd/** text=auto eol=lf
 /openspec/ export-ignore
 /.agents/ export-ignore

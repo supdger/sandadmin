@@ -5,8 +5,10 @@ parameters:
         - tests
         - app/controller/FileController.php
         - app/bootstrap/WeakPasswordGuard.php
+        - app/bootstrap/IdGeneratorGuard.php
     # tools/ 里的门禁和发布期脚本不进 paths，但单测 require 它们的函数，需要可见符号（不做错误分析）
     scanFiles:
         - ../tools/dev-manifest.php
         - ../tools/check-dev-refs.php
         - ../tools/typephp_check.php
+        - ../tools/strip-vendor-tests.php

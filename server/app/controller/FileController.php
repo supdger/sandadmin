@@ -10,6 +10,7 @@ namespace app\controller;
 use Sandadmin\Application\File\FileHttp;
 use Sandadmin\Application\File\FileRuntime;
 use Sandadmin\Application\File\StorageConfig;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\File\FileException;
 use support\Request;
 use support\Response;
@@ -30,21 +31,21 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $upload = $request->file('file');
             if (is_array($upload)) {
-                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['一次只能上传一个文件']], $requestId);
+                return $this->failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file' => ['一次只能上传一个文件']], $requestId);
             }
             if (!$upload instanceof UploadFile) {
-                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['请使用 file 字段上传文件']], $requestId);
+                return $this->failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file' => ['请使用 file 字段上传文件']], $requestId);
             }
             if (!$upload->isValid()) {
-                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['上传未完成']], $requestId);
+                return $this->failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file' => ['上传未完成']], $requestId);
             }
             $stream = fopen($upload->getPathname(), 'rb');
             if ($stream === false) {
-                return $this->failure(400, 'VALIDATION_FAILED', '请求内容有误，请按提示修改', ['file' => ['无法读取上传文件']], $requestId);
+                return $this->failure(400, ErrorCodeRegistry::VALIDATION_FAILED, '请求内容有误，请按提示修改', ['file' => ['无法读取上传文件']], $requestId);
             }
             try {
                 $size = $upload->getSize();
@@ -78,7 +79,7 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $query = $request->get();
 
@@ -97,7 +98,7 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
 
             return $this->respondJson(
@@ -115,7 +116,7 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
 
             return $this->respondJson(
@@ -133,7 +134,7 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $outcome = FileHttp::download(
                 $runtime->files,
@@ -159,7 +160,7 @@ final class FileController
         try {
             $runtime = $this->runtime();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $key = $this->idempotencyKey($request);
 
@@ -216,7 +217,7 @@ final class FileController
     {
         $body = $outcome['body'] ?? null;
         if (!is_array($body)) {
-            return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
         }
 
         return new Response(
@@ -285,6 +286,6 @@ final class FileController
     {
         error_log('FileController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-        return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+        return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
     }
 }

@@ -1,0 +1,1225 @@
+openapi: 3.1.0
+info:
+  title: SandAdmin 1.x 管理接口
+  version: "1.0"
+  description: >-
+    唯一契约权威。路由表、权限注册表、MCP 工具表、错误码注册表、TS 类型、
+    测试骨架均由 tools/contract-build 从本文件（加插件片段）生成。
+    人读约定见 contract/api-conventions.md。
+
+# ── 错误码总表：code → {http_status, summary}
+# common: true 的五个通用码接口不用逐个声明；业务码才写进 x-error-codes。
+x-error-catalog:
+  VALIDATION_FAILED:   {http_status: 422, summary: 请求内容有误，请按提示修改, common: true, note: 装配层部分路径按 400 返回，取值语义不变}
+  UNAUTHENTICATED:     {http_status: 401, summary: 请先登录, common: true}
+  PERMISSION_DENIED:   {http_status: 403, summary: 你没有权限做这个操作, common: true}
+  CSRF_REJECTED:       {http_status: 403, summary: 请求未通过来源安全校验, common: true, note: 全局 CsrfMiddleware 对 /api/admin/v1 写操作发出}
+  INTERNAL_ERROR:      {http_status: 500, summary: 系统出了点问题，请稍后再试, common: true}
+  SESSION_EXPIRED:     {http_status: 401, summary: 会话过期或已吊销（B2 链预留）}
+  NOT_FOUND:           {http_status: 404, summary: 要找的内容不存在或已被删除}
+  IDEMPOTENCY_KEY_REUSED: {http_status: 409, summary: 相同请求标识被用于不同内容}
+  FILE_NOT_FOUND:      {http_status: 404, summary: 文件不存在}
+  FILE_TOO_LARGE:      {http_status: 413, summary: 文件超过 100MB 上限}
+  FILE_TYPE_NOT_ALLOWED: {http_status: 422, summary: 这种文件类型不支持上传}
+  USER_NOT_FOUND:      {http_status: 404, summary: 用户不存在}
+  USERNAME_TAKEN:      {http_status: 409, summary: 这个账号已经被使用了}
+  USER_DISABLE_BLOCKED: {http_status: 409, summary: 停用被阻断（有未完成交接或依赖）}
+  DEPT_NOT_FOUND:      {http_status: 404, summary: 部门不存在}
+  DEPT_NAME_TAKEN:     {http_status: 409, summary: 同一上级下已经有同名部门了}
+  DEPT_NOT_EMPTY:      {http_status: 409, summary: 部门非空不能删}
+  DEPT_REQUIRED:       {http_status: 422, summary: 请选择这个角色能查看的部门}
+  POST_NOT_FOUND:      {http_status: 404, summary: 岗位不存在}
+  POST_NAME_TAKEN:     {http_status: 409, summary: 这个岗位名称已经有人用了}
+  ROLE_NAME_TAKEN:     {http_status: 409, summary: 这个角色名称已经有人用了}
+  LAST_ADMIN:          {http_status: 409, summary: 系统里至少要留一个能用的超级管理员}
+  SYSTEM_ROLE_READONLY: {http_status: 403, summary: 系统角色不能修改}
+  STALE_VERSION:       {http_status: 409, summary: 这条刚被别人改过，刷新后再改}
+  SELF_LOCKOUT:        {http_status: 403, summary: 不能移除你自己正在使用的权限}
+  DATA_SCOPE_INVALID:  {http_status: 422, summary: 数据范围选择不正确}
+  ANNOUNCEMENT_NOT_FOUND: {http_status: 404, summary: 公告不存在或对你不可见}
+  MENU_NOT_FOUND:      {http_status: 404, summary: 要操作的菜单不存在或已被删除}
+  MENU_LOCKED:         {http_status: 409, summary: 菜单被锁，不能这样操作}
+  MENU_URL_INVALID:    {http_status: 422, summary: 链接地址不正确，只能是 http 或 https 开头}
+  MENU_DEPTH_EXCEEDED: {http_status: 422, summary: 菜单最多两级，不能再往里放}
+  DICT_TYPE_TAKEN:     {http_status: 409, summary: 这个分组名称已经存在了}
+  DICT_ITEM_TAKEN:     {http_status: 409, summary: 这个选项已经存在了}
+  TASK_NOT_FOUND:      {http_status: 404, summary: 要找的内容不存在或已被删除}
+  TASK_RUN_NOT_FOUND:  {http_status: 404, summary: 任务不存在或已过期}
+  TASK_RUN_NOT_DOWNLOADABLE: {http_status: 409, summary: 结果文件已过期或不存在}
+  TASK_SCHEDULE_INVALID: {http_status: 422, summary: 执行时间填写不正确}
+  LIFECYCLE_REQUEST_NOT_FOUND: {http_status: 404, summary: 申请不存在或无权查看}
+  PLUGIN_NOT_FOUND:    {http_status: 404, summary: 插件不存在或已经被卸载}
+  PLUGIN_ALREADY_INSTALLED: {http_status: 409, summary: 已经装好了}
+  PLUGIN_NOT_INSTALLED: {http_status: 409, summary: 这个插件还没安装}
+  PLUGIN_VERSION_INCOMPATIBLE: {http_status: 409, summary: 不能装比现在更旧的版本}
+  PLUGIN_BUSY:         {http_status: 409, summary: 已有别的安装或升级在进行}
+  PLUGIN_PACKAGE_INVALID: {http_status: 422, summary: 这个文件不是能用的安装包}
+  PLUGIN_CONTRACT_CONFLICT: {http_status: 409, summary: 插件契约与现有声明冲突，本次安装或升级没有生效}
+  PLUGIN_OPERATION_FORBIDDEN: {http_status: 403, summary: 只有超级管理员能安装和升级；编译版拒绝}
+  SYSTEM_UPDATE_OPERATION_FORBIDDEN: {http_status: 403, summary: 系统更新被禁（编译版或开关关闭）}
+  UPDATE_NOT_AVAILABLE: {http_status: 409, summary: 没有可升级项或已是最新}
+  MCP_UNAUTHORIZED:    {http_status: 401, summary: 凭据无效或未配置}
+  MCP_ORIGIN_REJECTED: {http_status: 403, summary: Origin 不在本机白名单}
+  MCP_RATE_LIMITED:    {http_status: 429, summary: 调用频率超限}
+  MCP_FORBIDDEN:       {http_status: 403, summary: 凭据没有工具需要的权限码}
+  MCP_IDEMPOTENCY_REQUIRED: {http_status: 400, summary: 普通写工具必须带幂等键}
+  # const 是常量短名声明：线上码值不变，PHP 常量名按 4 词上限取短名
+  MCP_HIGH_RISK_NOT_OPEN: {http_status: 403, summary: 高危写未开放，只能生成待确认请求, const: MCP_HIGH_RISK_CLOSED}
+  MCP_TOOL_FAILED:     {http_status: 500, summary: 工具执行失败}
+  MCP_BAD_ARGUMENT:    {http_status: 400, summary: 工具参数不合法}
+  MCP_TARGET_REJECTED: {http_status: 403, summary: 测试目标不在白名单}
+  MCP_GATE_MISSING:    {http_status: 500, summary: tools/pre-merge.sh 不存在}
+  # 流式断开的带内错误事件码：http_status 是开流前拒绝路径的信封语义，
+  # 连接建立后以 SSE error 事件载荷下发，不产生新的 HTTP 响应
+  STREAM_LIMIT_REACHED:    {http_status: 429, summary: 流式连接数已达上限，稍后再试}
+  STREAM_IDLE_TIMEOUT:     {http_status: 408, summary: 流式连接空闲超时，已断开}
+  STREAM_DURATION_LIMIT:   {http_status: 408, summary: 流式连接已达时长上限，已断开}
+  STREAM_AUTHZ_REVOKED:    {http_status: 403, summary: 权限已变更，流式连接已断开}
+
+# ── 不挂在具体接口上的权限码（viewAll 等效码、MCP 凭据 scope）
+x-permissions:
+  - {code: system:task:index,   title: 查看全部后台任务,   note: TaskActor.viewAll 等效码}
+  - {code: system:plugin:index, title: 查看全部插件申请,   note: LifecycleActor viewAll 等效码}
+  - {code: system:update:index, title: 查看全部更新申请,   note: LifecycleActor viewAll 等效码}
+  - {code: mcp:dev:routes,      title: dev 路由检查工具,   note: MCP 凭据 scope，不进权限树}
+  - {code: mcp:dev:errors,      title: dev 错误摘要工具,   note: MCP 凭据 scope，不进权限树}
+  - {code: mcp:dev:phpunit,     title: dev 跑测试工具,     note: MCP 凭据 scope，不进权限树}
+  - {code: mcp:dev:gate,        title: dev 跑门禁工具,     note: MCP 凭据 scope，不进权限树}
+
+# ── 权限树（顶掉 RoleService::MENUS；menu_key:action 拼成权限码）
+x-permission-tree:
+  - group_key: org
+    group_title: 组织与用户
+    menu_key: system:user
+    title: 用户管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+      - {action: export, label: 导出}
+      - {action: reset-password, label: 重置密码}
+      - {action: assign-role, label: 分配角色}
+  - group_key: org
+    group_title: 组织与用户
+    menu_key: system:dept
+    title: 部门管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+  - group_key: org
+    group_title: 组织与用户
+    menu_key: system:post
+    title: 岗位管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+  - group_key: org
+    group_title: 组织与用户
+    menu_key: system:role
+    title: 角色与权限
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+      - {action: permission:update, label: 设置权限}
+  - group_key: system
+    group_title: 系统
+    menu_key: system:menu
+    title: 菜单管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+      - {action: reset, label: 恢复默认}
+  # 说明：system:file/task/plugin/update 的码仍在注册表（路由与顶层 x-permissions
+  # 声明），但按现状不进权限树——这些能力目前不可经角色配置授予。
+  - group_key: data
+    group_title: 数据管理
+    menu_key: system:dict
+    title: 选项管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+  - group_key: data
+    group_title: 数据管理
+    menu_key: system:announcement
+    title: 公告管理
+    actions:
+      - {action: index, label: 查看}
+      - {action: create, label: 添加}
+      - {action: update, label: 编辑}
+      - {action: delete, label: 删除}
+      - {action: publish, label: 发布}
+      - {action: revoke, label: 收回}
+
+# ── 侧栏菜单 key（顶掉 MenuService 手写键；key 也是权限绑定键）
+x-sidebar-menus:
+  - {key: system:user,         title: 用户管理, icon: user,    path: /system/user}
+  - {key: system:dept,         title: 部门管理, icon: dept,    path: /system/dept}
+  - {key: system:post,         title: 岗位管理, icon: post,    path: /system/post}
+  - {key: system:role,         title: 角色管理, icon: role,    path: /system/role}
+  - {key: system:dict,         title: 选项管理, icon: dict,    path: /data/dict}
+  - {key: system:announcement, title: 公告管理, icon: notice,  path: /data/notice}
+  - {key: system:menu,         title: 菜单管理, icon: menu,    path: /system/menu}
+  - {key: system:plugin,       title: 插件管理, icon: plugin,  path: /system/plugins}
+  - {key: system:update,       title: 系统更新, icon: refresh, path: /system/update}
+
+# ── 管理员高危码清单（顶掉 UserService::ADMIN_CODES）
+x-admin-permissions:
+  - system:user:create
+  - system:user:update
+  - system:user:reset-password
+  - system:user:assign-role
+  - system:role:permission:update
+
+# ── 独立 MCP 工具（不绑 v1 接口，只许 dev_only:true）
+x-mcp-tools:
+  - name: dev_inspect_routes
+    tier: read
+    title: 路由与契约检查
+    description: 读取当前路由表与契约文件（只读）
+    permission: mcp:dev:routes
+    dev_only: true
+    input: {type: object, properties: {}, additionalProperties: false}
+  - name: dev_recent_errors
+    tier: read
+    title: 最近错误与慢请求
+    description: 摘读本地日志中的错误与慢请求记录（只读、脱敏）
+    permission: mcp:dev:errors
+    dev_only: true
+    input:
+      type: object
+      properties:
+        kind: {type: string, enum: [error, slow, all]}
+        lines: {type: integer, minimum: 1, maximum: 200}
+      additionalProperties: false
+  - name: dev_run_phpunit
+    tier: write
+    title: 运行选定 PHPUnit 测试
+    description: 按白名单目标运行 PHPUnit（tests/ 下路径或 Sandadmin\Tests\* 类名）
+    permission: mcp:dev:phpunit
+    dev_only: true
+    input:
+      type: object
+      properties:
+        target: {type: string}
+      required: [target]
+      additionalProperties: false
+  - name: dev_run_pre_merge
+    tier: write
+    title: 运行快速门禁
+    description: 执行 tools/pre-merge.sh --fast（固定命令，无参数）
+    permission: mcp:dev:gate
+    dev_only: true
+    input:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+# dev 说明：开发构建私有的 5 条免登录路由不进 paths——
+# 契约面之外，继续在 route.php 哨兵段手写，由开发构建剔除。
+
+paths:
+  # ── 文件（app\controller\FileController）──
+  /api/admin/v1/files:
+    post:
+      operationId: filesStore
+      summary: 上传文件
+      tags: [files]
+      x-handler: 'app\controller\FileController::store'
+      x-permission: authenticated
+      x-error-codes: [FILE_TOO_LARGE, FILE_TYPE_NOT_ALLOWED, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+    get:
+      operationId: filesIndex
+      summary: 文件列表
+      tags: [files]
+      x-handler: 'app\controller\FileController::index'
+      x-permission: system:file:index
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/files/{file_id}:
+    get:
+      operationId: filesShow
+      summary: 文件详情
+      tags: [files]
+      x-handler: 'app\controller\FileController::show'
+      x-permission: system:file:index
+      x-error-codes: [FILE_NOT_FOUND]
+      parameters:
+        - {name: file_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: filesDestroy
+      summary: 删除文件
+      tags: [files]
+      x-handler: 'app\controller\FileController::destroy'
+      x-permission: system:file:delete
+      x-error-codes: [FILE_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: file_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/files/{file_id}/download:
+    get:
+      operationId: filesDownload
+      summary: 下载文件
+      description: 登录即可；私有文件仅上传人或持 system:file:index 者可下（属主判定在代码内）。
+      tags: [files]
+      x-handler: 'app\controller\FileController::download'
+      x-permission: authenticated
+      x-error-codes: [FILE_NOT_FOUND]
+      parameters:
+        - {name: file_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 文件二进制流；失败仍为 JSON 信封}}
+  /api/admin/v1/files/cleanup:
+    post:
+      operationId: filesCleanup
+      summary: 清理无引用文件
+      tags: [files]
+      x-handler: 'app\controller\FileController::cleanup'
+      x-permission: system:file:cleanup
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封（TaskAccepted）}}
+
+  # ── 后台任务 ──
+  /api/admin/v1/tasks:
+    get:
+      operationId: tasksIndex
+      summary: 后台任务列表
+      description: 登录即可；持 system:task:index 看全部，否则只看本人发起（属主判定在代码内）。
+      tags: [tasks]
+      x-handler: 'Sandadmin\Http\TaskController::index'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/tasks/{task_id}:
+    get:
+      operationId: tasksShow
+      summary: 后台任务详情
+      description: 同 tasksIndex 可见性；不可见与不存在同样 404。
+      tags: [tasks]
+      x-handler: 'Sandadmin\Http\TaskController::show'
+      x-permission: authenticated
+      x-error-codes: [TASK_RUN_NOT_FOUND]
+      parameters:
+        - {name: task_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/tasks/{task_id}/download:
+    get:
+      operationId: tasksDownload
+      summary: 下载任务结果文件
+      description: 同 tasksIndex 可见性。
+      tags: [tasks]
+      x-handler: 'Sandadmin\Http\TaskController::download'
+      x-permission: authenticated
+      x-error-codes: [TASK_RUN_NOT_FOUND, TASK_RUN_NOT_DOWNLOADABLE]
+      parameters:
+        - {name: task_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {description: 文件二进制流；失败仍为 JSON 信封}}
+
+  # ── 公告 ──
+  /api/admin/v1/me/announcements/popup:
+    get:
+      operationId: announcementsPopup
+      summary: 当前登录人弹窗公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::popup'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements:
+    get:
+      operationId: announcementsIndex
+      summary: 公告列表
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::index'
+      x-permission: system:announcement:index
+      responses: {'200': {description: 契约信封}}
+    post:
+      operationId: announcementsStore
+      summary: 新建公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::store'
+      x-permission: system:announcement:create
+      x-error-codes: [IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements/{announcement_id}:
+    get:
+      operationId: announcementsShow
+      summary: 公告详情
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::show'
+      x-permission: system:announcement:index
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: announcementsUpdate
+      summary: 编辑公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::update'
+      x-permission: system:announcement:update
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: announcementsDestroy
+      summary: 删除公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::destroy'
+      x-permission: system:announcement:delete
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements/{announcement_id}/publish:
+    post:
+      operationId: announcementsPublish
+      summary: 发布公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::publish'
+      x-permission: system:announcement:publish
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements/{announcement_id}/revoke:
+    post:
+      operationId: announcementsRevoke
+      summary: 收回公告
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::revoke'
+      x-permission: system:announcement:revoke
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements/{announcement_id}/read:
+    post:
+      operationId: announcementsMarkRead
+      summary: 标记公告已读
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::markRead'
+      x-permission: authenticated
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/announcements/{announcement_id}/read-stats:
+    get:
+      operationId: announcementsReadStats
+      summary: 公告已读统计
+      tags: [announcements]
+      x-handler: 'Sandadmin\Http\AnnouncementController::readStats'
+      x-permission: system:announcement:index
+      x-error-codes: [ANNOUNCEMENT_NOT_FOUND]
+      parameters:
+        - {name: announcement_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 消息中心 ──
+  /api/admin/v1/notifications/unread-count:
+    get:
+      operationId: notificationsUnreadCount
+      summary: 未读消息数
+      tags: [notifications]
+      x-handler: 'Sandadmin\Http\NotificationController::unreadCount'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/notifications/read-all:
+    post:
+      operationId: notificationsMarkAllRead
+      summary: 全部标记已读
+      tags: [notifications]
+      x-handler: 'Sandadmin\Http\NotificationController::markAllRead'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/notifications:
+    get:
+      operationId: notificationsIndex
+      summary: 消息列表
+      tags: [notifications]
+      x-handler: 'Sandadmin\Http\NotificationController::index'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/notifications/{notification_id}/read:
+    post:
+      operationId: notificationsMarkRead
+      summary: 标记消息已读
+      tags: [notifications]
+      x-handler: 'Sandadmin\Http\NotificationController::markRead'
+      x-permission: authenticated
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: notification_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 生命周期申请 ──
+  /api/admin/v1/lifecycle-requests/{request_id}:
+    get:
+      operationId: lifecycleShow
+      summary: 生命周期申请详情
+      description: 登录即可；本人或持 system:plugin:index / system:update:index 看全部（属主判定在代码内）。
+      tags: [lifecycle]
+      x-handler: 'Sandadmin\Http\LifecycleController::show'
+      x-permission: authenticated
+      x-error-codes: [LIFECYCLE_REQUEST_NOT_FOUND]
+      parameters:
+        - {name: request_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 当前登录人 ──
+  /api/admin/v1/auth/password-policy:
+    get:
+      operationId: authPasswordPolicy
+      summary: 当前口令策略与到期状态
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::passwordPolicy'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/auth/password/change:
+    post:
+      operationId: authChangePassword
+      summary: 修改自己的口令
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::changePassword'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/me:
+    get:
+      operationId: meShow
+      summary: 当前登录人信息
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::me'
+      x-permission: authenticated
+      x-error-codes: [USER_NOT_FOUND]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/me/profile:
+    get:
+      operationId: meProfile
+      summary: 当前登录人资料
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::profile'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: meUpdateProfile
+      summary: 更新当前登录人资料
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::updateProfile'
+      x-permission: authenticated
+      x-error-codes: [USER_NOT_FOUND]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/me/menus:
+    get:
+      operationId: meMenus
+      summary: 当前登录人可见菜单
+      tags: [me]
+      x-handler: 'Sandadmin\Http\MeController::menus'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+
+  # ── 菜单管理 ──
+  /api/admin/v1/menus/tree:
+    get:
+      operationId: menusTree
+      summary: 菜单树
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::tree'
+      x-permission: system:menu:index
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/groups:
+    post:
+      operationId: menusStoreGroup
+      summary: 新建菜单分组
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::storeGroup'
+      x-permission: system:menu:create
+      x-error-codes: [MENU_NOT_FOUND, MENU_DEPTH_EXCEEDED, MENU_LOCKED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/links:
+    post:
+      operationId: menusStoreLink
+      summary: 新建菜单链接
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::storeLink'
+      x-permission: system:menu:create
+      x-error-codes: [MENU_NOT_FOUND, MENU_DEPTH_EXCEEDED, MENU_URL_INVALID, MENU_LOCKED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/reset:
+    post:
+      operationId: menusReset
+      summary: 恢复默认菜单
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::reset'
+      x-permission: system:menu:reset
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/{menu_key}:
+    patch:
+      operationId: menusUpdate
+      summary: 编辑菜单
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::update'
+      x-permission: system:menu:update
+      x-error-codes: [MENU_NOT_FOUND, MENU_LOCKED, MENU_URL_INVALID, STALE_VERSION]
+      parameters:
+        - {name: menu_key, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: menusDestroy
+      summary: 删除菜单
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::destroy'
+      x-permission: system:menu:delete
+      x-error-codes: [MENU_NOT_FOUND, MENU_LOCKED, STALE_VERSION]
+      parameters:
+        - {name: menu_key, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/{menu_key}/move:
+    post:
+      operationId: menusMove
+      summary: 移动菜单
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::move'
+      x-permission: system:menu:update
+      x-error-codes: [MENU_NOT_FOUND, MENU_LOCKED, MENU_DEPTH_EXCEEDED, STALE_VERSION]
+      parameters:
+        - {name: menu_key, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/menus/{menu_key}/visible:
+    put:
+      operationId: menusVisible
+      summary: 切换菜单可见性
+      tags: [menus]
+      x-handler: 'Sandadmin\Http\MenuController::visible'
+      x-permission: system:menu:update
+      x-error-codes: [MENU_NOT_FOUND, MENU_LOCKED, STALE_VERSION]
+      parameters:
+        - {name: menu_key, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 工作台 ──
+  /api/admin/v1/dashboard/onboarding:
+    get:
+      operationId: dashboardOnboarding
+      summary: 新手引导状态
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::onboarding'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/summary:
+    get:
+      operationId: dashboardSummary
+      summary: 工作台汇总
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::summary'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/todos/all:
+    get:
+      operationId: dashboardAllTodos
+      summary: 全部待办
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::allTodos'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/todos:
+    get:
+      operationId: dashboardTodos
+      summary: 当前待办
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::todos'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/charts:
+    get:
+      operationId: dashboardCharts
+      summary: 工作台图表
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::charts'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/activities:
+    get:
+      operationId: dashboardActivities
+      summary: 最近动态
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::activities'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/notices:
+    get:
+      operationId: dashboardNotices
+      summary: 工作台提示
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::notices'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dashboard/shortcuts:
+    get:
+      operationId: dashboardShortcuts
+      summary: 快捷入口
+      tags: [dashboard]
+      x-handler: 'Sandadmin\Http\DashboardController::shortcuts'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+
+  # ── 组织：用户/部门/角色/岗位 ──
+  /api/admin/v1/users:
+    get:
+      operationId: usersIndex
+      summary: 用户列表
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersIndex'
+      x-permission: system:user:index
+      responses: {'200': {description: 契约信封}}
+    post:
+      operationId: usersStore
+      summary: 新建用户
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersStore'
+      x-permission: system:user:create
+      x-error-codes: [USERNAME_TAKEN, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/users/export:
+    post:
+      operationId: usersExport
+      summary: 导出用户
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersExport'
+      x-permission: system:user:export
+      responses: {'200': {description: 契约信封（TaskAccepted）}}
+  /api/admin/v1/users/{user_id}:
+    get:
+      operationId: usersShow
+      summary: 用户详情
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersShow'
+      x-permission: system:user:index
+      x-error-codes: [USER_NOT_FOUND, NOT_FOUND]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: usersUpdate
+      summary: 编辑用户
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersUpdate'
+      x-permission: system:user:update
+      x-error-codes: [USER_NOT_FOUND, USERNAME_TAKEN, STALE_VERSION]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: usersDestroy
+      summary: 删除用户
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersDestroy'
+      x-permission: system:user:delete
+      x-error-codes: [USER_NOT_FOUND, LAST_ADMIN, STALE_VERSION]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/users/{user_id}/status:
+    put:
+      operationId: usersStatus
+      summary: 启用/停用用户
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersStatus'
+      x-permission: system:user:update
+      x-error-codes: [USER_NOT_FOUND, USER_DISABLE_BLOCKED, LAST_ADMIN, STALE_VERSION]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/users/{user_id}/disable-check:
+    get:
+      operationId: usersDisableCheck
+      summary: 停用前检查
+      description: 持 system:user:update 或 system:user:delete 任一即可。
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersDisableCheck'
+      x-permission:
+        any_of: [system:user:update, system:user:delete]
+      x-error-codes: [USER_NOT_FOUND]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/users/{user_id}/reset-password:
+    post:
+      operationId: usersResetPassword
+      summary: 重置用户口令
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersResetPassword'
+      x-permission: system:user:reset-password
+      x-error-codes: [USER_NOT_FOUND, LAST_ADMIN]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/users/{user_id}/roles:
+    put:
+      operationId: usersRoles
+      summary: 分配用户角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::usersRoles'
+      x-permission: system:user:assign-role
+      x-error-codes: [USER_NOT_FOUND, NOT_FOUND]
+      parameters:
+        - {name: user_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/org/user-options:
+    get:
+      operationId: orgUserOptions
+      summary: 用户下拉选项
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::userOptions'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/org/dept-options:
+    get:
+      operationId: orgDeptOptions
+      summary: 部门下拉选项
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptOptions'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/depts/tree:
+    get:
+      operationId: deptsTree
+      summary: 部门树
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptsTree'
+      x-permission: system:dept:index
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/depts:
+    post:
+      operationId: deptsStore
+      summary: 新建部门
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptsStore'
+      x-permission: system:dept:create
+      x-error-codes: [DEPT_NAME_TAKEN, DEPT_NOT_FOUND, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/depts/{dept_id}:
+    put:
+      operationId: deptsUpdate
+      summary: 编辑部门
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptsUpdate'
+      x-permission: system:dept:update
+      x-error-codes: [DEPT_NOT_FOUND, DEPT_NAME_TAKEN, STALE_VERSION]
+      parameters:
+        - {name: dept_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: deptsDestroy
+      summary: 删除部门
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptsDestroy'
+      x-permission: system:dept:delete
+      x-error-codes: [DEPT_NOT_FOUND, DEPT_NOT_EMPTY, STALE_VERSION]
+      parameters:
+        - {name: dept_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/depts/{dept_id}/delete-check:
+    get:
+      operationId: deptsDeleteCheck
+      summary: 删除前检查
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::deptsDeleteCheck'
+      x-permission: system:dept:delete
+      x-error-codes: [DEPT_NOT_FOUND]
+      parameters:
+        - {name: dept_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/roles:
+    get:
+      operationId: rolesIndex
+      summary: 角色列表
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesIndex'
+      x-permission: system:role:index
+      responses: {'200': {description: 契约信封}}
+    post:
+      operationId: rolesStore
+      summary: 新建角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesStore'
+      x-permission: system:role:create
+      x-error-codes: [ROLE_NAME_TAKEN, DEPT_REQUIRED, DATA_SCOPE_INVALID, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/roles/{role_id}:
+    get:
+      operationId: rolesShow
+      summary: 角色详情
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesShow'
+      x-permission: system:role:index
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: rolesUpdate
+      summary: 编辑角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesUpdate'
+      x-permission: system:role:update
+      x-error-codes: [NOT_FOUND, ROLE_NAME_TAKEN, SYSTEM_ROLE_READONLY, STALE_VERSION, DEPT_REQUIRED, DATA_SCOPE_INVALID]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: rolesDestroy
+      summary: 删除角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesDestroy'
+      x-permission: system:role:delete
+      x-error-codes: [NOT_FOUND, SYSTEM_ROLE_READONLY, STALE_VERSION]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/roles/{role_id}/copy:
+    post:
+      operationId: rolesCopy
+      summary: 复制角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesCopy'
+      x-permission: system:role:create
+      x-error-codes: [NOT_FOUND, ROLE_NAME_TAKEN, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/roles/{role_id}/status:
+    put:
+      operationId: rolesStatus
+      summary: 启用/停用角色
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesStatus'
+      x-permission: system:role:update
+      x-error-codes: [NOT_FOUND, SYSTEM_ROLE_READONLY, STALE_VERSION]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/roles/{role_id}/permissions:
+    get:
+      operationId: rolesPermissions
+      summary: 角色权限详情
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesPermissions'
+      x-permission: system:role:index
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: rolesSavePermissions
+      summary: 保存角色权限
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::rolesSavePermissions'
+      x-permission: system:role:permission:update
+      x-error-codes: [NOT_FOUND, SYSTEM_ROLE_READONLY, SELF_LOCKOUT, STALE_VERSION]
+      parameters:
+        - {name: role_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/permission-tree:
+    get:
+      operationId: rolesPermissionTree
+      summary: 权限树
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::permissionTree'
+      x-permission: system:role:index
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/posts:
+    get:
+      operationId: postsIndex
+      summary: 岗位列表
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::postsIndex'
+      x-permission: system:post:index
+      responses: {'200': {description: 契约信封}}
+    post:
+      operationId: postsStore
+      summary: 新建岗位
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::postsStore'
+      x-permission: system:post:create
+      x-error-codes: [POST_NAME_TAKEN, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/posts/{post_id}:
+    put:
+      operationId: postsUpdate
+      summary: 编辑岗位
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::postsUpdate'
+      x-permission: system:post:update
+      x-error-codes: [POST_NOT_FOUND, POST_NAME_TAKEN, STALE_VERSION]
+      parameters:
+        - {name: post_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: postsDestroy
+      summary: 删除岗位
+      tags: [org]
+      x-handler: 'Sandadmin\Http\OrgController::postsDestroy'
+      x-permission: system:post:delete
+      x-error-codes: [POST_NOT_FOUND, STALE_VERSION]
+      parameters:
+        - {name: post_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 选项组/选项 ──
+  /api/admin/v1/dicts:
+    get:
+      operationId: dictsIndex
+      summary: 选项组列表
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::index'
+      x-permission: system:dict:index
+      responses: {'200': {description: 契约信封}}
+    post:
+      operationId: dictsStore
+      summary: 新建选项组
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::store'
+      x-permission: system:dict:create
+      x-error-codes: [DICT_TYPE_TAKEN, IDEMPOTENCY_KEY_REUSED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dicts/{type_id}:
+    get:
+      operationId: dictsShow
+      summary: 选项组详情
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::show'
+      x-permission: system:dict:index
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: type_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    put:
+      operationId: dictsUpdate
+      summary: 编辑选项组
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::update'
+      x-permission: system:dict:update
+      x-error-codes: [NOT_FOUND, DICT_TYPE_TAKEN]
+      parameters:
+        - {name: type_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: dictsDestroy
+      summary: 删除选项组
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::destroy'
+      x-permission: system:dict:delete
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: type_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dicts/{type_id}/items:
+    post:
+      operationId: dictsStoreItem
+      summary: 新建选项
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::storeItem'
+      x-permission: system:dict:create
+      x-error-codes: [NOT_FOUND, DICT_ITEM_TAKEN, IDEMPOTENCY_KEY_REUSED]
+      parameters:
+        - {name: type_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dicts/items/sort:
+    put:
+      operationId: dictsSortItems
+      summary: 选项排序
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::sortItems'
+      x-permission: system:dict:update
+      x-error-codes: [NOT_FOUND]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dicts/items/{item_id}:
+    put:
+      operationId: dictsUpdateItem
+      summary: 编辑选项
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::updateItem'
+      x-permission: system:dict:update
+      x-error-codes: [NOT_FOUND, DICT_ITEM_TAKEN]
+      parameters:
+        - {name: item_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+    delete:
+      operationId: dictsDestroyItem
+      summary: 删除选项
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::destroyItem'
+      x-permission: system:dict:delete
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: item_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/dicts/items/{item_id}/status:
+    put:
+      operationId: dictsItemStatus
+      summary: 启用/停用选项
+      tags: [dicts]
+      x-handler: 'Sandadmin\Http\DictController::itemStatus'
+      x-permission: system:dict:update
+      x-error-codes: [NOT_FOUND]
+      parameters:
+        - {name: item_id, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+  # ── 插件与系统更新 ──
+  /api/admin/v1/plugins/overview:
+    get:
+      operationId: pluginsOverview
+      summary: 插件总览
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\HostReadController::pluginsOverview'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/market:
+    get:
+      operationId: pluginsMarket
+      summary: 插件市场清单
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\HostReadController::pluginsMarket'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/installed:
+    get:
+      operationId: pluginsInstalled
+      summary: 已装插件清单
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\HostReadController::pluginsInstalled'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/upgrade-all:
+    post:
+      operationId: pluginsUpgradeAll
+      summary: 一键升级全部插件
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::upgradeAll'
+      x-permission: super
+      x-error-codes: [PLUGIN_BUSY, UPDATE_NOT_AVAILABLE, PLUGIN_OPERATION_FORBIDDEN]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/upload:
+    post:
+      operationId: pluginsUpload
+      summary: 上传插件包
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::upload'
+      x-permission: super
+      x-error-codes: [PLUGIN_PACKAGE_INVALID, PLUGIN_BUSY, PLUGIN_OPERATION_FORBIDDEN, PLUGIN_ALREADY_INSTALLED]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/{plugin_code}:
+    get:
+      operationId: pluginsShow
+      summary: 插件详情
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::show'
+      x-permission: authenticated
+      x-error-codes: [PLUGIN_NOT_FOUND]
+      parameters:
+        - {name: plugin_code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/{plugin_code}/install:
+    post:
+      operationId: pluginsInstall
+      summary: 安装插件
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::install'
+      x-permission: super
+      x-error-codes: [PLUGIN_NOT_FOUND, PLUGIN_ALREADY_INSTALLED, PLUGIN_VERSION_INCOMPATIBLE, PLUGIN_BUSY, PLUGIN_OPERATION_FORBIDDEN]
+      parameters:
+        - {name: plugin_code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/{plugin_code}/upgrade:
+    post:
+      operationId: pluginsUpgrade
+      summary: 升级插件
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::upgrade'
+      x-permission: super
+      x-error-codes: [PLUGIN_NOT_FOUND, PLUGIN_NOT_INSTALLED, PLUGIN_VERSION_INCOMPATIBLE, PLUGIN_BUSY, PLUGIN_OPERATION_FORBIDDEN]
+      parameters:
+        - {name: plugin_code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/plugins/{plugin_code}/uninstall:
+    post:
+      operationId: pluginsUninstall
+      summary: 卸载插件
+      tags: [plugins]
+      x-handler: 'Sandadmin\Http\PackageController::uninstall'
+      x-permission: super
+      x-error-codes: [PLUGIN_NOT_FOUND, PLUGIN_NOT_INSTALLED, PLUGIN_BUSY, PLUGIN_OPERATION_FORBIDDEN]
+      parameters:
+        - {name: plugin_code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/system/update/status:
+    get:
+      operationId: systemUpdateStatus
+      summary: 系统更新状态
+      tags: [system]
+      x-handler: 'Sandadmin\Http\HostReadController::updateStatus'
+      x-permission: authenticated
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/system/update/check:
+    post:
+      operationId: systemUpdateCheck
+      summary: 检查系统更新
+      tags: [system]
+      x-handler: 'Sandadmin\Http\HostReadController::updateCheck'
+      x-permission: authenticated
+      x-error-codes: [UPDATE_NOT_AVAILABLE]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/system/update/probe:
+    get:
+      operationId: systemUpdateProbe
+      summary: 系统更新回环探测应答
+      description: >-
+        离线探测的应答端点：探测发起方是实例自身（POST /system/update/check 签发一次性挑战后回环取回），
+        只认回环来源 + 未过期挑战 + token 一致，其余一律 404。不挂会话鉴权，应答不是契约信封。
+      tags: [system]
+      x-handler: 'Sandadmin\Http\UpdateProbeController::probe'
+      x-permission: public
+      responses: {'200': {description: 回环挑战回显（非契约信封，私有探测协议）}}
+  /api/admin/v1/system/update/start:
+    post:
+      operationId: systemUpdateStart
+      summary: 启动系统更新
+      tags: [system]
+      x-handler: 'Sandadmin\Http\PackageController::startUpdate'
+      x-permission: super
+      x-error-codes: [SYSTEM_UPDATE_OPERATION_FORBIDDEN, PLUGIN_BUSY, UPDATE_NOT_AVAILABLE]
+      responses: {'200': {description: 契约信封}}
+  /api/admin/v1/scheduled-tasks/{code}:
+    put:
+      operationId: scheduledTasksUpdate
+      summary: 覆盖写定时任务配置
+      tags: [system]
+      x-handler: 'Sandadmin\Http\HostReadController::scheduledTaskUpdate'
+      x-permission: authenticated
+      x-error-codes: [TASK_NOT_FOUND, TASK_SCHEDULE_INVALID]
+      parameters:
+        - {name: code, in: path, required: true, schema: {type: string}}
+      responses: {'200': {description: 契约信封}}
+
+components:
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        code:       {type: string, description: 成功固定 OK；失败为 x-error-catalog 登记的码}
+        message:    {type: string}
+        data:       {}
+        fields:     {type: object, additionalProperties: {type: array, items: {type: string}}}
+        request_id: {type: string}
+      required: [code, request_id]

@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Notification\NotificationException;
 use Sandadmin\Module\Notification\NotificationHttp;
 use Sandadmin\Module\Notification\NotificationRuntime;
@@ -72,7 +73,7 @@ final class NotificationController
         try {
             $runtime = NotificationRuntime::fromWebman();
             if ($runtime === null) {
-                return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+                return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
             }
             $outcome = $work($runtime, $request, $requestId);
 
@@ -82,7 +83,7 @@ final class NotificationController
         } catch (Throwable $error) {
             error_log('NotificationController 异常 ' . $error::class . ': ' . $error->getMessage());
 
-            return $this->failure(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
         }
     }
 

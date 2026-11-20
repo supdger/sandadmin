@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Org;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Infra\Auth\WeakPasswordRuntime;
 
 /**
@@ -16,14 +17,8 @@ use Sandadmin\Infra\Auth\WeakPasswordRuntime;
  */
 final class UserService
 {
-    /** @var list<string> */
-    private const ADMIN_CODES = [
-        'system:user:create',
-        'system:user:update',
-        'system:user:reset-password',
-        'system:user:assign-role',
-        'system:role:permission:update',
-    ];
+    /** @var list<string> 管理员高危码清单由契约 x-admin-permissions 派生 */
+    private const ADMIN_CODES = PermissionRegistry::ADMIN_CODES;
 
     public function __construct(
         private readonly Connection $connection,

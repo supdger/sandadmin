@@ -24,6 +24,7 @@ export const PATH_SYSTEM_ROLE = '/system/role';
 export const PATH_SYSTEM_MENU = '/system/menu';
 export const PATH_SYSTEM_PLUGINS = '/system/plugins';
 export const PATH_SYSTEM_UPDATE = '/system/update';
+export const PATH_SYSTEM_TASKS = '/system/tasks';
 
 export const PATH_DATA_DICT = '/data/dict';
 export const PATH_DATA_FILE = '/data/file';

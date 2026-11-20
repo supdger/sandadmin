@@ -4,7 +4,8 @@
 #
 # 用法：
 #   tools/pre-merge.sh                    # 同 --fast（与 sand-core 一致）
-#   tools/pre-merge.sh --fast             # 快档：php -l + 危险函数白名单扫描
+#   tools/pre-merge.sh --fast             # 快档：php -l + 模块测试目录检查
+#                                         #       + 契约一致性 + 危险函数白名单扫描
 #                                         #       + dev-only 引用门禁
 #                                         #       + TypePHP 禁用写法 diff 扫描
 #                                         #       + strict types + PHPStan + deptrac
@@ -12,7 +13,7 @@
 #                                         #       + 前端三道 + PHPUnit unit
 #                                         #       套件（不需要数据库）
 #   tools/pre-merge.sh --full             # 慢档口径：--fast 全部内容 + PHPUnit 全套
-#                                         #       （需先配库，见下）
+#                                         #       + 改动行覆盖率门禁（需先配库，见下）
 #   tools/pre-merge.sh --typephp          # 追加 TypePHP 可选编译验证；找不到
 #                                         #       编译器或项目文件时跳过不阻塞
 #                                         #       （ADR-23：工具链稳定前编译
@@ -72,25 +73,33 @@ step "PHP 语法检查（server/src app config）"
 (cd server && find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null) \
   || fail "php -l"
 
-# ---------- 2. 危险函数白名单扫描 ----------
+# ---------- 2. 模块测试目录检查 ----------
+step "模块测试目录检查（src/Module ↔ tests/{Unit,Integration}/Module）"
+php tools/check-module-tests.php || fail "check-module-tests"
+
+# ---------- 3. 契约一致性 ----------
+step "契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
+php tools/contract-build --check || fail "contract-build --check"
+
+# ---------- 4. 危险函数白名单扫描 ----------
 step "危险函数白名单扫描"
 (cd server && php tests/security/scan-dangerous-functions.php) || fail "scan-dangerous-functions"
 
-# ---------- 3. dev-only 引用门禁 ----------
+# ---------- 5. dev-only 引用门禁 ----------
 step "dev-only 引用门禁（tools/dev-only-paths.txt）"
 php tools/check-dev-refs.php || fail "check-dev-refs"
 
-# ---------- 4. TypePHP 禁用写法扫描（diff 模式） ----------
+# ---------- 6. TypePHP 禁用写法扫描（diff 模式） ----------
 # 存量 --all 全量会报既有可变调用/动态 include（36 条，整改是另一项工作），
 # 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
 step "TypePHP 禁用写法扫描（diff 模式）"
 php tools/typephp_check.php || fail "typephp_check"
 
-# ---------- 5. strict types 与禁用写法 ----------
+# ---------- 7. strict types 与禁用写法 ----------
 step "strict types 与禁用写法"
 tools/check-strict-types.sh || fail "check-strict-types"
 
-# ---------- 6. PHPStan level max ----------
+# ---------- 8. PHPStan level max ----------
 step "PHPStan level max"
 if [ ! -x server/vendor/bin/phpstan ]; then
   fail "server/vendor 未安装，先跑 cd server && composer install"
@@ -98,7 +107,7 @@ else
   (cd server && vendor/bin/phpstan analyse --no-progress) || fail "phpstan"
 fi
 
-# ---------- 7. deptrac 依赖方向 ----------
+# ---------- 9. deptrac 依赖方向 ----------
 step "deptrac 依赖方向（内核不依赖插件层）"
 if [ ! -x server/vendor/bin/deptrac ]; then
   fail "deptrac 未安装，先跑 cd server && composer install"
@@ -108,7 +117,7 @@ else
   (cd server && vendor/bin/deptrac analyse --config-file=deptrac.yaml) || fail "deptrac"
 fi
 
-# ---------- 8. 命名自查（diff 口径） ----------
+# ---------- 10. 命名自查（diff 口径） ----------
 step "命名自查（diff：${PRE_MERGE_BASE:-origin/main}...HEAD）"
 BASE=${PRE_MERGE_BASE:-origin/main}
 if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
@@ -160,7 +169,7 @@ else
   done
 fi
 
-# ---------- 9. 前端三道（web/ 存在才跑） ----------
+# ---------- 11. 前端三道（web/ 存在才跑） ----------
 if [ -d web ]; then
   step "前端：pnpm install --frozen-lockfile"
   (cd web && pnpm install --frozen-lockfile) || fail "pnpm install"
@@ -172,7 +181,7 @@ if [ -d web ]; then
   (cd web && pnpm test) || fail "vitest"
 fi
 
-# ---------- 10. PHPUnit ----------
+# ---------- 12. PHPUnit ----------
 if [ "$MODE" = fast ]; then
   # 快档只跑 unit 套件：不需要数据库，三库矩阵/集成用例归 --full。
   step "PHPUnit unit 套件（--fast，无需数据库）"
@@ -228,9 +237,14 @@ else
     (cd server && vendor/bin/phpunit) || fail "phpunit"
   fi
 fi
+
+# 自跑 phpunit --coverage-clover 算改动行覆盖率，不依赖上面的全套运行；
+# 无 pcov/xdebug 时它自己退 3，与 main 版一样在 --full 下必跑
+step "改动行覆盖率门禁（tools/test-gate.json）"
+php tools/check-diff-coverage.php || fail "check-diff-coverage"
 fi
 
-# ---------- 11. TypePHP 可选编译验证（--typephp 才跑） ----------
+# ---------- 13. TypePHP 可选编译验证（--typephp 才跑） ----------
 if [ "$TYPEPHP" = "1" ]; then
   step "TypePHP 可选编译验证"
   # 查找顺序：TYPEPHP_BIN 环境变量 → PATH 里的 typephp → ~/agent-work/grokbot/webman-typephp 下可执行文件

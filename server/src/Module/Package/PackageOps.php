@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Sandadmin\Module\Package;
 
 use Doctrine\DBAL\Connection;
+use Sandadmin\Contract\Build\ContractBuild;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Http\ApiOutcome;
 use Sandadmin\Infra\File\LocalFileStorage;
 use Sandadmin\Infra\Plugin\PluginResidue;
@@ -23,6 +25,9 @@ final class PackageOps
 {
     private const EXECUTOR = 'package-ops';
 
+    /** 收尾前要重跑契约收集的申请种类；system_upgrade 不带插件片段，不参与。 */
+    private const PLUGIN_KINDS = ['plugin_install', 'plugin_upgrade', 'plugin_uninstall', 'plugin_upgrade_batch'];
+
     /** @var list<array{code: string, name: string, version: string, latest_version: string, description: string}> */
     private const CATALOG = [
         [
@@ -34,9 +39,13 @@ final class PackageOps
         ],
     ];
 
-    public function __construct(private readonly Connection $connection)
+    public function __construct(private readonly Connection $connection, ?string $repoRoot = null)
     {
+        $this->repoRoot = $repoRoot ?? dirname(__DIR__, 4);
     }
+
+    /** 契约收集扫的仓根（contract/ + server/plugin/ 都从它下面找）。 */
+    private readonly string $repoRoot;
 
     /** @return array{status: int, body: array<string, mixed>} */
     public function overview(string $requestId): array
@@ -83,13 +92,31 @@ final class PackageOps
             }
         }
 
-        return ApiOutcome::fail(404, 'PLUGIN_NOT_FOUND', '插件不存在或已经被卸载', [], $requestId);
+        return ApiOutcome::fail(404, ErrorCodeRegistry::PLUGIN_NOT_FOUND, '插件不存在或已经被卸载', [], $requestId);
     }
 
     /** @return array{status: int, body: array<string, mixed>} */
     public function updateStatus(string $requestId): array
     {
         return ApiOutcome::ok($this->statusBody(), $requestId);
+    }
+
+    /**
+     * 「检查更新」＝离线回环探测 + 状态刷新：探测只打本机回环，
+     * 明细如实进 data.probe，checked_time 记本次探测时间。
+     *
+     * @return array{status: int, body: array<string, mixed>}
+     */
+    public function updateCheck(string $requestId, ?UpdateProbe $probe = null): array
+    {
+        $status = $this->statusBody();
+        $report = $probe?->run();
+        $status['probe'] = $report;
+        if ($report !== null) {
+            $status['checked_time'] = $report['checked_time'];
+        }
+
+        return ApiOutcome::ok($status, $requestId);
     }
 
     /** @return array{status: int, body: array<string, mixed>} */
@@ -101,10 +128,10 @@ final class PackageOps
         }
         $entry = $this->catalogEntry($code);
         if ($entry === null) {
-            return ApiOutcome::fail(404, 'PLUGIN_NOT_FOUND', '插件不存在或已经被卸载', [], $requestId);
+            return ApiOutcome::fail(404, ErrorCodeRegistry::PLUGIN_NOT_FOUND, '插件不存在或已经被卸载', [], $requestId);
         }
         if ($this->installedVersion($code) !== null) {
-            return ApiOutcome::fail(409, 'PLUGIN_ALREADY_INSTALLED', '「' . $entry['name'] . '」已经装好了', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::PLUGIN_ALREADY_INSTALLED, '「' . $entry['name'] . '」已经装好了', [], $requestId);
         }
 
         return $this->enqueue($actor, 'plugin_install', $code, 'official', null, $entry['version'], false, null, null, $requestId);
@@ -119,14 +146,14 @@ final class PackageOps
         }
         $entry = $this->catalogEntry($code);
         if ($entry === null) {
-            return ApiOutcome::fail(404, 'PLUGIN_NOT_FOUND', '插件不存在或已经被卸载', [], $requestId);
+            return ApiOutcome::fail(404, ErrorCodeRegistry::PLUGIN_NOT_FOUND, '插件不存在或已经被卸载', [], $requestId);
         }
         $current = $this->installedVersion($code);
         if ($current === null) {
-            return ApiOutcome::fail(409, 'PLUGIN_NOT_INSTALLED', '这个插件还没安装', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::PLUGIN_NOT_INSTALLED, '这个插件还没安装', [], $requestId);
         }
         if ($current === $entry['latest_version']) {
-            return ApiOutcome::fail(409, 'PLUGIN_VERSION_INCOMPATIBLE', '不能装比现在更旧的版本', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::PLUGIN_VERSION_INCOMPATIBLE, '不能装比现在更旧的版本', [], $requestId);
         }
 
         return $this->enqueue($actor, 'plugin_upgrade', $code, 'official', $current, $entry['latest_version'], false, null, null, $requestId);
@@ -141,7 +168,7 @@ final class PackageOps
         }
         $entry = $this->catalogEntry($code);
         if ($entry === null || $this->installedVersion($code) === null) {
-            return ApiOutcome::fail(404, 'PLUGIN_NOT_FOUND', '插件不存在或已经被卸载', [], $requestId);
+            return ApiOutcome::fail(404, ErrorCodeRegistry::PLUGIN_NOT_FOUND, '插件不存在或已经被卸载', [], $requestId);
         }
         $current = $this->installedVersion($code);
 
@@ -167,11 +194,11 @@ final class PackageOps
             }
         }
         if ($items === []) {
-            return ApiOutcome::fail(409, 'UPDATE_NOT_AVAILABLE', '现在没有可以升级的插件', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::UPDATE_NOT_AVAILABLE, '现在没有可以升级的插件', [], $requestId);
         }
         $encoded = json_encode($items, JSON_UNESCAPED_UNICODE);
         if (!is_string($encoded)) {
-            return ApiOutcome::fail(500, 'INTERNAL_ERROR', '系统出了点问题，请稍后再试', [], $requestId);
+            return ApiOutcome::fail(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', [], $requestId);
         }
 
         return $this->enqueue($actor, 'plugin_upgrade_batch', '*', 'official', null, null, false, $encoded, null, $requestId);
@@ -192,10 +219,10 @@ final class PackageOps
         $code = is_array($decoded) && is_string($decoded['code'] ?? null) ? $decoded['code'] : '';
         $entry = $this->catalogEntry($code);
         if ($entry === null) {
-            return ApiOutcome::fail(422, 'PLUGIN_PACKAGE_INVALID', '这个文件不是能用的安装包，请检查后再试', [], $requestId);
+            return ApiOutcome::fail(422, ErrorCodeRegistry::PLUGIN_PACKAGE_INVALID, '这个文件不是能用的安装包，请检查后再试', [], $requestId);
         }
         if ($this->installedVersion($code) !== null) {
-            return ApiOutcome::fail(409, 'PLUGIN_ALREADY_INSTALLED', '「' . $entry['name'] . '」已经装好了', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::PLUGIN_ALREADY_INSTALLED, '「' . $entry['name'] . '」已经装好了', [], $requestId);
         }
         $fileId = $this->storePackage($fileName, $bytes, $actor->userId);
 
@@ -211,7 +238,7 @@ final class PackageOps
         }
         $status = $this->statusBody();
         if ($status['update_available'] !== true || !is_string($status['latest_version'])) {
-            return ApiOutcome::fail(409, 'UPDATE_NOT_AVAILABLE', '已经是最新版本', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::UPDATE_NOT_AVAILABLE, '已经是最新版本', [], $requestId);
         }
 
         return $this->enqueue(
@@ -250,6 +277,9 @@ final class PackageOps
         $this->connection->transactional(function () use ($row, $kind): void {
             $next = $this->nextStep($kind, is_string($row['stage_key'] ?? null) ? $row['stage_key'] : null, OrgSql::int($row['progress'] ?? 0));
             if ($next['done']) {
+                if ($this->collectContracts($kind, OrgSql::int($row['id'] ?? 0)) !== null) {
+                    return;
+                }
                 $this->apply($row);
                 $this->connection->executeStatement(
                     'UPDATE sand_system_lifecycle_request SET state = \'succeeded\', stage = :stage, stage_key = :stage_key,'
@@ -272,25 +302,76 @@ final class PackageOps
         });
     }
 
+    /**
+     * 插件类申请收尾前重跑契约收集与冲突检查。返回 null 表示通过或本类
+     * 申请不查；返回非空说明申请已标 failed——冲突检查在写产物之前返回、
+     * apply 也没跑过，标 failed 就等于回到原状态，启动期哈希守卫照旧兜底。
+     */
+    private function collectContracts(string $kind, int $requestId): ?string
+    {
+        if (!in_array($kind, self::PLUGIN_KINDS, true)) {
+            return null;
+        }
+        try {
+            $report = ContractBuild::collectPlugins($this->repoRoot);
+        } catch (\Throwable $error) {
+            error_log('契约收集失败 ' . $error::class . ': ' . $error->getMessage());
+            $this->markFailed(
+                $requestId,
+                '契约收集异常',
+                ErrorCodeRegistry::INTERNAL_ERROR,
+                '契约收集异常：' . $error->getMessage(),
+            );
+
+            return '契约收集异常';
+        }
+        if ($report['result'] === 'ok') {
+            return null;
+        }
+        $reasons = array_merge($report['problems'], $report['conflicts']);
+        if ($reasons === []) {
+            $reasons = $report['warnings'];
+        }
+        $message = '插件契约与现有声明冲突：' . implode('；', $reasons);
+        $this->markFailed($requestId, '契约冲突', ErrorCodeRegistry::PLUGIN_CONTRACT_CONFLICT, $message);
+
+        return $message;
+    }
+
+    private function markFailed(int $requestId, string $stage, string $errorCode, string $message): void
+    {
+        $this->connection->executeStatement(
+            'UPDATE sand_system_lifecycle_request SET state = \'failed\', rolled_back = true, stage = :stage,'
+            . ' error_code = :error_code, error_message = :error_message,'
+            . ' finish_time = CURRENT_TIMESTAMP, heartbeat_time = CURRENT_TIMESTAMP WHERE id = :id',
+            [
+                'stage' => $stage,
+                'error_code' => $errorCode,
+                'error_message' => mb_substr($message, 0, 480),
+                'id' => $requestId,
+            ],
+        );
+    }
+
     /** @return array{status: int, body: array<string, mixed>}|null */
     private function guard(OrgActor $actor, string $requestId, bool $update): ?array
     {
         if ($actor->userId <= 0) {
-            return ApiOutcome::fail(401, 'UNAUTHENTICATED', '请先登录', [], $requestId);
+            return ApiOutcome::fail(401, ErrorCodeRegistry::UNAUTHENTICATED, '请先登录', [], $requestId);
         }
         if (!$actor->isSuper) {
-            return ApiOutcome::fail(403, 'PLUGIN_OPERATION_FORBIDDEN', '只有超级管理员能安装和升级', [], $requestId);
+            return ApiOutcome::fail(403, ErrorCodeRegistry::PLUGIN_OPERATION_FORBIDDEN, '只有超级管理员能安装和升级', [], $requestId);
         }
         if (PackageGate::compiled() || !PackageGate::opsEnabled()) {
             $message = $update ? PackageGate::UPDATE_COMPILED_MESSAGE : PackageGate::COMPILED_MESSAGE;
 
-            return ApiOutcome::fail(403, $update ? 'SYSTEM_UPDATE_OPERATION_FORBIDDEN' : 'PLUGIN_OPERATION_FORBIDDEN', $message, [], $requestId);
+            return ApiOutcome::fail(403, $update ? ErrorCodeRegistry::SYSTEM_UPDATE_OPERATION_FORBIDDEN : ErrorCodeRegistry::PLUGIN_OPERATION_FORBIDDEN, $message, [], $requestId);
         }
         $busy = $this->connection->fetchOne(
             'SELECT 1 FROM sand_system_lifecycle_request WHERE state IN (\'queued\', \'running\') LIMIT 1',
         );
         if ($busy !== false && $busy !== null) {
-            return ApiOutcome::fail(409, 'PLUGIN_BUSY', '刚才已经有别的安装或升级开始了，做完后再试', [], $requestId);
+            return ApiOutcome::fail(409, ErrorCodeRegistry::PLUGIN_BUSY, '刚才已经有别的安装或升级开始了，做完后再试', [], $requestId);
         }
 
         return null;
@@ -304,10 +385,10 @@ final class PackageOps
         $decoded = json_decode($bytes, true);
         $compiledFlag = is_array($decoded) && ($decoded['compiled'] ?? false) === true;
         if ($compiledName || $compiledFlag || str_contains(substr($bytes, 0, 512), "\0")) {
-            return ApiOutcome::fail(403, 'PLUGIN_OPERATION_FORBIDDEN', PackageGate::COMPILED_PLUGIN_MESSAGE, [], $requestId);
+            return ApiOutcome::fail(403, ErrorCodeRegistry::PLUGIN_OPERATION_FORBIDDEN, PackageGate::COMPILED_PLUGIN_MESSAGE, [], $requestId);
         }
         if (!is_array($decoded)) {
-            return ApiOutcome::fail(422, 'PLUGIN_PACKAGE_INVALID', '这个文件不是能用的安装包，请检查后再试', [], $requestId);
+            return ApiOutcome::fail(422, ErrorCodeRegistry::PLUGIN_PACKAGE_INVALID, '这个文件不是能用的安装包，请检查后再试', [], $requestId);
         }
 
         return null;
@@ -519,7 +600,8 @@ final class PackageOps
                 'state' => $installed ? 'installed' : 'uninstalled',
                 'task_state' => $this->taskState($entry['code']),
                 'rolled_back' => false,
-                'signature_verified' => true,
+                // 未接真验签，一律如实 false：目录条目只做了 sha256 完整性校验
+                'signature_verified' => false,
                 'description' => $entry['description'],
                 'provides' => [
                     'menus' => [

@@ -11,11 +11,17 @@ use Sandadmin\Application\Mcp\McpHttpBridge;
 use Sandadmin\Application\Mcp\McpKernel;
 use Sandadmin\Application\Mcp\McpServerFactory;
 use Sandadmin\Application\Mcp\ToolCatalog;
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Domain\Stream\StreamWriterInterface;
+use Sandadmin\Infra\Mcp\Biz\BusinessCatalog;
+use Sandadmin\Infra\Mcp\Biz\KernelBizGateway;
+use Sandadmin\Infra\Mcp\Biz\OrgActorSource;
 use Sandadmin\Infra\Mcp\Dev\DevCatalog;
 use Sandadmin\Infra\Mcp\DevTokenVerifier;
 use Sandadmin\Infra\Mcp\LogAuditSink;
 use Sandadmin\Infra\Mcp\McpGate;
 use Sandadmin\Infra\Mcp\WindowRateLimiter;
+use Sandadmin\Infra\Stream\MemoryStreamWriter;
 use support\Request;
 use support\Response;
 use Webman\Route;
@@ -29,6 +35,24 @@ use Webman\Route;
  */
 final class McpController
 {
+    /**
+     * 流式写出接线点（U-3：MCP 输出统一走 StreamWriterInterface）。
+     * 当前是无状态 Streamable HTTP 的单次 JSON 响应，默认 MemoryStreamWriter
+     * 即「缓冲取回」的非流式路径；升级到 SSE 传输时换注入 SseStreamWriter，
+     * 本方法与协议层调用面不变。
+     */
+    private readonly StreamWriterInterface $streamWriter;
+
+    public function __construct(?StreamWriterInterface $streamWriter = null)
+    {
+        $this->streamWriter = $streamWriter ?? new MemoryStreamWriter();
+    }
+
+    public function streamWriter(): StreamWriterInterface
+    {
+        return $this->streamWriter;
+    }
+
     public function handle(Request $request): Response
     {
         if (!DevTokenVerifier::configured() || !McpGate::remoteAllowed($request)) {
@@ -36,13 +60,13 @@ final class McpController
         }
         $origin = $request->header('origin');
         if (!McpGate::originAllowed(is_string($origin) ? $origin : null)) {
-            return $this->json(403, 'MCP_ORIGIN_REJECTED', 'Origin 不在本机白名单');
+            return $this->json(403, ErrorCodeRegistry::MCP_ORIGIN_REJECTED, 'Origin 不在本机白名单');
         }
         $authorization = $request->header('authorization');
         $token = $this->bearerToken(is_string($authorization) ? $authorization : null);
         $identity = $token !== null ? (new DevTokenVerifier())->verify($token) : null;
         if ($identity === null) {
-            return $this->json(401, 'MCP_UNAUTHORIZED', '凭据无效或未配置')
+            return $this->json(401, ErrorCodeRegistry::MCP_UNAUTHORIZED, '凭据无效或未配置')
                 ->withHeader('WWW-Authenticate', 'Bearer realm="mcp"');
         }
         $incomingId = $request->header('x-request-id');
@@ -50,12 +74,12 @@ final class McpController
         $limiter = new WindowRateLimiter();
         $window = self::intConfig('mcp.dev.window_seconds', 60);
         if (!$limiter->hit('mcp:credential:' . $identity->credential, self::intConfig('mcp.dev.credential_limit', 60), $window)) {
-            return $this->json(429, 'MCP_RATE_LIMITED', '调用频率超限，稍后再试');
+            return $this->json(429, ErrorCodeRegistry::MCP_RATE_LIMITED, '调用频率超限，稍后再试');
         }
         $kernel = new McpKernel(
             $identity,
             $limiter,
-            new LogAuditSink(\support\Log::channel('default')),
+            new LogAuditSink(\support\Log::channel('security')),
             $requestId,
             $request->getRemoteIp(),
             self::intConfig('mcp.dev.tool_limit', 30),
@@ -65,11 +89,25 @@ final class McpController
             'sandadmin',
             '1.x',
             new \Sandadmin\Infra\Log\SdkQuietLogger(\support\Log::channel('default')),
-        ))->build(new ToolCatalog($this->devSpecs()), $kernel);
+        ))->build(new ToolCatalog($this->specs()), $kernel);
 
         return McpHttpBridge::fromPsr7(
             $transport->handle(McpHttpBridge::toPsr7($request, $identity)),
         );
+    }
+
+    /**
+     * 工具清单 = 开发期工具 + 业务工具（v1 接口映射）。
+     * 业务工具的 BizKernel 延迟求值，库不可用时单个工具回 INTERNAL_ERROR，
+     * 不影响 tools/list 与其余工具。
+     *
+     * @return list<\Sandadmin\Domain\Mcp\ToolSpec>
+     */
+    private function specs(): array
+    {
+        $gateway = new KernelBizGateway(BizKernel::fromWebman(...), new OrgActorSource());
+
+        return [...$this->devSpecs(), ...BusinessCatalog::specs($gateway)];
     }
 
     /** @return list<\Sandadmin\Domain\Mcp\ToolSpec> */

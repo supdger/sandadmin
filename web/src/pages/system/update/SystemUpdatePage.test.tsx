@@ -111,7 +111,7 @@ describe('SystemUpdatePage', () => {
   it('编译版只读：说明条 + 不显示操作按钮', async () => {
     server.use(
       http.get(STATUS_URL, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             current_version: '1.4.2',
@@ -138,7 +138,7 @@ describe('SystemUpdatePage', () => {
   it('不能网页升级时失败已恢复：原因单独一行，没有再试一次', async () => {
     server.use(
       http.get(STATUS_URL, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             ...mockUpdateStatus(),
@@ -164,7 +164,7 @@ describe('SystemUpdatePage', () => {
   it('不能网页升级时失败未恢复：没有再试一次，恢复与复制仍在', async () => {
     server.use(
       http.get(STATUS_URL, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             ...mockUpdateStatus(),
@@ -191,7 +191,7 @@ describe('SystemUpdatePage', () => {
   it('网页能升级时失败页仍给「再试一次」', async () => {
     server.use(
       http.get(STATUS_URL, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             ...mockUpdateStatus(),
@@ -213,7 +213,7 @@ describe('SystemUpdatePage', () => {
   it('申请已取消时显示「已取消，系统没有改动」', async () => {
     server.use(
       http.get(STATUS_URL, () =>
-        HttpResponse.json({
+        HttpResponse.json({ code: 'OK',
           request_id: 'x',
           data: {
             current_version: '1.4.2',

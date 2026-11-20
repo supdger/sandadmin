@@ -24,8 +24,10 @@ global $argv;
 return [
     'webman' => [
         'handler' => Http::class,
-        'listen' => 'http://0.0.0.0:' . env('SANDADMIN_SERVER_PORT', 8787),
-        'count' => cpu_count() * 4,
+        // 空串按未配置回落默认拼装（listen 串没有 '0' 这类合法 falsy 值）
+        'listen' => env('SANDADMIN_SERVER_LISTEN') ?: 'http://0.0.0.0:' . (env('SANDADMIN_SERVER_PORT') ?: 8787),
+        // 压测/开发可经 SANDADMIN_WEB_WORKERS 固定为 1，验证「每进程挂路数」口径
+        'count' => max(1, (int) env('SANDADMIN_WEB_WORKERS', cpu_count() * 4)),
         'user' => '',
         'group' => '',
         'reusePort' => false,
@@ -68,6 +70,13 @@ return [
     'task_worker' => [
         'handler' => Sandadmin\Task\TaskWorker::class,
         'count' => max(1, (int) env('SANDADMIN_TASK_WORKERS', 1)),
+        'constructor' => [],
+    ],
+    // Custom process: 按 config/log.php 各通道 retention 每日清理过期日志
+    // 文件（T-4/N9）；库表日志清理落地后复用同一 LogRetentionPolicy。
+    'log_retention' => [
+        'handler' => Sandadmin\Infra\Log\LogRetentionWorker::class,
+        'count' => 1,
         'constructor' => [],
     ],
 ];

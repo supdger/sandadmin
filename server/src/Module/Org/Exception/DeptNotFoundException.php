@@ -7,8 +7,10 @@ declare(strict_types=1);
 
 namespace Sandadmin\Module\Org\Exception;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+
 /** 部门不存在或已删除。由上层错误处理映射为 404 DEPT_NOT_FOUND。 */
 final class DeptNotFoundException extends \DomainException
 {
-    public const CODE = 'DEPT_NOT_FOUND';
+    public const CODE = ErrorCodeRegistry::DEPT_NOT_FOUND;
 }

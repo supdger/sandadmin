@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Application\File;
 
+use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Domain\File\FileActor;
 use Sandadmin\Domain\File\FileException;
 use Sandadmin\Domain\File\FilePage;
@@ -102,7 +103,7 @@ final class FileService
         if ($file->visibility === FileVisibility::Public) {
             return;
         }
-        if ($file->uploaderId === $actor->userId || $actor->can('system:file:index')) {
+        if ($file->uploaderId === $actor->userId || $actor->can(PermissionRegistry::FILE_INDEX)) {
             return;
         }
 

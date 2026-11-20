@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Sandadmin\Infra\Mcp\Dev;
 
+use Sandadmin\Contract\Generated\ErrorCodeRegistry;
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
@@ -38,15 +40,15 @@ final class PhpunitTool implements ToolRunner
     }
 
     /** @param array<string, mixed> $arguments */
-    public function run(McpIdentity $identity, array $arguments): ToolOutcome
+    public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
         $target = $arguments['target'] ?? '';
         if (!is_string($target) || trim($target) === '') {
-            return ToolOutcome::fail('MCP_BAD_ARGUMENT', ['message' => 'target 必填：tests/ 下相对路径或 Sandadmin\\Tests\\* 类名']);
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_BAD_ARGUMENT, ['message' => 'target 必填：tests/ 下相对路径或 Sandadmin\\Tests\\* 类名']);
         }
         $relative = $this->resolveTarget(trim($target));
         if ($relative === null) {
-            return ToolOutcome::fail('MCP_TARGET_REJECTED', [
+            return ToolOutcome::fail(ErrorCodeRegistry::MCP_TARGET_REJECTED, [
                 'message' => 'target 不在白名单：只接受 tests/ 下已存在的 .php 文件或对应的 Sandadmin\\Tests\\* 类名',
             ]);
         }
