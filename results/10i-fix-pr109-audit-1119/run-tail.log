@@ -1,0 +1,25 @@
+我先读取审计结论和 sandadmin 1.x 的工作约定 skill。审计结论明确：两处必改（X5 安全日志下限、E3 国际化待确认），都在 `.agents/skills/sandadmin1x-design-standard/SKILL.md`。现在找仓库位置和分支状态。找到了：`3j-design-standard-1119/sandadmin` 就在 PR 分支 `docs/1x-design-standard` 上，head 正是审计的 `bc81663`。查看必改的两处内容。核对总表第 16 条和待确认项 4 的原文措辞，确保改法一致。总表措辞确认。现在按审计要求改 SKILL.md 两处。两处改完，diff 核对一下再跑检查。skill-sync 通过。接着跑 naming_check.py notes 和 pre-merge --fast。naming_check 干净。跑 pre-merge --fast。全部检查通过。按仓库提交风格提交。提交 `2e641bf` 完成，推送。推送成功。等新 head 的 checks 跑完并确认无冲突。PR 现在与 main 冲突（DIRTY/CONFLICTING），说明审计后又有新东西进了 main。先看 main 的新提交和冲突文件。冲突只在生成产物的「源哈希」行——main 上新合的 PR 改了 openapi.yaml。标准解法：把 origin/main 合进分支，产物按合并后的 contract 重新生成。这正是 bc81663 当时处理同类问题的做法，属于达成合并目标的必要操作。只冲突生成产物，按合并后的 contract 重新生成解决。产物已重新生成且 `--check` 通过。标记冲突已解决并完成合并提交。合并提交完成。在合并后的树上重跑三项检查（以 origin/main 为基线做 naming diff）。对 main 的净 diff 现在只有 SKILL.md（新增）和 AGENTS.md 两行，产物已与 main 一致。跑 pre-merge --fast。TypePHP 门禁报了 `server/config/database.php:29-30` 的 `$resolve()` 可变调用——这是从 main 合进来的代码，不是我改的。先确认这些行在 main 上的状态和门禁 diff 的基线。这些行在 origin/main 上完全相同——是 main 自己刚合进来的代码。看门禁 diff 模式的基线是什么。门禁用的是本地 `main` 引用做基线。查它是否过期。本地 `main` 停在 `977427a`，落后于 `origin/main` (`b8cfcfa`)，导致门禁把 main 新增行误报为分支新增。main 未被检出，直接快进到 origin/main 再重跑。门禁 8/8 全过。推送新 head。推送完成，GitHub 还在算 mergeable。稍等再查状态和 checks。冲突已解除（MERGEABLE），还有 4 项 check 在跑。等它们跑完。6/6 checks 全绿。最后确认 mergeable 状态然后合并。条件满足（MERGEABLE / CLEAN / 6/6 pass），执行合并。合并成功。确认 PR 状态和分支保留，然后写 RESULT.md。写 RESULT.md 到任务目录。任务完成。摘要：
+
+**两处必改已落实**（`.agents/skills/sandadmin1x-design-standard/SKILL.md`）：
+- X5（第 95 行）：安全日志下限「183 天」→「6 个月（按自然月计）」，验收指标同步改，与总表第 16 条一致
+- E3（第 122 行）：「做：英文语言包」→「待老板定（总表待确认项 4）」
+
+**途中插曲**：推送 `2e641bf` 后 main 已前进（新合 #104/#105/#107/#111），产物 `connection-budget.generated.json` 冲突。按惯例 merge origin/main + `contract-build` 重新生成解决（`c92246d`）。pre-merge 一度误报 `database.php` 的 `$resolve()`——本地 `main` 引用过期所致，快进后重跑全过。
+
+**结果**：
+- skill-sync 4/4 OK、naming_check notes 干净、pre-merge --fast 8/8 过（737 tests、PHPStan 无错）
+- checks 6/6 绿、MERGEABLE/CLEAN 后 `gh pr merge --merge` 成功，分支保留
+- main 新 SHA：`e325e0ef0c32bfa9e3237acd6b383f588fb9951a`
+- RESULT.md 已写入 `~/agent-work/assistant/10i-fix-pr109-audit-1119/RESULT.md`
+
+## 模型记录
+- 主 Agent：swe-2-high（sessions.db `model` 字段证实）
+- 子 Agent：未使用（任务禁止下级会话）
+
+## 任务记录
+- 已修改：`sandadmin/.agents/skills/sandadmin1x-design-standard/SKILL.md`（X5、E3 两格）；`server/config/connection-budget.generated.json`（解冲突重新生成）；`RESULT.md`
+- 已验证：skill-sync OK；naming_check notes 0 FAIL/0 WARN；pre-merge --fast 8/8；gh pr checks 6/6 pass；MERGEABLE/CLEAN
+- 已提交/已部署：已推送 `2e641bf`+`c92246d`；PR #109 已合并（e325e0e）；无部署
+- 未完成：无（审计「建议」级项按任务边界未动）
+
+=== RUN COMPLETE ===
