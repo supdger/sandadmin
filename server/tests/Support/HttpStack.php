@@ -13,8 +13,6 @@ use Sandadmin\Http\JsonErrorResponse;
 use Sandadmin\Http\Middleware\AuthMiddleware;
 use Sandadmin\Http\Middleware\ErrorMiddleware;
 use Sandadmin\Http\RequestContextStore;
-use Sandadmin\Http\RequestHeaders;
-use Sandadmin\Http\RequestIds;
 
 /** 测试用的中间件组装。实例可跨请求复用，以暴露进程级状态泄漏。 */
 final class HttpStack
@@ -31,12 +29,10 @@ final class HttpStack
     {
         $logger = new RecordingErrorLogger();
         $contexts = new RequestContextStore();
-        $requestIds = new RequestIds();
-        $headers = new RequestHeaders();
 
         return new self(
-            new ErrorMiddleware(new ErrorResponder($logger), new JsonErrorResponse(), $contexts, $requestIds, $headers),
-            new AuthMiddleware($authenticator, $contexts, $requestIds, $headers),
+            new ErrorMiddleware(new ErrorResponder($logger), new JsonErrorResponse(), $contexts),
+            new AuthMiddleware($authenticator, $contexts),
             $contexts,
             $logger,
         );

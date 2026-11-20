@@ -17,14 +17,17 @@ declare(strict_types=1);
 
 use Sandadmin\Http\Middleware\CorsMiddleware;
 use Sandadmin\Http\Middleware\CsrfMiddleware;
+use Sandadmin\Http\Middleware\RequestContextMiddleware;
 use Sandadmin\Http\Middleware\SecurityHeadersMiddleware;
 
 // '' 键 = 宿主全局：列表顺序即执行顺序（先列者最外层）。
 // SecurityHeaders 最外，保证 403/204 等中间件短路响应也带安全头；
+// RequestContext 紧随其后，保证其下游（含 CSRF 短路拒绝）都有 request_id；
 // Cors 在 Csrf 之前，OPTIONS 预检独立应答、不进入 CSRF 校验。
 return [
     '' => [
         SecurityHeadersMiddleware::class,
+        RequestContextMiddleware::class,
         CorsMiddleware::class,
         CsrfMiddleware::class,
     ],

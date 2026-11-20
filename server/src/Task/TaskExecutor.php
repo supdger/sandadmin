@@ -9,15 +9,27 @@ declare(strict_types=1);
 
 namespace Sandadmin\Task;
 
+use Psr\Log\LoggerInterface;
+use Sandadmin\Http\RequestIds;
+use Sandadmin\Infra\Log\RequestScope;
+
 /**
  * 单轮执行：认领一个任务、交给对应处理器、按结果回写终态。
  * 租约、并发上限、重试次数由 TaskClaimPolicy 在认领阶段保证；
  * 超时由 TaskProgress 心跳与执行器兜底双重判定。
+ *
+ * 可观测：认领后把 payload.__context.request_id（TaskDispatcher 写入的
+ * 发起请求编号）连同 task_id、attempt 绑进 RequestScope，本任务期间的
+ * Log 记录自动带这三个字段；结束 finally 清空，不串到下一任务。
+ * __context 是保留键，handler 约定不读。
  */
 final class TaskExecutor
 {
     /** result 摘要上限，防止超大 JSON 写库。 */
     private const RESULT_MAX_BYTES = 262144;
+
+    /** payload 中由 dispatcher 写入的执行上下文保留键。 */
+    private const CONTEXT_KEY = '__context';
 
     public function __construct(
         private readonly TaskStore $store,
@@ -25,6 +37,8 @@ final class TaskExecutor
         private readonly Clock $clock,
         private readonly string $workerId,
         private readonly TaskConfig $config,
+        private readonly ?RequestScope $scope = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -39,6 +53,8 @@ final class TaskExecutor
             return null;
         }
         $publicId = $claimed->publicId;
+        $scope = $this->scope ?? new RequestScope();
+        $scope->bind($this->contextRequestId($claimed->payload), $publicId, $claimed->attempt);
 
         try {
             $handler = $this->handlers->forType($claimed->type);
@@ -69,9 +85,31 @@ final class TaskExecutor
         } catch (\Throwable $exception) {
             $this->report($exception, $publicId);
             $this->finishFailed($publicId, 'handler_failed', '任务执行失败');
+        } finally {
+            $scope->clear();
         }
 
         return $this->store->findByPublicId($publicId);
+    }
+
+    /**
+     * 读 payload.__context.request_id；payload 是落库 JSON，可能被手工
+     * 改过，格式不合法的一律按无 request_id 处理，不阻断任务执行。
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function contextRequestId(array $payload): ?string
+    {
+        $context = $payload[self::CONTEXT_KEY] ?? null;
+        if (!is_array($context)) {
+            return null;
+        }
+        $requestId = $context['request_id'] ?? null;
+        if (!is_string($requestId) || preg_match(RequestIds::PATTERN, $requestId) !== 1) {
+            return null;
+        }
+
+        return $requestId;
     }
 
     /**
@@ -104,11 +142,19 @@ final class TaskExecutor
 
     private function report(\Throwable $exception, string $publicId): void
     {
-        error_log(sprintf(
+        $message = sprintf(
             'task_run %s 执行异常 %s: %s',
             $publicId,
             $exception::class,
             $exception->getMessage()
-        ));
+        );
+        $logger = $this->logger;
+        if ($logger !== null) {
+            // request_id/task_id/attempt 由 RequestScope processor 自动注入
+            $logger->error($message, ['exception' => $exception::class]);
+
+            return;
+        }
+        error_log($message);
     }
 }

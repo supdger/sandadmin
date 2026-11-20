@@ -24,6 +24,7 @@ final class TaskCli
         if (is_file($basePath . DIRECTORY_SEPARATOR . 'support' . DIRECTORY_SEPARATOR . 'gssencmode.php')) {
             require_once $basePath . DIRECTORY_SEPARATOR . 'support' . DIRECTORY_SEPARATOR . 'gssencmode.php';
         }
+        self::loadConfig($basePath);
         $databaseConfig = self::databaseConfig();
         $taskConfig = self::taskConfig($basePath);
         if ($databaseConfig === null || $taskConfig === null) {
@@ -41,6 +42,20 @@ final class TaskCli
         } catch (\Throwable $exception) {
             return ['error' => $exception->getMessage()];
         }
+    }
+
+    /**
+     * 装载 config/ 让 support\Log 等宿主设施在 CLI 可用（任务执行日志
+     * 走 default 通道，与 webman task_worker 同一份配置）；排除项与
+     * webman 启动口径一致（route/container 不在此装载）。
+     */
+    private static function loadConfig(string $basePath): void
+    {
+        $configPath = $basePath . DIRECTORY_SEPARATOR . 'config';
+        if (!is_dir($configPath) || !class_exists(\Webman\Config::class)) {
+            return;
+        }
+        \Webman\Config::load($configPath, ['route', 'container']);
     }
 
     /**

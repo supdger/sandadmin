@@ -273,4 +273,84 @@ final class TaskExecutorTest extends TestCase
         self::assertSame(TaskState::Failed, $done?->state);
         self::assertSame('invalid_result', $done->errorCode);
     }
+
+    public function testTickBindsRequestScopeDuringHandle(): void
+    {
+        $scope = new \Sandadmin\Infra\Log\RequestScope();
+        $scope->clear();
+        $handler = new class($scope) implements TaskHandler {
+            public function __construct(private \Sandadmin\Infra\Log\RequestScope $scope)
+            {
+            }
+
+            /**
+             * @return array<string, mixed>
+             */
+            public function handle(TaskRun $task, TaskProgress $progress): array
+            {
+                return ['fields' => $this->scope->fields()];
+            }
+        };
+        $this->dispatcher->dispatch('noop', [], 7, null, 'req-trace0002');
+
+        $executor = $this->executorWithScope($handler, $scope);
+        $done = $executor->tick();
+
+        self::assertNotNull($done);
+        $fields = $done->result['fields'] ?? [];
+        self::assertIsArray($fields);
+        self::assertSame('req-trace0002', $fields['request_id'] ?? null);
+        self::assertSame($done->publicId, $fields['task_id'] ?? null);
+        self::assertSame(1, $fields['attempt'] ?? null);
+        // 执行结束作用域必须清空，不串到下一任务
+        self::assertSame([], $scope->fields());
+        $scope->clear();
+    }
+
+    public function testTickIgnoresMalformedContextRequestId(): void
+    {
+        $scope = new \Sandadmin\Infra\Log\RequestScope();
+        $scope->clear();
+        $handler = new class($scope) implements TaskHandler {
+            public function __construct(private \Sandadmin\Infra\Log\RequestScope $scope)
+            {
+            }
+
+            /**
+             * @return array<string, mixed>
+             */
+            public function handle(TaskRun $task, TaskProgress $progress): array
+            {
+                return ['fields' => $this->scope->fields()];
+            }
+        };
+        // 绕过 requestId 参数直接落库脏 __context（模拟手工改库），执行侧应忽略
+        $this->dispatcher->dispatch('noop', ['__context' => ['request_id' => "bad\nid"]], 7);
+
+        $done = $this->executorWithScope($handler, $scope)->tick();
+
+        self::assertNotNull($done);
+        $fields = $done->result['fields'] ?? [];
+        self::assertIsArray($fields);
+        self::assertArrayNotHasKey('request_id', $fields);
+        self::assertSame([], $scope->fields());
+        $scope->clear();
+    }
+
+    private function executorWithScope(TaskHandler $handler, \Sandadmin\Infra\Log\RequestScope $scope): TaskExecutor
+    {
+        return new TaskExecutor(
+            $this->store,
+            new MappedTaskHandlerFactory(['noop' => $handler]),
+            $this->clock,
+            'worker-test',
+            TaskConfig::fromArray([
+                'lease_seconds' => 60,
+                'max_attempts' => 3,
+                'timeout_seconds' => 300,
+                'default_concurrency' => 4,
+            ]),
+            $scope,
+        );
+    }
 }

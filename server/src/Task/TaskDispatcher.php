@@ -9,9 +9,18 @@ declare(strict_types=1);
 
 namespace Sandadmin\Task;
 
+use Sandadmin\Http\RequestIds;
+use Sandadmin\Infra\Log\RequestScope;
+
 /**
  * 投递任务：校验载荷保密约束后落库为 queued 记录。
  * 同一 (type, idempotency_key) 重复投递直接返回既有记录，不产生第二条。
+ *
+ * 可观测约定：dispatch 的 $requestId 非空（显式传入或缺省取
+ * RequestScope 绑定）时写入 payload 保留键 `__context.request_id`
+ * （不属于业务入参，handler 约定不读它）；TaskExecutor 认领后绑进
+ * 日志作用域并附 task_id/attempt，「发起请求 → 任务执行」凭
+ * request_id 串联，任务内再派生沿用同一编号。表结构不变。
  */
 final class TaskDispatcher
 {
@@ -25,17 +34,29 @@ final class TaskDispatcher
         'credentials', 'authorization', 'cookie', 'session',
     ];
 
+    /** payload 内的保留键：dispatcher 写入、handler 不读，见类注释。 */
+    private const CONTEXT_KEY = '__context';
+
+    private readonly RequestScope $scope;
+
     public function __construct(
         private readonly TaskStore $store,
         private readonly Clock $clock,
+        ?RequestScope $scope = null,
     ) {
+        $this->scope = $scope ?? new RequestScope();
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $payload 业务入参；`__context` 为保留键，
+     *        调用方不应自带，requestId 由本方法统一写入
+     * @param string|null $requestId 发起请求的 request_id（RequestIds 口径），
+     *        缺省时取 RequestScope 当前绑定；非空时写入
+     *        payload.__context.request_id 供执行侧日志串联
      */
-    public function dispatch(string $type, array $payload, int $createdBy, ?string $idempotencyKey = null): TaskRun
+    public function dispatch(string $type, array $payload, int $createdBy, ?string $idempotencyKey = null, ?string $requestId = null): TaskRun
     {
+        $requestId ??= $this->scopeRequestId();
         if (preg_match('/^[a-z][a-z0-9_.]{0,63}$/', $type) !== 1) {
             throw new InvalidTaskException('任务类型标识不正确');
         }
@@ -43,6 +64,17 @@ final class TaskDispatcher
             throw new InvalidTaskException('任务发起人不正确');
         }
         $this->assertNoSecrets($payload, 'payload');
+        if ($requestId !== null) {
+            if (preg_match(RequestIds::PATTERN, $requestId) !== 1) {
+                throw new InvalidTaskException('request_id 不正确');
+            }
+            $context = $payload[self::CONTEXT_KEY] ?? [];
+            if (!is_array($context)) {
+                $context = [];
+            }
+            $context['request_id'] = $requestId;
+            $payload[self::CONTEXT_KEY] = $context;
+        }
         if ($idempotencyKey !== null) {
             if (preg_match('/^[A-Za-z0-9._~-]{1,128}$/', $idempotencyKey) !== 1) {
                 throw new InvalidTaskException('幂等键不正确');
@@ -118,6 +150,19 @@ final class TaskDispatcher
                 }
             }
         }
+    }
+
+    /**
+     * 取 RequestScope 当前绑定的 request_id；无绑定或格式不合法返回 null，
+     * 不阻断投递（CLI、无上下文环境投递的任务本就不带关联编号）。
+     */
+    private function scopeRequestId(): ?string
+    {
+        $requestId = $this->scope->fields()['request_id'] ?? null;
+
+        return is_string($requestId) && preg_match(RequestIds::PATTERN, $requestId) === 1
+            ? $requestId
+            : null;
     }
 
     private function uuid(): string
