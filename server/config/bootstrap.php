@@ -26,6 +26,8 @@ return [
     app\bootstrap\LogRetentionGuard::class,
     // A-5：生产环境未配置 security.site_origin 即拒绝启动。
     app\bootstrap\SiteOriginGuard::class,
+    // 发号器节点配置自检：节点号不在部署号段内或回拨阈值缺失即拒绝启动（v4 J-3）。
+    app\bootstrap\IdGeneratorGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];
