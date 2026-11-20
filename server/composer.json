@@ -94,7 +94,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Sandadmin\\Tests\\": "tests/"
+            "Sandadmin\\Tests\\": "tests/",
+            "Sandadmin\\PHPStan\\": "phpstan/"
         }
     },
     "scripts": {

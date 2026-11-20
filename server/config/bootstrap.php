@@ -28,6 +28,8 @@ return [
     app\bootstrap\SiteOriginGuard::class,
     // 发号器节点配置自检：节点号不在部署号段内或回拨阈值缺失即拒绝启动（v4 J-3）。
     app\bootstrap\IdGeneratorGuard::class,
+    // 常驻进程运行配置 schema 自检 + 内存水位回收定时器（3i P2）。
+    app\bootstrap\RuntimeConfigGuard::class,
     support\bootstrap\Session::class,
     Webman\ThinkOrm\ThinkOrm::class,
 ];

@@ -229,6 +229,20 @@ x-mcp-tools:
 # 契约面之外，继续在 route.php 哨兵段手写，由开发构建剔除。
 
 paths:
+  # ── 存活探针（Sandadmin\Http\HealthController，宿主独占 /health/ 前缀）──
+  /health/live:
+    get:
+      operationId: healthLive
+      summary: 常驻进程存活探针
+      description: >-
+        进程存活即 200 + 简单 JSON；不查库、不查 Redis、不鉴权，
+        就绪检查（DB/迁移版本）属 /health/ready，随 3I-5b 另行接入。
+        应答不是契约信封。
+      tags: [system]
+      x-handler: 'Sandadmin\Http\HealthController::live'
+      x-permission: public
+      responses: {'200': {description: 存活应答（非契约信封）}}
+
   # ── 文件（app\controller\FileController）──
   /api/admin/v1/files:
     post:

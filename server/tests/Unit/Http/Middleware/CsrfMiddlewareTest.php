@@ -10,6 +10,7 @@ namespace Sandadmin\Tests\Unit\Http\Middleware;
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Application\Security\CsrfConfig;
 use Sandadmin\Http\Middleware\CsrfMiddleware;
+use Webman\Context;
 use Webman\Http\Request;
 use Webman\Http\Response;
 
@@ -241,8 +242,15 @@ final class CsrfMiddlewareTest extends TestCase
 
     private function dispatch(Request $request, CsrfConfig $config): Response
     {
-        return (new CsrfMiddleware($config))
-            ->process($request, static fn (Request $request): Response => new Response(204));
+        // CsrfMiddleware 往请求上下文写 request_id：每次模拟请求先 reset/destroy，
+        // 否则非纤程上下文会把上一个用例的 request_id 带进本用例
+        Context::reset();
+        try {
+            return (new CsrfMiddleware($config))
+                ->process($request, static fn (Request $request): Response => new Response(204));
+        } finally {
+            Context::destroy();
+        }
     }
 
     private static function config(): CsrfConfig

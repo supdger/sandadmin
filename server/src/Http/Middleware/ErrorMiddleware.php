@@ -54,19 +54,19 @@ final class ErrorMiddleware implements MiddlewareInterface
 
     private function ensureRequestId(Request $request): string
     {
-        $existing = $this->contexts->get($request);
+        $existing = $this->contexts->get();
         if ($existing !== null) {
             return $existing->requestId;
         }
         $requestId = $this->requestIds->resolve($this->headers->optional($request, 'x-request-id'));
-        $this->contexts->set($request, new RequestContext(null, $requestId));
+        $this->contexts->set(new RequestContext(null, $requestId));
 
         return $requestId;
     }
 
     private function currentRequestId(Request $request, string $fallback): string
     {
-        $context = $this->contexts->get($request);
+        $context = $this->contexts->get();
 
         return $context !== null ? $context->requestId : $fallback;
     }

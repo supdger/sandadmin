@@ -45,6 +45,9 @@ rm server/tests
 rm tests
 rm server/phpunit.xml.dist
 rm server/phpstan.neon.dist
+# 常驻态 PHPStan 规则与判红探针：只在静态检查期存在，生产包不携带
+rm server/phpstan
+rm server/app/phpstan
 rm server/bin/ci
 rm server/docs
 rm naming-allow.txt
