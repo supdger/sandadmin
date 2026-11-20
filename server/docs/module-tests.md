@@ -41,6 +41,6 @@
   （TypePHP 口径），许可证头跟随仓内现有测试文件。
 - 断言要落可复核的形状：序列化结构用 `assertSame` 全等比对，
   异常断言状态码与 `fields` 键，不只断「抛了」。
-- 依赖处理照既有样例：`OrgIdempotency(null)` 关掉幂等存储、
-  `new OrgAudit($conn)` 配最小 `sand_system_audit_log` 表；
-  需要真实存储行为时用 `tests/Support/Fake*`。
+- 依赖处理照既有样例：`OrgIdempotency(null)` 关掉幂等存储；
+  构造参数是 Connection 的仓储/服务在 Unit 里用 `Disconnected::make()` 顶替，
+  需要真实存储行为时用 `tests/Support/Fake*`，要建表走 SQL 的放 Integration。
