@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 提交前本地快速门禁。用法：tools/pre-merge.sh [--fast|--full] [--typephp]
-# --fast（默认）：模块测试目录检查 + PHP 语法检查 + 契约一致性 + 危险函数扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
+# --fast（默认）：模块测试目录检查 + PHP 语法检查 + 契约一致性 + 危险函数扫描 + 出站原语扫描 + dev-only 引用门禁 + TypePHP 禁用写法扫描 + PHPUnit Unit 套件 + PHPStan
 # --full：在 fast 基础上追加 Integration 套件（需要 SAND_TEST_DB_URL）+ 改动行覆盖率门禁（需要 pcov 或 xdebug）
 # --typephp：追加 TypePHP 可选编译验证；找不到编译器或项目文件时跳过不阻塞
 #   （ADR-23：编译门禁在工具链稳定前是可选的，不过不合并的硬门禁是其余几项）
@@ -23,30 +23,33 @@ done
 
 cd "$ROOT/server"
 
-echo "== 1/8 模块测试目录检查（src/Module ↔ tests/{Unit,Integration}/Module）"
+echo "== 1/9 模块测试目录检查（src/Module ↔ tests/{Unit,Integration}/Module）"
 php ../tools/check-module-tests.php
 
-echo "== 2/8 PHP 语法检查（src/ app/ config/）"
+echo "== 2/9 PHP 语法检查（src/ app/ config/）"
 find src app config -name '*.php' -print0 | xargs -0 -n 50 php -l > /dev/null
 
-echo "== 3/8 契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
+echo "== 3/9 契约一致性（产物与 contract/openapi.yaml 逐字节比对）"
 php ../tools/contract-build --check
 
-echo "== 4/8 危险函数白名单扫描"
+echo "== 4/9 危险函数白名单扫描"
 php tests/security/scan-dangerous-functions.php
 
-echo "== 5/8 dev-only 引用门禁（tools/dev-only-paths.txt）"
+echo "== 5/9 出站 HTTP 原语扫描（唯一豁免 src/Infra/Http/）"
+php tests/security/scan-outbound-http.php
+
+echo "== 6/9 dev-only 引用门禁（tools/dev-only-paths.txt）"
 php ../tools/check-dev-refs.php
 
 # 存量 --all 全量会报既有可变调用/动态 include（整改是另一项工作），
 # 门禁先卡增量：只查未提交改动与相对 main 差异里新增的行（typephp.md「改到哪合规到哪」）。
-echo "== 6/8 TypePHP 禁用写法扫描（diff 模式）"
+echo "== 7/9 TypePHP 禁用写法扫描（diff 模式）"
 php "$ROOT/tools/typephp_check.php"
 
-echo "== 7/8 PHPUnit Unit 套件"
+echo "== 8/9 PHPUnit Unit 套件"
 vendor/bin/phpunit --testsuite unit
 
-echo "== 8/8 PHPStan"
+echo "== 9/9 PHPStan"
 vendor/bin/phpstan analyse --no-progress
 
 if [ "$MODE" = "--full" ]; then
