@@ -56,9 +56,14 @@
 
 ## 四、与既有机制的关系
 
-- `request_id` 已贯通：HTTP（RequestContextStore::ensure）→ 结构化
-  日志（RequestScope + JsonLogFormatter）→ 错误信封
-  `{code,message,fields,request_id}` → 任务执行（payload `__context`）。
+- `request_id` 已贯通且全站同号：HTTP 入站由
+  `RequestContextMiddleware` → `RequestContextStore::ensure` 统一解析
+  （合法 `x-request-id` 透传，否则 `RequestIds` 生成 32 hex），
+  全部控制器（含信封 `request_id`、`X-Request-Id` 响应头、审计记录）
+  与中间件一律经 `ensure` 取用，不存在第二套生成/校验口径；
+  结构化日志（RequestScope + JsonLogFormatter）→ 错误信封
+  `{code,message,fields,request_id}` → 任务执行（payload `__context`，
+  该保留键归 `TaskDispatcher` 独占、调用方自带的一律剥除）。
 - `traceparent`/`x-md-global-*` 为 1.1 预留：本批不解析、不生成
   span、不接 SDK；外呼封装（M-10）落地时按本文件第二节执行，
   宿主只保证「注入点存在」——中间件链、DBAL 事件、任务执行边界

@@ -49,7 +49,8 @@ final class BizToolRunnerTest extends TestCase
 
         self::assertTrue($outcome->succeeded);
         self::assertNotNull($gateway->context);
-        self::assertStringStartsWith('req_', $gateway->context->requestId);
+        // request_id 与全站同口径：RequestIds 生成的 32 hex
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $gateway->context->requestId);
     }
 
     private function identity(): McpIdentity

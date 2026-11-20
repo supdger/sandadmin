@@ -19,7 +19,12 @@ use Throwable;
 /** 插件概览、系统更新状态和定时任务。安装入口在 PackageController。 */
 final class HostReadController
 {
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?RequestContextStore $contexts = null)
+    {
+        $this->contexts = $contexts ?? new RequestContextStore();
+    }
 
     public function pluginsOverview(Request $request): Response
     {
@@ -48,7 +53,7 @@ final class HostReadController
 
     public function scheduledTaskUpdate(Request $request, string $code): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
@@ -87,7 +92,7 @@ final class HostReadController
      */
     private function run(Request $request, callable $work): Response
     {
-        $requestId = $this->requestId($request);
+        $requestId = $this->contexts->ensure($request)->requestId;
         try {
             $kernel = BizKernel::fromWebman();
             if ($kernel === null) {
@@ -122,16 +127,6 @@ final class HostReadController
         }
 
         return $result;
-    }
-
-    private function requestId(Request $request): string
-    {
-        $incoming = $request->header('x-request-id');
-        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
-            return $incoming;
-        }
-
-        return 'req_' . bin2hex(random_bytes(8));
     }
 
     /** @param array{status: int, body: array<string, mixed>} $outcome */

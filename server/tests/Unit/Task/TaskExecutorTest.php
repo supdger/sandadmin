@@ -22,6 +22,7 @@ use Sandadmin\Task\TaskState;
 use Sandadmin\Task\UnknownTaskTypeException;
 use Sandadmin\Tests\Support\FakeTaskStore;
 use Sandadmin\Tests\Support\FixedClock;
+use Sandadmin\Tests\Support\TaskRunFixture;
 
 final class TaskExecutorTest extends TestCase
 {
@@ -324,8 +325,9 @@ final class TaskExecutorTest extends TestCase
                 return ['fields' => $this->scope->fields()];
             }
         };
-        // 绕过 requestId 参数直接落库脏 __context（模拟手工改库），执行侧应忽略
-        $this->dispatcher->dispatch('noop', ['__context' => ['request_id' => "bad\nid"]], 7);
+        // 绕过 dispatcher 直接落库脏 __context（模拟手工改库），执行侧应忽略；
+        // dispatcher 现在会剥掉调用方自带的 __context，脏值只能来自库内篡改
+        $this->store->insert(TaskRunFixture::make(payload: ['__context' => ['request_id' => "bad\nid"]]));
 
         $done = $this->executorWithScope($handler, $scope)->tick();
 

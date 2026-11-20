@@ -23,11 +23,16 @@ use Throwable;
  */
 final class LifecycleController
 {
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._~-]{1,128}$/';
+    private readonly RequestContextStore $contexts;
+
+    public function __construct(?RequestContextStore $contexts = null)
+    {
+        $this->contexts = $contexts ?? new RequestContextStore();
+    }
 
     public function show(Request $request, string $request_id): Response
     {
-        $envelopeId = $this->envelopeId($request);
+        $envelopeId = $this->contexts->ensure($request)->requestId;
         try {
             $runtime = LifecycleRuntime::fromWebman();
             if ($runtime === null) {
@@ -50,16 +55,6 @@ final class LifecycleController
 
             return $this->failure(500, ErrorCodeRegistry::INTERNAL_ERROR, '系统出了点问题，请稍后再试', $envelopeId);
         }
-    }
-
-    private function envelopeId(Request $request): string
-    {
-        $incoming = $request->header('x-request-id');
-        if (is_string($incoming) && preg_match(self::REQUEST_ID_PATTERN, $incoming) === 1) {
-            return $incoming;
-        }
-
-        return 'req_' . bin2hex(random_bytes(8));
     }
 
     /** @param array<string, mixed> $body */

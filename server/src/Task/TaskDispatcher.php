@@ -64,16 +64,14 @@ final class TaskDispatcher
             throw new InvalidTaskException('任务发起人不正确');
         }
         $this->assertNoSecrets($payload, 'payload');
+        // __context 是保留键、归 dispatcher 独占：调用方自带的一律丢弃，
+        // 否则 requestId 为空时调用方伪造的 request_id 会绕过格式校验落库。
+        unset($payload[self::CONTEXT_KEY]);
         if ($requestId !== null) {
             if (preg_match(RequestIds::PATTERN, $requestId) !== 1) {
                 throw new InvalidTaskException('request_id 不正确');
             }
-            $context = $payload[self::CONTEXT_KEY] ?? [];
-            if (!is_array($context)) {
-                $context = [];
-            }
-            $context['request_id'] = $requestId;
-            $payload[self::CONTEXT_KEY] = $context;
+            $payload[self::CONTEXT_KEY] = ['request_id' => $requestId];
         }
         if ($idempotencyKey !== null) {
             if (preg_match('/^[A-Za-z0-9._~-]{1,128}$/', $idempotencyKey) !== 1) {

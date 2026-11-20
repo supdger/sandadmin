@@ -129,6 +129,28 @@ final class TaskDispatcherTest extends TestCase
         self::assertArrayNotHasKey('__context', $task->payload);
     }
 
+    public function testDispatchDropsCallerProvidedContext(): void
+    {
+        // __context 归 dispatcher 独占：调用方自带的一律剥掉，
+        // 防止伪造 request_id 在无 requestId 时绕过格式校验落库
+        $task = $this->dispatcher->dispatch('noop', [
+            '__context' => ['request_id' => "bad\nid", 'extra' => 'x'],
+            'a' => 1,
+        ], 7);
+
+        self::assertArrayNotHasKey('__context', $task->payload);
+        self::assertSame(1, $task->payload['a'] ?? null);
+    }
+
+    public function testDispatchContextKeepsOnlyDispatcherRequestId(): void
+    {
+        $task = $this->dispatcher->dispatch('noop', [
+            '__context' => ['request_id' => 'req-forged001', 'extra' => 'x'],
+        ], 7, null, 'req-real000001');
+
+        self::assertSame(['request_id' => 'req-real000001'], $task->payload['__context'] ?? null);
+    }
+
     public function testDispatchRejectsMalformedRequestId(): void
     {
         $this->expectException(InvalidTaskException::class);
