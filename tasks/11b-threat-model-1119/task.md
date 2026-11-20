@@ -1,0 +1,16 @@
+【任务】11b HR2 威胁建模（1-2 和 1-5，Fusion 模型 fusion-claude-opus-5-5-medium-sidekick-swe-2-medium，只写文档，不建库）━━━━
+分支：从 main 开 docs/threat-model。
+要做：
+1. HR2-a 威胁模板：STRIDE 逐项，加信任边界图、资产清单、安全不变量清单（每条要能写成测试或门禁）。
+2. HR2-b 四份威胁模型：PackageOps 插件安装和供应链、上传与文件、认证与会话、MCP 与 AI 工具调用。每条威胁写明对应 #109 清单的编号和 3k 的高危编号、现有防护（引用代码路径）、缺口，以及缺口归 1.0、1.1 还是不做。
+3. PackageOps 那份必须写明“插件等于完全信任”及其后果，供 11a 之后的 HR1-a 信任根定稿引用。上传那份要给出 SafeFs（M-03）的需求输入。
+4. 对标：Spring Security、go-zero 和 Kratos 的鉴权中间件，各自默认做了什么、我们差什么。
+交付：未合并 PR 加 RESULT。审计口径按 #109 清单逐项，缺项打回。
+模型分工：主代理只做设计判断和结论；读代码、查资料、写文件、git 操作全派给 SWE-2 子代理（本机 dv-* 子代理，不算下级会话）。
+
+通用条款（技术总监定）：不建库、不启库，不往任何豁免、白名单或 baseline 里新增条目，不强推，不 reset --hard，不 --no-verify，不 git add -A，不用云端，不用 Cursor，不开下级会话，不读秘密。不合并（合并前另排 Fusion 审计）。
+
+任务目录是 ~/agent-work/assistant/11b-threat-model-1119/，RESULT.md 写在这里。
+
+全部做完后最后单独输出一行：
+=== RUN COMPLETE ===
