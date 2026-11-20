@@ -44,3 +44,29 @@
 - 依赖处理照既有样例：`OrgIdempotency(null)` 关掉幂等存储；
   构造参数是 Connection 的仓储/服务在 Unit 里用 `Disconnected::make()` 顶替，
   需要真实存储行为时用 `tests/Support/Fake*`，要建表走 SQL 的放 Integration。
+
+## 越权（IDOR）测试
+
+按资源归属做鉴权的读/写端点（详情、下载、标记已读等），每个端点按
+「无身份 → 他人资源 → 本人 → 管理视图」四象限各留一条断言，
+不允许只测「本人能拿到」：
+
+| 象限 | 期望 | Unit 能否覆盖 |
+| --- | --- | --- |
+| 无身份（actor 为 null / 未登录） | 401 或拒绝，且不触达仓储/服务 | 可以：`Disconnected` 顶替依赖，断言在取数前返回 |
+| 他人资源（同租户其他用户的资源） | 403，或与「不存在」同形的 404，不泄露资源是否存在 | 判定是纯逻辑（`visibleTo` 之类）时可以；判定下沉在仓储 SQL 时只能放 Integration |
+| 本人资源 | 200 / 放行 | 同上 |
+| 管理视图（viewAll / 持管理权限码） | 200 / 放行 | 同上 |
+
+分层口径：
+
+- Unit 盖「判定发生在取数之前」的分支和可见性纯判定（值对象方法、
+  `*Http` 装配层在仓储调用前的 early return）；`Disconnected` 依赖一旦被触达
+  会 Error，顺带证明该分支不取数。
+- 「资源存在 + 身份组合 → 状态码」必须经真实仓储，放
+  `tests/Integration/Module/<模块>`，用 `SAND_TEST_DB_URL` 夹具种行；
+  Integration 缺口要在用例注释里写明，不能用 Unit 绿灯替代。
+
+样板：`tests/Unit/Module/Lifecycle/LifecycleIdorTest.php`
+（GET /lifecycle-requests/{request_id}），Integration 侧对应
+`tests/Integration/Module/Lifecycle/LifecycleHttpTest::testVisibilityRules`。
