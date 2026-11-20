@@ -11,6 +11,7 @@ use Sandadmin\Application\Mcp\McpHttpBridge;
 use Sandadmin\Application\Mcp\McpKernel;
 use Sandadmin\Application\Mcp\McpServerFactory;
 use Sandadmin\Application\Mcp\ToolCatalog;
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Domain\Stream\StreamWriterInterface;
 use Sandadmin\Infra\Mcp\Biz\BusinessCatalog;
@@ -81,7 +82,7 @@ final class McpController
             $limiter,
             new LogAuditSink(\support\Log::channel('security')),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             self::intConfig('mcp.dev.tool_limit', 30),
             $window,
         );
