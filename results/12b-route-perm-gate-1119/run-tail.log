@@ -1,0 +1,34 @@
+Clone from GitHub is slow. I'll copy an existing local checkout instead and fetch the latest main.3 commits in place, tree clean — likely in verification phase. Continuing to wait.## 交付总结
+
+**PR #113**（OPEN，未合并）：https://github.com/supdger/sandadmin/pull/113
+分支 `feat/route-permission-gate`，基线 `origin/main = 5360129`，HEAD `7e70541`，5 commits / +1217 行。
+
+**内容**
+- `tools/check-route-permission.php`（新，~1160 行）：静态门禁，三方对账——生成路由表（host + 插件）↔ `contract/openapi.yaml` ↔ handler 可达代码。每条 v1 路由必须有合法 `x-permission`；按权限形态核 handler 存在判定证据（authenticated→身份判定、super→超管、权限码→授权判定、public→公开门禁证据）；证据沿调用链跟进 helper。dev 路径不得出现在生产路由表，`route.php` 哨兵段必须整体在 `DevBuild::enabled()` 内。
+- 挂进 `tools/pre-merge.sh --fast`（9 步，contract-build 之后）。
+- IDOR 四象限模板：`server/docs/module-tests.md` 新增「越权（IDOR）测试」口径一节 + `tests/Unit/Module/Lifecycle/LifecycleIdorTest.php` 样例（无身份→401、他人→拒绝、本人→放行、viewAll→放行）。
+- `dev-only-paths.txt` 登记 `rm` 门禁脚本（其含 dev 符号字面量，随发布剥离——是剔除清单登记，非豁免）。
+
+**验收（独立验收代理实测 + 我抽查复核）**
+- 去掉一条路由的 `x-permission` → 门禁 exit 1 并指明路由；恢复后绿 ✅
+- 追加 `Route::any` 未识别形态 → exit 1 ✅（我亲手复测确认）
+- handler 判定被掏空/改名 → exit 1 ✅
+- `phpunit --testsuite unit` 741 tests 绿；`phpstan` level max 0 错；`pre-merge --fast` 9/9 过；`naming_check --diff` 全 0。
+
+**需技术总监知悉的两点口径**
+1. `GET /system/update/probe` 是契约里唯一 `x-permission: public` 的常驻路由（回环+一次性挑战自门禁）。补充条款「免登录路由生产路由表出现即判红」我按「dev 哨兵路由不得进生产表」执行；public 路由改为「必须显式声明 + handler 自带门禁证据」，未新增豁免条目。若条款本意是 public 也必须 dev-only，需要另行决策（会动到既有更新探测功能）。
+2. 门禁是「判定调用存在性」核对，证据匹配已剔除注释/字符串、收紧了 public 宽泛词、加了未识别 Route:: 形态兜底；但不证明判定语义正确（如 `can()` 参数是否匹配声明的码），语义由 IDOR/集成测试兜底——已在脚本注释、PR body、RESULT 声明。
+
+**合并前置**：#81 仍 OPEN；按任务要求不合并，后续等 #81 合并 → merge main → CI phpunit/phpstan 双绿 → Fusion 审计。
+
+## 模型记录
+- 主 Agent：swe-2-high（config 指定；sessions.db 未记录实际 generation_model）
+- 子 Agent：dv-scout ×2 = swe-2-high → 两次 `model no longer available` 失败；dv-implementer 探针 = swe-2-high → 同样失败；subagent_explore（继承 swe-2-high）= 调研成功；subagent_general（继承 swe-2-high）×2 = 实现与独立验收成功。说明：dv-* 档案的 `model:` 字段解析失败，改用内置档案（同为 swe-2-high，非 Claude）。
+
+## 任务记录
+- 已修改：`tools/check-route-permission.php`（新）、`tools/pre-merge.sh`、`tools/dev-only-paths.txt`、`server/docs/module-tests.md`、`server/tests/Unit/Module/Lifecycle/LifecycleIdorTest.php`（新）；RESULT.md 写于任务目录
+- 已验证：门禁正/负向、phpunit unit、phpstan、pre-merge --fast、naming --diff（独立验收代理实测，我抽查复测）
+- 已提交/已部署：已提交并 push，PR #113 OPEN 未合并；未部署
+- 未完成：合并（等 #81 → merge main → CI 双绿 → Fusion 审计）；public 路由口径待技术总监确认
+
+=== RUN COMPLETE ===
