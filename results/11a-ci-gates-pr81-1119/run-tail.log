@@ -1,0 +1,40 @@
+我先确认任务目录里的交接材料和目标仓库。目标仓库是 `supdger/sandadmin`。找本地克隆位置。找到本地克隆 `/Users/code/project/sandadmin`（远程 `github.com/supdger/sandadmin`）。再查 HR3 计划上下文和 #81 的现状。背景已清楚：M-01/HR3 要求四个必过 job（PHPUnit、PHPStan、依赖审计、安全回归）+ 分支保护（HR3-SET 另排）+ SBOM/provenance；M-27 要求 PHP ≥8.4、platform 8.4.x、lock 按 8.4 重解析。最后确认环境与 #81 现状，然后派发。环境就绪：PHP 8.4.18、Composer 2.9.5、gh 2.96.0。#81 当前 head `1bc282f`，状态 CONFLICTING（需 merge main），现有一个重复的 check「快档：pre-merge --fast」。
+
+按计划派发：先派只读 scout 盘点 #81 与 main 的 job、关键文件位置，再派实现代理。盘点完成，事实清楚。关键结论：
+
+- #81：`merge-gates.yml`（快档，PHP 8.2，job=`pre-merge`）+ `merge-gates-slow.yml`（三库矩阵 + 两个 audit + e2e 槽位，不挂 PR）；已删 `dependency-audit.yml`
+- main：`dependency-audit.yml` 三 job（composer-audit、frontend-prod-audit、release-self-check），#81 没吸收 release-self-check
+- merge 冲突 3 个文件：`dependency-audit.yml`（modify/delete）、`composer.lock`、`pre-merge.sh`
+- #81 版 pre-merge.sh 静默删了 main 的 3 道门禁（check-module-tests、contract-build --check、diff-coverage），合并要恢复
+- strict-types-baseline.txt 实际 23 条有效条目（任务写 46，以实际为准，只减不增）
+- 无 phpstan baseline；level max 已在配置里；连库用例靠 `tests/Integration` + `SAND_TEST_DB_URL` 隔离，`--testsuite unit` 不触库
+- #107 安全测试在 main 上（SecurityHeaders/Csrf/Cors/SecurityConfigFile 单测 + `tools/assert-security-headers.sh`），merge 后才有
+- 仓内无 SBOM/provenance 实现，需自建
+
+建任务清单并派实现子代理（长程包 → dv-implementer-sonnet）。实现子代理已派发（后台运行，负责 merge、冲突裁决、四 job、8.4 升级、SBOM/provenance、推送、CI 等待与红 PR 演示）。等待完成通知。子代理仍在运行（merge + 本地验证 + CI 等待属于长程工作）。我从外部核查一下 #81 当前 head 与 CI 进度。本地 worktree 已在 `feat/merge-gates @8899c69`（merge 完成，尚未推送），子代理应在本地验证/修 PHPStan。继续等。进展正常：merge 完成 + PHP 8.4 适配 + 四 job/SBOM 共 3 个提交，尚未推送。继续等待子代理完成本地验证、推送与 CI 演示。实现完成。先核对关键产物（#81 head、check 清单、红 PR 状态、worktree 清理），再派独立验收。外部核对一致：#81 head `29d4e78`，五个 check 全绿（push+PR 双跑）；红 PR #112 已关闭、`phpstan` 判 FAILURE（`pre-merge` 内含 phpstan 也同步判红，证据更强）；worktree 已清理。
+
+派独立验收（共享 CI/发版配置属关键门槛 → dv-verifier）。验收发现 1 个阻止项：`pre-merge.sh` 的 baseline-shrink 闸用「BASE 侧 merge-gates.yml 是否含 `baseline-shrink` 字样」判定是否切硬 fail，而交付的 workflow 里没有这个字符串，合并后该闸会永远停在 WARN。先核实旧 head 上这个标记原样。确认：旧 head 上也没有这个标记——这是 #81 原有的死逻辑缺陷，merge 后基线闸会永久停在 WARN。判据应改为「BASE 侧 pre-merge.sh 是否已含本检查」。把修复派回原实现代理（resume，上下文最全）。修复已推送（`f5c35c4`），双向验证做了，CI 全绿。让验收代理只复验这一个点。任务完成。最终交付：
+
+**#81 新 SHA**：`f5c35c438270623a7764c823c333ef72014b7809`（merge main `5360129`，普通 push 无强推，#81 保持 OPEN 未合并）
+
+**四个必过 check（一字不差，CI 双跑全绿）**：`phpunit`、`phpstan`、`dependency-audit`、`security-regression`；另保留 `pre-merge` 快档跑 `pre-merge.sh --fast` 全套。慢档三库矩阵 + e2e 槽位保留非必过，重复的 audit job 已去重。
+
+**M-27**：composer.json `>=8.4` + platform `8.4.0`，lock 最小重解析，CI 全部 8.4 无残留。
+
+**关键发现与返工**：独立验收抓到 `pre-merge.sh` 基线闸的 bootstrap 死逻辑（原判据 grep workflow 里不存在的 `baseline-shrink`，合并后会永久 WARN），已修复为检测 BASE 侧 `pre-merge.sh` 是否含闸，双向实跑验证后复验通过——21 项验收条款全 PASS。
+
+**红 PR**：https://github.com/supdger/sandadmin/pull/112 — `phpstan` 判 FAILURE 后已关闭删支。
+
+**遗留风险**（记录在 RESULT.md，不阻塞）：vitest 偶发竞态、`--full` 档 diff-coverage 口径未验证、`IdGeneratorGuard` STDERR 边角、baseline 闸 blob 缺失 fail-open 残余。
+
+## 模型记录
+- 主 Agent：SWE-2 / high（Devin；实际记录未能查 sessions.db，按配置口径）
+- 子 Agent：dv-scout = SWE-2（盘点）；dv-implementer-sonnet = SWE-2（实现+返工）；dv-verifier = SWE-2（验收+复验）
+
+## 任务记录
+- 已修改：feat/merge-gates 上 merge main + `.github/workflows/{merge-gates,merge-gates-slow,dependency-audit}.yml`、`server/composer.json`、`composer.lock`、`tools/pre-merge.sh`、`tools/build-release.sh`、新增 `tools/build-release-metadata.php`、`RELEASE-CHECKLIST.md`、若干 PHP 8.4 兼容修复；`~/agent-work/assistant/11a-ci-gates-pr81-1119/RESULT.md`
+- 已验证：本地 phpstan/phpunit/strict-types/assert-headers/build-release 全 0；CI 五 check 双跑全绿；红 PR #112 phpstan FAILURE 已演示关闭；独立验收 21 项 PASS
+- 已提交/已部署：已推送 feat/merge-gates（未合并、未改仓库设置）
+- 未完成：合并与分支保护（HR3-SET）按计划另排，等 Fusion 审计
+
+=== RUN COMPLETE ===
