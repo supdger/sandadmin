@@ -1,0 +1,26 @@
+完成。RESULT.md 已写入 `/Users/supdger/agent-work/assistant/11e-progress-recalc-1119/RESULT.md`。
+
+## 结论
+
+- **分子：15.9–31.5 人天** = 10g 已计 4.5–9.0 + 本次新增 11.4–22.5
+- **完成率：约 5.0%–17.2%**（最宽区间 15.9/320 ~ 31.5/183.5；低对低/高对高配对约 8.7%–9.8%）
+
+## 要点
+
+- 9 个 PR 有对应行计入；**#109 判「无对应行，不计」**——它是设计高标准清单 skill，1b 无对应行，10g 中仅是 M-02 的前置依赖（M-02 本体未实施）。
+- 去重已处理：#100 只取 N-s 的「工具集+权限审计+测试」增量（3–5.5），不与已计的 #85 协议接入 1–2 重复；清单 PR 均不在 10g 已计分子内。
+- 主要歧义（已在 RESULT 注明）：#100 取自 v4:653 子项拆分而非 1b 行内拆分；#110 按 2-C 全行计但 Dict sqlite 样例已删；#108 skill 引用补齐未核实仍按全行计。
+
+注：dv-implementer / dv-implementer-sonnet 档案均报 model unavailable，改用 `subagent_general`（跟随主代理 SWE-2）执行。
+
+=== RUN COMPLETE ===
+
+## 模型记录
+- 主 Agent：SWE-2 / 未记录 effort / Devin
+- 子 Agent：subagent_general（重算框架核心完成率）= 跟随主代理模型 → 实际模型未记录（dv-implementer、dv-implementer-sonnet 均返回 model unavailable）
+
+## 任务记录
+- 已修改：/Users/supdger/agent-work/assistant/11e-progress-recalc-1119/RESULT.md（新建）
+- 已验证：抽查 RESULT.md 前 40 行，口径、对照表、分子合计（11.4–22.5 + 4.5–9.0 = 15.9–31.5）与完成率计算自洽
+- 已提交/已部署：否
+- 未完成：无
