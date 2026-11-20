@@ -1,0 +1,24 @@
+Error: session/set_config_option (model) failed: Could not determine pairing for fusion-claude-opus-5-5-medium-sidekick-swe-2-medium; model unchanged — retry when the server is reachable.
+Meanwhile I'll review W1's output (template + benchmark).
+Error: Agent error: Your weekly usage quota has been exhausted. Visit https://app.devin.ai/settings/usage to purchase on-demand usage or turn on auto-reload.: {
+  "cognition.ai/errorKind": "resource_exhausted",
+  "cognition.ai/retryable": true
+}
+Error: Agent error: Your weekly usage quota has been exhausted. Visit https://app.devin.ai/settings/usage to purchase on-demand usage or turn on auto-reload.: {
+  "cognition.ai/errorKind": "resource_exhausted",
+  "cognition.ai/retryable": true
+}
+Error: Agent error: Your weekly usage quota has been exhausted. Visit https://app.devin.ai/settings/usage to purchase on-demand usage or turn on auto-reload.: {
+  "cognition.ai/errorKind": "resource_exhausted",
+  "cognition.ai/retryable": true
+}
+Error: Agent error: Your weekly usage quota has been exhausted. Visit https://app.devin.ai/settings/usage to purchase on-demand usage or turn on auto-reload.: {
+  "cognition.ai/errorKind": "resource_exhausted",
+  "cognition.ai/retryable": true
+}
+Error: session/set_config_option (model) failed: Resource not found: {
+  "uri": "Model not found: fusion-claude-opus-5-5-medium-sidekick-swe-2-medium. Available models: swe-2-flash-medium, swe-1-6-slow"
+}
+Error: Upgrade to Pro to access this model (https://devin.ai/pricing)
+Error: Upgrade to Pro to access this model (https://devin.ai/pricing)
+Error: Upgrade to Pro to access this model (https://devin.ai/pricing)
