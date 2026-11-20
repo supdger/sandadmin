@@ -1,0 +1,32 @@
+PR #110 已经合入 main，新的 main SHA 是 `5360129459241f4e0531fe3483f7c1f19119f7cd`，`feat/ai-loop-rollback` 分支没有删。审计结论是“可合并”，审计时 head 是 `b071a866`。
+
+**一、小改**
+- **删 sqlite 说法**：`server/docs/module-tests.md` 里的这段说法实际在第 13 行和第 19–22 行，不是任务里写的第 23、30–32 行，我按内容改的。改后的写法是：Unit 只用 `tests/Support` 的工厂、Fake 和 `Disconnected`，要走 SQL 的用例一律放 Integration（提交 `044a578`）。
+- **跟上 main**：用 `git merge origin/main` 合入 #104/#105/#107，没有 rebase。唯一冲突在自动生成的 `connection-budget.generated.json`，用 `php tools/contract-build` 重新生成后 `--check` 通过（提交 `e2cb70b`）。
+- **我多改的两处**：
+  - 审计时发现文档末尾“写法约定”最后一条还写着用 `new OrgAudit($conn)` 配最小 `sand_system_audit_log` 表，也就是让 Unit 建表连库，和“Unit 不连库”冲突。我改成连库的依赖用 `Disconnected::make()` 顶替，要建表走 SQL 的放 Integration（提交 `b071a86`）。
+  - PR 描述还写着早已撤下的 Dict sqlite 样例，回退测试也写成 13 项（实际 14 项），和代码对不上。我更新了描述，改前改后都存在任务目录（`pr-body-before.md` / `pr-body-after.md`）。
+- **检查**：四项全部通过——phpunit unit 737 个用例、phpstan 无错误、`tools/pre-merge.sh --fast` 全过、`tests/rollback-release-test.sh` 14 项全过。之后普通 push，没有强推。
+
+**二、审计（四项都通过）**
+- **范围与描述一致**：改动 5 个文件，只加不删（+327/−0），和更新后的描述逐项对得上。`server/src`、`contract/openapi.yaml`、CI、`naming-allow.txt` 都没动。
+- **Unit 无任何库连接**：这个 PR 不新增测试用例文件，新增的代码里也没有 sqlite 或数据库连接。回退脚本不碰库、不跑迁移回退。
+- **门禁文件只减不增**：豁免和白名单一条没加。`pre-merge.sh` 多出的 17 行是新加的命名检查，查不过就失败，只会更严，不会放松。
+- **与已定事项总表不冲突**：删 sqlite 说法正好对齐总表第 12 行“SQLite 不进服务端”；回退能力对应第 35 行“不过不合并，保留可回退”。
+
+**三、合并**
+- 合并前 6 项 CI 全部通过，无冲突。
+- 审计期间 main 又合入了 #109，只改了 docs 和 AGENTS.md，和本 PR 没有重叠文件。
+- 用 `gh pr merge 110 --merge` 合并，没有用 `--admin`。
+
+## 模型记录
+- 主 Agent：Fusion（Claude Opus 5.5 Medium + SWE-2 Medium，来自 `model.txt`）；运行时实际模型未记录
+- 子 Agent：`dv-implementer` ×3（小改+合 main+检查+push / 文档返修+PR 描述+等 CI / 合并 PR）；档案配置是 SWE-2，实际模型未记录
+
+## 任务记录
+- 已修改：`server/docs/module-tests.md`、生成物 `server/config/connection-budget.generated.json`（随合并 main 重新生成）、PR #110 描述；`~/agent-work/assistant/10j-fix-audit-merge-pr110-1119/` 下写了 `RESULT.md` 和 PR 描述的改前/改后两份文件
+- 已验证：phpunit unit、phpstan、`pre-merge.sh --fast`、rollback 测试，退出码都是 0；`gh pr checks 110` 6/6 通过，合并状态 CLEAN
+- 已提交/已部署：已提交并 push（`044a578`、`e2cb70b`、`b071a86`），已合入 main（`5360129`）；没有部署
+- 未完成：无（工作是在 10b 的 clone 里做的，没有另外克隆）
+
+=== RUN COMPLETE ===
