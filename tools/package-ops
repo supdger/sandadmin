@@ -108,6 +108,9 @@ if ($command === 'check') {
         fwrite(STDERR, '  ' . $problem . "\n");
     }
     if ($seen['manifest'] === null) {
+        if (($seen['error_code'] ?? null) !== null) {
+            fwrite(STDERR, '  error_code: ' . $seen['error_code'] . "\n");
+        }
         fwrite(STDERR, "FAIL 安装包检查未通过\n");
         exit(1);
     }
@@ -217,4 +220,7 @@ if ($result['result'] === 'ok') {
     exit(0);
 }
 fwrite(STDERR, 'FAIL ' . $command . ' 在 ' . $result['stage'] . " 阶段失败\n");
+if (($result['error_code'] ?? null) !== null) {
+    fwrite(STDERR, '  error_code: ' . $result['error_code'] . "\n");
+}
 exit(1);

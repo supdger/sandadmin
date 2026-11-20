@@ -34,7 +34,7 @@ final class PackageExecutor
     ) {
     }
 
-    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
+    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string} */
     public function install(
         string $zipFile,
         ?string $sha256,
@@ -45,7 +45,7 @@ final class PackageExecutor
         return $this->applyPackage($zipFile, $sha256, $signatureFile, $pubkeyFile, $allowUnsigned, 'install');
     }
 
-    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
+    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string} */
     public function upgrade(
         string $zipFile,
         ?string $sha256,
@@ -62,7 +62,7 @@ final class PackageExecutor
      * 「账本已卸+文件待删」两种状态。
      * dataPolicy 只影响结果报告：删数据要连库，留给迁移执行器另行执行。
      *
-     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool}
+     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string}
      */
     public function uninstall(string $app, string $dataPolicy = 'keep'): array
     {
@@ -136,7 +136,7 @@ final class PackageExecutor
      * 恢复被中断的操作：回滚未完结 journal、清掉无 journal 的暂存与备份残留，
      * 再重跑契约收集让生成物与目录现状一致。
      *
-     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, notes: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool}
+     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, notes: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string}
      */
     public function recover(): array
     {
@@ -169,6 +169,7 @@ final class PackageExecutor
             'sha256_verified' => false,
             'signature_verified' => false,
             'data_removed' => false,
+            'error_code' => null,
         ];
     }
 
@@ -208,7 +209,7 @@ final class PackageExecutor
         }
     }
 
-    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool} */
+    /** @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string} */
     private function applyPackage(
         string $zipFile,
         ?string $sha256,
@@ -229,7 +230,9 @@ final class PackageExecutor
         }
         $seen = PackageArchive::inspect($zipFile, $sha256);
         if ($seen['manifest'] === null || $seen['payload'] === null) {
-            return $this->fail(null, null, 'inspect', $seen['problems'], $shaOk);
+            // inspect 命中的结构化拒因（如带 migrations 的包）透传成 error_code，
+            // 其余问题为 null；install/upgrade 共用此路，两边同时生效
+            return $this->fail(null, null, 'inspect', $seen['problems'], $shaOk, $seen['error_code']);
         }
         $manifest = $seen['manifest'];
         $app = $manifest->app;
@@ -410,9 +413,9 @@ final class PackageExecutor
 
     /**
      * @param list<string> $problems
-     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool}
+     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string}
      */
-    private function report(string $result, ?string $app, ?string $version, string $stage, array $problems, bool $shaOk, bool $sigOk, bool $dataRemoved): array
+    private function report(string $result, ?string $app, ?string $version, string $stage, array $problems, bool $shaOk, bool $sigOk, bool $dataRemoved, ?string $errorCode = null): array
     {
         return [
             'result' => $result,
@@ -423,15 +426,16 @@ final class PackageExecutor
             'sha256_verified' => $shaOk,
             'signature_verified' => $sigOk,
             'data_removed' => $dataRemoved,
+            'error_code' => $errorCode,
         ];
     }
 
     /**
      * @param list<string> $problems
-     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool}
+     * @return array{result: string, app: ?string, version: ?string, stage: string, problems: list<string>, sha256_verified: bool, signature_verified: bool, data_removed: bool, error_code: ?string}
      */
-    private function fail(?string $app, ?string $version, string $stage, array $problems, bool $shaOk): array
+    private function fail(?string $app, ?string $version, string $stage, array $problems, bool $shaOk, ?string $errorCode = null): array
     {
-        return $this->report('failed', $app, $version, $stage, $problems, false, false, false);
+        return $this->report('failed', $app, $version, $stage, $problems, false, false, false, $errorCode);
     }
 }
