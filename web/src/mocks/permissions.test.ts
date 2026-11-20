@@ -39,6 +39,7 @@ describe('mock demo account permissions', () => {
         'system:dict:index',
         'system:file:index',
         'system:announcement:index',
+        'system:task:index',
       ],
     });
 

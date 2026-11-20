@@ -37,6 +37,15 @@ use Symfony\Component\Yaml\Yaml;
  *   name: string, in: string, required: bool, schema: array<string, mixed>,
  * }
  * @phpstan-type ErrorEntry array{http_status: int, summary: string, common: bool, note: string, const_name: string}
+ * @phpstan-type ConnectionSpec array{
+ *   name: string,
+ *   connections_per_process: int,
+ *   ledger: string,
+ *   outbox: string,
+ *   outbox_relay: string,
+ *   audit_sink: string,
+ *   audit_records: string,
+ * }
  * @phpstan-type TreeNode array{
  *   group_key: string, group_title: string, menu_key: string, title: string,
  *   actions: list<array{action: string, label: string}>,
@@ -50,6 +59,7 @@ use Symfony\Component\Yaml\Yaml;
  *   sidebar: list<SidebarMenu>,
  *   admin: list<string>,
  *   mcp_tools: list<McpSpec>,
+ *   connections: list<ConnectionSpec>,
  *   problems: list<string>,
  * }
  */
@@ -61,6 +71,13 @@ final class ContractDoc
     private const TOOL_NAME_PATTERN = '/^[A-Za-z0-9_-]{1,64}$/';
     private const ROUTE_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'];
     private const V1_PREFIX = '/api/admin/v1';
+    private const CONNECTION_NAME_PATTERN = '/^[a-z][a-z0-9_]{0,63}$/';
+    // 宿主连接键（config/database.php 的 default/pgsql/mysql）不许被插件命名连接占用
+    private const HOST_CONNECTION_NAMES = ['default', 'pgsql', 'mysql'];
+    private const CONNECTION_KEYS = [
+        'name', 'connections_per_process', 'ledger',
+        'outbox', 'outbox_relay', 'audit_sink', 'audit_records',
+    ];
 
     /**
      * @param string $source 来源标签：'host' 或插件 app 名（如 sand-foo）
@@ -91,6 +108,7 @@ final class ContractDoc
         $admin = self::parseAdmin($raw['x-admin-permissions'] ?? [], $source, $problems);
         $operations = self::parsePaths($raw['paths'] ?? [], $source, $problems);
         $mcpTools = self::parseMcpTools($raw['x-mcp-tools'] ?? [], $source, $problems);
+        $connections = self::parseConnections($raw['x-connections'] ?? [], $source, $problems);
 
         return [
             'operations' => $operations,
@@ -100,6 +118,7 @@ final class ContractDoc
             'sidebar' => $sidebar,
             'admin' => $admin,
             'mcp_tools' => $mcpTools,
+            'connections' => $connections,
             'problems' => $problems,
         ];
     }
@@ -113,6 +132,7 @@ final class ContractDoc
         return [
             'operations' => [], 'errors' => [], 'permissions' => [],
             'tree' => [], 'sidebar' => [], 'admin' => [], 'mcp_tools' => [],
+            'connections' => [],
             'problems' => $problems,
         ];
     }
@@ -568,6 +588,163 @@ final class ContractDoc
         }
 
         return $tools;
+    }
+
+    /**
+     * 插件命名连接声明（x-connections）。每条连接按 M-05 四规则校验：
+     * 账本记在本连接的库（ledger: per_connection）、outbox 随业务库且 relay
+     * 按连接拉取、审计经队列异步落内核且调用记录留在本库、每进程占用连接数
+     * 必写（连接预算 = 进程数 ×（宿主连接数 + 命名连接数）的输入）。
+     * 不声明命名连接的插件写空段或不写，不触发校验。
+     * @param list<string> $problems
+     * @param-out list<string> $problems
+     * @return list<ConnectionSpec>
+     */
+    private static function parseConnections(mixed $raw, string $source, array &$problems): array
+    {
+        $specs = [];
+        if ($source === 'host') {
+            // 宿主连接预算固定（J-4），命名连接声明只对插件有意义
+            if (is_array($raw) && $raw !== []) {
+                $problems[] = "{$source}: x-connections 是插件命名连接声明，宿主契约不允许出现";
+            }
+
+            return $specs;
+        }
+        if (!is_array($raw) || !array_is_list($raw)) {
+            $problems[] = "{$source}: x-connections 必须是 list";
+            return $specs;
+        }
+
+        $seen = [];
+        foreach ($raw as $index => $item) {
+            if (!is_array($item)) {
+                $problems[] = "{$source}: x-connections[{$index}] 不是 map";
+                continue;
+            }
+            $name = is_string($item['name'] ?? null) ? (string) $item['name'] : '';
+            $label = $name !== '' ? "命名连接 {$name}" : "x-connections[{$index}]";
+
+            $spec = [
+                'name' => $name,
+                'connections_per_process' => 0,
+                'ledger' => '',
+                'outbox' => '',
+                'outbox_relay' => '',
+                'audit_sink' => '',
+                'audit_records' => '',
+            ];
+
+            if ($name === '' || preg_match(self::CONNECTION_NAME_PATTERN, $name) !== 1) {
+                $problems[] = "{$source}: {$label} 的 name 缺失或不是小写蛇形";
+            } elseif (in_array($name, self::HOST_CONNECTION_NAMES, true)) {
+                $problems[] = "{$source}: {$label} 占用宿主连接名（default/pgsql/mysql 保留）";
+            } elseif (isset($seen[$name])) {
+                $problems[] = "{$source}: {$label} 重复声明";
+            } else {
+                $seen[$name] = true;
+            }
+
+            $unknown = array_diff(array_map('strval', array_keys($item)), self::CONNECTION_KEYS);
+            if ($unknown !== []) {
+                $problems[] = "{$source}: {$label} 含未识别键：" . implode('、', $unknown);
+            }
+
+            $spec['connections_per_process'] = self::expectPerProcess($item, $source, $label, $problems);
+            $spec['ledger'] = self::expectFixed($item, 'ledger', ['per_connection'], $source, $label, $problems);
+            $spec['outbox'] = self::expectFixed($item, 'outbox', ['business_database', 'none'], $source, $label, $problems);
+            $spec['outbox_relay'] = self::expectPeer(
+                $item, 'outbox', $spec['outbox'], 'business_database', 'outbox_relay', 'per_connection',
+                $source, $label, $problems,
+            );
+            $spec['audit_sink'] = self::expectFixed($item, 'audit_sink', ['kernel_async', 'none'], $source, $label, $problems);
+            $spec['audit_records'] = self::expectPeer(
+                $item, 'audit_sink', $spec['audit_sink'], 'kernel_async', 'audit_records', 'local',
+                $source, $label, $problems,
+            );
+
+            $specs[] = $spec;
+        }
+
+        return $specs;
+    }
+
+    /**
+     * @param array<mixed, mixed> $item
+     * @param list<string> $problems
+     * @param-out list<string> $problems
+     */
+    private static function expectPerProcess(array $item, string $source, string $label, array &$problems): int
+    {
+        $value = $item['connections_per_process'] ?? null;
+        if (!is_int($value) || $value < 1) {
+            $problems[] = "{$source}: {$label} 的 connections_per_process 必须是 ≥1 的整数（连接预算输入）";
+            return 0;
+        }
+
+        return $value;
+    }
+
+    /**
+     * 枚举值字段：必填且只允许 $allowed 里的字面量。
+     * @param array<mixed, mixed> $item
+     * @param list<string> $allowed
+     * @param list<string> $problems
+     * @param-out list<string> $problems
+     */
+    private static function expectFixed(
+        array $item,
+        string $key,
+        array $allowed,
+        string $source,
+        string $label,
+        array &$problems,
+    ): string {
+        $value = $item[$key] ?? null;
+        if (!is_string($value) || !in_array($value, $allowed, true)) {
+            $problems[] = "{$source}: {$label} 的 {$key} 必须声明为 " . implode(' 或 ', $allowed);
+            return '';
+        }
+
+        return $value;
+    }
+
+    /**
+     * 条件伴随字段：主字段取 $trigger 时必填且固定为 $expected，取 none 时不许出现。
+     * @param array<mixed, mixed> $item
+     * @param list<string> $problems
+     * @param-out list<string> $problems
+     */
+    private static function expectPeer(
+        array $item,
+        string $mainKey,
+        string $mainValue,
+        string $trigger,
+        string $peerKey,
+        string $expected,
+        string $source,
+        string $label,
+        array &$problems,
+    ): string {
+        $present = array_key_exists($peerKey, $item);
+        if ($mainValue === 'none') {
+            if ($present) {
+                $problems[] = "{$source}: {$label} 的 {$mainKey} 为 none 时不许声明 {$peerKey}";
+            }
+
+            return '';
+        }
+        if ($mainValue === $trigger) {
+            $value = $item[$peerKey] ?? null;
+            if ($value !== $expected) {
+                $problems[] = "{$source}: {$label} 的 {$mainKey} 为 {$trigger} 时 {$peerKey} 必须声明为 {$expected}";
+                return '';
+            }
+
+            return $expected;
+        }
+
+        return '';
     }
 
     /**

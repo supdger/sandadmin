@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * 数据库库名、用户名、密码不提供默认值，只能来自环境变量（.env 由安装向导写入）。
+ * 数据库主机、端口、库名、用户名、密码不提供默认值，只能来自环境变量（.env 由安装向导写入）。
  *
  * - 变量已提供：直接使用。
  * - 变量缺失且 .env 已存在（已安装）：加载配置即抛出明确错误，不静默回退到固定账号。
@@ -26,8 +26,8 @@ return [
     'connections' => [
         'pgsql' => [
             'driver' => env('DB_TYPE', 'pgsql'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', 5432),
+            'host' => $resolve('DB_HOST', env('DB_HOST')),
+            'port' => (int) $resolve('DB_PORT', env('DB_PORT')),
             'database' => $resolve('DB_NAME', env('DB_NAME')),
             'username' => $resolve('DB_USER', env('DB_USER')),
             'password' => $resolve('DB_PASSWORD', env('DB_PASSWORD'), true),

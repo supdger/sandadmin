@@ -1,0 +1,220 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Copyright (c) 2026 青岛沙盒创意网络科技有限公司
+// SPDX-License-Identifier: MIT
+
+// 离线包生命周期薄壳：全部逻辑在 Sandadmin\Module\Package，这里只解析参数。
+//   php tools/package-ops check <zip> [--sha256 X]           只校验不解包
+//   php tools/package-ops install <zip> [--sha256 X]
+//   php tools/package-ops upgrade <zip> [--sha256 X]
+//   php tools/package-ops uninstall <app> [--data keep|export-delete|delete]
+//   php tools/package-ops recover
+// 签名：check/install/upgrade 先验 Ed25519 分离签名再解包，验不过一律拒绝。
+//       --signature/--pubkey 各给一个文件，内容是 base64 或原样字节；
+//       公钥不内嵌内核，由调用方显式提供。缺签名默认拒绝，
+//       仅本地演练可显式 --allow-unsigned（无值旗标；编译版闸在前，
+//       此口子进不了生产）。
+// 可选项：--db pgsql|mysql（默认按 SAND_DB_URL 协议推断，缺省 pgsql）
+//         --repo-root/--plugin-dir/--work-dir 覆盖默认路径
+// 账本：install/upgrade/uninstall 默认要连库，从 SAND_DB_URL 建 DBAL 连接；
+//       未配置如实报错退出，不假造内存账本——除非显式 --registry memory
+//       （仅供本地无库演练，进程退出账本即丢）。
+
+require __DIR__ . '/../server/vendor/autoload.php';
+
+use Doctrine\DBAL\DriverManager;
+use Sandadmin\Module\Package\DbalPluginRegistry;
+use Sandadmin\Module\Package\MemoryPluginRegistry;
+use Sandadmin\Module\Package\PackageArchive;
+use Sandadmin\Module\Package\PackageExecutor;
+use Sandadmin\Module\Package\PackageSignature;
+use Sandadmin\Module\Package\PluginRegistry;
+
+$args = $_SERVER['argv'];
+array_shift($args);
+$command = array_shift($args);
+
+$options = [
+    'sha256' => null,
+    'signature' => null,
+    'pubkey' => null,
+    'allow-unsigned' => false,
+    'data' => 'keep',
+    'db' => null,
+    'repo-root' => null,
+    'plugin-dir' => null,
+    'work-dir' => null,
+    'registry' => null,
+];
+// 无值旗标：出现即置 true，不吃下一个参数
+$flags = ['allow-unsigned'];
+$operands = [];
+for ($i = 0; $i < count($args); $i++) {
+    if (str_starts_with((string) $args[$i], '--')) {
+        $key = substr((string) $args[$i], 2);
+        if (!array_key_exists($key, $options)) {
+            fwrite(STDERR, "未知参数：--{$key}\n");
+            exit(2);
+        }
+        if (in_array($key, $flags, true)) {
+            $options[$key] = true;
+            continue;
+        }
+        $options[$key] = $args[++$i] ?? null;
+        continue;
+    }
+    $operands[] = $args[$i];
+}
+
+$usage = "用法：php tools/package-ops <check|install|upgrade> <zip> [--sha256 X] [--signature F --pubkey F | --allow-unsigned]\n"
+    . "      php tools/package-ops uninstall <app> [--data keep|export-delete|delete]\n"
+    . "      php tools/package-ops recover\n"
+    . "      签名：--signature/--pubkey 给分离签名与 Ed25519 公钥文件（base64 或原样字节），\n"
+    . "      缺签名默认拒绝，本地演练可显式 --allow-unsigned\n"
+    . "      可选：--db pgsql|mysql --repo-root D --plugin-dir D --work-dir D --registry memory\n";
+
+if ($command === null || !in_array($command, ['check', 'install', 'upgrade', 'uninstall', 'recover'], true)) {
+    fwrite(STDERR, $usage);
+    exit(2);
+}
+
+$repoRoot = is_string($options['repo-root']) ? $options['repo-root'] : dirname(__DIR__);
+$pluginDir = is_string($options['plugin-dir']) ? $options['plugin-dir'] : $repoRoot . '/server/plugin';
+$workDir = is_string($options['work-dir']) ? $options['work-dir'] : $repoRoot . '/server/runtime/package-ops';
+$sha256 = is_string($options['sha256']) ? $options['sha256'] : null;
+$signatureFile = is_string($options['signature']) ? $options['signature'] : null;
+$pubkeyFile = is_string($options['pubkey']) ? $options['pubkey'] : null;
+$allowUnsigned = $options['allow-unsigned'] === true;
+
+if ($command === 'check') {
+    $zipFile = $operands[0] ?? null;
+    if (!is_string($zipFile)) {
+        fwrite(STDERR, $usage);
+        exit(2);
+    }
+    $signature = PackageSignature::checkPackage($zipFile, $signatureFile, $pubkeyFile, $allowUnsigned);
+    if ($signature['problems'] !== []) {
+        foreach ($signature['problems'] as $problem) {
+            fwrite(STDERR, '  ' . $problem . "\n");
+        }
+        fwrite(STDERR, "FAIL 安装包验签未通过\n");
+        exit(1);
+    }
+    $seen = PackageArchive::inspect($zipFile, $sha256);
+    foreach ($seen['problems'] as $problem) {
+        fwrite(STDERR, '  ' . $problem . "\n");
+    }
+    if ($seen['manifest'] === null) {
+        fwrite(STDERR, "FAIL 安装包检查未通过\n");
+        exit(1);
+    }
+    $manifest = $seen['manifest'];
+    echo 'PASS ' . $manifest->app . ' ' . $manifest->version
+        . '（kernel_api ' . $manifest->kernelApiMin . '~' . $manifest->kernelApiMax
+        . '，databases ' . implode(',', $manifest->databases)
+        . '，payload ' . $seen['payload']
+        . '，签名 ' . ($signature['verified'] ? 'Ed25519 已验签' : '未签名，allow-unsigned 放行') . '）' . "\n";
+    exit(0);
+}
+
+// recover 不碰账本，装/升/卸才需要登记口
+$registry = null;
+if ($command === 'recover') {
+    $registry = new MemoryPluginRegistry();
+} elseif ($options['registry'] === 'memory') {
+    // 仅供本地无库演练：账本落 work-dir 下 registry.state（刻意不叫
+    // .json，免得被 recoverPending 当成 journal 扫描），跨命令进程的
+    // 装/升/卸才读到同一状态；不产生真实登记
+    try {
+        $registry = new MemoryPluginRegistry($workDir . '/registry.state');
+    } catch (\RuntimeException $error) {
+        // 账本打不开时报干净失败退出，不能让构造异常以裸错误冒出来
+        fwrite(STDERR, '  操作中断：' . $error->getMessage() . "\n");
+        exit(1);
+    }
+} else {
+    $dbUrl = getenv('SAND_DB_URL');
+    if (!is_string($dbUrl) || $dbUrl === '') {
+        fwrite(STDERR, "SAND_DB_URL 未配置，无法建登记账本（或显式 --registry memory 做本地无库演练）\n");
+        exit(2);
+    }
+    $scheme = parse_url($dbUrl, PHP_URL_SCHEME);
+    $map = [
+        'pgsql' => 'pdo-pgsql', 'postgres' => 'pdo-pgsql', 'postgresql' => 'pdo-pgsql',
+        'mysql' => 'pdo-mysql', 'mysqli' => 'pdo-mysql',
+    ];
+    if (!is_string($scheme) || !isset($map[$scheme])) {
+        // 不回显整条连接串：串里带口令，报错会进终端与日志
+        $shown = is_string($scheme) && $scheme !== '' ? $scheme : '无法解析';
+        fwrite(STDERR, "SAND_DB_URL 协议不支持：{$shown}（只认 pgsql/mysql）\n");
+        exit(2);
+    }
+    $connection = DriverManager::getConnection(['url' => $map[$scheme] . substr($dbUrl, strlen($scheme))]);
+    $registry = new DbalPluginRegistry($connection);
+}
+
+$dbDriver = is_string($options['db']) ? $options['db'] : 'pgsql';
+if (!in_array($dbDriver, ['pgsql', 'mysql'], true)) {
+    fwrite(STDERR, "--db 只认 pgsql|mysql\n");
+    exit(2);
+}
+
+// 开发构建标记是生命周期闸的一部分：发布制品剔除标记与本工具后
+// 仍有人把工具搬进去跑，也过不了 is_file 这道闸
+$executor = new PackageExecutor(
+    $registry,
+    $repoRoot,
+    $pluginDir,
+    $workDir,
+    $dbDriver,
+    $repoRoot . '/server/.sand-dev-build',
+);
+
+if ($command === 'recover') {
+    $result = $executor->recover();
+    foreach ($result['notes'] as $note) {
+        echo '  ' . $note . "\n";
+    }
+    foreach ($result['problems'] as $problem) {
+        fwrite(STDERR, '  ' . $problem . "\n");
+    }
+    exit($result['result'] === 'ok' ? 0 : 1);
+}
+
+if ($command === 'uninstall') {
+    $app = $operands[0] ?? null;
+    if (!is_string($app)) {
+        fwrite(STDERR, $usage);
+        exit(2);
+    }
+    $dataPolicy = is_string($options['data']) ? $options['data'] : 'keep';
+    $result = $executor->uninstall($app, $dataPolicy);
+} else {
+    $zipFile = $operands[0] ?? null;
+    if (!is_string($zipFile)) {
+        fwrite(STDERR, $usage);
+        exit(2);
+    }
+    $result = $command === 'install'
+        ? $executor->install($zipFile, $sha256, $signatureFile, $pubkeyFile, $allowUnsigned)
+        : $executor->upgrade($zipFile, $sha256, $signatureFile, $pubkeyFile, $allowUnsigned);
+}
+
+foreach ($result['problems'] as $problem) {
+    fwrite(STDERR, '  ' . $problem . "\n");
+}
+if ($result['result'] === 'ok') {
+    $signatureNote = '';
+    if ($command === 'install' || $command === 'upgrade') {
+        $signatureNote = $result['signature_verified'] ? '（签名已验）' : '（未验签）';
+    }
+    echo 'PASS ' . $command . ' ' . (string) $result['app']
+        . ($result['version'] !== null ? ' ' . $result['version'] : '')
+        . $signatureNote . "\n";
+    exit(0);
+}
+fwrite(STDERR, 'FAIL ' . $command . ' 在 ' . $result['stage'] . " 阶段失败\n");
+exit(1);

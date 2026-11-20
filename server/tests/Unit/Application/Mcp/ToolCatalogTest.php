@@ -9,6 +9,7 @@ namespace Sandadmin\Tests\Unit\Application\Mcp;
 
 use PHPUnit\Framework\TestCase;
 use Sandadmin\Application\Mcp\ToolCatalog;
+use Sandadmin\Domain\Mcp\CallContext;
 use Sandadmin\Domain\Mcp\McpIdentity;
 use Sandadmin\Domain\Mcp\ToolOutcome;
 use Sandadmin\Domain\Mcp\ToolRunner;
@@ -49,7 +50,7 @@ final class ToolCatalogTest extends TestCase
 
 final class StubRunner implements ToolRunner
 {
-    public function run(McpIdentity $identity, array $arguments): ToolOutcome
+    public function run(McpIdentity $identity, array $arguments, ?CallContext $context = null): ToolOutcome
     {
         return ToolOutcome::ok(null);
     }

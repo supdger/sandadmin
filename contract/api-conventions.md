@@ -57,8 +57,10 @@
   `MCP_HIGH_RISK_NOT_OPEN` → `ErrorCodeRegistry::MCP_HIGH_RISK_CLOSED`）；
   不写 `const` 时常量名即码名。两个码声明同一 `const` 构建失败。
 
-- 四个通用码 `VALIDATION_FAILED`/`UNAUTHENTICATED`/`PERMISSION_DENIED`/
-  `INTERNAL_ERROR` 标 `common: true`，接口不用逐个在 `x-error-codes` 声明。
+- 五个通用码 `VALIDATION_FAILED`/`UNAUTHENTICATED`/`PERMISSION_DENIED`/
+  `CSRF_REJECTED`/`INTERNAL_ERROR` 标 `common: true`，接口不用逐个在
+  `x-error-codes` 声明。`CSRF_REJECTED` 由全局 CsrfMiddleware 对
+  `/api/admin/v1` 写操作发出。
 - 业务码必须在 `x-error-catalog` 先登记再在接口 `x-error-codes` 引用；
   未登记引用直接构建失败（「码先登记再使用」是门禁不是纪律）。
 - `VALIDATION_FAILED` 在装配层有 400/422 两种状态取值，语义相同。
@@ -85,7 +87,8 @@
 - 顶层扩展段：`x-error-catalog`（错误码总表）、`x-permissions`（不挂接口
   的码）、`x-permission-tree`（角色配置展示树）、`x-sidebar-menus`
   （侧栏菜单键）、`x-admin-permissions`（管理员高危码清单）、
-  `x-mcp-tools`（不绑接口的独立工具，只许 `dev_only: true`）。
+  `x-mcp-tools`（不绑接口的独立工具，只许 `dev_only: true`）、
+  `x-connections`（插件命名连接声明，宿主契约不出现）。
 
 ## 5. MCP 工具三档
 
@@ -101,7 +104,31 @@
 手写与注入形状不一致直接构建失败。`public`/`authenticated` 接口挂
 write/high_risk 档同样构建失败（写工具必须有明确权限码）。
 
-## 6. dev 面边界
+## 6. 插件命名连接（x-connections）
+
+插件使用独立命名连接（独立库，如 SandAI 的 `sandai`）时在片段顶层声明
+`x-connections` 列表，每条连接五个必填键加两个条件必填键：
+
+```yaml
+x-connections:
+  - name: sandai                    # 小写蛇形，片段内唯一；default/pgsql/mysql 保留
+    connections_per_process: 2      # 每进程占用连接数（主从各 1 = 2），正整数
+    ledger: per_connection          # 固定值：迁移账本记在本连接的库、迁移锁按连接加
+    outbox: business_database       # 或 none；outbox 表随业务所在连接
+    outbox_relay: per_connection    # outbox 为 business_database 时必填固定值
+    audit_sink: kernel_async        # 或 none；审计经事件/队列异步落内核审计面
+    audit_records: local            # audit_sink 为 kernel_async 时必填固定值
+```
+
+- `outbox`/`audit_sink` 取 `none` 表示该连接不用 outbox/审计，此时对应的
+  `outbox_relay`/`audit_records` 不许出现；取了 `none` 又声明伴随键按
+  构建失败处理，「未声明」与「声明不用」由此可分。
+- `connections_per_process` 汇总进构建产物
+  `server/config/connection-budget.generated.json`
+  （`plugin_per_process`），容量评审按公式「进程数 ×（宿主连接数 +
+  命名连接数）」重算连接账；装带命名连接的插件必须先看这份产物漂移。
+
+## 7. dev 面边界
 
 开发构建私有的 5 条免登录路由与 4 个 `dev_*` MCP 工具属开发链：
 路由在 `server/config/route.php` 的哨兵段手写、不进本契约 paths，

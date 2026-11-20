@@ -74,6 +74,24 @@ final class CollectPluginsTest extends TestCase
         self::assertFileDoesNotExist($repo . '/server/plugin/sand-bad/config/route.generated.php');
     }
 
+    public function testWriteRemovesOrphanGeneratedFiles(): void
+    {
+        // 契约不再产出的旧骨架留在 Generated 目录时，收集要把它们一并清掉：
+        // 否则产物重建不完整，--check 立即报孤儿要求手工跑 contract-build
+        $repo = $this->makeRepo();
+        $orphanDir = $repo . '/server/tests/Contract/Generated';
+        if (!is_dir($orphanDir) && !mkdir($orphanDir, 0755, true)) {
+            self::fail('无法创建生成目录');
+        }
+        file_put_contents($orphanDir . '/GhostContractTest.php', '<?php // 过期骨架');
+
+        $report = ContractBuild::collectPlugins($repo);
+
+        self::assertSame('ok', $report['result'], implode("\n", $report['warnings']));
+        self::assertFileDoesNotExist($orphanDir . '/GhostContractTest.php');
+        self::assertSame('ok', ContractBuild::check($repo)['result']);
+    }
+
     public function testConflictEntriesKeepBothSources(): void
     {
         $repo = $this->makeRepo();
@@ -92,6 +110,47 @@ final class CollectPluginsTest extends TestCase
         self::assertStringContainsString('host', $detail);
         self::assertStringContainsString('sand-bad', $detail);
         self::assertStringContainsString('NOT_FOUND', $detail);
+    }
+
+    public function testConnectionBudgetArtifactWritten(): void
+    {
+        $repo = $this->makeRepo();
+        self::copyTree(self::fixtureDir('sand-hello'), $repo . '/server/plugin/sand-hello');
+
+        $report = ContractBuild::build($repo);
+
+        self::assertSame('ok', $report['result'], implode("\n", $report['warnings']));
+        // sand-hello 夹具声明两条命名连接：2 + 1 = 每进程 3 条
+        self::assertSame(3, array_sum(array_column($report['named_connections'], 'connections_per_process')));
+        $file = $repo . '/server/config/connection-budget.generated.json';
+        self::assertFileExists($file);
+        $budget = json_decode((string) file_get_contents($file), true);
+        self::assertIsArray($budget);
+        self::assertSame(4, $budget['host_per_process']);
+        self::assertSame(3, $budget['plugin_per_process']);
+        self::assertSame(7, $budget['total_per_process']);
+    }
+
+    public function testBadConnectionFragmentBlocked(): void
+    {
+        $repo = $this->makeRepo();
+        $this->writeFragment($repo, 'sand-bad', <<<'YAML'
+            openapi: 3.1.0
+            info: {title: bad, version: "0.1"}
+            x-connections:
+              - name: sandai
+                connections_per_process: 2
+                ledger: private
+                outbox: none
+                audit_sink: none
+            paths: {}
+            YAML);
+
+        $report = ContractBuild::collectPlugins($repo);
+
+        self::assertSame('failed', $report['result']);
+        self::assertStringContainsString('per_connection', implode("\n", $report['warnings']));
+        self::assertFileDoesNotExist($repo . '/server/config/connection-budget.generated.json');
     }
 
     private function makeRepo(): string

@@ -8,11 +8,12 @@ info:
     人读约定见 contract/api-conventions.md。
 
 # ── 错误码总表：code → {http_status, summary}
-# common: true 的四个通用码接口不用逐个声明；业务码才写进 x-error-codes。
+# common: true 的五个通用码接口不用逐个声明；业务码才写进 x-error-codes。
 x-error-catalog:
   VALIDATION_FAILED:   {http_status: 422, summary: 请求内容有误，请按提示修改, common: true, note: 装配层部分路径按 400 返回，取值语义不变}
   UNAUTHENTICATED:     {http_status: 401, summary: 请先登录, common: true}
   PERMISSION_DENIED:   {http_status: 403, summary: 你没有权限做这个操作, common: true}
+  CSRF_REJECTED:       {http_status: 403, summary: 请求未通过来源安全校验, common: true, note: 全局 CsrfMiddleware 对 /api/admin/v1 写操作发出}
   INTERNAL_ERROR:      {http_status: 500, summary: 系统出了点问题，请稍后再试, common: true}
   SESSION_EXPIRED:     {http_status: 401, summary: 会话过期或已吊销（B2 链预留）}
   NOT_FOUND:           {http_status: 404, summary: 要找的内容不存在或已被删除}
@@ -1179,6 +1180,17 @@ paths:
       x-permission: authenticated
       x-error-codes: [UPDATE_NOT_AVAILABLE]
       responses: {'200': {description: 契约信封}}
+  /api/admin/v1/system/update/probe:
+    get:
+      operationId: systemUpdateProbe
+      summary: 系统更新回环探测应答
+      description: >-
+        离线探测的应答端点：探测发起方是实例自身（POST /system/update/check 签发一次性挑战后回环取回），
+        只认回环来源 + 未过期挑战 + token 一致，其余一律 404。不挂会话鉴权，应答不是契约信封。
+      tags: [system]
+      x-handler: 'Sandadmin\Http\UpdateProbeController::probe'
+      x-permission: public
+      responses: {'200': {description: 回环挑战回显（非契约信封，私有探测协议）}}
   /api/admin/v1/system/update/start:
     post:
       operationId: systemUpdateStart
