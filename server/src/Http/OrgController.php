@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Module\Dict\DictException;
@@ -35,7 +36,7 @@ final class OrgController
 
     public function usersStore(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::USER_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::USER_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->create($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function usersShow(Request $request, string $user_id): Response
@@ -45,13 +46,13 @@ final class OrgController
 
     public function usersUpdate(Request $request, string $user_id): Response
     {
-        return $this->run($request, PermissionRegistry::USER_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->update(OrgInput::pathId($user_id, 'user_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::USER_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->update(OrgInput::pathId($user_id, 'user_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function usersDestroy(Request $request, string $user_id): Response
     {
         return $this->run($request, PermissionRegistry::USER_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
-            $kernel->users->remove(OrgInput::pathId($user_id, 'user_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->remove(OrgInput::pathId($user_id, 'user_id'), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -61,7 +62,7 @@ final class OrgController
     {
         return $this->run($request, PermissionRegistry::USER_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
             $body = $this->body($request);
-            $kernel->users->setStatus(OrgInput::pathId($user_id, 'user_id'), OrgInput::status($body), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->setStatus(OrgInput::pathId($user_id, 'user_id'), OrgInput::status($body), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -89,7 +90,7 @@ final class OrgController
             if (!is_string($password)) {
                 throw OrgException::invalid(['password' => ['请填写临时密码']]);
             }
-            $kernel->users->resetPassword(OrgInput::pathId($user_id, 'user_id'), $password, $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->resetPassword(OrgInput::pathId($user_id, 'user_id'), $password, $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -98,7 +99,7 @@ final class OrgController
     public function usersRoles(Request $request, string $user_id): Response
     {
         return $this->run($request, PermissionRegistry::USER_ASSIGN_ROLE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($user_id): array {
-            $kernel->users->assignRoles(OrgInput::pathId($user_id, 'user_id'), OrgInput::idList($this->body($request), 'role_ids', true), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->users->assignRoles(OrgInput::pathId($user_id, 'user_id'), OrgInput::idList($this->body($request), 'role_ids', true), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -106,7 +107,7 @@ final class OrgController
 
     public function usersExport(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::USER_EXPORT, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->export($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::USER_EXPORT, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->users->export($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function userOptions(Request $request): Response
@@ -146,18 +147,18 @@ final class OrgController
 
     public function deptsStore(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::DEPT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DEPT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->create($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function deptsUpdate(Request $request, string $dept_id): Response
     {
-        return $this->run($request, PermissionRegistry::DEPT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->update(OrgInput::pathId($dept_id, 'dept_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DEPT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->depts->update(OrgInput::pathId($dept_id, 'dept_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function deptsDestroy(Request $request, string $dept_id): Response
     {
         return $this->run($request, PermissionRegistry::DEPT_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($dept_id): array {
-            $kernel->depts->remove(OrgInput::pathId($dept_id, 'dept_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->depts->remove(OrgInput::pathId($dept_id, 'dept_id'), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -175,7 +176,7 @@ final class OrgController
 
     public function rolesStore(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::ROLE_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::ROLE_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->create($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesShow(Request $request, string $role_id): Response
@@ -185,23 +186,23 @@ final class OrgController
 
     public function rolesUpdate(Request $request, string $role_id): Response
     {
-        return $this->run($request, PermissionRegistry::ROLE_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->update(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::ROLE_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->update(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function rolesDestroy(Request $request, string $role_id): Response
     {
-        return $this->run($request, PermissionRegistry::ROLE_DELETE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $this->replacementRoleId($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::ROLE_DELETE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->remove(OrgInput::pathId($role_id, 'role_id'), $this->replacementRoleId($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function rolesCopy(Request $request, string $role_id): Response
     {
-        return $this->run($request, PermissionRegistry::ROLE_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::ROLE_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->copy(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function rolesStatus(Request $request, string $role_id): Response
     {
         return $this->run($request, PermissionRegistry::ROLE_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($role_id): array {
-            $kernel->roles->setStatus(OrgInput::pathId($role_id, 'role_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->roles->setStatus(OrgInput::pathId($role_id, 'role_id'), OrgInput::status($this->body($request)), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -214,7 +215,7 @@ final class OrgController
 
     public function rolesSavePermissions(Request $request, string $role_id): Response
     {
-        return $this->run($request, PermissionRegistry::ROLE_PERMISSION_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->savePermissions(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::ROLE_PERMISSION_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->roles->savePermissions(OrgInput::pathId($role_id, 'role_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function permissionTree(Request $request): Response
@@ -229,18 +230,18 @@ final class OrgController
 
     public function postsStore(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::POST_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::POST_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->create($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function postsUpdate(Request $request, string $post_id): Response
     {
-        return $this->run($request, PermissionRegistry::POST_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->update(OrgInput::pathId($post_id, 'post_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::POST_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->posts->update(OrgInput::pathId($post_id, 'post_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function postsDestroy(Request $request, string $post_id): Response
     {
         return $this->run($request, PermissionRegistry::POST_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($post_id): array {
-            $kernel->posts->remove(OrgInput::pathId($post_id, 'post_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->posts->remove(OrgInput::pathId($post_id, 'post_id'), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });

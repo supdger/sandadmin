@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Announcement\AnnouncementException;
 use Sandadmin\Module\Announcement\AnnouncementHttp;
@@ -51,7 +52,7 @@ final class AnnouncementController
             $this->body($request),
             $this->idempotencyKey($request),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             $this->deviceLabel($request),
         ));
     }
@@ -65,7 +66,7 @@ final class AnnouncementController
             $this->body($request),
             $this->idempotencyKey($request),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             $this->deviceLabel($request),
         ));
     }
@@ -78,7 +79,7 @@ final class AnnouncementController
             $announcement_id,
             $this->idempotencyKey($request),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             $this->deviceLabel($request),
         ));
     }
@@ -91,7 +92,7 @@ final class AnnouncementController
             $announcement_id,
             $this->idempotencyKey($request),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             $this->deviceLabel($request),
         ));
     }
@@ -104,7 +105,7 @@ final class AnnouncementController
             $announcement_id,
             $this->idempotencyKey($request),
             $requestId,
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             $this->deviceLabel($request),
         ));
     }

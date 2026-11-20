@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Module\Menu\MenuException;
@@ -35,25 +36,25 @@ final class MenuController
 
     public function storeGroup(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::MENU_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->createGroup($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::MENU_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->createGroup($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function storeLink(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::MENU_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->createLink($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::MENU_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->createLink($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function update(Request $request, string $menu_key): Response
     {
         return $this->run($request, PermissionRegistry::MENU_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($menu_key): array {
-            return ApiOutcome::ok($kernel->menus->updateNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId);
+            return ApiOutcome::ok($kernel->menus->updateNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId);
         });
     }
 
     public function destroy(Request $request, string $menu_key): Response
     {
         return $this->run($request, PermissionRegistry::MENU_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($menu_key): array {
-            $kernel->menus->removeNode(rawurldecode($menu_key), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->menus->removeNode(rawurldecode($menu_key), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -62,7 +63,7 @@ final class MenuController
     public function move(Request $request, string $menu_key): Response
     {
         return $this->run($request, PermissionRegistry::MENU_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($menu_key): array {
-            $kernel->menus->moveNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->menus->moveNode(rawurldecode($menu_key), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -71,7 +72,7 @@ final class MenuController
     public function visible(Request $request, string $menu_key): Response
     {
         return $this->run($request, PermissionRegistry::MENU_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($menu_key): array {
-            $kernel->menus->setVisible(rawurldecode($menu_key), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->menus->setVisible(rawurldecode($menu_key), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -79,7 +80,7 @@ final class MenuController
 
     public function reset(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::MENU_RESET, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->resetTree($actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::MENU_RESET, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->menus->resetTree($actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     /**

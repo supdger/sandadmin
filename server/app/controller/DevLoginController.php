@@ -13,6 +13,7 @@ use plugin\sandadmin\app\model\system\SystemUser;
 use plugin\sandadmin\basic\OpenController;
 use plugin\sandadmin\utils\ForcedPasswordChange;
 use plugin\sandadmin\utils\JwtSecretGuard;
+use Sandadmin\Application\Security\ClientIpResolver;
 use support\exception\PageNotFoundException;
 use support\Request;
 use support\Response;
@@ -24,9 +25,10 @@ use Webman\Event\Event;
  * 免口令给开发账号签发与正常登录同构的令牌。任一条件不满足抛
  * PageNotFoundException，与路由不存在响应逐字节一致，消除可探测指纹；
  * 生产环境不得开启 SAND_DEV_LOGIN。
- * 对端 IP 只取 getRemoteIp()（Workerman 真实连接地址），不信代理头；
+ * 放行判定只认 TCP 对端（DevLoginGate 内 getRemoteIp()），不信代理头；
  * 请求出现 X-Forwarded-For / X-Real-IP / Forwarded 时一律拒绝，
- * 因为此时回环地址可能是伪造的代理终点。
+ * 因为此时回环地址可能是伪造的代理终点。审计字段经 ClientIpResolver
+ * 取值，此门禁下解析结果恒等于对端。
  */
 final class DevLoginController extends OpenController
 {
@@ -80,7 +82,7 @@ final class DevLoginController extends OpenController
             return $this->fail('您已被禁止登录!');
         }
         $user->login_time = date('Y-m-d H:i:s');
-        $user->login_ip = $request->getRemoteIp();
+        $user->login_ip = ClientIpResolver::clientIp($request);
         $user->save();
 
         $accessExp = config('plugin.sandadmin.saithink.access_exp', 3 * 3600);
@@ -152,7 +154,7 @@ final class DevLoginController extends OpenController
                 'method' => $request->method(),
                 'router' => $request->uri(),
                 'service_name' => '开发本机登录',
-                'ip' => $request->getRemoteIp(),
+                'ip' => ClientIpResolver::clientIp($request),
                 'request_data' => '开发本机一键登录',
                 'create_time' => date('Y-m-d H:i:s'),
                 'update_time' => date('Y-m-d H:i:s'),

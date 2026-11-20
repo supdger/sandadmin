@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Module\Org\OrgException;
 use support\Request;
@@ -66,7 +67,7 @@ final class MeController
             $newPassword = is_string($body['new_password'] ?? null) ? $body['new_password'] : '';
 
             return ApiOutcome::ok(
-                $kernel->users->changePassword($actor->userId, $oldPassword, $newPassword, $request->getRemoteIp(), $this->device($request)),
+                $kernel->users->changePassword($actor->userId, $oldPassword, $newPassword, ClientIpResolver::clientIp($request), $this->device($request)),
                 $requestId,
             );
         });
@@ -81,7 +82,7 @@ final class MeController
             }
 
             return ApiOutcome::ok(
-                $kernel->users->updateProfile($actor->userId, $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)),
+                $kernel->users->updateProfile($actor->userId, $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)),
                 $requestId,
             );
         });

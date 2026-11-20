@@ -24,6 +24,8 @@ final class McpGate
 
     public static function remoteAllowed(Request $request): bool
     {
+        // 判定的是 TCP 对端直连回环，保留 getRemoteIp()：转发头出现即拒绝，
+        // 不走 ClientIpResolver（解析结果在此场景恒等于对端）。
         return self::isLoopback($request->getRemoteIp())
             && !self::hasForwardedHeaders($request);
     }

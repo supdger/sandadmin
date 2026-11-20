@@ -38,6 +38,14 @@ return [
         'required_header_value' => env('SAND_CSRF_HEADER_VALUE') ?: null,
     ],
 
+    // 可信反向代理 IP/CIDR 名单（逗号分隔，支持 IPv4/IPv6 段）。
+    // 仅当 TCP 对端命中名单时 ClientIpResolver 才采信 Forwarded /
+    // X-Forwarded-For 取客户端 IP；留空 = 转发头一律忽略，只认对端。
+    'trusted_proxies' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) (env('SAND_TRUSTED_PROXIES') ?: '')),
+    ), static fn (string $value): bool => $value !== '')),
+
     // v1 组跨域白名单：allowed_origins 留空 = 仅同源；精确匹配，不反射不通配。
     'cors' => [
         'allowed_origins' => array_values(array_filter(array_map(

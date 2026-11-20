@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Contract\Generated\ErrorCodeRegistry;
 use Sandadmin\Contract\Generated\PermissionRegistry;
 use Sandadmin\Module\Dict\DictException;
@@ -39,18 +40,18 @@ final class DictController
 
     public function store(Request $request): Response
     {
-        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createType($this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function update(Request $request, string $type_id): Response
     {
-        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateType(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function destroy(Request $request, string $type_id): Response
     {
         return $this->run($request, PermissionRegistry::DICT_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($type_id): array {
-            $kernel->dicts->removeType(OrgInput::pathId($type_id, 'type_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->removeType(OrgInput::pathId($type_id, 'type_id'), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -58,18 +59,18 @@ final class DictController
 
     public function storeItem(Request $request, string $type_id): Response
     {
-        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request), $this->idempotencyKey($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_CREATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->createItem(OrgInput::pathId($type_id, 'type_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request), $this->idempotencyKey($request)), $requestId));
     }
 
     public function updateItem(Request $request, string $item_id): Response
     {
-        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, $request->getRemoteIp(), $this->device($request)), $requestId));
+        return $this->run($request, PermissionRegistry::DICT_UPDATE, fn (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array => ApiOutcome::ok($kernel->dicts->updateItem(OrgInput::pathId($item_id, 'item_id'), $this->body($request), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request)), $requestId));
     }
 
     public function destroyItem(Request $request, string $item_id): Response
     {
         return $this->run($request, PermissionRegistry::DICT_DELETE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
-            $kernel->dicts->removeItem(OrgInput::pathId($item_id, 'item_id'), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->removeItem(OrgInput::pathId($item_id, 'item_id'), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -78,7 +79,7 @@ final class DictController
     public function itemStatus(Request $request, string $item_id): Response
     {
         return $this->run($request, PermissionRegistry::DICT_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId) use ($item_id): array {
-            $kernel->dicts->setItemStatus(OrgInput::pathId($item_id, 'item_id'), OrgInput::status($this->body($request)), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->setItemStatus(OrgInput::pathId($item_id, 'item_id'), OrgInput::status($this->body($request)), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });
@@ -89,7 +90,7 @@ final class DictController
         return $this->run($request, PermissionRegistry::DICT_UPDATE, function (BizKernel $kernel, OrgActor $actor, Request $request, string $requestId): array {
             $body = $this->body($request);
             $typeId = OrgInput::requiredId($body, 'type_id');
-            $kernel->dicts->sortItems($typeId, OrgInput::idList($body, 'item_ids', true), $actor, $requestId, $request->getRemoteIp(), $this->device($request));
+            $kernel->dicts->sortItems($typeId, OrgInput::idList($body, 'item_ids', true), $actor, $requestId, ClientIpResolver::clientIp($request), $this->device($request));
 
             return ApiOutcome::ok(new \stdClass(), $requestId);
         });

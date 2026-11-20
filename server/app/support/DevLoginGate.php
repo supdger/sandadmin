@@ -32,6 +32,8 @@ final class DevLoginGate
 
     public static function allowed(Request $request): bool
     {
+        // 这里验的是 TCP 对端本身必须是回环直连，保留 getRemoteIp()：
+        // 带转发头的请求已被 hasForwardedHeaders 拒掉，解析客户端 IP 没有意义。
         return self::allows(self::enabled(), $request->getRemoteIp(), self::hasForwardedHeaders($request));
     }
 

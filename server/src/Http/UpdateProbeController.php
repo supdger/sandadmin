@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Sandadmin\Http;
 
+use Sandadmin\Application\Security\ClientIpResolver;
 use Sandadmin\Module\Package\UpdateChallenge;
 use Sandadmin\Module\Package\UpdateProbe;
 use support\Request;
@@ -30,7 +31,7 @@ final class UpdateProbeController
         }
         $token = $request->header(UpdateProbe::TOKEN_HEADER);
         $payload = UpdateChallenge::forRuntime()->answer(
-            $request->getRemoteIp(),
+            ClientIpResolver::clientIp($request),
             is_string($token) ? $token : null,
         );
         if ($payload === null) {
